@@ -377,7 +377,7 @@ fn a_chat_opens_at_its_end_and_reads_back_keeping_its_place() {
     stories.begin("long", &reading.browser);
     long_steps(&mut reading);
     let setup = tier.held_setup();
-    let mut reader = reading.player(&setup);
+    let mut reader = reading.player();
     let mut harness = temper_client_browser_world::harness(setup);
     let outcome = harness.run(&mut [&mut ctl, &mut reader]);
     drop(reader);

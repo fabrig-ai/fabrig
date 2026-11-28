@@ -1,5 +1,6 @@
 //! Scripted root for landing-by-turn stories (domain/landing.md, 16).
 use crate::{REPO, World, changes};
+use jig_domain_contract as contract;
 use skein_fake_forge_domain::{api as raw, commit_count};
 use skein_lib::Wall;
 use temper_engine_domain_forge as top;
@@ -519,7 +520,7 @@ pub fn close_landing_at(world: &mut World, task: u64, first: u64) {
         world.event(top::Event::Committed { entry });
         world.run_for(5);
         let requests = world.take_seen();
-        if requests.iter().any(|request| matches!(request, top::Request::Released { task: ended } if *ended == task)) {
+        if requests.iter().any(|request| matches!(request, top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: ended })) if *ended == task)) {
             return;
         }
     }

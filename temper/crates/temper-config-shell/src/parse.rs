@@ -1,28 +1,42 @@
 //! Spanned TOML checked against the rows before any document is constructed (file.md, 2 and 6).
+mod sites;
+
 use crate::{
     FILE_BYTES, Facts, File, ForgeSignIn, Internal, Keys, Member, OpenId, OpenIdClient, Programs, Push, Read, Refusal,
     Shape, SignIn, Test, TestGitHub, TestGoogle, Transport, binary, document,
+    formats::{FIRST, Formats, MoveKind, MovedOut, PRODUCTION},
     rows::{self, Form, Required},
-    source::at,
+    source::{Lines, at, diagnostic},
 };
 use serde::Deserialize;
+use sites::{Children, Fields, Site};
 use std::{
+    borrow::Borrow,
     net::SocketAddr,
     path::{Component, Path, PathBuf},
 };
-use toml::{
-    Value,
-    de::{DeTable, DeValue},
-};
+use toml::{Table, Value, de::DeTable};
 
 pub fn parse(text: &[u8], shape: Shape, facts: &Facts) -> Result<Read, Refusal> {
-    read(text, shape, facts, None)
+    parse_at(text, shape, facts, PRODUCTION)
+}
+
+pub(crate) fn parse_at(text: &[u8], shape: Shape, facts: &Facts, formats: Formats) -> Result<Read, Refusal> {
+    read(text, shape, || Ok(facts), None, formats)
+}
+
+pub(super) fn parse_with_facts(
+    text: &[u8],
+    shape: Shape,
+    facts: impl FnOnce() -> Result<Facts, Refusal>,
+) -> Result<Read, Refusal> {
+    read(text, shape, facts, None, PRODUCTION)
 }
 
 /// Each top-level key supplied replaces the whole key; omitted keys stay.
 /// Required keys may come from the file (testing/qa/deployment.md, 6.2).
 pub fn patch(file: &File, text: &[u8], shape: Shape, facts: &Facts) -> Result<Read, Refusal> {
-    let patched = read(text, shape, facts, Some(file))?;
+    let patched = read(text, shape, || Ok(facts), Some(file), PRODUCTION)?;
     // Check inherited keys too and return the lines of the file that will be written.
     parse(&crate::render(&patched.file, shape), shape, facts)
 }
@@ -41,9 +55,24 @@ pub(super) fn table(text: &[u8]) -> Result<(&str, toml::Spanned<DeTable<'_>>), R
     Ok((text, spanned))
 }
 
-fn read(text: &[u8], shape: Shape, facts: &Facts, base: Option<&File>) -> Result<Read, Refusal> {
+fn read<F: Borrow<Facts>>(
+    text: &[u8],
+    shape: Shape,
+    facts: impl FnOnce() -> Result<F, Refusal>,
+    base: Option<&File>,
+    formats: Formats,
+) -> Result<Read, Refusal> {
     let (text, spanned) = table(text)?;
-    let mut decoded = toml::Table::deserialize(toml::de::Deserializer::from(spanned.clone())).expect("parsed TOML");
+    let mut decoded = Table::deserialize(toml::de::Deserializer::from(spanned.clone())).expect("parsed TOML");
+    let format = formats.read(text, spanned.get_ref(), &decoded, shape)?;
+    let lines = Lines::new(text);
+    let mut fields = sites::fields(spanned.get_ref());
+    // A patch supplies newest-format keys, not another version of the file.
+    let changes = if base.is_none() && format < formats.newest {
+        Changes::apply(&lines, &mut decoded, &mut fields, format, formats)?
+    } else {
+        Changes::default()
+    };
     let replaces_environment = decoded.contains_key("environment");
     if let Some(base) = base {
         let rendered = crate::render(base, shape);
@@ -52,13 +81,17 @@ fn read(text: &[u8], shape: Shape, facts: &Facts, base: Option<&File>) -> Result
         table.extend(decoded);
         decoded = table;
     }
-    let mut reader = Reader { text, shape, keys: Keys::default(), refusal: Refusal::empty(), environment: Vec::new() };
-    reader.table(spanned.get_ref(), &Value::Table(decoded.clone()), "");
-    reader.groups(&decoded);
+    let value = Value::Table(decoded);
+    let mut reader =
+        Reader { lines: &lines, shape, keys: Keys::default(), refusal: Refusal::empty(), environment: Vec::new() };
+    reader.table(&fields, &value, "");
+    reader.groups(&value);
     if !reader.refusal.problems.is_empty() {
         return Err(reader.refusal);
     }
-    let mut file = file(&decoded, reader.environment);
+    let facts = facts()?;
+    let facts = facts.borrow();
+    let mut file = file(&value, reader.environment);
     if let Some(base) = base
         && !replaces_environment
     {
@@ -74,28 +107,75 @@ fn read(text: &[u8], shape: Shape, facts: &Facts, base: Option<&File>) -> Result
     }
     reader.keys.record_rows(shape, &file, facts);
     let document = document::build(&file, shape, facts)?;
-    Ok(Read { file, document, keys: reader.keys })
+    Ok(Read { file, document, keys: reader.keys, format, notices: changes.notices, moved_out: changes.moved_out })
 }
+
+#[derive(Default)]
+struct Changes {
+    notices: Vec<String>,
+    moved_out: Vec<MovedOut>,
+}
+impl Changes {
+    fn apply(
+        lines: &Lines,
+        table: &mut Table,
+        fields: &mut Fields<'_>,
+        written: i64,
+        formats: Formats,
+    ) -> Result<Self, Refusal> {
+        let mut notices = Vec::new();
+        let mut moved_out = Vec::new();
+        for movement in formats.moves.iter().filter(|movement| movement.format > written) {
+            let key = movement.key;
+            let Some((value, site)) = sites::take(table, fields, key, "") else { continue };
+            let offset = site.offset;
+            let line = lines.at(offset);
+            let refuse = |words: &str| Refusal::one(diagnostic(key, Some(line), words, false));
+            let destination = match movement.kind {
+                MoveKind::Renamed { new } => Some((new, value, site)),
+                MoveKind::Converted { new, convert, .. } => {
+                    let value = convert(value).map_err(refuse)?;
+                    let site = Site::converted(offset, &value);
+                    Some((new, value, site))
+                }
+                MoveKind::MovedOut { .. } => {
+                    moved_out.push(MovedOut { key, line, value, movement });
+                    None
+                }
+                MoveKind::Gone { .. } => None,
+            };
+            if let Some((new, value, site)) = destination
+                && !sites::put(table, fields, new, value, site)
+            {
+                return Err(refuse(&format!("cannot move to {new}; already given")));
+            }
+            notices.push((offset, diagnostic(key, Some(line), &movement.notice(written, formats.newest), false)));
+        }
+        notices.sort_by_key(|(offset, _)| *offset);
+        Ok(Self { notices: notices.into_iter().map(|(_, notice)| notice).collect(), moved_out })
+    }
+}
+
 struct Reader<'a> {
-    text: &'a str,
+    lines: &'a Lines,
     shape: Shape,
     keys: Keys,
     refusal: Refusal,
     environment: Vec<(usize, String, String)>,
 }
 impl Reader<'_> {
-    fn table(&mut self, table: &DeTable<'_>, value: &Value, parent: &str) {
-        for (key, spanned) in table {
-            let name = key.get_ref().as_ref();
+    fn table(&mut self, table: &Fields<'_>, value: &Value, parent: &str) {
+        for (name, site) in table {
+            let name = name.as_ref();
             let path = if parent.is_empty() { name.to_owned() } else { format!("{parent}.{name}") };
-            let line = at(self.text, key.span().start);
+            let line = self.lines.at(site.offset);
             self.keys.sources.push((path.clone(), line));
             let value = value.get(name).expect("same parsed key");
             if parent == "environment" {
                 if name.is_empty() || name.contains(['=', '\0']) || value.as_str().is_none_or(|s| s.contains('\0')) {
                     self.refusal.push(&path, Some(line), &Form::Environment.words());
                 } else {
-                    self.environment.push((key.span().start, name.into(), value.as_str().expect("string").into()));
+                    self.environment.push((site.offset, name.into(), value.as_str().expect("string").into()));
                 }
                 continue;
             }
@@ -118,30 +198,26 @@ impl Reader<'_> {
                 self.refusal.push(&path, Some(line), &row.form.words());
                 continue;
             }
-            match spanned.get_ref() {
-                DeValue::Table(child) => self.table(child, value, &path),
-                DeValue::Array(array) if row.form == Form::Members || row.form == Form::Records => {
+            match &site.children {
+                Children::Table(child) => self.table(child, value, &path),
+                Children::Array(array) if row.form == Form::Members || row.form == Form::Records => {
                     for (index, item) in array.iter().enumerate() {
                         let entry = format!("{path}[{index}]");
-                        if let DeValue::Table(fields) = item.get_ref() {
-                            self.keys.sources.push((entry.clone(), at(self.text, item.span().start)));
+                        if let Children::Table(fields) = &item.children {
+                            self.keys.sources.push((entry.clone(), self.lines.at(item.offset)));
                             self.table(fields, value.get(index).expect("same array"), &entry);
                         } else {
-                            self.refusal.push(&entry, Some(at(self.text, item.span().start)), "a table");
+                            self.refusal.push(&entry, Some(self.lines.at(item.offset)), "a table");
                         }
                     }
                 }
-                DeValue::String(_)
-                | DeValue::Integer(_)
-                | DeValue::Float(_)
-                | DeValue::Boolean(_)
-                | DeValue::Datetime(_)
-                | DeValue::Array(_) => {}
+                Children::Leaf | Children::Array(_) => {}
             }
         }
-        for row in rows::ROWS {
+        let template = normalized(parent);
+        for row in rows::ROWS.iter().filter(|row| row.required != Required::No) {
             let (prefix, name) = row.key.rsplit_once('.').unwrap_or(("", row.key));
-            if prefix != normalized(parent) || !row.shapes.contains(&self.shape) {
+            if prefix != template || !row.shapes.contains(&self.shape) {
                 continue;
             }
             let required = match row.required {
@@ -156,8 +232,7 @@ impl Reader<'_> {
             }
         }
     }
-    fn groups(&mut self, root: &toml::Table) {
-        let root = Value::Table(root.clone());
+    fn groups(&mut self, root: &Value) {
         if self.shape != Shape::WorkerAlone
             && root.get("webhooks").is_none()
             && root
@@ -168,19 +243,19 @@ impl Reader<'_> {
         {
             self.refusal.push("webhooks (its default)", None, "listen uses port 65535; give webhooks explicitly");
         }
-        let google = lookup(&root, "sign_in.google").is_some_and(Value::is_table);
+        let google = lookup(root, "sign_in.google").is_some_and(Value::is_table);
         for key in ["sign_in.members", "sign_in.forges", "test.google"] {
-            if lookup(&root, key).is_some() && !google {
+            if lookup(root, key).is_some() && !google {
                 self.refusal.push(key, self.keys.line(key), "requires [sign_in.google]");
             }
         }
-        if google && lookup(&root, "sign_in.members").is_none() {
+        if google && lookup(root, "sign_in.members").is_none() {
             self.refusal.push("sign_in.members", None, "required with [sign_in.google]");
         }
-        if lookup(&root, "test.push").is_some() && lookup(&root, "push").is_none() {
+        if lookup(root, "test.push").is_some() && lookup(root, "push").is_none() {
             self.refusal.push("test.push", self.keys.line("test.push"), "requires [push]");
         }
-        if let Some(github) = lookup(&root, "test.github")
+        if let Some(github) = lookup(root, "test.github")
             && github.get("transport").and_then(Value::as_str) == Some("plaintext")
             && !github
                 .get("api")
@@ -233,6 +308,7 @@ fn endpoint(s: &str, max: usize, origin: bool) -> bool {
 }
 fn valid(value: &Value, form: Form) -> bool {
     match form {
+        Form::Format => value.as_integer().is_some_and(|n| n >= FIRST),
         Form::Table | Form::Environment => value.is_table(),
         Form::Members => value.as_array().is_some_and(|a| (1..=64).contains(&a.len())),
         Form::Records => value.is_array(),
@@ -295,20 +371,19 @@ fn transport(value: &Value) -> Transport {
         }
     }
 }
-fn file(table: &toml::Table, mut environment: Vec<(usize, String, String)>) -> File {
-    let value = Value::Table(table.clone());
+fn file(value: &Value, mut environment: Vec<(usize, String, String)>) -> File {
     environment.sort_by_key(|(offset, _, _)| *offset);
-    let sign_in = lookup(&value, "sign_in.google").map(|google| SignIn {
+    let sign_in = lookup(value, "sign_in.google").map(|google| SignIn {
         client: text(google, "client").expect("checked client"),
         secret: path(google, "secret").expect("checked secret"),
-        members: items(&value, "sign_in.members")
+        members: items(value, "sign_in.members")
             .iter()
             .map(|v| Member {
                 address: text(v, "address").expect("checked address"),
                 login: text(v, "login").expect("checked login"),
             })
             .collect(),
-        forges: items(&value, "sign_in.forges")
+        forges: items(value, "sign_in.forges")
             .iter()
             .map(|v| ForgeSignIn {
                 forge: u16::try_from(v.get("forge").and_then(Value::as_integer).expect("checked forge"))
@@ -317,7 +392,7 @@ fn file(table: &toml::Table, mut environment: Vec<(usize, String, String)>) -> F
             })
             .collect(),
     });
-    let openid = lookup(&value, "openid").map(|v| OpenId {
+    let openid = lookup(value, "openid").map(|v| OpenId {
         key: path(v, "key"),
         addresses: v.get("addresses").map(|v| {
             v.as_array()
@@ -336,43 +411,43 @@ fn file(table: &toml::Table, mut environment: Vec<(usize, String, String)>) -> F
             .collect(),
     });
     File {
-        listen: text(&value, "listen").map(|s| s.parse().expect("checked socket")),
-        public: text(&value, "public"),
-        webhooks: text(&value, "webhooks").map(|s| s.parse().expect("checked socket")),
-        owner: text(&value, "owner"),
-        workers: text(&value, "workers").map(|s| s.parse().expect("checked socket")),
-        engine: text(&value, "engine").map(|s| s.parse().expect("checked socket")),
-        name: text(&value, "name"),
+        listen: text(value, "listen").map(|s| s.parse().expect("checked socket")),
+        public: text(value, "public"),
+        webhooks: text(value, "webhooks").map(|s| s.parse().expect("checked socket")),
+        owner: text(value, "owner"),
+        workers: text(value, "workers").map(|s| s.parse().expect("checked socket")),
+        engine: text(value, "engine").map(|s| s.parse().expect("checked socket")),
+        name: text(value, "name"),
         sign_in,
         openid,
-        push: lookup(&value, "push").map(|v| Push {
+        push: lookup(value, "push").map(|v| Push {
             key: path(v, "key").expect("checked key"),
             subject: text(v, "subject").expect("checked subject"),
         }),
         programs: Programs {
-            git: path(&value, "programs.git"),
-            claude: path(&value, "programs.claude"),
-            forgejo: path(&value, "programs.forgejo"),
-            runner: path(&value, "programs.runner"),
+            git: path(value, "programs.git"),
+            claude: path(value, "programs.claude"),
+            forgejo: path(value, "programs.forgejo"),
+            runner: path(value, "programs.runner"),
         },
         environment: environment.into_iter().map(|(_, k, v)| (k, v)).collect(),
-        internal: Internal { bundle: path(&value, "internal.bundle") },
+        internal: Internal { bundle: path(value, "internal.bundle") },
         test: Test {
-            github: lookup(&value, "test.github").map(|v| TestGitHub {
+            github: lookup(value, "test.github").map(|v| TestGitHub {
                 api: text(v, "api").expect("checked API"),
                 transport: transport(v.get("transport").expect("checked transport")),
                 remote: text(v, "remote").expect("checked remote"),
                 web: text(v, "web").expect("checked web"),
                 git: path(v, "git"),
             }),
-            google: lookup(&value, "test.google").map(|v| TestGoogle {
+            google: lookup(value, "test.google").map(|v| TestGoogle {
                 issuer: text(v, "issuer").expect("checked issuer"),
                 authorization: text(v, "authorization").expect("checked authorization"),
                 token: text(v, "token").expect("checked token"),
                 keys: text(v, "keys").expect("checked keys"),
                 transport: transport(v.get("transport").expect("checked transport")),
             }),
-            push_services: lookup(&value, "test.push.services").map(|v| {
+            push_services: lookup(value, "test.push.services").map(|v| {
                 v.as_array()
                     .expect("checked services")
                     .iter()

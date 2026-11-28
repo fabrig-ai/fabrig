@@ -67,7 +67,7 @@ fn template_choice(model: u8) -> core::Record {
     template.llm = Some(jig_domain_tasks::LlmChoice {
         later: None,
         account: None,
-        main: ModelEffort { model, effort: Some(1) },
+        main: ModelEffort { model, effort: Some(1), speed: None },
         subagents: Box::new([]),
     });
     changed(s::Setting::Template(template.number), s::Value::Template(Box::new(template)))

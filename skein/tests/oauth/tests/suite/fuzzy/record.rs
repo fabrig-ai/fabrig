@@ -1,8 +1,11 @@
-//! Seeded arbitrary and mutated kept records (data/codec/golden.md, 1).
+//! Seeded arbitrary and mutated kept records (`skein/docs/design/data/codec/golden.md`, 1).
+//! Each case keeps one stream across all rounds (`skein/docs/design/testing/sweeps.md`, 4.2).
 
+use core::convert::Infallible;
 use skein_lib::{Rng, Wall};
 use skein_oauth::{SavedToken, decode_record, encode_record};
 use skein_oauth_world::{boxed, documents};
+use skein_world::{sweep::cases, this_test};
 
 // Enough to reach every field of the fixture and exercise refused lengths.
 const INPUT_BYTES: usize = 512;
@@ -34,7 +37,15 @@ fn full_record() -> SavedToken {
 
 #[test]
 fn arbitrary_and_mutated_records_round_trip_when_they_decode() {
-    let mut rng = Rng::new(SEED);
+    cases(this_test!("arbitrary_and_mutated_records_round_trip_when_they_decode"), [SEED], |seed| {
+        round_trip_case(seed);
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
+fn round_trip_case(seed: u64) {
+    let mut rng = Rng::new(seed);
     let mut input = [0; INPUT_BYTES];
     for _ in 0..ARBITRARY_ROUNDS {
         let length = usize::try_from(

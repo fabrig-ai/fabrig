@@ -61,7 +61,7 @@ pub enum Delivery {
         project: u32,
     },
     /// Resumes the start only after this decision is durable.
-    Start(jig_domain_core::start::Continuation),
+    Resume(jig_domain_core::engine::Resume),
     /// Tell a new finding holder only after the areas/triager save commits (domain/areas.md, 5).
     FindingsOwned {
         project: u32,
@@ -131,6 +131,11 @@ pub enum Delivery {
     /// Release a committed connector entry to its client.
     ForgeCommitted {
         entry: u64,
+    },
+    /// Let the forge read an adoption only once its role seed is committed.
+    TakeForgeAdoption {
+        repository: skein_forge::api::Repository,
+        request: Token,
     },
     /// One bounded connector call after all preceding progress commits.
     ForgeCall {
@@ -602,6 +607,7 @@ impl Decision {
             | Delivery::MoveStanding { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
             | Delivery::Procedure { .. }
@@ -621,7 +627,7 @@ impl Decision {
             | Delivery::Refuse { .. }
             | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
-            | Delivery::Start(_)
+            | Delivery::Resume(_)
             | Delivery::Load { .. } => true,
         };
         if !within {

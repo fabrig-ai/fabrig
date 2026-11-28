@@ -101,8 +101,8 @@ use skein_lib::{Deadlines, Duration, Env, Id, Queue, ReplyTo, Slab, Time, Token}
 use crate::Workspace;
 use crate::agent;
 use crate::boundary::{
-    Answer, Ask, AskRefusal, End, Fault, Invalid, Policy, Ran, Read, Refusal, Request, Returned, RunFailure, Stop,
-    Window,
+    Answer, Ask, AskRefusal, End, Fault, Hooks, Invalid, Policy, Ran, Read, Refusal, Request, Returned, RunFailure,
+    Stop, Window,
 };
 use crate::budget::{Exhausted, Spend};
 use crate::call::{Call, Calls, Withdrawal, Work};
@@ -121,7 +121,7 @@ use crate::{opening, prompt};
 
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent start policy, transcript and host-stop state")]
-pub(crate) struct Run {
+pub struct Run {
     /// The budget phase stays known through an accepted terminal.
     wind_down: Option<crate::wind_down::WindDown>,
     /// Exact retained children; closures are emitted one per resume.
@@ -180,6 +180,29 @@ pub(crate) struct Run {
     turns: u32,
     /// Last historical session turn sequence, including a restored prefix.
     sequence: Option<u32>,
+}
+
+impl Run {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_host_name(&self) -> Token {
+        self.host_name
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_closed(&self) -> bool {
+        match self.state {
+            State::Closed => true,
+            State::Awaiting { .. }
+            | State::Preparing { .. }
+            | State::Working { .. }
+            | State::Stopping { .. }
+            | State::Waiting { .. }
+            | State::Listening { .. }
+            | State::Winding { .. } => false,
+        }
+    }
 }
 
 /// The host's grace starts only after every sent completion has answered.
@@ -431,7 +454,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &
             Mode::Finite => {}
         }
     }
-    run.state = match prepare::next(run.workspace.as_ref(), None) {
+    run.state = match prepare::next(&run.charter, run.workspace.as_ref(), None) {
         Some(step) => look(run, id, reply_to, main, step, env, out),
         None => ready(run, conversations, reply_to, main, env, facts, out),
     };
@@ -681,6 +704,43 @@ pub(crate) fn probed(domain: &mut Domain, env: &Env<Limits>, owner: Token, execu
             prepare::checks(&mut run.found, step, executable);
             prepared(run, conversations, id, reply_to, main, step, env, facts, out)
         }
+        State::Stopping { reply_to, main, failure } => stop(run, conversations, reply_to, main, failure, out),
+        State::Awaiting { .. }
+        | State::Working { .. }
+        | State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Winding { .. }
+        | State::Closed => {
+            unreachable!("a run probes only while it prepares")
+        }
+    };
+    follow(runs, alarms, facts, ready, id);
+}
+
+pub(crate) fn hooks_probed(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    hooks: Option<Hooks>,
+    out: &mut Queue<Request>,
+) {
+    let Domain { rng: _, runs, conversations, calls: _, alarms, facts, ready } = domain;
+    let id = Id::<Run>::from_token(owner);
+    facts.about(owner);
+    let run = runs.get_mut(id).expect("a run lives until its look in flight has ended");
+    let state = mem::replace(&mut run.state, State::Closed);
+    run.state = match state {
+        State::Preparing { reply_to, main, step } => match hooks {
+            Some(hooks) => {
+                prepare::hooks(&mut run.found, step, hooks);
+                prepared(run, conversations, id, reply_to, main, step, env, facts, out)
+            }
+            None => {
+                assert!(step.look == prepare::Look::Hooks, "a hooks probe answers a hooks step");
+                let legacy = Step { directory: step.directory, look: prepare::Look::Checks };
+                look(run, id, reply_to, main, legacy, env, out)
+            }
+        },
         State::Stopping { reply_to, main, failure } => stop(run, conversations, reply_to, main, failure, out),
         State::Awaiting { .. }
         | State::Working { .. }
@@ -1659,7 +1719,7 @@ fn prepared(
     facts: &mut Facts,
     out: &mut Queue<Request>,
 ) -> State {
-    match prepare::next(run.workspace.as_ref(), Some(step)) {
+    match prepare::next(&run.charter, run.workspace.as_ref(), Some(step)) {
         Some(next) => look(run, id, reply_to, main, next, env, out),
         None => ready(run, conversations, reply_to, main, env, facts, out),
     }

@@ -178,7 +178,9 @@ pub(crate) fn delivered(peers: &mut Neighbours, store: &Store, delivery: &root::
         | root::Delivery::System { .. }
         | root::Delivery::LostRead { .. }
         | root::Delivery::Store(_)
-        | root::Delivery::Start(_)
+        | root::Delivery::Connector(..)
+        | root::Delivery::Resume(_)
+        | root::Delivery::ConnectorLoad { .. }
         | root::Delivery::Procedure { .. } => {}
     }
 }

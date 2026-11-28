@@ -3,7 +3,8 @@ family jig-store-settings 3
 # Settings hold each value whole; instructions are their text bytes, never a path.
 record Text { bytes: bytes 32 }
 record ModelName { name: bytes 4096 efforts: list 16 bytes 32 }
-record Model { provider: u32 dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 cache_life_ms: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
+record Speed { name: bytes 32 also: list 2 bytes 32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 }
+record Model { provider: u32 dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 cache_life_ms: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 speeds: list 4 Speed = [] speed: option bytes 32 = none }
 record RunPolicy { instructions: bytes 65536 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: Model alternatives: list 64 Model inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 }
 enum Kinds { workers, engine, both }
 record WakeBatch { count: u32 age: duration }
@@ -14,7 +15,7 @@ record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: Re
 record Segment { bytes: bytes 4096 }
 record Document { connector: u16 name: list 8 Segment path: bytes 256 heading: option bytes 80 }
 record CharterPart { on: u32 instructions: bytes 65536 }
-record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document parts: list 8 CharterPart }
+record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document parts: list 8 CharterPart setting_name: option bytes 32 = none }
 record Overlay { rest: option bool model: option Model alternatives: option list 64 Model inspect: option bool modify: option bool shell: option bool agents: option bool tools: option u64 hosts: option Kinds waiting: option duration resume: option bool turns: option u32 time: option duration reserve_turns: option u32 reserve_time: option duration call_timeout: option duration spend: option u64 documents: option list 2 Document instructions: bytes 65536 parts: list 8 CharterPart }
 enum ModelSource { stock, list, person }
 record CatalogueModel { number: u32 model: Model shown: option bytes 4096 description: option bytes 512 picker: bool withdrawn: bool source: ModelSource estimated: bool first_read: option u64 }
@@ -73,7 +74,7 @@ enum TemplateBudget { amount: Amount, as_allowed: AsAllowed, given }
 record Span { span: duration }
 enum TemplateDeadline { none, span: Span, given }
 record TemplateOverride { template: u32 executor: option TemplateExecutor budget: option TemplateBudget deadline: option TemplateDeadline priority: option u32 }
-record ConfiguredPolicy { policy: Policy permissions: list 65536 PermissionRole templates: list 32 TemplateOverride }
+record ConfiguredPolicy { policy: Policy permissions: list 65536 PermissionRole templates: list 32 TemplateOverride setting_name: option bytes 32 = none }
 record FieldRule { name: bytes 524288 max: u32 }
 record Verdict { code: u32 words: u32 followups: u32 fields: bytes 1048576 pieces FieldRule }
 enum PartKind { resource, pool, result, procedure, effect, outbox, hold }
@@ -90,11 +91,11 @@ enum Retention { kept, forgotten_once_read }
 record Closer { connector: u16 code: u32 }
 enum EndedBy { result, requester, closer: Closer, standing }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
-record ModelEffort { model: u8 effort: option u8 }
+record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }
 record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record Symbol { connector: u16 symbol: u16 }
-record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
+record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol setting_name: option bytes 32 = none }
 record Override { name: bytes 64 value: u64 reason: bytes 120 }
 record LimitsValue { overrides: list 256 Override }
 enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel, overlay: boxed Overlay, worker: boxed WorkerSetting, provider: boxed ProviderSetting, limits: LimitsValue }

@@ -25,11 +25,14 @@ fn model() -> core::Model {
         price_unit: 1000,
         efforts: Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]),
         effort: Some(Box::from(b"high".as_slice())),
+        speeds: Box::default(),
+        speed: None,
     }
 }
 
 pub(super) fn charter() -> core::Charter {
     core::Charter {
+        name: None,
         parts: Box::new([
             core::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(b"first part".as_slice()) },
             core::CharterPart {
@@ -105,8 +108,9 @@ fn rules() -> a::Rules {
     }
 }
 
-fn policy() -> core::ConfiguredPolicy {
+pub(super) fn policy() -> core::ConfiguredPolicy {
     core::ConfiguredPolicy {
+        name: None,
         policy: a::Policy {
             escalation_role: Some(0),
             ceiling: authority(),
@@ -132,11 +136,12 @@ fn policy() -> core::ConfiguredPolicy {
     }
 }
 
-fn template() -> core::Template {
+pub(super) fn template() -> core::Template {
     core::Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
-        name: Box::from(b"template".as_slice()),
+        shown: Box::from(b"template".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
         contract: tasks::Contract::Verdict {
             choices: Box::new([tasks::Verdict {
@@ -160,17 +165,17 @@ fn template() -> core::Template {
         grace: Some(Duration::from_secs(1)),
         llm: Some(tasks::LlmChoice {
             later: Some(tasks::LlmLater {
-                main: tasks::ModelEffort { model: 1, effort: Some(0) },
-                subagents: Box::new([tasks::ModelEffort { model: 0, effort: None }]),
+                main: tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
+                subagents: Box::new([tasks::ModelEffort { model: 0, effort: None, speed: None }]),
             }),
             account: Some(3),
-            main: tasks::ModelEffort { model: 0, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+            main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
         }),
     }
 }
 
-fn catalogue_name(name: &[u8]) -> s::ModelName {
+pub(super) fn catalogue_name(name: &[u8]) -> s::ModelName {
     s::ModelName {
         name: Box::from(name),
         efforts: Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]),

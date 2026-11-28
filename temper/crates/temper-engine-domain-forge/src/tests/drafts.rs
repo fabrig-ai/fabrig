@@ -1,5 +1,6 @@
 //! Landed draft rules with scripted branch and file reads.
 use super::*;
+use jig_domain_contract as contract;
 use jig_domain_people::ApplicationScope;
 use skein_forge::api::{Answer, Error, Op, Read};
 const REQUEST: Token = Token::new(90);
@@ -187,7 +188,10 @@ fn draft_rows_are_erased_with_their_project_and_forge() {
         let mut d = setup();
         outputs(&mut d, Event::Restore { record: Stored::LandedDraft(row(PATH)) });
         let out = if project {
-            outputs(&mut d, Event::ReleaseProject { project: PROJECT, request: REQUEST })
+            outputs(
+                &mut d,
+                Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: PROJECT })),
+            )
         } else {
             outputs(&mut d, Event::Restore { record: Stored::Forge(removal::record(1, Mode::Connected)) });
             let mut out = outputs(

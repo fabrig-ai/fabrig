@@ -17,3 +17,6 @@ workspace = true
 
 [dev-dependencies]
 skein-codegen.workspace = true
+smith-domain-session.workspace = true
+smith-protocol-translate.workspace = true
+smith-shapes.workspace = true

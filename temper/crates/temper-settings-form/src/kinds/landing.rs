@@ -7,6 +7,7 @@ use temper_client_protocol_wire::v1 as w;
 use temper_client_protocol_wire::v1::Record;
 mod repairs;
 const MOST: u32 = jig_client_protocol_wire::CEILINGS.application_value_bytes;
+const HOOK_TIMEOUT_MAX_DEFAULT: u32 = 3_600;
 fn number(d: &Decoder<'_>, fields: &Fields, name: &[u8], default: u64) -> Result<u64, Error> {
     match optional(fields, name) {
         Some(at) => match d.number(at) {
@@ -79,6 +80,8 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             b"close_job",
             b"landing_attempts",
             b"check_timeout_ms",
+            b"hook_timeout_max_seconds",
+            b"temper_dir_sign_off",
             b"flakes",
             b"gate_retries",
             b"gate_timeout_ms",
@@ -122,6 +125,14 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             landing_attempts: u8::try_from(number(d, &f, b"landing_attempts", 3)?)
                 .or(Err(error(b"landing_attempts", b"u8 bound")))?,
             check_timeout_ms,
+            temper_dir_sign_off: boolean(d, &f, b"temper_dir_sign_off", false)?,
+            hook_timeout_max_seconds: u32::try_from(number(
+                d,
+                &f,
+                b"hook_timeout_max_seconds",
+                u64::from(HOOK_TIMEOUT_MAX_DEFAULT),
+            )?)
+            .or(Err(error(b"hook_timeout_max_seconds", b"u32 bound")))?,
             flakes: match optional(&f, b"flakes") {
                 None => None,
                 Some(at) => match flakes(d, at) {
@@ -337,6 +348,13 @@ pub(super) fn render_landing(v: &w::ProjectLanding, out: &mut Encoder) {
     }
     if let Some(ms) = &v.check_timeout_ms {
         uint(out, b"check_timeout_ms", *ms);
+    }
+    if v.hook_timeout_max_seconds != HOOK_TIMEOUT_MAX_DEFAULT {
+        uint(out, b"hook_timeout_max_seconds", u64::from(v.hook_timeout_max_seconds));
+    }
+    if v.temper_dir_sign_off {
+        out.key(b"temper_dir_sign_off");
+        out.boolean(true);
     }
     match &v.flakes {
         None => {}

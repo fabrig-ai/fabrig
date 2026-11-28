@@ -1,7 +1,11 @@
 use jig_client_views_world::{LIMITS, World};
 use jig_domain_views::{Call, End, Event, Follow, TurnName};
 use skein_lib::{Rng, Token, Wall};
-use std::boxed::Box;
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::{boxed::Box, convert::Infallible};
 fn run(seed: u64) -> Vec<String> {
     let mut world = World::seeded(LIMITS, seed);
     for watcher in 1..=4 {
@@ -50,8 +54,9 @@ fn run(seed: u64) -> Vec<String> {
     world.log().to_vec()
 }
 #[test]
-fn random_subjects_and_slow_streams_replay_and_settle_after_the_last_change() {
-    for seed in 1..=64 {
+fn random_subjects_and_slow_streams_replay_and_settle_after_the_last_change() -> Result<(), Case<Infallible>> {
+    cases(this_test!("random_subjects_and_slow_streams_replay_and_settle_after_the_last_change"), 1..=64, |seed| {
         assert_eq!(run(seed), run(seed), "seed {seed}");
-    }
+        Ok(())
+    })
 }

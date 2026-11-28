@@ -4,14 +4,14 @@ use super::{
     CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Request, Work,
     forge_route, relay_call,
 };
-use crate::assemble::{brief_outputs, finish_brief_plan, take_payload};
+use crate::assemble::{finish_brief_plan, take_payload, take_sections};
 use crate::boundary::{Payload, WorkspacePreparation};
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
+use jig_domain_contract::parts;
 use jig_domain_core as core;
 use jig_domain_link::Grant;
 use jig_domain_tasks as tasks;
-use skein_lib::Queue;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the core's immediate vocabulary")]
 pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, now: core::Now) {
@@ -70,21 +70,6 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
             domain.work.push(Work::Activate { context, ready });
         }
-        core::Now::BriefCorePlanned { task, parent, sections, documents } => {
-            if waiting_for_goal_workspace(domain, task, true) {
-                domain
-                    .run_workspaces
-                    .insert(task, WorkspacePreparation::Brief { parent, sections, documents })
-                    .expect("one brief plan per live task");
-            } else {
-                finish_brief_plan(domain, env, task, parent, sections, documents);
-            }
-        }
-        core::Now::CompleteBrief { brief, order } => {
-            let mut child = Queue::with_capacity(1);
-            child.push(brief::GatherRequest::Complete { brief, order });
-            brief_outputs(domain, env, decision, &mut child);
-        }
         core::Now::WorkspaceRequest { task, attempt, context } => workspace(domain, env, task, attempt, context),
         core::Now::BriefFailed { task, failure } => {
             let counts = match failure.fate {
@@ -97,12 +82,6 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Now::RunPreparationFailed { task } => {
             drop(domain.brief_document_titles.remove(&task));
-            if let Some(sections) = crate::link::take_sections(domain, task) {
-                domain.release_bytes(
-                    crate::budget::section_bytes(&sections),
-                    "failed preparation's completed sections were held",
-                );
-            }
             drop(domain.run_workspaces.remove(&task));
             drop(domain.job_workspaces.remove(&task));
         }
@@ -119,6 +98,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             parts,
             answered,
             grants,
+            brief,
         } => {
             let prepared = Prepared {
                 task,
@@ -133,6 +113,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 parts,
                 answered,
                 grants,
+                brief,
             };
             run_prepared(domain, env, prepared);
         }
@@ -158,7 +139,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             relay_call(domain, &env.limits, decision, to, CallAnswer::NoteRefused(jig_domain_notes::Refusal::Busy));
         }
         core::Now::RestoreRefused => {
-            domain.stop_core();
+            unreachable!("the engine port reports start refusals with their failure");
         }
         core::Now::Account(request) => {
             assert!(super::now(domain, Request::Account(request)), "admitted account output fits the door");
@@ -238,7 +219,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
         return;
     }
     let mut credentials = List::with_capacity(env.limits.forge.resources_per_task);
-    let workspace = forge_route::run_workspace(domain, env, &context, attempt);
+    let workspace = forge_route::run_workspace(domain, env, &context, None);
     if workspace.is_none() && workspace_facts_waiting(domain, &context) {
         domain
             .run_workspaces
@@ -330,13 +311,30 @@ fn waiting_for_goal_workspace(domain: &Domain, task: u64, design_only: bool) -> 
         && domain.forge.goal_workspace_waiting(task, charter.policy.modify)
 }
 
+pub(super) fn plan_brief(domain: &mut Domain, env: &Env<Limits>, context: Box<parts::Preparation>) {
+    if waiting_for_goal_workspace(domain, context.task, true) {
+        domain
+            .run_workspaces
+            .insert(context.task, WorkspacePreparation::Brief(context))
+            .expect("one brief plan per live task");
+    } else {
+        finish_brief_plan(domain, env, &context);
+    }
+}
+
+pub(super) fn abandon_brief(domain: &mut Domain, task: u64) {
+    if let Some(WorkspacePreparation::Brief(_)) = domain.run_workspaces.get(&task) {
+        drop(domain.run_workspaces.remove(&task));
+    }
+}
+
 /// Retry only after the forge changes: a taking, its confirmation or a drift release.
 pub(super) fn resume_workspaces(domain: &mut Domain, env: &Env<Limits>) {
     let mut ready = List::with_capacity(env.limits.tasks.tasks);
     for (task, preparation) in &domain.run_workspaces {
         let design_only = match preparation {
             WorkspacePreparation::Ready(_) => continue,
-            WorkspacePreparation::Brief { .. } => true,
+            WorkspacePreparation::Brief(_) => true,
             WorkspacePreparation::Workspace { .. } => false,
         };
         if !waiting_for_goal_workspace(domain, *task, design_only) {
@@ -350,8 +348,8 @@ pub(super) fn resume_workspaces(domain: &mut Domain, env: &Env<Limits>) {
         }
         match pending {
             WorkspacePreparation::Ready(_) => unreachable!("only waiting preparations were collected"),
-            WorkspacePreparation::Brief { parent, sections, documents } => {
-                finish_brief_plan(domain, env, *task, parent, sections, documents);
+            WorkspacePreparation::Brief(context) => {
+                finish_brief_plan(domain, env, &context);
             }
             WorkspacePreparation::Workspace { attempt, context } => workspace(domain, env, *task, attempt, context),
         }
@@ -371,6 +369,7 @@ struct Prepared {
     parts: Box<[jig_domain_link::KeptPart]>,
     answered: Box<[core::CallKey]>,
     grants: Box<[Grant]>,
+    brief: Box<[brief::GatherPlaced]>,
 }
 
 fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
@@ -387,6 +386,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
         parts,
         answered,
         grants,
+        brief,
     } = prepared;
     for body in &transcript {
         domain.hold_bytes(skein_lib::len_u64(body.len()));
@@ -395,7 +395,6 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     for part in &parts {
         domain.hold_bytes(skein_lib::len_u64(part.body.len()));
     }
-    let brief = domain.hub_link.take_brief(task).expect("prepared brief sections");
     let PreparedWorkspace { workspace, claim_names } =
         domain.run_workspaces.remove(&task).expect("prepared connector workspace").into_prepared();
     let mut records = List::with_capacity(domain.limits.call_records);
@@ -406,6 +405,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
             .expect("retained call bound");
     }
     let application_parts = crate::boundary::AssignmentParts {
+        sections: take_sections(domain, task, brief),
         saved: forge_route::saved_tags(&saved, domain.config.forge_connector)
             .expect("task saved names were admitted by the root"),
         workspace: workspace.workspace.clone(),
@@ -421,7 +421,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
         live,
         charter,
         run,
-        brief,
+        brief: Box::new([]),
         messages,
         transcript,
         answered: domain.engine.core().settled_calls(task, attempt),

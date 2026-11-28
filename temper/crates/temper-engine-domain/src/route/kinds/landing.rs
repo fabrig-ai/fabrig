@@ -35,6 +35,12 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
         }
     }
     if let settings::Value::Landing(landing) = &value.value
+        && landing.temper_dir_sign_off
+        && let Some(why) = sign_off_refusal(domain, asked.scope)
+    {
+        return Some(why);
+    }
+    if let settings::Value::Landing(landing) = &value.value
         && let Some(settings) = &landing.repairs
     {
         if let Err(field) = repairs::resolve(domain, settings) {
@@ -67,6 +73,19 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
     }
     None
 }
+fn sign_off_refusal(domain: &Domain, project: u32) -> Option<Box<[u8]>> {
+    let owner = jig_domain_people::Role::Owner.number();
+    for (forge, host) in domain.forge.writable_forges(project) {
+        if super::fake_forge(domain, forge) {
+            return Some(words(&[b"temper_dir_sign_off: the playground's forge has no accounts"]));
+        }
+        if super::eligible_people(domain, project, forge, owner) == 0 {
+            return Some(words(&[b"temper_dir_sign_off: no eligible project owner on forge ", host]));
+        }
+    }
+    None
+}
+
 fn words(parts: &[&[u8]]) -> Box<[u8]> {
     let mut out = List::uncapped();
     for part in parts {

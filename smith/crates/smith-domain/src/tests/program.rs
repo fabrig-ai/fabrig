@@ -11,7 +11,10 @@ fn program() -> Harness {
 fn a_program_completion_skips_the_session_reservation() {
     let mut h = program();
     let (_, owner, _) = h.admit(7, charter());
-    assert_eq!(session::preview_completion(&h.domain.session, owner, Usage::NONE), Err(session::End::PriceOverflow));
+    assert_eq!(
+        session::preview_completion(&h.domain.session, owner, Usage::NONE, &crate::llm::ServedSpeed::Unreported),
+        Err(session::End::PriceOverflow)
+    );
 }
 
 #[test]
@@ -21,6 +24,7 @@ fn a_program_completion_without_usage_overflows() {
     let emitted = h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
+            served: crate::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::default(),
             content: Box::default(),
             stop: Stop::EndTurn,
@@ -46,6 +50,7 @@ fn a_program_overrun_is_spent() {
     let emitted = h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
+            served: crate::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::default(),
             content: Box::default(),
             stop: Stop::EndTurn,
@@ -108,6 +113,7 @@ fn a_program_spec_names_its_backend() {
     h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
+            served: crate::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::default(),
             content: Box::new([Said::Text { text: bytes(b"answer"), replay: None }]),
             stop: Stop::EndTurn,
@@ -147,6 +153,7 @@ fn open_program_final_choice_permits_only_text() {
     let emitted = h.step(Event::Below(crate::Below::Completed {
         owner,
         completion: Completion {
+            served: crate::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::default(),
             content: Box::new([Said::Text { text: bytes(b"partial"), replay: None }]),
             stop: Stop::MaxTokens,
@@ -179,7 +186,13 @@ fn opaque_and_refusal_blocks_never_become_open_text_replies() {
         let (_, owner, _) = h.admit(7, open_policy());
         let emitted = h.step(Event::Below(crate::Below::Completed {
             owner,
-            completion: Completion { reasoning_dropped: Box::default(), content, stop: Stop::EndTurn, usage: USAGE },
+            completion: Completion {
+                served: crate::llm::ServedSpeed::Unreported,
+                reasoning_dropped: Box::default(),
+                content,
+                stop: Stop::EndTurn,
+                usage: USAGE,
+            },
         }));
         let [Request::Lower(crate::Lower::Complete { prompt, .. })] = emitted.as_ref() else {
             panic!("nudge: {emitted:?}")

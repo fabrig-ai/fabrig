@@ -182,14 +182,6 @@ temper                       the binary: `temper ctl` runs the host
 - **Step code under the subset:** the runner, the rendering, the table,
   the tools' root. **Ordinary Rust:** the host.
 
-## 5. Requests: once, and named
-
-Moved to [`requests.md`](requests.md), section 1.
-
-## 6. The command line: `temper ctl`
-
-Moved to [`command-line.md`](command-line.md), section 1.
-
 ## 7. Who the agent is
 
 - **Any credential.** An agent acting for a person may hold the person's
@@ -319,10 +311,6 @@ first link, then `playground start` (`areas.md`, area 6), which answers once
 the playground is ready, and `playground end`, which answers once it
 is reset, the store empty again.
 
-## 9. The bounds
-
-Moved to [`bounds.md`](bounds.md), section 1.
-
 ## 10. What it takes of jig
 
 The tools work around nothing of jig's and skein's. Besides the
@@ -410,8 +398,8 @@ contract's reads, watches and requests, they take:
   meets there.
 - **An account with no source for this work** (`results.md`, 1): a wait that names its
   account with the why `Empty` keeps its number on `next run:`, above `no
-  account serving this work yet`, and `waiting on: Nothing awaited` beneath
-  says the opposite. Whether it names what the account lacks, and whether
+  account serving this work yet`, and `waiting on:` beneath names that
+  wait, its first, as `waits:` does. Whether it names what the account lacks, and whether
   `waiting on:` prints `an account` there too, waits on QA meeting one: its
   walks of a stock box meet the wait that names no account.
 - **A bounded act other than `task amend`** (`results.md`, 1): jig bounds no other act on

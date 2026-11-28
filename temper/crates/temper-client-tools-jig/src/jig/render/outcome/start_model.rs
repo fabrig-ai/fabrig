@@ -1,7 +1,7 @@
 //! Start refusals name the call's flag or the kept choice's part (client/ctl/areas.md area 5).
 use super::{Operation, Text};
 use crate::jig::{
-    call::{Call, Value, Values, value},
+    call::{Call, Value, repeated, split_model_value, value},
     rows,
 };
 use alloc::boxed::Box;
@@ -19,6 +19,8 @@ pub struct Start {
 struct ModelFlags {
     main: Option<Box<[u8]>>,
     subagents: List<(c::Text, Box<[u8]>)>,
+    speed: Option<Box<[u8]>>,
+    subagent_speeds: List<Box<[u8]>>,
 }
 impl Start {
     pub(super) fn of(ask: &Ask, word: &[u8]) -> Option<Self> {
@@ -36,31 +38,53 @@ impl Start {
         None
     }
     pub(super) fn flags(&mut self, call: &Call) {
-        let (main, subagent) = if call.tool == rows::GOAL_START_AT {
-            (8, 10)
+        let flags = if call.tool == rows::GOAL_START_AT {
+            rows::GOAL_CHOICE
         } else if call.tool == rows::CHAT_CREATE_AT {
-            (3, 5)
+            rows::CHAT_CHOICE
         } else {
             return;
         };
-        let main = if let Some(Value::Text(model)) = value(call, main) { Some(model.clone()) } else { None };
+        let main = if let Some(Value::Text(model)) = value(call, flags.model) { Some(model.clone()) } else { None };
+        let speed = if let Some(Value::Text(speed)) = value(call, flags.speed) { Some(speed.clone()) } else { None };
         let capacity = match &self.choice {
             Some(choice) => choice.subagents.len(),
             None => 0,
         };
         let mut subagents = List::with_capacity(capacity);
         if let Some(choice) = &self.choice
-            && let Some(Some(Values::Many(values))) = call.values.get(subagent)
+            && let Some(values) = repeated(call, flags.subagent.expect("a start takes --sub-agent"))
         {
             for (chosen, given) in choice.subagents.iter().zip(values.iter()) {
                 let Value::Text(given) = given else { unreachable!("sub-agent text") };
                 subagents.push((chosen.model.clone(), given.clone())).expect("sent sub-agent count");
             }
         }
-        self.flags = Some(ModelFlags { main, subagents });
+        let mut subagent_speeds = List::with_capacity(capacity);
+        if let Some(values) = repeated(call, flags.subagent_speed) {
+            for given in values {
+                let Value::Text(given) = given else { unreachable!("sub-agent speed text") };
+                subagent_speeds.push(given.clone()).expect("one speed per sent sub-agent");
+            }
+        }
+        self.flags = Some(ModelFlags { main, subagents, speed, subagent_speeds });
     }
-    fn flag(&self, model: &c::Text) -> Option<(&'static [u8], &[u8])> {
+    fn flag(&self, model: &c::Text, why: c::LlmWhy) -> Option<(&'static [u8], &[u8])> {
         let flags = self.flags.as_ref()?;
+        if why == c::LlmWhy::Speed {
+            if let Some(main) = &flags.main
+                && main.as_ref() == model.bytes()
+                && let Some(speed) = &flags.speed
+            {
+                return Some((b"--speed", speed));
+            }
+            for given in &flags.subagent_speeds {
+                let (name, _) = split_model_value(given).expect("checked model:speed");
+                if name == model.bytes() {
+                    return Some((b"--sub-agent-speed", given));
+                }
+            }
+        }
         if let Some(main) = &flags.main
             && main.as_ref() == model.bytes()
         {
@@ -87,8 +111,8 @@ impl Start {
         false
     }
     pub(super) fn json(&self, refusal: &c::Refusal, out: &mut Encoder) {
-        if let c::Refusal::Llm { model, .. } = refusal
-            && let Some((flag, value)) = self.flag(model)
+        if let c::Refusal::Llm { model, why } = refusal
+            && let Some((flag, value)) = self.flag(model, *why)
         {
             out.key(b"flag");
             out.string(flag);
@@ -106,7 +130,7 @@ pub(super) fn refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Tex
         None => b"chat start",
     });
     out.put(b": ");
-    if let Some((flag, value)) = start.flag(model) {
+    if let Some((flag, value)) = start.flag(model, *why) {
         out.put(flag);
         out.put(b" ");
         name(value, out);
@@ -124,6 +148,7 @@ pub(super) fn refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Tex
         }
         c::LlmWhy::Authority => out.put(b"outside the authority the task is given"),
         c::LlmWhy::Effort => out.put(b"its effort is not one the model declares"),
+        c::LlmWhy::Speed => out.put(b"its speed is not one the model declares"),
         c::LlmWhy::Unconfigured => out.put(b"not a configured model"),
         c::LlmWhy::Procedure => out.put(b"the task's executor runs no model"),
         c::LlmWhy::Repeated => out.put(b"named twice among the sub-agents"),

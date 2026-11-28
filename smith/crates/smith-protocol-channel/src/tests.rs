@@ -666,6 +666,7 @@ fn grant_charter() -> smith_domain::run::Charter {
             endpoint: charter::Endpoint(0),
             model: b"model".as_slice().into(),
             effort: None,
+            speed: None,
             window: 8192,
             output: 512,
         },

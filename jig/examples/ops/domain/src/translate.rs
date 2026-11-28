@@ -3,149 +3,15 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_contract::{
-    Declaration,
+    Connector as ContractConnector, Declaration,
     effects::{self, EffectKind},
     resources::{ResourceKind, Rule, Taken},
 };
-use jig_domain_core as core;
-use jig_domain_tasks as tasks;
 use jig_ops_domain_connectors::{Connector, number};
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
-use skein_lib::{List, Wall};
+use skein_lib::List;
 
-pub(crate) fn infrastructure_key(key: core::EffectKey) -> infrastructure::Key {
-    let origin = match key.origin {
-        core::EffectPurpose::Call { attempt, completion, position } => {
-            infrastructure::Purpose::Call { attempt, completion, position }
-        }
-        core::EffectPurpose::Procedure { purpose } => infrastructure::Purpose::Procedure { purpose },
-        core::EffectPurpose::Projection { purpose } => infrastructure::Purpose::Projection { purpose },
-    };
-    infrastructure::Key { deployment: key.deployment, task: key.task, origin, purpose: key.purpose }
-}
-pub(crate) fn observability_key(key: core::EffectKey) -> observability::Key {
-    let origin = match key.origin {
-        core::EffectPurpose::Call { attempt, completion, position } => {
-            observability::Purpose::Call { attempt, completion, position }
-        }
-        core::EffectPurpose::Procedure { purpose } => observability::Purpose::Procedure { purpose },
-        core::EffectPurpose::Projection { purpose } => observability::Purpose::Projection { purpose },
-    };
-    observability::Key { deployment: key.deployment, task: key.task, origin, purpose: key.purpose }
-}
-pub(crate) fn state(value: u64) -> [u8; 32] {
-    let mut state = [0; 32];
-    for (slot, byte) in state.get_mut(24..).expect("eight-byte state").iter_mut().zip(value.to_be_bytes()) {
-        *slot = byte;
-    }
-    state
-}
-pub(crate) fn infrastructure_description(
-    number: u16,
-    value: infrastructure::Description,
-) -> core::effects::connector::EffectDescription {
-    let mut names = List::with_capacity(u32::try_from(value.resources.len()).expect("bounded resources"));
-    for resource in value.resources {
-        names.push(authority::Name { segments: resource.segments() }).expect("one resource name");
-    }
-    let mut additional = List::with_capacity(names.len().saturating_sub(1));
-    for name in names.as_slice().get(1..).unwrap_or_default() {
-        additional
-            .push(authority::EffectResource { name: name.clone(), access: authority::EffectAccess::Owned })
-            .expect("additional names");
-    }
-    core::effects::connector::EffectDescription {
-        connector: number,
-        purpose: value.state,
-        effect: authority::Effect {
-            connector: number,
-            kind: value.kind,
-            name: names.as_slice().first().expect("described resource").clone(),
-            state: state(value.state),
-            price: value.price,
-            access: authority::EffectAccess::Owned,
-            additional: additional.into_boxed(),
-            guards: Box::new([]),
-        },
-    }
-}
-pub(crate) fn observability_description(
-    number: u16,
-    value: observability::Effect,
-    vocabulary: &observability::Vocabulary,
-) -> core::effects::connector::EffectDescription {
-    core::effects::connector::EffectDescription {
-        connector: number,
-        purpose: value.until,
-        effect: authority::Effect {
-            connector: number,
-            kind: vocabulary.silence_effect,
-            name: authority::Name { segments: observability::Resource::AlertRule(value.rule).segments() },
-            state: state(value.until),
-            price: None,
-            access: authority::EffectAccess::Owned,
-            additional: Box::new([]),
-            guards: Box::new([]),
-        },
-    }
-}
-pub(crate) const fn infrastructure_outcome(value: infrastructure::Outcome) -> core::effects::connector::OutboxOutcome {
-    match value {
-        infrastructure::Outcome::Made => core::effects::connector::OutboxOutcome::Made,
-        infrastructure::Outcome::Failed => core::effects::connector::OutboxOutcome::Failed,
-        infrastructure::Outcome::Skipped => core::effects::connector::OutboxOutcome::NotMade,
-        infrastructure::Outcome::Uncertain => core::effects::connector::OutboxOutcome::Uncertain,
-    }
-}
-pub(crate) const fn observability_outcome(value: observability::Outcome) -> core::effects::connector::OutboxOutcome {
-    match value {
-        observability::Outcome::Made => core::effects::connector::OutboxOutcome::Made,
-        observability::Outcome::Failed => core::effects::connector::OutboxOutcome::Failed,
-        observability::Outcome::Uncertain => core::effects::connector::OutboxOutcome::Uncertain,
-    }
-}
-pub(crate) const fn verdict(value: observability::Verdict, wall: Wall) -> (authority::Verdict, Wall) {
-    match value {
-        observability::Verdict::Met { observed } => {
-            (authority::Verdict::Met, Wall::from_nanos(observed.saturating_mul(1_000_000_000)))
-        }
-        observability::Verdict::Wait => (authority::Verdict::Wait, wall),
-        observability::Verdict::Refuse => (authority::Verdict::Refuse, wall),
-    }
-}
-pub(crate) fn service(names: &[authority::Name]) -> Option<observability::Service> {
-    let segments = &names.first()?.segments;
-    if segments.len() == 4 && segments.first()?.as_ref() == b"env" && segments.get(2)?.as_ref() == b"service" {
-        return Some(observability::Service::new(segments.get(1)?.clone(), segments.get(3)?.clone()));
-    }
-    if segments.len() == 3 && segments.first()?.as_ref() == b"services" {
-        Some(observability::Service::new(segments.get(1)?.clone(), segments.get(2)?.clone()))
-    } else {
-        None
-    }
-}
-
-/// Ops names its two requirements in its connector vocabulary.
-pub(crate) const fn requirement(number: u16, policy: &crate::Policy) -> Option<observability::Requirement> {
-    if number == policy.healthy_replica_requirement {
-        Some(observability::Requirement::HealthyReplicaElsewhere)
-    } else if number == policy.low_load_requirement {
-        Some(observability::Requirement::LoadBelow {
-            percent: policy.scale_down_load_percent,
-            for_seconds: policy.scale_down_load_seconds,
-        })
-    } else {
-        None
-    }
-}
-
-pub(crate) const fn news_class(value: observability::Class) -> tasks::NewsClass {
-    match value {
-        observability::Class::Wake => tasks::NewsClass::Wakes,
-        observability::Class::Keep => tasks::NewsClass::Kept,
-    }
-}
 /// Read kinds and resources belong to the application's connector vocabulary.
 pub(crate) fn read_description(
     number: u16,
@@ -175,99 +41,11 @@ pub(crate) fn read_description(
     }
 }
 
-/// The connector owns adoption roles; the root carries them into core admission.
-pub(crate) const fn resource_role(role: infrastructure::ResourceRole) -> core::effects::connector::ResourceRole {
-    match role {
-        infrastructure::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
-        infrastructure::ResourceRole::Participant => core::effects::connector::ResourceRole::Participant,
-        infrastructure::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
-        infrastructure::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
-    }
-}
-
-pub(crate) fn infrastructure_added(values: Box<[tasks::Added]>) -> Box<[infrastructure::Added]> {
-    let mut added = List::with_capacity(u32::try_from(values.len()).expect("bounded dependencies"));
-    for value in values {
-        let by = match value.by {
-            tasks::Party::Person(person) => infrastructure::Party::Person(person),
-            tasks::Party::Task(task) => infrastructure::Party::Task(task),
-            tasks::Party::Deployment { project } => infrastructure::Party::Deployment { project },
-        };
-        added.push(infrastructure::Added { task: value.task, at: value.at, by }).expect("one row per dependency");
-    }
-    added.into_boxed()
-}
-
-pub(crate) fn infrastructure_spec(spec: &tasks::Spec) -> infrastructure::Spec {
-    let mut parameters = List::with_capacity(u32::try_from(spec.parameters.len()).expect("spec parameter bound"));
-    for parameter in &spec.parameters {
-        parameters
-            .push(match parameter {
-                tasks::Parameter::Bytes { name, value } => {
-                    infrastructure::Parameter::Bytes { name: *name, value: value.clone() }
-                }
-                tasks::Parameter::Number { name, value } => {
-                    infrastructure::Parameter::Number { name: *name, value: *value }
-                }
-                tasks::Parameter::Resource { .. } => infrastructure::Parameter::Resource,
-            })
-            .expect("one parameter per carrier");
-    }
-    infrastructure::Spec { parameters: parameters.into_boxed() }
-}
-pub(crate) fn observability_spec(spec: &tasks::Spec) -> observability::Spec {
-    let mut parameters = List::with_capacity(u32::try_from(spec.parameters.len()).expect("spec parameter bound"));
-    for parameter in &spec.parameters {
-        parameters
-            .push(match parameter {
-                tasks::Parameter::Bytes { name, value } => {
-                    observability::Parameter::Bytes { name: *name, value: value.clone() }
-                }
-                tasks::Parameter::Number { name, value } => {
-                    observability::Parameter::Number { name: *name, value: *value }
-                }
-                tasks::Parameter::Resource { .. } => observability::Parameter::Resource,
-            })
-            .expect("one parameter per carrier");
-    }
-    observability::Spec { parameters: parameters.into_boxed() }
-}
-pub(crate) const fn infrastructure_executor(executor: tasks::Executor) -> infrastructure::Executor {
-    match executor {
-        tasks::Executor::Procedure { connector, code } => infrastructure::Executor::Procedure { connector, code },
-        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
-            infrastructure::Executor::Other
-        }
-    }
-}
-pub(crate) fn holdings(number: u16, values: Option<Box<[infrastructure::Holding]>>) -> Option<Box<[tasks::Holding]>> {
-    let values = values?;
-    let mut holdings = List::with_capacity(u32::try_from(values.len()).expect("holding count"));
-    for value in values {
-        holdings
-            .push(match value {
-                infrastructure::Holding::Write { resource, kind } => tasks::Holding::Write {
-                    resource: tasks::Name { connector: number, path: resource.segments() },
-                    kind,
-                },
-                infrastructure::Holding::Slot { pool, kind } => tasks::Holding::Slot {
-                    pool: tasks::Name { connector: number, path: infrastructure::Resource::Pool(pool).segments() },
-                    kind,
-                },
-            })
-            .expect("one holding per value");
-    }
-    Some(holdings.into_boxed())
-}
 pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Limits) -> [Declaration; 2] {
     let infrastructure = &limits.infrastructure.vocabulary;
-    let restart = match backend {
-        infrastructure::Backend::OperationIds => effects::Recovery::Keyed,
-        infrastructure::Backend::NoOperationIds => effects::Recovery::Unrecoverable,
-    };
     [
         Declaration {
-            connector: number(Connector::Observability),
+            connector: ContractConnector(number(Connector::Observability)),
             resources: Box::new([]),
             effects: Box::new([EffectKind {
                 kind: limits.observability.vocabulary.silence_effect,
@@ -275,39 +53,38 @@ pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Lim
                 recovery: effects::Recovery::Keyed,
                 waits_for_dependencies: false,
             }]),
+            projects_goals: false,
+            sections: false,
         },
         Declaration {
-            connector: number(Connector::Infrastructure),
+            connector: ContractConnector(number(Connector::Infrastructure)),
             resources: hold_kinds(infrastructure),
-            effects: Box::new([
-                infrastructure_effect(infrastructure.restart_effect, effects::EffectForm::Transition, restart),
-                infrastructure_effect(
-                    infrastructure.scale_effect,
-                    effects::EffectForm::Set,
-                    effects::Recovery::Conditional,
-                ),
-                infrastructure_effect(
-                    infrastructure.rollback_effect,
-                    effects::EffectForm::Transition,
-                    effects::Recovery::Conditional,
-                ),
-                infrastructure_effect(
-                    infrastructure.create_environment_effect,
-                    effects::EffectForm::Creation,
-                    effects::Recovery::Keyed,
-                ),
-                infrastructure_effect(
-                    infrastructure.tear_down_effect,
-                    effects::EffectForm::Transition,
-                    effects::Recovery::Conditional,
-                ),
-            ]),
+            effects: effect_kinds(infrastructure, backend),
+            projects_goals: false,
+            sections: false,
         },
     ]
 }
 
-const fn infrastructure_effect(kind: u16, form: effects::EffectForm, recovery: effects::Recovery) -> EffectKind {
-    EffectKind { kind, form, recovery, waits_for_dependencies: true }
+fn effect_kinds(vocabulary: &infrastructure::Vocabulary, backend: infrastructure::Backend) -> Box<[EffectKind]> {
+    let values = infrastructure::effect_kinds(vocabulary, backend);
+    let mut kinds = List::with_capacity(u32::try_from(values.len()).expect("effect kinds"));
+    for value in values {
+        let form = match value.form {
+            infrastructure::Form::Creation => effects::EffectForm::Creation,
+            infrastructure::Form::Transition => effects::EffectForm::Transition,
+            infrastructure::Form::Set => effects::EffectForm::Set,
+        };
+        let recovery = match value.recovery {
+            infrastructure::Recovery::Keyed => effects::Recovery::Keyed,
+            infrastructure::Recovery::Conditional => effects::Recovery::Conditional,
+            infrastructure::Recovery::Unrecoverable => effects::Recovery::Unrecoverable,
+        };
+        kinds
+            .push(EffectKind { kind: value.kind, form, recovery, waits_for_dependencies: value.waits_for_dependencies })
+            .expect("one kind per value");
+    }
+    kinds.into_boxed()
 }
 
 fn hold_kinds(vocabulary: &infrastructure::Vocabulary) -> Box<[ResourceKind]> {
@@ -323,49 +100,35 @@ fn hold_kinds(vocabulary: &infrastructure::Vocabulary) -> Box<[ResourceKind]> {
     }
     kinds.into_boxed()
 }
-pub(crate) const fn admission(answer: authority::Answer) -> infrastructure::Admission {
-    match answer {
-        authority::Answer::Allow => infrastructure::Admission::Allow,
-        authority::Answer::Wait => infrastructure::Admission::Wait,
-        authority::Answer::Propose => infrastructure::Admission::Propose,
-        authority::Answer::Refuse => infrastructure::Admission::Refuse,
-    }
-}
-pub(crate) fn watch_inputs(inbox: Box<[tasks::Word]>) -> Box<[observability::WatchInput]> {
-    let mut inputs = List::with_capacity(u32::try_from(inbox.len()).expect("offered inbox bound"));
-    for word in inbox {
-        let input = match tasks::procedure_input(word.kind) {
-            Some(tasks::ProcedureInput::News) => Some(observability::WatchInput::News),
-            Some(tasks::ProcedureInput::Result(result)) => {
-                let child = match word.from {
-                    tasks::Party::Task(child) => Some(child),
-                    tasks::Party::Person(_) | tasks::Party::Deployment { .. } => None,
-                };
-                let result = match result {
-                    tasks::ResultKind::Verdict { code, fields } => {
-                        let mut values = List::with_capacity(u32::try_from(fields.len()).expect("verdict field bound"));
-                        for field in fields {
-                            values
-                                .push(observability::ResultField { name: field.name, value: field.value })
-                                .expect("one result field");
-                        }
-                        observability::ResultKind::Verdict { code, fields: values.into_boxed() }
-                    }
-                    tasks::ResultKind::Approved { .. }
-                    | tasks::ResultKind::Job
-                    | tasks::ResultKind::NoChange
-                    | tasks::ResultKind::Report
-                    | tasks::ResultKind::Change { .. }
-                    | tasks::ResultKind::Failed
-                    | tasks::ResultKind::Cancelled => observability::ResultKind::Ended,
-                };
-                Some(observability::WatchInput::Result { child, result })
-            }
-            None => None,
-        };
-        if let Some(input) = input {
-            inputs.push(input).expect("one input per inbox word");
+
+/// Decode configured envelopes before giving the typed templates to their owner.
+pub(crate) fn observability(
+    triage: Box<[observability::TriageTemplate]>,
+    lead: Box<[observability::LeadTemplate]>,
+    limits: &crate::Limits,
+) -> observability::Domain {
+    let policy = limits.policy;
+    let mut domain = observability::Domain::with_templates(&limits.observability, triage.clone())
+        .with_leads(&limits.observability, lead.clone())
+        .with_contract(
+            ContractConnector(number(Connector::Observability)),
+            observability::Requirements {
+                healthy_replica_requirement: policy.healthy_replica_requirement,
+                low_load_requirement: policy.low_load_requirement,
+                scale_down_load_percent: policy.scale_down_load_percent,
+                scale_down_load_seconds: policy.scale_down_load_seconds,
+                freshness_seconds: policy.verdict_freshness_seconds,
+            },
+        );
+    for template in triage {
+        if let Some(batch) = jig_ops_protocol_observability::lead(&template.delegate, &policy.delegate) {
+            domain.prepare_triage(template.number, batch);
         }
     }
-    inputs.into_boxed()
+    for template in lead {
+        if let Some(batch) = jig_ops_protocol_observability::lead(&template.delegate, &policy.delegate) {
+            domain.prepare_lead(template.number, batch);
+        }
+    }
+    domain
 }

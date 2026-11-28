@@ -89,7 +89,7 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
             let standing = match domain.engine.core().tasks.task(owner) {
                 Some(row) => {
                     row.label == 3
-                        && super::super::findings::stands(domain, asked.scope, settings::AreaOwner::Task(owner))
+                        && super::super::findings::stands(domain, asked.scope, &settings::AreaOwner::Task(owner))
                             .is_some()
                 }
                 None => false,

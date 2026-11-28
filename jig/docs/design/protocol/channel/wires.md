@@ -5,7 +5,7 @@ and a worker of two builds tell each other at their channel's opening:
 the wires each speaks, by layout, with the worker's schema texts; the
 engine's check of them before the hello; the kinds' table, kept in the
 schema; terms; and what an assignment refused for a version costs. It
-carries temper's `draft/layouts-both-ways.md`, sections 3 and 5, and
+carries temper's `draft/archive/layouts-both-ways.md`, sections 3 and 5, and
 `temper/docs/design/draft/archive/redeploys.md`, 3.4, for jig's channel. How the engine then
 converts is `layouts.md`'s; an application names its own wires
 (temper's `protocol/wires.md`).
@@ -60,7 +60,7 @@ converts is `layouts.md`'s; an application names its own wires
   application's, each name once. The engine checks the same list from
   its own side.
 - **A wire's version is frozen** at its header (temper's
-  `draft/layouts-both-ways.md`, 3): `jig-worker-wire` 22, `smith-pieces`
+  `draft/archive/layouts-both-ways.md`, 3): `jig-worker-wire` 22, `smith-pieces`
   1, `smith-charter` 5, `smith-transcript` 8, the application's at theirs
   (temper's `protocol/wires.md`, 3.1). A versioned record's head keeps
   that number, so no byte of one layout moves. A focused test in each
@@ -226,8 +226,10 @@ converts is `layouts.md`'s; an application names its own wires
   enum Refusal { busy, invalid: InvalidValue, version: Mismatch }
   ```
 
-  `version` is what the refused bytes carry; `lowest` and `highest` the
-  versions the worker reads of that wire, its own.
+  `version` is what the refused bytes carry. The worker writes the one
+  version it reads of that wire, its own, as both `lowest` and
+  `highest`, and the engine reads `highest` alone, as that version: the
+  record keeps its layout, so a worker of any build is read alike.
 - **Made by the worker:** the hand-out reading smith's payloads
   (`../../domain/hosts/hub.md`, 8) answers a charter whose first two
   bytes are another `smith-charter` version, or a resumed turn of
@@ -241,7 +243,7 @@ converts is `layouts.md`'s; an application names its own wires
   refusal before anything ran (`../../domain/tasks/lifecycle-holds.md`,
   section 1): the task claims again after a pause, with no bound and no
   try spent, its retry notice's reason `version mismatch: WIRE N, the
-  worker reads L..H`. The window stays open.
+  worker reads V`. The window stays open.
 - **The fleet places nothing more on that channel:** a channel that
   answered a version refusal, or whose engine could not send a running
   attempt what it holds (`layouts.md`, 5.2), is marked mismatched, and

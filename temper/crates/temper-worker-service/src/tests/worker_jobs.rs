@@ -1,4 +1,7 @@
 //! The service's job operations (temper/docs/design/protocol/tooling.md, 2).
+#[path = "worker_jobs/hooks.rs"]
+mod hooks;
+
 use super::Worker;
 use crate::tests::fixtures;
 use io::kernel::{self, Done, Op};
@@ -128,6 +131,7 @@ fn a_job_past_its_deadline_has_its_group_killed_and_exits_deadline() {
         );
         worker.jobs_fire(DEADLINE, false);
         assert!(worker.io().is_empty(), "the alarm fires once");
+        assert_eq!(crate::testing::jobs_deadline(worker), None, "killing the group disarms the job deadline");
         if !leader_exited {
             worker.up(DEADLINE, io::Event::Exited { owner, exit: kernel::Exit::Signal(9) });
         }
@@ -270,7 +274,15 @@ fn a_result_file_shorter_than_its_bound_reads_exact_bytes() {
 #[test]
 fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
     use temper_protocol_worker_wire::v1::{self, Record};
-    let valid = v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: true };
+    let valid = v1::JobSpec {
+        command: b"app/.temper/hooks/close".as_slice().into(),
+        request: b"{}".as_slice().into(),
+        refusal: true,
+        result: 512,
+        outdated: true,
+        find: true,
+        fallback: b"app/tools/close".as_slice().into(),
+    };
     let valid = valid.encode(&v1::CEILINGS).unwrap();
     let mut trailing = Writer::new(valid.len().checked_add(1).unwrap());
     trailing.put(&valid).unwrap();
@@ -292,7 +304,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
         let job = hub::JobAssignment {
             run: JOB,
             attempt: Token::new(2),
-            kind: JobKind(1),
+            kind: JobKind(4),
             spec: spec.into(),
             deadline: skein_lib::Duration::from_secs(2),
             workspace: assignment.assignment.workspace,
@@ -308,9 +320,12 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
             spec,
             if good {
                 Ok(root::wire::JobSpec {
-                    command: b"tool".as_slice().into(),
+                    command: b"app/.temper/hooks/close".as_slice().into(),
                     request: b"{}".as_slice().into(),
                     refusal: true,
+                    result: 512,
+                    outdated: true,
+                    fallback: Some(b"app/tools/close".as_slice().into()),
                 })
             } else {
                 Err(root::wire::Undecodable)

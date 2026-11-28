@@ -1,5 +1,6 @@
 //! Whole-change retention through stored rows and the forge's wall deadline (landing-history.md, 4.5).
-use skein_lib::{Token, Wall};
+use jig_domain_contract as contract;
+use skein_lib::Wall;
 use temper_engine_domain_forge::{
     self as forge,
     history::{HOUR_NS, HistoryRange, Project},
@@ -157,7 +158,7 @@ fn project_release_sweeps_every_change_and_survives_a_restart_midway() {
     }
     world.write_history(52, day(0), Some(61));
     world.hold_history();
-    world.event(forge::Event::ReleaseProject { project: 5, request: Token::new(100) });
+    world.event(forge::Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })));
     assert!(project(&world).removing);
     world.answer_history();
     world.answer_history();

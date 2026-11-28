@@ -362,7 +362,13 @@ fn findings_bytes(view: &crate::Findings) -> usize {
         }
     }
     for area in &view.areas {
-        size = size.saturating_add(area.name.len()).saturating_add(area.words.len());
+        size = size
+            .saturating_add(area.name.len())
+            .saturating_add(area.words.len())
+            .saturating_add(area.owner.owned_bytes());
+    }
+    if let Some(triager) = &view.triager {
+        size = size.saturating_add(triager.owned_bytes());
     }
     size
 }

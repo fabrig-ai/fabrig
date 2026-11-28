@@ -1,5 +1,5 @@
 //! Host policy for relative workspace guide/check paths (smith/docs/design/domain/run-start.md, sections 1.1 and 1.3, and smith/docs/design/domain/run-delivery.md, section 1.1, and smith/docs/design/domain/run.md, section 11
-//! ). Admitted charters keep two owning paths;
+//! ). Admitted charters keep up to three owning paths;
 //! the absent policy keeps no path allocation and selects Smith defaults.
 //! Discovery, system text and exclusive checks borrow the same selection.
 //! This module knows no host workflow or filesystem; IO confines resolution,
@@ -24,17 +24,24 @@ pub struct Conventions {
     /// a Change or separately granted delivery requires checks. No executable
     /// means no checks; a failing check returns bounded feedback.
     pub checks: Box<[u8]>,
+
+    /// Relative hooks directory; absent selects the check path at both moments.
+    pub hooks: Option<Box<[u8]>>,
 }
 
 impl Conventions {
     /// Maximum bytes per path, sharing the bounded relative marker vocabulary.
-    /// Both paths also count against receiving `Limits.run_bytes`; their inline
+    /// All paths also count against receiving `Limits.run_bytes`; their inline
     /// Box wrappers are part of Charter and the domain's slab bound.
     pub const PATH_CAPACITY: usize = Marker::CAPACITY;
 }
 
 pub(crate) fn valid(conventions: &Conventions) -> bool {
-    valid_path(&conventions.guide) && valid_path(&conventions.checks)
+    let hooks = match &conventions.hooks {
+        Some(path) => valid_path(path),
+        None => true,
+    };
+    valid_path(&conventions.guide) && valid_path(&conventions.checks) && hooks
 }
 
 fn valid_path(path: &[u8]) -> bool {
@@ -64,4 +71,9 @@ pub(crate) fn checks(charter: &Charter) -> &[u8] {
         Some(conventions) => &conventions.checks,
         None => b".smith/check",
     }
+}
+
+/// The optional hooks directory, looked for before the legacy check.
+pub(crate) fn hooks(charter: &Charter) -> Option<&[u8]> {
+    charter.conventions.as_ref()?.hooks.as_deref()
 }

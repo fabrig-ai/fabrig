@@ -1,14 +1,19 @@
 //! Connector notifications and documents retain only their opaque owner references.
 
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 #[test]
 fn held_connector_parts_keep_exact_origin_and_refuse_shortened_retained_keys() {
     let (mut core, mut limits) = make_tree();
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits };
     let source = tasks::Name { connector: 2, path: Box::new([Box::from(&b"whole"[..])]) };
-    let _out =
-        step(&mut core, &env, Event::EffectConnector(connector::Event::Drift { task: 2, resource: source.clone() }));
+    let _out = connector_step(
+        &mut core,
+        &env,
+        source.connector,
+        contract::Up::Resources(contract::resources::Up::Drift { task: 2, resource: source.clone() }),
+    );
     let row = core.tasks.task(2).unwrap();
     let tasks::Phase::Held { source: Some(origin), .. } = &row.phase else { panic!("retained source") };
     assert_eq!(**origin, tasks::HoldSource::Resource(source));
@@ -36,10 +41,11 @@ fn held_connector_parts_keep_exact_origin_and_refuse_shortened_retained_keys() {
 fn failed_and_uncertain_outbox_parts_keep_the_actual_connector_and_entry() {
     for outcome in [connector::OutboxOutcome::Failed, connector::OutboxOutcome::Held { entry: 8 }] {
         let (mut core, limits) = make_tree();
-        let _out = step(
+        let _out = connector_step(
             &mut core,
             &Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits },
-            Event::EffectConnector(connector::Event::Outbox { connector: 2, task: 2, entry: 8, outcome }),
+            2,
+            contract::Up::Effects(contract::effects::Up::Outbox { task: 2, entry: 8, outcome }),
         );
         let chip = chip_from_row(&limits, core.tasks.task(2).unwrap()).unwrap();
         assert_eq!(
@@ -53,10 +59,11 @@ fn failed_and_uncertain_outbox_parts_keep_the_actual_connector_and_entry() {
 fn drift_task_document_keeps_the_hold_account_separate_from_the_whole_resource_origin() {
     let (mut core, limits) = make_tree();
     let resource = tasks::Name { connector: 2, path: Box::new([Box::from(&b"whole"[..]), Box::from(&[255, 0][..])]) };
-    let _out = step(
+    let _out = connector_step(
         &mut core,
         &Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits },
-        Event::EffectConnector(connector::Event::Drift { task: 2, resource: resource.clone() }),
+        resource.connector,
+        contract::Up::Resources(contract::resources::Up::Drift { task: 2, resource: resource.clone() }),
     );
     let row = core.tasks.task(2).unwrap();
     let tasks::Phase::Held { why, source: Some(origin), .. } = &row.phase else { panic!("held drift") };
@@ -86,11 +93,11 @@ fn drift_task_document_keeps_the_hold_account_separate_from_the_whole_resource_o
 #[test]
 fn failed_effect_task_document_names_the_held_task_account_and_preserves_the_actual_outbox_origin() {
     let (mut core, limits) = make_tree();
-    let _out = step(
+    let _out = connector_step(
         &mut core,
         &Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits },
-        Event::EffectConnector(connector::Event::Outbox {
-            connector: 2,
+        2,
+        contract::Up::Effects(contract::effects::Up::Outbox {
             task: 2,
             entry: 8,
             outcome: connector::OutboxOutcome::Failed,
@@ -215,10 +222,11 @@ fn projection_outcomes_settle_only_their_writers_without_holding_or_waking_a_pro
         core.call_parts.insert(key, part.clone()).unwrap();
         let env = Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits };
         for _ in 0_u8..2 {
-            let mut out = step(
+            let mut out = connector_step(
                 &mut core,
                 &env,
-                Event::EffectConnector(connector::Event::ProjectionOutbox { connector: 2, entry: entries[0], outcome }),
+                2,
+                contract::Up::Projections(contract::projections::Up::Outbox { entry: entries[0], outcome }),
             );
             while let Some(request) = out.pop() {
                 if let Request::Held(held) = &request
@@ -226,7 +234,11 @@ fn projection_outcomes_settle_only_their_writers_without_holding_or_waking_a_pro
                 {
                     panic!("projection answered a call");
                 }
-                if let Request::Ask { ask: Ask::StartProcedure { .. }, .. } = request {
+                if let Request::Ask {
+                    ask: Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::Start { .. })),
+                    ..
+                } = request
+                {
                     panic!("projection started a procedure");
                 }
             }
@@ -256,11 +268,11 @@ fn projection_outcomes_settle_only_their_writers_without_holding_or_waking_a_pro
 fn projection_outcomes_ignore_unconfigured_connectors_and_unallocated_entries() {
     let ProjectionWriterFixture { mut core, limits, resources, entries } = projection_writers(false);
     for (connector, entry) in [(3, entries[0]), (2, 0), (2, entries[1] + 1)] {
-        let _out = step(
+        let _out = connector_step(
             &mut core,
             &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            Event::EffectConnector(connector::Event::ProjectionOutbox {
-                connector,
+            connector,
+            contract::Up::Projections(contract::projections::Up::Outbox {
                 entry,
                 outcome: connector::OutboxOutcome::Made,
             }),
@@ -280,10 +292,11 @@ fn ordinary_writer_outcomes_still_hold_agents_and_wake_procedures() {
         (true, OutboxOutcome::Held { entry: 1 }),
     ] {
         let ProjectionWriterFixture { mut core, limits, resources, entries } = projection_writers(procedure);
-        let _out = step(
+        let _out = connector_step(
             &mut core,
             &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            Event::EffectConnector(connector::Event::Outbox { connector: 2, task: 1, entry: entries[0], outcome }),
+            2,
+            contract::Up::Effects(contract::effects::Up::Outbox { task: 1, entry: entries[0], outcome }),
         );
         if procedure && outcome == OutboxOutcome::Failed {
             assert!(core.tasks.procedure_due(1).is_some());
@@ -373,22 +386,27 @@ fn a_refused_procedure_batch_sends_its_findings_to_its_connector() {
         budget: people::Budget::Named,
     };
     let (_, _, step_number) = core.tasks.procedure_due(1).expect("due procedure");
-    let mut out = step(
+    let mut out = connector_step(
         &mut core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-        Event::ProcedureStep {
+        2,
+        contract::Up::Procedures(contract::procedures::Up::Step {
             task: 1,
             step: step_number,
-            connector: 2,
             code: 1,
             decision: ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
-        },
+        }),
     );
     let mut refused = false;
     while let Some(request) = out.pop() {
         if let Request::Ask {
             connector: 2,
-            ask: Ask::StepRefused { task: 1, why: StepRefusal::Denied { findings, .. }, .. },
+            ask:
+                Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::StepRefused {
+                    task: 1,
+                    why: StepRefusal::Denied { findings, .. },
+                    ..
+                })),
         } = request
         {
             assert!(!findings.is_empty(), "the admission findings reach the connector");

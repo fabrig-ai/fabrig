@@ -17,6 +17,7 @@ pub struct CloseAt {
     pub landing: Commit,
     pub asked: bool,
     pub refused: Option<CloseRefused>,
+    pub outdated: Option<CloseOutdated>,
 }
 
 impl CloseAt {
@@ -32,6 +33,12 @@ impl CloseAt {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CloseRefused {
     pub counts: Option<Commit>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum CloseOutdated {
+    Window,
+    Ancestry,
 }
 
 /// The status of a fact or requirement at the named head.
@@ -120,8 +127,25 @@ pub enum Repair {
     Landing { gate: u16 },
     /// A person's request for changes on the forge, at the head they reviewed (domain/forge/change/gates.md, 1).
     Review { head: Commit },
+    /// Temper’s own check found faults in `.temper/` at this head.
+    TemperDir { head: Commit },
     /// The failed prefix pins its receipt; a blamed unit also keeps the green context (domain/landing-search.md, 7).
     LandingAt { gate: u16, candidate: Commit, below: Option<Below> },
+}
+
+impl Repair {
+    /// Whether the repair was prompted by CI failing at the change's head.
+    #[must_use]
+    pub fn ci(self) -> bool {
+        match self {
+            Self::Ci | Self::Semantic => true,
+            Self::Gate(_)
+            | Self::Review { .. }
+            | Self::TemperDir { .. }
+            | Self::Landing { .. }
+            | Self::LandingAt { .. } => false,
+        }
+    }
 }
 
 /// The green context of a blamed unit (domain/landing-search.md, 7; landing-search-by-test.md, 7).
@@ -377,7 +401,7 @@ pub struct Change {
     pub task: u64,
     pub way: Way,
     pub state: State,
-    /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
+    /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches-closer.md, 1).
     pub ended_held: Option<Cause>,
     pub gates: Box<[Gate]>,
     pub clean: Box<[Commit]>,
@@ -483,6 +507,18 @@ pub enum Recheck {
     Taken,
 }
 
+/// Temper’s check and, when enabled, its owner sign-off at the observed head and base.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TemperDir {
+    Uncovered,
+    Pending,
+    Update,
+    Passed,
+    Fault { head: Commit },
+    AwaitingOwner { until: Wall },
+    OwnerRequested { head: Commit },
+}
+
 /// Fresh forge and queue facts gathered by the top.
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -504,8 +540,6 @@ pub struct Facts {
     pub regate: bool,
     /// The admitted task release asks to measure the held verdict again.
     pub measure: bool,
-    /// Limit on a hold account delivered to the task.
-    pub hold_account_bytes: u32,
     /// Preserve the repair reason while its CI check has only a head.
     pub semantic_recheck: bool,
     pub recheck: Recheck,
@@ -532,7 +566,8 @@ pub struct Facts {
     pub contains_base: Status,
     /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_head: Status,
-    /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge/change/repairs.md).
+    pub temper_dir: TemperDir,
+    /// Whether the declared merge kind is within the change's delegation authority.
     pub merge_job: bool,
     /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
     /// `None` when it has none.
@@ -720,6 +755,26 @@ pub enum Decision {
     Cancel,
     /// Hold the task and tell its requester why.
     Hold(Cause),
+    /// The same judgement still holds; no fresh measurement was taken.
+    ReplayJudgement(Replay),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Replay {
+    RedStands { head: Commit },
+    Rejected { head: Commit },
+    CloseRefused { branch: Commit, landing: Commit },
+}
+
+impl Replay {
+    #[must_use]
+    pub const fn cause(self) -> Cause {
+        match self {
+            Self::RedStands { .. } => Cause::RedStands,
+            Self::Rejected { .. } => Cause::Rejected,
+            Self::CloseRefused { .. } => Cause::CloseRefused,
+        }
+    }
 }
 
 /// A next state and its decision from one coherent snapshot.

@@ -211,6 +211,7 @@ impl LinkPeer {
                 | engine_link::Request::Take { .. }
                 | engine_link::Request::Close { .. }
                 | engine_link::Request::Abort { .. } => {}
+                engine_link::Request::Convert => panic!("the peer declares no written converters"),
                 request @ (engine_link::Request::Unsent { .. } | engine_link::Request::Unread { .. }) => {
                     return Some(request);
                 }
@@ -309,12 +310,9 @@ impl AgentPeer {
         // The host's output bound prices initiator frames. The new responder
         // needs its own directional frame bound; Worker keeps its existing one.
         let mut channel = host.channel;
-        for version in &smith_protocol_channel::schema_for_start(&host.bodies, host.start_bytes).unwrap().versions {
-            for kind in &version.kinds {
-                if kind.direction == skein_channel::Direction::FromResponder {
-                    channel.output_bytes =
-                        channel.output_bytes.max(kind.largest.checked_add(FRAME_HEADER_BYTES).unwrap());
-                }
+        for kind in &smith_protocol_channel::schema_for_start(&host.bodies, host.start_bytes).unwrap().kinds {
+            if kind.direction == skein_channel::Direction::FromResponder {
+                channel.output_bytes = channel.output_bytes.max(kind.largest.checked_add(FRAME_HEADER_BYTES).unwrap());
             }
         }
         let limits = smith_protocol_channel::Limits {
@@ -357,12 +355,38 @@ impl AgentPeer {
             output_closes: 0,
         }
     }
+    pub(crate) fn launch_on_stand(
+        stand: &mut fixtures::WorkerStand,
+        agent: &crate::settings::Agent,
+        owner: Token,
+    ) -> Self {
+        let mut peer = Self::open(&mut stand.worker, agent, owner, true);
+        for _ in 0..PEER_STEPS {
+            peer.settle(&mut stand.worker);
+            // A checkout file read can hold Start even when the agent channel has settled.
+            if !peer.events.is_empty() {
+                break;
+            }
+            stand.drain_submitted();
+            if !stand.input() {
+                break;
+            }
+        }
+        peer.admit(&mut stand.worker);
+        peer
+    }
     pub(crate) fn launch(
         worker: &mut crate::Worker,
         agent: &crate::settings::Agent,
         owner: Token,
         rooted: bool,
     ) -> Self {
+        let mut peer = Self::open(worker, agent, owner, rooted);
+        peer.settle(worker);
+        peer.admit(worker);
+        peer
+    }
+    fn open(worker: &mut crate::Worker, agent: &crate::settings::Agent, owner: Token, rooted: bool) -> Self {
         let mut peer = Self::new(agent, owner);
         peer.now = worker.env.now;
         if !rooted {
@@ -392,13 +416,14 @@ impl AgentPeer {
                 },
             );
         }
-        peer.settle(worker);
-        let Some(smith_protocol_channel::Heard::Start { .. }) = peer.events.pop() else {
+        peer
+    }
+    fn admit(&mut self, worker: &mut crate::Worker) {
+        let Some(smith_protocol_channel::Heard::Start { .. }) = self.events.pop() else {
             panic!("agent receives Start");
         };
-        peer.component.send_admitted(peer.owner, &mut peer.events, &mut peer.out).unwrap();
-        peer.settle(worker);
-        peer
+        self.component.send_admitted(self.owner, &mut self.events, &mut self.out).unwrap();
+        self.settle(worker);
     }
     fn attach(&mut self, worker: &mut crate::Worker, owner: Token) {
         worker.up(

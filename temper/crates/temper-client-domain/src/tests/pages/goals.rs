@@ -425,10 +425,7 @@ fn reports_arrive_with_live_and_ended_rows_without_notes() {
 fn unavailable_parts_read_nothing_and_the_next_report_wins() {
     for part in [
         c::RowPart::Unknown,
-        c::RowPart::NotServed(c::NotServed {
-            owner: c::Owner::Family(temper_client_protocol_wire::FORGE),
-            served: List::with_capacity(0),
-        }),
+        c::RowPart::NotServed(c::NotServed { owner: c::Owner::Family(temper_client_protocol_wire::FORGE) }),
         c::RowPart::Failed(c::PartFailure::Busy),
         report_part(None),
     ] {
@@ -1137,7 +1134,7 @@ fn signing_out_and_out_of_date_release_the_fact() {
         h.answer(read, &[line(GOAL, Wall::EPOCH)]);
         assert!(h.root.has_goals(fixtures::PROJECT));
         if out_of_date {
-            h.up(Up::Served { served: false, versions: None });
+            h.up(Up::Served { served: false });
         } else {
             h.event(crate::Event::SignedOut);
         }
@@ -1191,10 +1188,7 @@ fn missing_goal_parts_keep_the_last_report_until_a_decoded_absence() {
     for missing in [
         c::RowPart::Failed(c::PartFailure::Busy),
         c::RowPart::Unknown,
-        c::RowPart::NotServed(c::NotServed {
-            owner: c::Owner::Family(temper_client_protocol_wire::FORGE),
-            served: List::uncapped(),
-        }),
+        c::RowPart::NotServed(c::NotServed { owner: c::Owner::Family(temper_client_protocol_wire::FORGE) }),
         c::RowPart::Failed(c::PartFailure::Unreadable),
     ] {
         let mut h = Harness::new();

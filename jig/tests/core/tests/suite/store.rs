@@ -304,8 +304,7 @@ fn submit_delayed_turn(world: &mut World, task: u64, attempt: u64) {
         match request {
             root::Request::Workers(_)
             | root::Request::StoreCatalogue { .. }
-            | root::Request::ClientsCatalogue { .. }
-            | root::Request::Start { .. } => {}
+            | root::Request::ClientsCatalogue { .. } => {}
             root::Request::Commit { number, mut writes } => {
                 let mut rows = Vec::new();
                 while let Some(row) = writes.pop() {

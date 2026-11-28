@@ -313,10 +313,7 @@ fn account_availability_returns_after_signing_in_with_fresh_deliveries() {
 #[test]
 fn account_availability_forgets_its_document_when_service_is_withdrawn() {
     let (mut root, _, _) = current_accounts(c::HeldRole::Member);
-    event(
-        &mut root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } } },
-    );
+    event(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: false } } });
     assert_eq!(root.pages().availability(root.client()), None);
     assert!(accounts::document(root.client()).is_none());
 }

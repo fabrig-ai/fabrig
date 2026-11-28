@@ -106,7 +106,10 @@ pub(crate) fn point(store: &Store, range: &engine_store::Range) -> engine_store:
                 _ => None,
             }
         }
-        engine_store::Range::Read(_) | engine_store::Range::Window { .. } | engine_store::Range::Notes(_) => {
+        engine_store::Range::Start { .. }
+        | engine_store::Range::Read(_)
+        | engine_store::Range::Window { .. }
+        | engine_store::Range::Notes(_) => {
             unreachable!("not a point load")
         }
     };
@@ -140,8 +143,7 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
         | root::Output::IncidentAssociationRefused { .. }
         | root::Output::Application { .. }
         | root::Output::Commit { .. }
-        | root::Output::Switch
-        | root::Output::Load { .. }
+        | root::Output::ConnectorLoad(_)
         | root::Output::CoreLoad(_)
         | root::Output::Core(_)
         | root::Output::Now(_)
@@ -151,10 +153,14 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
         | root::Output::Read { .. }
         | root::Output::Agent(_)
         | root::Output::ToChild(_)
-        | root::Output::Store(engine_store::Out::Load {
-            range: engine_store::Range::Window { .. } | engine_store::Range::Notes(_),
-            ..
-        })
+        | root::Output::Store(
+            engine_store::Out::Switch
+            | engine_store::Out::Load {
+                range:
+                    engine_store::Range::Start { .. } | engine_store::Range::Window { .. } | engine_store::Range::Notes(_),
+                ..
+            },
+        )
         | root::Output::Stop => None,
     }
 }

@@ -148,6 +148,25 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      names one of the model's efforts. An
      amendment replaces the main choice whole; its effort is
      the caller's, never inherited from the task's old main.
+     **A speed** is chosen the same way (jig's `domain/tasks/README.md`,
+     section 3): the three acts take `--speed SPEED`, the main model's,
+     needing `--model` as `--effort` does, and `--sub-agent-speed
+     MODEL:SPEED`, repeatable, the speed of the sub-agent a
+     `--sub-agent` names, split at the last colon, since a speed's name
+     holds none and a model's may, needing that `--sub-agent`; on `task
+     amend`, which takes no `--sub-agent` and keeps the task's
+     sub-agents, the speed of one of those, the rest keeping theirs.
+     `--sub-agent MODEL[:EFFORT]` keeps its meaning. SPEED is a speed
+     the model declares in the offer, or `standard`; left out, the
+     choice names none, and each run takes the speed its charter's
+     resolution gives the model (jig's `domain/engine/executors.md`, 1),
+     never a speed the template's choice gave a model the flags replace.
+     An amendment's speed is the caller's too. `task show` prints a
+     choice's speed after its effort, `MODEL/EFFORT at SPEED`, and `model
+     list` prints each model's speeds by name beside its efforts, its
+     default speed marked as its default effort is, so that a person sees
+     what they may choose. A faster speed costs more: the help's goal
+     and task pages say so, and how to choose one.
    - **A start's flags win over its template** for every run of the task
      (`../../draft/archive/goal-start-flags.md`, 2). Given `--model`, a start's
      choice is the flags' main, the `--sub-agent` flags' sub-agents or,
@@ -175,9 +194,15 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      | a `--sub-agent`'s model, not offered | `--sub-agent VALUE: MODEL is not among the models you may choose in this project` |
      | a `--sub-agent`'s effort, not its model's | `--sub-agent VALUE: EFFORT is not an effort MODEL declares; it declares E1, E2` |
      | a `--sub-agent`'s model named again | `--sub-agent VALUE: MODEL is already a sub-agent` |
+     | `--speed`, not the model's | `--speed SPEED: not a speed MODEL declares; it declares S1, S2` |
+     | a `--sub-agent-speed`'s model, no `--sub-agent`'s | `--sub-agent-speed VALUE: MODEL is not a sub-agent --sub-agent names` |
+     | on `task amend`, not one of the task's sub-agents | `--sub-agent-speed VALUE: MODEL is not one of the task's sub-agents` |
+     | a `--sub-agent-speed`'s speed, not its model's | `--sub-agent-speed VALUE: SPEED is not a speed MODEL declares; it declares S1, S2` |
+     | a `--sub-agent-speed`'s model named again | `--sub-agent-speed VALUE: MODEL already has a speed` |
 
-     VALUE is the flag's whole value, its effort included; a model
-     declaring no effort `it declares none`; the efforts in the model's
+     VALUE is the flag's whole value, its effort or speed included; a model
+     declaring no effort `it declares none`, and one declaring no speed
+     the same; the efforts and the speeds in the model's
      order. Each name or value echoed is cut as a name in an error is,
      at 256 bytes or its first control character, `...` marking the cut.
 
@@ -193,6 +218,9 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      model MODEL` or `sub-agent model MODEL`. That is a model the
      template gave, or any model of a request restored after a client
      restart, whose kept ask holds the choice and not the call's flags.
+     For the `Speed` fault, NAMED is `--speed SPEED` or `--sub-agent-speed
+     VALUE` where the call's flag gave the refused model's speed, and the
+     rule above otherwise; JSON's `flag` names that flag.
      WHY is the fault's:
 
      | Fault | WHY |
@@ -200,6 +228,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      | `Charter` | `not one of charter C's models`, C the task's charter |
      | `Authority` | `outside the authority the task is given` |
      | `Effort` | `its effort is not one the model declares` |
+     | `Speed` | `its speed is not one the model declares` |
      | `Unconfigured` | `not a configured model` |
      | `Procedure` | `the task's executor runs no model` |
      | `Repeated` | `named twice among the sub-agents` |

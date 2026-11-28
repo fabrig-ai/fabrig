@@ -1,8 +1,9 @@
 //! Project adoption release (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
 use super::*;
+use jig_domain_contract as contract;
 
 fn release(d: &mut Domain, project: u32) -> Box<[Request]> {
-    outputs(d, Event::ReleaseProject { project, request: Token::new(u64::from(project)) })
+    outputs(d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project })))
 }
 
 #[test]
@@ -36,7 +37,7 @@ fn release_takes_the_projects_repositories_out_of_every_list() {
         assert!(sent.contains(&Request::Erase { key: Key::Repository(repository) }));
         assert!(sent.contains(&Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(repository)) }));
     }
-    assert_eq!(sent.last(), Some(&Request::ProjectReleased { request: Token::new(5) }));
+    assert_eq!(sent.last(), Some(&project_released(5)));
 }
 
 #[test]
@@ -44,7 +45,7 @@ fn release_of_an_empty_project_answers_at_once() {
     let mut d = domain();
     let other = adopted();
     outputs(&mut d, Event::Restore { record: Stored::Repository(other.clone()) });
-    assert_eq!(release(&mut d, 6).as_ref(), &[Request::ProjectReleased { request: Token::new(6) }]);
+    assert_eq!(release(&mut d, 6).as_ref(), &[project_released(6)]);
     assert_eq!(d.repository(REPO), Some(&other));
 }
 
@@ -65,13 +66,13 @@ fn a_resent_release_is_idempotent() {
         outputs(&mut restarted, Event::Restore { record: Stored::Repository(other.clone()) });
         let resent = release(&mut restarted, 5);
         if committed {
-            assert_eq!(resent.as_ref(), &[Request::ProjectReleased { request: Token::new(5) }]);
+            assert_eq!(resent.as_ref(), &[project_released(5)]);
         } else {
             assert_eq!(resent, sent, "an uncommitted release repeats the same erasures");
         }
         assert_eq!(restarted.repository(REPO), None);
         assert_eq!(restarted.repository(other.provider), Some(&other));
     }
-    assert_eq!(release(&mut d, 5).as_ref(), &[Request::ProjectReleased { request: Token::new(5) }]);
+    assert_eq!(release(&mut d, 5).as_ref(), &[project_released(5)]);
     assert!(sent.contains(&Request::Erase { key: Key::Repository(REPO) }));
 }

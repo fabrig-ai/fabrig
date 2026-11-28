@@ -172,7 +172,9 @@ pub fn member(world: &crate::world::World, executor: tasks::Executor, words: &[u
 pub fn job(world: &crate::world::World, kind: u32, bytes: Box<[u8]>, deadline: skein_lib::Duration) -> core::Delegate {
     let mut child = member(world, tasks::Executor::Job { kind }, b"");
     child.spec.job = Some(Box::new(tasks::JobSpec { bytes, deadline }));
-    child.contract = tasks::Contract::Job { bytes: 0 };
+    // An undeclared kind still reaches core admission for the refusal stories.
+    let result = world.restart_config.0.core.jobs.iter().find(|bound| bound.kind == JobKind(kind));
+    child.contract = tasks::Contract::Job { bytes: result.map_or(0, |bound| bound.result) };
     child.authority.budget.spend = 0;
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     child
@@ -248,6 +250,7 @@ pub fn two_projects(seed: u64) -> (root::Config, root::Limits) {
                 number,
                 name: format!("Project {number}").into_boxed_str(),
                 policy: core::ConfiguredPolicy {
+                    name: None,
                     policy,
                     permissions: if number == 1 {
                         config.core.seed_projects[0].policy.permissions.clone()

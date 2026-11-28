@@ -54,6 +54,7 @@ fn world_with_history(refused: bool, immediate: bool, saved: smith_domain::Trans
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

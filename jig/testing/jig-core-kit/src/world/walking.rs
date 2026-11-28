@@ -1,5 +1,6 @@
 //! Short walking scripts share the core world's store and loop (domain/engine/world.md, 1).
 use super::{ReplyTo, Token, World, core, people, root, tasks};
+use jig_domain_contract as jig;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scenario {
@@ -75,10 +76,10 @@ impl Walking {
             }
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
-                    world.events.push_back(root::Event::Core(core::Event::ProjectionSettled {
-                        goal: feed.goal.number,
+                    world.events.push_back(root::Event::connector_up(
                         connector,
-                    }));
+                        jig::Up::Projections(jig::projections::Up::Settled { goal: feed.goal.number }),
+                    ));
                 }
             }
 
@@ -276,7 +277,9 @@ impl Walking {
             | root::Delivery::CallAnswer { .. }
             | root::Delivery::Core(_)
             | root::Delivery::Fleet(_)
-            | root::Delivery::Start(_)
+            | root::Delivery::Connector(..)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::System { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::LostRead { .. }) => {

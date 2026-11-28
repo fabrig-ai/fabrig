@@ -74,7 +74,7 @@ fn fixture(owner: bool, rows: &[(&[u8], w::AreaOwner)]) -> Reads {
             w::AreaOwner::Task(task) => w::Holder::Task(w::HolderTask { number: task.number }),
             w::AreaOwner::Party(party) => w::Holder::Party(w::HolderParty { number: party.number }),
             w::AreaOwner::Role(role) => w::Holder::Role(w::HolderRole { number: role.number }),
-            w::AreaOwner::Charter(_) => holder(),
+            w::AreaOwner::Charter(_) | w::AreaOwner::CharterNamed(_) => holder(),
         };
         areas
             .push(team::Area {

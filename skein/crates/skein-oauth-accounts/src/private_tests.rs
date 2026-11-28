@@ -166,6 +166,7 @@ pub(super) fn owner_of(request: &file::Request) -> Token {
         | file::Request::Cut { owner, .. }
         | file::Request::OpenRead { owner, .. }
         | file::Request::OpenReadNoFollow { owner, .. }
+        | file::Request::OpenSiblingFile { owner, .. }
         | file::Request::OpenDirectory { owner, .. }
         | file::Request::Load { owner, .. }
         | file::Request::Scan { owner, .. }
@@ -435,6 +436,7 @@ fn check_file(request: &file::Request, shape: u32) {
         | file::Request::Cut { .. }
         | file::Request::OpenRead { .. }
         | file::Request::OpenReadNoFollow { .. }
+        | file::Request::OpenSiblingFile { .. }
         | file::Request::OpenDirectory { .. }
         | file::Request::Scan { .. }
         | file::Request::Store { .. }

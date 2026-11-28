@@ -138,8 +138,7 @@ impl Clients {
             link,
             served: kit::host::served(kit::Served {
                 family: Some(1),
-                first: VERSION,
-                last: VERSION,
+                version: VERSION,
                 layout: jig_client_test_protocol_wire::LAYOUT,
             }),
             public: List::with_capacity(0),
@@ -472,11 +471,10 @@ impl Clients {
                 None
             }
             root::Event::Store(_)
-            | root::Event::StartRecord(_)
-            | root::Event::StartMissing { .. }
+            | root::Event::ConnectorPage { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
-            | root::Event::StartDone(_)
+            | root::Event::Engine(_)
             | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
             | root::Event::Stop
@@ -556,11 +554,10 @@ impl Clients {
                 Some(kit::Event::WatchRefused { watcher, why: core::WatchRefusal::Busy })
             }
             root::Event::Store(_)
-            | root::Event::StartRecord(_)
-            | root::Event::StartMissing { .. }
+            | root::Event::ConnectorPage { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
-            | root::Event::StartDone(_)
+            | root::Event::Engine(_)
             | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
             | root::Event::Stop

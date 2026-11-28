@@ -325,6 +325,7 @@ pub(crate) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
         | people::Event::Whose { .. }
         | people::Event::SignOut { .. }
         | people::Event::Act { .. }
+        | people::Event::ConnectorAct { .. }
         | people::Event::Ask { .. }
         | people::Event::Decided { .. }
         | people::Event::Restore { .. } => {}

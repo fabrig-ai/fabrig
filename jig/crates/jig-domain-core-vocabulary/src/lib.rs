@@ -43,8 +43,8 @@ pub use crate::{
         },
     },
     limits::{
-        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY,
-        brief_holds_documents, charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
+        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY, brief_holds_documents,
+        charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
     },
     numbers::{Counters, Deployment, Family, fresh},
     public::{
@@ -59,7 +59,7 @@ pub use crate::{
         host_rule::HostRule,
         live::LiveAsk,
         state::{
-            EFFORT_BYTES, EFFORTS, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, RunCharter, RunPolicy,
+            EFFORT_BYTES, EFFORTS, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, RunCharter, RunPolicy, Speed,
             most_costly, reserve_floor,
         },
         transcript_text::TranscriptRow,
@@ -76,8 +76,8 @@ pub use crate::{
     translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
-        NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
-        StepRefusal, Timer, ToolKind, WatchRefusal, Write,
+        NamedAction, Now, PayloadRefusal, ProposalChoice, PublicIndexLimits, Request, RetentionLimits, StepRefusal,
+        Timer, ToolKind, WatchRefusal, Write,
     },
     waits::{
         AtBound, Bound, Figures, Nearest, ReportRefusal, Reported, ReportedBound, Thing, Unbounded, Wait, WaitKind,
@@ -93,6 +93,7 @@ use jig_domain_people as people;
 /// Policy copied into a later project (protocol/configuration-engine.md, 1; domain/model.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ConfiguredPolicy {
+    pub name: Option<Box<[u8]>>,
     pub policy: authority::Policy,
     pub permissions: Box<[people::PermissionRole]>,
     pub templates: Box<[people::TemplateOverride]>,

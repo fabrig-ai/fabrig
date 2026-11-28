@@ -23,8 +23,40 @@ pub fn window_to_domain(record: smith_channel::v14::Window) -> smith_domain::Win
 }
 
 #[must_use]
+pub fn hook_time_to_domain(record: smith_channel::v14::HookTime) -> smith_domain::run::HookTime {
+    let smith_channel::v14::HookTime { time: field_000000, asked: field_000001 } = record;
+    smith_domain::run::HookTime {
+        time: field_000000,
+        asked: field_000001
+    }
+}
+
+#[must_use]
+pub fn hook_times_to_domain(record: smith_channel::v14::HookTimes) -> smith_domain::run::HookTimes {
+    let smith_channel::v14::HookTimes { deliver: field_000000, finish: field_000001, ceiling: field_000002, fault: field_000003 } = record;
+    smith_domain::run::HookTimes {
+        deliver: match field_000000 {
+            Some(item) => {
+                let converted = hook_time_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        finish: match field_000001 {
+            Some(item) => {
+                let converted = hook_time_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        ceiling: field_000002,
+        fault: field_000003
+    }
+}
+
+#[must_use]
 pub fn directory_to_domain(record: smith_channel::v14::Directory) -> crate::Mount {
-    let smith_channel::v14::Directory { name: field_000000, path: field_000001, writable: field_000002, git: field_000003, conflicts: field_000004, results: field_000005 } = record;
+    let smith_channel::v14::Directory { name: field_000000, path: field_000001, writable: field_000002, git: field_000003, conflicts: field_000004, results: field_000005, hooks: field_000006 } = record;
     crate::Mount {
         name: field_000000,
         path: field_000001,
@@ -43,6 +75,13 @@ pub fn directory_to_domain(record: smith_channel::v14::Directory) -> crate::Moun
         results: match field_000005 {
             Some(item) => {
                 let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        hooks: match field_000006 {
+            Some(item) => {
+                let converted = hook_times_to_domain(item);
                 Some(converted)
             }
             None => None,
@@ -259,38 +298,10 @@ pub fn budget_refusal_to_record(value: &smith_domain::run::BudgetRefusal) -> smi
 }
 
 #[must_use]
-pub fn invalid_start_to_record(value: &smith_domain::run::Invalid) -> smith_channel::v14::InvalidStart {
-    match value {
-        smith_domain::run::Invalid::CharterVersion => smith_channel::v14::InvalidStart::CharterVersion,
-        smith_domain::run::Invalid::MalformedCharter => smith_channel::v14::InvalidStart::MalformedCharter,
-        smith_domain::run::Invalid::Activation => smith_channel::v14::InvalidStart::Activation,
-        smith_domain::run::Invalid::Window => smith_channel::v14::InvalidStart::Window,
-        smith_domain::run::Invalid::Conventions => smith_channel::v14::InvalidStart::Conventions,
-        smith_domain::run::Invalid::TooLarge => smith_channel::v14::InvalidStart::TooLarge,
-        smith_domain::run::Invalid::Workspace => smith_channel::v14::InvalidStart::Workspace,
-        smith_domain::run::Invalid::Grants => smith_channel::v14::InvalidStart::Grants,
-        smith_domain::run::Invalid::Outcome => smith_channel::v14::InvalidStart::Outcome,
-        smith_domain::run::Invalid::Budget(held) => smith_channel::v14::InvalidStart::Budget(smith_channel::v14::BudgetRefusalValue { value: budget_refusal_to_record(held) }),
-        smith_domain::run::Invalid::Price(held) => smith_channel::v14::InvalidStart::Price(smith_channel::v14::PriceRateValue { value: price_rate_to_record(held) }),
-        smith_domain::run::Invalid::Llm => smith_channel::v14::InvalidStart::Llm,
-        smith_domain::run::Invalid::Conversation => smith_channel::v14::InvalidStart::Conversation,
-        smith_domain::run::Invalid::Endpoint => smith_channel::v14::InvalidStart::Endpoint,
-        smith_domain::run::Invalid::Messages => smith_channel::v14::InvalidStart::Messages,
-        smith_domain::run::Invalid::HostPart { bound: field_000000 } => smith_channel::v14::InvalidStart::HostPart(smith_channel::v14::WindowBound {
-            bound: *field_000000
-        }),
-        smith_domain::run::Invalid::Room { bound: field_000000 } => smith_channel::v14::InvalidStart::Room(smith_channel::v14::WindowBound {
-            bound: *field_000000
-        }),
-        smith_domain::run::Invalid::Effort => smith_channel::v14::InvalidStart::Effort,
-    }
-}
-
-#[must_use]
 pub fn start_refusal_to_record(value: &smith_domain::run::Refusal) -> smith_channel::v14::StartRefusal {
     match value {
         smith_domain::run::Refusal::Busy => smith_channel::v14::StartRefusal::Busy,
-        smith_domain::run::Refusal::Invalid(held) => smith_channel::v14::StartRefusal::Invalid(smith_channel::v14::InvalidStartValue { value: invalid_start_to_record(held) }),
+        smith_domain::run::Refusal::Invalid(held) => smith_channel::v14::StartRefusal::Invalid(smith_channel::v14::InvalidStartValue { value: crate::channel_hand::invalid_start_to_record(held) }),
     }
 }
 

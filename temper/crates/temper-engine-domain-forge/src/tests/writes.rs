@@ -465,6 +465,7 @@ fn the_outbox_line_waits_for_a_branch_record_then_asks_its_write_again() {
     use jig_domain_core_vocabulary::waits::{WaitKind, WaitObject};
     use temper_client_protocol_wire::waits::{THING_WRITE_ENTRY, THING_WRITE_RECORD};
     let mut d = refusals::adopted_domain();
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
     let branch = name(BRANCH);
     head(&mut d, &branch, HEAD);
     let mut out = Queue::uncapped();
@@ -476,6 +477,8 @@ fn the_outbox_line_waits_for_a_branch_record_then_asks_its_write_again() {
         decision: temper_engine_domain_forge_change::Decision::Wait { until: None },
         entry: None,
         evidence: None,
+        close_at: None,
+        close_refusal: None,
     }));
     assert!(d.entries.is_empty());
     let report = crate::room::waited(&d, &env().limits, TASK, 1).expect("a branch's room is reported");

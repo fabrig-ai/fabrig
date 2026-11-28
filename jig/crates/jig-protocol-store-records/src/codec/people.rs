@@ -41,6 +41,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
     let people = &domain.people;
     let authority = &domain.authority;
     let mut limits = wire::Limits {
+        model_effort_speed_some: wire::CEILINGS.model_effort_speed_some,
         member_symbols: wire::CEILINGS.member_symbols,
         act_close_reason: people.words,
         refusal_judged_why: people.words,

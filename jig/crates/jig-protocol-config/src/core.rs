@@ -18,6 +18,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
                 number: project.number,
                 name: project.name.clone(),
                 policy: domain::ConfiguredPolicy {
+                    name: None,
                     policy: project.policy.clone(),
                     permissions: project.roles.clone(),
                     templates: project.templates.clone(),
@@ -112,6 +113,7 @@ fn configured_policies(engine: &Engine) -> Map<u32, domain::ConfiguredPolicy> {
             .insert(
                 policy.number,
                 domain::ConfiguredPolicy {
+                    name: policy.name.clone(),
                     policy: policy.policy.clone(),
                     permissions: policy.roles.clone(),
                     templates: policy.templates.clone(),

@@ -2,6 +2,10 @@
 use jig_protocol_accounts::moved::{self, Moved};
 use skein_lib::{Rng, Wall, bytes, length::len_u64};
 use skein_oauth::{Limits, SavedToken};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
 
 fn limits() -> Limits {
     Limits {
@@ -32,25 +36,32 @@ fn check(input: &[u8], limits: &Limits, seed: u64, case: u32) -> bool {
 }
 
 #[test]
-fn arbitrary_moved_files_never_panic_and_round_trip_when_they_decode() {
+fn arbitrary_moved_files_never_panic_and_round_trip_when_they_decode() -> Result<(), String> {
     let limits = limits();
     let mut buffer =
         bytes::zeroed(usize::try_from(moved::bound(&limits)).expect("small bound").checked_add(1).expect("one past"));
-    for seed in [0x6d6f_7665_0001, 0x6d6f_7665_0002] {
-        let mut rng = Rng::new(seed);
-        for case in 0..2_000_u32 {
-            let length = usize::try_from(rng.below(len_u64(buffer.len()).checked_add(1).expect("inclusive length")))
-                .expect("small length");
-            for byte in buffer.get_mut(..length).expect("chosen length") {
-                *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+    cases(
+        this_test!("arbitrary_moved_files_never_panic_and_round_trip_when_they_decode"),
+        [0x6d6f_7665_0001, 0x6d6f_7665_0002],
+        |seed| -> Result<(), String> {
+            let mut rng = Rng::new(seed);
+            for case in 0..2_000_u32 {
+                let length =
+                    usize::try_from(rng.below(len_u64(buffer.len()).checked_add(1).expect("inclusive length")))
+                        .expect("small length");
+                for byte in buffer.get_mut(..length).expect("chosen length") {
+                    *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+                }
+                let _accepted = check(buffer.get(..length).expect("chosen length"), &limits, seed, case);
             }
-            let _accepted = check(buffer.get(..length).expect("chosen length"), &limits, seed, case);
-        }
-    }
+            Ok(())
+        },
+    )
+    .map_err(|case| case.to_string())
 }
 
 #[test]
-fn single_byte_mutations_never_panic_and_round_trip_when_they_decode() {
+fn single_byte_mutations_never_panic_and_round_trip_when_they_decode() -> Result<(), String> {
     let limits = limits();
     let original = Moved {
         application: bytes::copy_of(b"app"),
@@ -73,21 +84,30 @@ fn single_byte_mutations_never_panic_and_round_trip_when_they_decode() {
         },
     };
     let valid = moved::encode(&original, &limits).expect("fixture");
-    let seed = 0x6d6f_7665_0003;
-    let mut rng = Rng::new(seed);
-    assert!(check(valid.expose(), &limits, seed, 0));
-    let mut accepted = 0_u32;
-    let mut refused = 0_u32;
-    for case in 0..10_000_u32 {
-        let mut changed = bytes::copy_of(valid.expose());
-        let index = usize::try_from(rng.below(len_u64(changed.len()))).expect("index fits");
-        let mask = u8::try_from(rng.below(255).checked_add(1).expect("nonzero byte")).expect("byte");
-        *changed.get_mut(index).expect("chosen byte") ^= mask;
-        if check(&changed, &limits, seed, case) {
-            accepted = accepted.checked_add(1).expect("bounded cases");
-        } else {
-            refused = refused.checked_add(1).expect("bounded cases");
-        }
-    }
-    assert!(accepted > 0 && refused > 0, "seed {seed:#x} exercises both outcomes");
+    cases(
+        this_test!("single_byte_mutations_never_panic_and_round_trip_when_they_decode"),
+        [0x6d6f_7665_0003],
+        |seed| -> Result<(), String> {
+            let mut rng = Rng::new(seed);
+            assert!(check(valid.expose(), &limits, seed, 0));
+            let mut accepted = 0_u32;
+            let mut refused = 0_u32;
+            for case in 0..10_000_u32 {
+                let mut changed = bytes::copy_of(valid.expose());
+                let index = usize::try_from(rng.below(len_u64(changed.len()))).expect("index fits");
+                let mask = u8::try_from(rng.below(255).checked_add(1).expect("nonzero byte")).expect("byte");
+                *changed.get_mut(index).expect("chosen byte") ^= mask;
+                if check(&changed, &limits, seed, case) {
+                    accepted = accepted.checked_add(1).expect("bounded cases");
+                } else {
+                    refused = refused.checked_add(1).expect("bounded cases");
+                }
+            }
+            if gate() {
+                assert!(accepted > 0 && refused > 0, "seed {seed:#x} exercises both outcomes");
+            }
+            Ok(())
+        },
+    )
+    .map_err(|case| case.to_string())
 }

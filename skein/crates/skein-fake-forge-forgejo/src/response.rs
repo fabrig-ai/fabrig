@@ -983,6 +983,7 @@ fn directory(limits: &Limits, select: &Select, entries: &[a::Entry]) -> Result<R
             kind: match entry.kind {
                 a::EntryKind::File => skein_forge::api::EntryKind::File,
                 a::EntryKind::Directory => skein_forge::api::EntryKind::Directory,
+                a::EntryKind::Link => skein_forge::api::EntryKind::Link,
             },
         })
         .expect("one row per entry");

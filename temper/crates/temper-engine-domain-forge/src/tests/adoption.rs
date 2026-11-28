@@ -1,5 +1,6 @@
 //! Core admission and the bounded retained application outcome.
 use super::*;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use skein_lib::List;
 
@@ -275,7 +276,7 @@ fn releasing_a_context_project_saves_the_writer_without_its_context() {
     row.contexts = Box::new([6, 7]);
     outputs(&mut d, Event::Restore { record: Stored::Repository(row) });
     let mut out = Queue::uncapped();
-    crate::adoption::release(&mut d, &env(), 6, Token::new(9), &mut out);
+    crate::adoption::release(&mut d, &env(), 6, &mut out);
     let mut expected = adopted();
     expected.contexts = Box::new([7]);
     assert_eq!(d.repository(REPO), Some(&expected));
@@ -288,14 +289,14 @@ fn releasing_a_context_project_saves_the_writer_without_its_context() {
         assert!(!matches!(request, Request::Erase { key: Key::Repository(_) | Key::Client(_), .. }));
     }
     assert!(saved);
-    crate::adoption::release(&mut d, &env(), 5, Token::new(10), &mut out);
+    crate::adoption::release(&mut d, &env(), 5, &mut out);
     assert!(d.repository(REPO).is_none(), "the writer's release drops its contexts too");
     let mut context_only = adopted();
     context_only.role = Role::Context;
     context_only.home = false;
     context_only.contexts = Box::new([7]);
     outputs(&mut d, Event::Restore { record: Stored::Repository(context_only) });
-    crate::adoption::release(&mut d, &env(), 5, Token::new(11), &mut out);
+    crate::adoption::release(&mut d, &env(), 5, &mut out);
     assert_eq!(d.repository(REPO).unwrap().project, 7, "a context-only row stays for the remaining adopter");
     assert_context_view(&d, 7);
 }
@@ -1000,7 +1001,10 @@ fn first_context_only_and_erased_adoptions_still_refuse_an_unowned_prefix() {
             d.repositories.insert(REPO, Box::new(row)).unwrap();
         }
         if erased {
-            outputs(&mut d, Event::ReleaseProject { project: 5, request: Token::new(9) });
+            outputs(
+                &mut d,
+                Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })),
+            );
             assert!(d.repositories.is_empty());
         }
         let request = Token::new(4);

@@ -136,20 +136,20 @@ fn an_alert_is_classified_for_each_subscriber_and_its_echo_is_dropped() {
 #[test]
 fn observed_verdicts_wait_for_fresh_facts_and_load_tracks_change() {
     let mut world = World::new(0);
-    let ask = obs::Event::Judge {
+    let ask = || obs::Event::Judge {
         token: World::token(1),
         requirement: obs::Requirement::HealthyReplicaElsewhere,
         service: service(),
         freshness: 60,
     };
-    let pending = world.event(ask.clone());
+    let pending = world.event(ask());
     assert!(pending.contains(&obs::Request::Verdict { token: World::token(1), verdict: obs::Verdict::Wait }));
     let settled = world.release(&pending);
     assert!(
         settled.contains(&obs::Request::Verdict { token: World::token(1), verdict: obs::Verdict::Met { observed: 0 } })
     );
     world.now = 61;
-    let stale = world.event(ask);
+    let stale = world.event(ask());
     assert!(stale.contains(&obs::Request::Verdict { token: World::token(1), verdict: obs::Verdict::Wait }));
     world.production.advance(61);
     world.release(&stale);
@@ -239,8 +239,8 @@ fn a_lost_silence_answer_is_found_once_after_restart() {
 fn a_watch_keeps_its_last_batch_across_a_restart() {
     let mut world = World::new(0);
     world.event(obs::Event::StartWatch { project: 1, task: 8, services: Box::from([service()]), template: 2 });
-    let wake = obs::Event::WakeWatch { task: 8, batch: 9, alerts: Box::from([3, 4]) };
-    let first = world.event(wake.clone());
+    let wake = || obs::Event::WakeWatch { task: 8, batch: 9, alerts: Box::from([3, 4]) };
+    let first = world.event(wake());
     assert!(first.contains(&obs::Request::Triage {
         watch: 8,
         template: 2,
@@ -249,7 +249,7 @@ fn a_watch_keeps_its_last_batch_across_a_restart() {
         delegate: Box::new([])
     }));
     world.restart();
-    assert_eq!(world.event(wake).len(), 0);
+    assert_eq!(world.event(wake()).len(), 0);
 }
 
 #[test]
@@ -311,7 +311,7 @@ fn the_scale_requirement_waits_for_half_an_hour_of_low_load() {
     let mut world = World::new(0);
     world.now = 1_800;
     let token = World::token(1);
-    let judge = obs::Event::Judge {
+    let judge = || obs::Event::Judge {
         token,
         requirement: obs::Requirement::LoadBelow { percent: 40, for_seconds: 1_800 },
         service: service(),
@@ -326,7 +326,7 @@ fn the_scale_requirement_waits_for_half_an_hour_of_low_load() {
         load: Box::from([obs::LoadPoint { at: 0, percent: 10 }, obs::LoadPoint { at: 1_800, percent: 95 }]),
     };
     world.event(obs::Event::System(obs::SystemEvent::Fact { service: service(), fact: high }));
-    let waiting = world.event(judge.clone());
+    let waiting = world.event(judge());
     assert!(waiting.contains(&obs::Request::Verdict { token, verdict: obs::Verdict::Wait }));
     world.now = 3_601;
     let low = obs::Fact {
@@ -340,6 +340,6 @@ fn the_scale_requirement_waits_for_half_an_hour_of_low_load() {
     let met = world.event(obs::Event::System(obs::SystemEvent::Fact { service: service(), fact: low }));
     assert!(met.contains(&obs::Request::Verdict { token, verdict: obs::Verdict::Met { observed: 3_601 } }));
     world.now = 3_662;
-    let stale = world.event(judge);
+    let stale = world.event(judge());
     assert!(stale.contains(&obs::Request::Verdict { token, verdict: obs::Verdict::Wait }));
 }

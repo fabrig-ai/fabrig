@@ -21,7 +21,7 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   | policy | the policy's, 1 to 64, the defaults' 1 to 32 (below) | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
   | limits | none: one setting | overrides of jig's limits, at most 256, each a limit's dotted name, a value and a reason of at most 120 bytes, ascending by name; none is the application's stock (`../../protocol/limits.md`, limits as settings) | by the application, at its start, never by the core |
-  | model | the model's, 1 to 64, the defaults' 1 to 32 (below), never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
+  | model | the model's, 1 to 64, the defaults' 1 to 32 (below), never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, speeds and default speed (`settings-catalogue.md`, 1), description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
   | worker | the worker's, 1 to the fleet's configured workers, never given to another name (`workers.md`, 2) | a worker whole: its name, its places, its secret's digest, whether it is withdrawn (`workers.md`, 1) | at each opening and each hello, and when a deployment document is built: the newest (`workers.md`, 4) |
   | provider | the LLM provider's, 1 to 16, never given to another name (`llm-providers.md`, 3) | a provider whole: its name, its sources, its list's patterns, its terms and its endpoints, whether it is withdrawn (`llm-providers.md`, 1 and 2) | by the check and the keeping ask: the newest; by what dials, signs in and lists: the providers the start ran, so a change applies at the next start (`llm-providers.md`, 5) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (5) | by the application, from that connector: the newest |
@@ -81,12 +81,59 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
     warns of the kept items. An application's own
     kinds numbered by a charter or a template bound their numbers in
     their connectors (5), as their owner designs.
+- **Names.** A charter, a template and a policy has a *name* beside its
+  number, or none: 1 to 32 bytes, `NAME_BYTES`, of lowercase ASCII
+  letters, digits and `-`, starting with a letter, so that a name is
+  never a number; `NAME_BYTES` is a constant of `jig-domain-people`'s
+  settings vocabulary beside `NUMBERS`. A template's words for a person are its
+  *shown name* (`../../protocol/configuration-templates.md`, 1), as a
+  model has a name and a shown name (11). The number stays the
+  setting's key: requests, records, tasks and the references among
+  settings keep numbers, and whoever takes a name from a person
+  resolves it to its number from what it is served: `me`'s templates
+  and charters, and the settings' inventory
+  (`../../client/domain/contract/documents.md`, 1).
+  - *A default's name is the default's:* a default may carry one, and
+    the defaults' names are unique within their kind; a start refuses
+    defaults that break it, as it refuses any default out of shape.
+    Within a kind, a name a default carries is reserved to it, whether
+    the settings offer that default or remove it.
+  - *At a default's number* the name is the default's: a change that
+    sets the setting carries that name or none, and none reads as the
+    default's, so a change stored before names reads with it; an
+    overlay keeps its default's. Another name there is refused.
+  - *A deployment's own item* is set with a name or with none. One with
+    none, set without one or stored before names, is reached by its
+    number alone until a change names it. Its name is refused where a
+    default of its kind has it, or another item of its kind the
+    settings offer. A change setting it with another name renames it:
+    records keep numbers, so a rename moves nothing that ran, and a
+    name given up, by a rename or a removal, may be taken by another
+    item of the same kind.
+  - *A newer build's default* may carry a name a stored own item has. The
+    start offers that item with no name and warns of it, as of a kept
+    item, so the name never refuses a start; an owner names it again.
+  - *Judged by the one check* below: a name out of its form is *shape*;
+    one taken, by a default or by another item of its kind, and another
+    name than the default's at a default's number, are its fault *name*,
+    judged as *range* is, at a set, at a proposal's entrance and at its
+    decision, each judging what its items set and nothing they leave
+    alone, the change's later item refused where two of its items take
+    one name. A client words *name* from the setting's kind and number
+    alone, the number saying which: "template 2 keeps the stock's name",
+    or "template 33's name is taken, by a stock template or another of
+    your own".
+  - *Where they travel:* the values of the three kinds carry their name,
+    in the store and on the client's wire, a value stored at an earlier
+    layout reading with none; the engine–worker wire carries none,
+    since a run is given its charter's text and fields, never its name.
 - **Checked whole, by one check.** The core checks settings as a start
   has always checked the document (`../../protocol/configuration-engine.md`, section 1, and `../../protocol/configuration-templates.md`, section 1 and `../../protocol/limits.md`
   ): each value in its shape and within its bound
   (a charter's instructions within the journal's run bytes, its budgets
   above its reserve and holding one of its default model's costliest
-  completions, its models configured; a template's charter offered and
+  completions, at the prices of the speed it runs that model at
+  (`executors.md`, 1), its models configured; a template's charter offered and
   its grace within the tasks child's span; a model in 11's shape; a policy within the rules,
   its roles well formed, its overrides' templates offered, its owner
   role able to be a root's requester), each number within its kind's
@@ -106,7 +153,9 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   policy above them), *budget* (a charter's below its reserve or short
   of one costliest completion), *grace* (a template's past the tasks
   child's span), *owner* (a policy's owner role unable to be a root's
-  requester), *range* (a charter, template, policy or model numbered
+  requester), *name* (a charter's, template's or policy's name taken, by
+a default or another item of its kind: Names, above), *range* (a
+charter, template, policy or model numbered
   out of its range, above: each client's words, and an application's
   for its agents' tools, say which line it crossed from the setting's
   kind and number alone, naming the kind and both ranges:
@@ -267,8 +316,9 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
 ## 4. Moving running work
 
 - **A move** sets a live agent task's revision to the newest. A task moves
-  only when the newest offers its charter and allows its LLM choice
-  (../tasks/README.md, section 3); one that cannot stays on its revision and
+  only when the newest offers its charter and allows its LLM choice, its
+  models and each speed it names by name among those its models declare
+  there (../tasks/README.md, section 3); one that cannot stays on its revision and
   finishes there. A move takes effect at the task's next run: a live
   run goes on with the version it was prepared under, until it ends or
   an owner cancels it, and holds that revision until then.
@@ -356,10 +406,11 @@ document goes in the charter's instructions.
   (1, *shape*), and keeps the documents with the charter, versioned
   and pinned with it (3), so a run reads the documents its
   revision's charter names.
-- **Planned with the brief:** the core binds each document to a
-  section's token in the plan it hands the root, optional, after its own
-  sections and before the task's resources' (`briefs.md`, section 1), and the root
-  gives each document to its connector before the gather. A start whose
+- **Planned with the brief:** the core gives each document that has a
+  slot to the connectors in the brief's preparation context, and the
+  connector that owns it plans its section, optional, placed after the
+  core's own sections and before the task's resources' (`briefs.md`, 1.4). A document
+  whose connector serves no sections is not in the brief. A start whose
   brief's sections cannot hold the core's own most and a charter's
   documents is refused, naming both limits.
 - **Gathered for each run** as a brief section of the connector that
@@ -397,10 +448,9 @@ the charter again.
 The configuration and service start check that brief sections hold the
 core's own most and `tasks.charter_documents`, naming both limits on
 refusal. The core's in-code validity check does not require this relation:
-fixtures may supply fewer sections. The core then plans documents in charter
-order only while room remains after its own sections, omitting a document
-from both the section plan and the root's document list when no room remains
-(2026-11-04).
+fixtures may supply fewer sections. The core then gives documents in charter
+order only while room remains after its own sections, leaving a document
+out of the preparation context when no room remains (2026-11-04).
 
 ## 10. Restoring a version
 

@@ -267,7 +267,7 @@ fn names(entries: &[api::Entry]) -> Box<[Box<[u8]>]> {
         if names.len() == names.capacity() {
             break;
         }
-        if entry.kind == api::EntryKind::File
+        if (entry.kind == api::EntryKind::File || entry.kind == api::EntryKind::Link)
             && (entry.name.ends_with(b".yml") || entry.name.ends_with(b".yaml"))
             && entry.name.len() <= WORKFLOW_BYTES
             && skein_lib::bytes::is_utf8(&entry.name)

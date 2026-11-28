@@ -110,30 +110,6 @@ The documents:
   skein's bundler and the glue it names (skein's `ui/web/bundle.md`),
   and Chromium for the browser tier.
 
-### 2.1 The shell
-
-Moved to [`shell.md`](shell.md), section 1.
-
-### 2.2 Serving
-
-Moved to [`serving.md`](serving.md), section 1.
-
-### 2.3 Addresses
-
-Moved to [`addresses.md`](addresses.md), section 1.
-
-### 2.4 Signing in
-
-Moved to [`sign-in.md`](sign-in.md), section 1.
-
-### 2.6 The bundle in the binary
-
-Moved to [`bundle.md`](bundle.md), section 1.
-
-### 2.7 Being pushed
-
-Moved to [`push.md`](push.md), section 1.
-
 ## 3. Open questions
 
 - **The two-step Home and night comparison** (`look.md`, `gallery.md`, 2): temper/ui

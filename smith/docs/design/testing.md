@@ -356,19 +356,50 @@ Every world checks what the strategy lists (testing-strategy.md, section
   namespaces. A test fails, saying so, where they are missing.
 - **What smith holds, through its inspection adapter**
   (`skein/docs/design/testing/inspection.md`;
-  `temper/docs/design/draft/failure-worlds.md`, 3.1 and 3.2):
+  `temper/docs/design/draft/failure-worlds.md`, 3.1 and 3.2;
+  `temper/docs/design/draft/misbehaving-agents.md`, 3.2 and 7):
   `smith/testing/smith-inspect`, `smith_inspect::inspect(domain:
   &smith_domain::Domain, into: &mut Inspection)`, component `smith`, over
   the domain's and its children's `pub` reads, each private table gaining
-  a `pub` read documented as its adapter's.
+  a `pub` read documented as its adapter's. A world that holds the
+  session child alone, as the session world does, calls its function
+  for that child, `smith_inspect::session`, which `inspect` calls too.
   - **Waits:** a session's call waiting on its provider's answer, bound
     by the request's own deadline; a retry waiting out a rate window, its
     wake the window's reset; a run waiting on a tool's or a job's end.
     Each waiter is named by its run, `run N`, as its host numbers it.
   - **Tables:** the requests in flight, released by each one's answer or
-    deadline; the sessions, runs and kits, released by their run's end.
+    deadline; the sessions, runs and kits, released by their run's end;
+    each kit's job cells, its capacity the kit's jobs limit, each cell
+    a reserved yielding call or a held job, released by the job's
+    terminal read or its session's close (`domain/tools.md`, 5); each
+    session's open calls, the calls of its batches not yet answered,
+    released by each one's result.
+  - **Room, smith's own check,** `smith_inspect::room`, beside the
+    shared ones, over the session child: each session's reserved room is
+    its provider credit, its batches' held shares and its program's
+    unused credit, together; each held share is a call running in its
+    batch's reserved range, held once; the transcript holds no more
+    than its room; a kit's reserved and held cells are within its jobs
+    limit, each held job owned by a run of its kit's session
+    (`domain/session.md`, 5). A finding names the session, the batch or
+    the call, and the sum that broke, in skein's form. The domain's
+    assertions guard each use as it happens; this reads the sums at a
+    quiet point, where every world sees them.
+  - **A run's host calls,** smith's side of jig's relation of the same
+    name (`jig/docs/design/domain/testing-fakes.md`, 1.1;
+    `skein/docs/design/testing/inspection.md`, 4.3):
+    `smith_inspect::host_calls`, given the task the run serves, which
+    the world that composes smith with jig knows, writes each host call
+    a run holds open, relayed to its host and not yet answered, as `an
+    open call`, keyed `task T attempt A completion C position P` by its
+    call name, A its activation (`domain/run.md`, 5.2).
   - **Called** at each world's quiet point: the agent world's drive
     once its agent reclaims, and the session, run and host worlds' own.
+    The session world calls `session` and `room` at `run_observed`'s
+    quiet point, once it has reclaimed and before time moves. temper's
+    composed world calls `inspect` and `host_calls` for each smith it
+    runs (`temper/docs/design/testing/checks.md`, 6.1).
 - **Faults, their ledger, blame for runs and the sweeps** are
   `faults.md`'s.
 
@@ -442,8 +473,17 @@ change (`temper/docs/design/draft/fuzzy-campaigns.md`, 9).
   its test and that recipe's own seeds, so that the gate runs the worlds
   it ran and a campaign draws each recipe fresh. A helper serving
   several tests takes its caller's identity.
-- **Their binaries,** `smith-tools-world::suite`, `smith-run-world::suite`
-  and `smith-agent-world::suite`, are the pair's list.
+- **The session world takes part with its loop of 1000 seeds,**
+  `random_worlds_settle_with_every_session_ended`: its cases come
+  through `cases`, with its test's identity and seeds 0 to 999,
+  unchanged. Its fake model draws each request's answer from the
+  case's seed, keyed by conversation, turn and attempt, and captures
+  what it drew (`temper/docs/design/draft/misbehaving-agents.md`, 4.3
+  and 4.4), so a fresh seed draws a fresh agent too. Its other loops
+  over seeds keep their fixed seeds (section 9).
+- **Their binaries,** `smith-tools-world::suite`, `smith-run-world::suite`,
+  `smith-agent-world::suite` and `smith-session-world::suite`, are the
+  pair's list.
 - **Every seed a valid case** (sweeps.md, 4.5):
   - arithmetic on a seed wraps, and a moment drawn from it stays on the
     grid its gate seeds draw: the agent world's host cancels at a
@@ -455,31 +495,42 @@ change (`temper/docs/design/draft/fuzzy-campaigns.md`, 9).
     run's admission, whatever delay it draws;
   - a fake's answer stays within the contract the product checks: the
     tools world's memory churn answers a search with no more hits,
-    paths and text than its limits allow.
+    paths and text than its limits allow;
+  - a referee judges a result against the tree as the case's own acts
+    left it: in the session world, a write that creates a fixture file
+    its session removed fits, as one that creates the missing file
+    does.
 
   A fix that moves a gate seed's draws keeps the sweep's reach at its
   gate seeds.
 - **Checks over the loop wait for `gate()`:** the outcomes, refusals and
   terminals a sweep must see, its minimum totals, the cells and message
-  classes it must reach, and the quota of operations each memory churn
-  must run. `Sweep::check_fell` reports its reach itself.
+  classes it must reach, the quota of operations each memory churn
+  must run, and the endings, stops, failures, answers, reference classes
+  and slot draws the session world's agents must reach.
+  `Sweep::check_fell` reports its reach itself, and a sample's shape
+  lines are written in every mode (sweeps.md, 4.6).
 - **A case's own checks run in every mode:** settlement, the referees,
-  every call or start answered once, replay compared with its run, and
-  the memory ceilings. A ceiling is a bound its scenario's limits
-  promise (section 6), so a fresh seed past it is a campaign's finding,
-  against the domain or the ceiling, for the user to route.
-- **Kept fixed:** the focused tests and their seeds, and a fuzzy test
-  with no loop over seeds (the agent world's longest child usage).
+  every call or start answered once, replay compared with its run, each
+  shape in form, and the memory ceilings. A ceiling is a bound its
+  scenario's limits promise (section 6), so a fresh seed past it is a
+  campaign's finding, against the domain or the ceiling, for the user
+  to route.
+- **Kept fixed:** the focused tests and their seeds, a fuzzy test with
+  no loop over seeds (the agent world's longest child usage), and the
+  session world's other loops over seeds (section 9).
 - **Counts:** each case counts a `seed` check (sweeps.md, 4.2), so a
   loop that counted none counts one a case, and a fault sweep that folds
   its ledger with `Sweep::ran` counts two; no binary's count falls.
-- **The session world waits:** its loop of 1000 seeds draws its answers
-  from the fake model's menu, and the misbehaving agents draft's answers
-  drawn per request move that world and pick its seeds again
-  (`temper/docs/design/draft/misbehaving-agents.execution.md`, A4), so
-  its loop's cases and gate seeds are A4's to settle first. It takes
-  part once they have landed (section 9). The agent world's loops draw none
-  of their answers at random, so its seeds stand.
+- **A generated agent's finding is pinned as its capture**
+  (`temper/docs/design/draft/fuzzy-campaigns.md`, 7.5): its repair
+  replays the case by its seed, takes the world's capture
+  (`World::capture`), and plays it back in a fixed scenario
+  (`World::with_replay`, a miss refused), its faults and timing still
+  drawn from the case's seed. A seed draws another agent once the menu
+  or its weights change; the capture is the case whatever the menu
+  becomes. The agent world's loops draw none of their answers at
+  random, so its seeds stand as its cases.
 
 ## 7. Layout
 
@@ -569,9 +620,11 @@ benchmarks/tests/suite/          real git, login shells, terminals, pipes and th
 - **The agent, run and host worlds' edges** (testing-tiers.status.md): each
   takes fakes of its own, held to the code by a protocol or simulated
   world as the session and tools worlds' are, or says why it can't.
-- **The session world in campaigns** (6.3): its loops through skein's
-  seam and its binary in `campaign-smith`, once the misbehaving agents
-  draft's answers drawn per request have landed.
+- **The session world's other loops in campaigns** (6.3): its loops over
+  seeds beside the loop of 1000 seeds, in its fuzzy modules, through
+  skein's seam, each once every draw of its case comes from the case's
+  seed. Three draw their windows, limits, lines or sizes from a stream
+  that runs across their loop.
 - **smith's other worlds in campaigns:** the host, local, protocol and
   simulated worlds' loops, each world once its draws are valid at any
   seed.

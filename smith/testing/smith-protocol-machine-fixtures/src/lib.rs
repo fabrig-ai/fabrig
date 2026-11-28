@@ -73,6 +73,7 @@ impl CheckProcess {
         machine.workspace(&smith_domain::run::Workspace {
             directories: Box::new([smith_domain::run::Directory {
                 results: None,
+                hooks: None,
                 host: b"/host".as_slice().into(),
                 name: b"code".as_slice().into(),
                 root: program.root,

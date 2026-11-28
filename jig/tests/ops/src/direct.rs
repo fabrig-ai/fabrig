@@ -1,4 +1,5 @@
 //! The real ops root with withheld store commit answers (skein's programming-model.md, 7.2).
+use crate::conformance::store;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -17,6 +18,7 @@ const OUTPUTS: u32 = 256;
 const PRESSURE_TASK: u64 = 900;
 
 pub struct Driver {
+    start_rows: std::collections::BTreeMap<root::Key, root::Record>,
     pub domain: root::Domain,
     pub env: Env<root::Limits>,
     /// Inputs not yet offered; a handed-back input waits at the head.
@@ -53,8 +55,8 @@ impl Driver {
             limits.core.people.people = parties;
             limits.core.people.sign_ins = parties;
         }
-        let world_configuration_providers = configuration.core.settings.llm_providers.clone();
         let mut world = Self {
+            start_rows: store::account_rows(&configuration.core.settings.llm_providers),
             domain: root::Domain::new(configuration, &limits).expect("fixture core configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             events: VecDeque::new(),
@@ -67,10 +69,6 @@ impl Driver {
             owner: Token::new(0),
         };
         world.send(root::Event::Restart { pending: false });
-        for row in jig_test_profile::fixtures::account_rows(&world_configuration_providers) {
-            let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
-            world.send(root::Event::Store(root::Store::Restore(root::Record::Core(row))));
-        }
         world.settle();
         for event in [
             core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
@@ -190,8 +188,8 @@ impl Driver {
                         | root::Released::Infrastructure(_)
                         | root::Released::Observability(_)
                         | root::Released::Host(_)
-                        | root::Released::Procedure { .. }
-                        | root::Released::Start(_) => {}
+                        | root::Released::Connector(..)
+                        | root::Released::Resume(_) => {}
                     }
                     self.events.push_back(root::Event::Released(child));
                 }
@@ -208,10 +206,14 @@ impl Driver {
                         result,
                     })));
                 }
-                root::Output::Load { phase, .. } => {
-                    self.events.push_back(root::Event::Store(root::Store::Restored(phase)));
+                root::Output::Store(core::engine::store::Out::Load {
+                    load,
+                    range: core::engine::store::Range::Start { ranges, after },
+                }) => self.events.push_back(store::start_page(&self.start_rows, load, &ranges, after.as_ref())),
+                root::Output::ConnectorLoad(range) => {
+                    self.events.extend(store::connector_rows(&self.start_rows, &range));
                 }
-                root::Output::Switch => self.send(root::Event::Store(root::Store::Switched)),
+                root::Output::Store(core::engine::store::Out::Switch) => self.events.push_back(store::switched()),
                 other @ (root::Output::ApplicationDocument { .. }
                 | root::Output::ApplicationRead { .. }
                 | root::Output::IncidentAssociationRefused { .. }

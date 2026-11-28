@@ -32,11 +32,11 @@ impl Domain {
         ProjectAreas { areas: Box::default() }
     }
     #[must_use]
-    pub fn project_triager(&self, project: u32) -> Option<AreaOwner> {
+    pub fn project_triager(&self, project: u32) -> Option<&AreaOwner> {
         if let Some(crate::settings::SizedValue { value: crate::settings::Value::ProjectTriager(triager), .. }) =
             self.setting(15, project, 1)
         {
-            return Some(triager.owner);
+            return Some(&triager.owner);
         }
         None
     }

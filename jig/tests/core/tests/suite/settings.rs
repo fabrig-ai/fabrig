@@ -96,6 +96,48 @@ fn a_release_changes_the_template_once_and_archives_its_predecessor() {
     assert_eq!(world.domain.settings().newest(), 2);
 }
 #[test]
+fn a_new_model_default_yields_to_a_name_the_deployment_already_holds() {
+    let own_setting = settings::Setting::Model(64);
+    let stock_setting = settings::Setting::Model(9);
+    for withdrawn in [None, Some(false), Some(true)] {
+        let mut world = start(64);
+        let mut release = configuration().0;
+        let mut added = release.core.defaults.models[0].clone();
+        added.number = 9;
+        added.model.name = b"new-stock-model".as_slice().into();
+        release.core.defaults.models = Box::new([release.core.defaults.models[0].clone(), added.clone()]);
+        let stock = settings::Value::Model(Box::new(added.clone()));
+        let own = withdrawn.map(|withdrawn| {
+            added.number = 64;
+            added.withdrawn = withdrawn;
+            added.source = settings::ModelSource::Person;
+            added.picker = false;
+            settings::Value::Model(Box::new(added))
+        });
+        if let Some(value) = &own {
+            world.seed(Box::new([record(settings::Record::Changed {
+                setting: own_setting,
+                changed: settings::Changed { revision: 1, value: Some(value.clone()) },
+            })]));
+        }
+        for _ in 0..2 {
+            restart(&mut world, jig_core_world::clone_configuration(&release));
+            let settings = world.domain.settings();
+            assert_eq!(settings.value(own_setting), own.as_ref());
+            if own.is_some() {
+                assert_eq!(settings.newest(), 1, "the omitted model never makes a release revision");
+                assert_eq!(settings.value(stock_setting), None);
+                assert!(!world.store.rows.contains_key(&key(jig_domain_core::settings::Key::Default(stock_setting))));
+            } else {
+                assert_eq!(settings.newest(), 2);
+                assert_eq!(settings.value(stock_setting), Some(&stock));
+                assert!(world.store.rows.contains_key(&key(jig_domain_core::settings::Key::Default(stock_setting))));
+            }
+        }
+    }
+}
+
+#[test]
 fn a_stored_change_wins_until_reset_and_a_dropped_default_is_no_longer_offered() {
     let mut world = start(64);
     let mut template = configuration().0.core.defaults.templates[0].clone();
@@ -680,7 +722,7 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
         batch[0].llm = Some(people::LlmChoice {
             later: None,
             account: None,
-            main: people::ModelEffort { model: 0, effort: None },
+            main: people::ModelEffort { model: 0, effort: None, speed: None },
             subagents: Box::new([]),
         });
         let people::Reply::Outcome(people::Outcome::Created { first, .. }) = ask(&mut world, signed, key, chat) else {
@@ -993,7 +1035,7 @@ fn revision_item_previews_state_how_many_were_cut() {
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
     for template in &mut config.core.defaults.templates {
-        template.name = Box::from(b"new name".as_slice());
+        template.shown = Box::from(b"new name".as_slice());
     }
     restart(&mut world, config);
     let signed = sign_in(&mut world);
@@ -1031,10 +1073,10 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     use jig_client_protocol_wire as w;
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
-    const NAME_BYTES: usize = 4096;
-    // v21 SettingValue tag + this fixture's Template: 50 fixed bytes (including
-    // the empty resource list's count) + its 4096-byte name.
-    const ENCODED_TEMPLATE_BYTES: u64 = 4146;
+    const SHOWN_BYTES: usize = 4096;
+    // One byte for the SettingValue tag + 50 fixed Template bytes (including
+    // the empty resource list's count and the None tag for name) + 4096 bytes of shown text.
+    const ENCODED_TEMPLATE_BYTES: u64 = 4147;
     let (config, mut limits) = configuration();
     limits.core.load_bytes = SINGLE_READ_BYTES;
     let mut world = World::new(Setup {
@@ -1045,7 +1087,7 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     });
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
-    config.core.defaults.templates[0].name = vec![b'x'; NAME_BYTES].into_boxed_slice();
+    config.core.defaults.templates[0].shown = vec![b'x'; SHOWN_BYTES].into_boxed_slice();
     restart(&mut world, config);
     let signed = sign_in(&mut world);
     let reads::Answer::Revision(answer) = client_read(&mut world, signed, reads::Read::Revision { number: 2 }) else {

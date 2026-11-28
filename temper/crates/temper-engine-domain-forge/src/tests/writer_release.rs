@@ -1,5 +1,6 @@
 //! Both ends of a writer slot remain linkable through release and restart.
 use super::*;
+use jig_domain_contract as contract;
 use jig_domain_tasks as tasks;
 
 const HOLDER: u64 = 7;
@@ -42,6 +43,10 @@ fn linkable(d: &Domain, live: &[u64]) {
     assert_eq!(copy.missing_link(&tasks(live)), None);
 }
 
+fn holds_released(task: u64) -> Request {
+    Request::Up(contract::Up::Effects(contract::effects::Up::Released { task }))
+}
+
 #[test]
 fn a_delegates_release_waits_for_its_writer_reread_even_after_restart() {
     for (lost, restart, refused) in
@@ -73,7 +78,7 @@ fn a_delegates_release_waits_for_its_writer_reread_even_after_restart() {
             &mut d,
             Event::Release { task: DELEGATE, root: HOLDER, ending: ReleaseEnding::Done, reason: None, entry: 20 },
         );
-        assert!(!closing.contains(&Request::Released { task: DELEGATE }), "the delegate still owns its writer slot");
+        assert!(!closing.contains(&holds_released(DELEGATE)), "the delegate still owns its writer slot");
         assert!(!release_failed(&closing, DELEGATE));
         linkable(&d, &[HOLDER, DELEGATE]);
         if restart {
@@ -94,7 +99,7 @@ fn a_delegates_release_waits_for_its_writer_reread_even_after_restart() {
             assert!(answered.contains(&Request::ContinueRelease { task: DELEGATE }));
             assert_eq!(d.hold(&name).unwrap().writer, None);
             let released = outputs(&mut d, Event::ContinueRelease { task: DELEGATE, entry: 21 });
-            assert!(released.contains(&Request::Released { task: DELEGATE }));
+            assert!(released.contains(&holds_released(DELEGATE)));
             linkable(&d, &[HOLDER]);
             assert_eq!(d.hold(&name).unwrap().task, HOLDER, "a delegate does not release its holder's branch");
         }
@@ -247,7 +252,7 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
                 Event::Release { task: WRITER, root: HOLDER, ending: ReleaseEnding::Done, reason: None, entry: 20 },
             );
             let released = outputs(&mut d, Event::ContinueRelease { task: WRITER, entry: 21 });
-            assert!(released.contains(&Request::Released { task: WRITER }) || !d.releases.contains_key(&WRITER));
+            assert!(released.contains(&holds_released(WRITER)) || !d.releases.contains_key(&WRITER));
             assert_eq!(d.hold(&name).unwrap().task, HOLDER);
             continue;
         }
@@ -257,10 +262,7 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
             &mut d,
             Event::Release { task: WRITER, root: HOLDER, ending: ReleaseEnding::Done, reason: None, entry: 20 },
         );
-        assert!(
-            !release.contains(&Request::Released { task: WRITER }),
-            "writer cannot end before its read: {release:?}"
-        );
+        assert!(!release.contains(&holds_released(WRITER)), "writer cannot end before its read: {release:?}");
         assert!(d.releases.contains_key(&WRITER), "the durable release survives a crash with its writer");
         let failed = result == Err(Error::Refused);
         let answered = fixtures::answer(&mut d, call, result);
@@ -277,7 +279,7 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
                     &target,
                 ],
             );
-            assert!(!answered.contains(&Request::Released { task: WRITER }));
+            assert!(!answered.contains(&holds_released(WRITER)));
             assert!(d.releases.contains_key(&WRITER));
             continue;
         }
@@ -289,7 +291,7 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
         assert!(hold.writer.is_none() && hold.design_writers.is_empty());
         assert!(crate::reconcile::references_resolve(&d, &LIMITS, &Stored::Hold(hold.clone()), &[HOLDER]));
         let released = outputs(&mut d, Event::ContinueRelease { task: WRITER, entry: 21 });
-        assert!(released.contains(&Request::Released { task: WRITER }));
+        assert!(released.contains(&holds_released(WRITER)));
         for request in &released {
             assert!(
                 !matches!(request, Request::Save { record: Stored::Entry { .. }, .. }),

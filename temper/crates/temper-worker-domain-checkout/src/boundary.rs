@@ -232,13 +232,14 @@ pub struct CandidateSpec {
     pub members: Box<[CandidateMember]>,
 }
 
-/// One member's head and messages, in the round's order.
+/// One member's head and complete commit messages, in the round's order.
 #[derive(PartialEq, Eq, Debug)]
 pub struct CandidateMember {
     pub number: u64,
     pub head: Commit,
-    pub message: Message,
-    pub squash_message: Message,
+    pub message: Box<[u8]>,
+    pub squash_message: Box<[u8]>,
+    pub head_trailers: bool,
 }
 
 /// The title shared by a drain's save and a crashed workspace's take-up.
@@ -274,6 +275,8 @@ pub enum Prepared {
 pub struct Conflicts {
     pub repository: u32,
     pub files: Box<[Box<[u8]>]>,
+    /// There are more conflicted paths than the retained prefix.
+    pub cut: bool,
 }
 
 /// Why a prepare failed.

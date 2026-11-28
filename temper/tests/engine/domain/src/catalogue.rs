@@ -22,7 +22,7 @@ fn an_ask_for_the_catalogue_tells_the_store_then_the_clients() {
     }]);
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     decision.write(&env.limits.journal, crate::Write::Wires).unwrap();
-    super::ask(&mut domain, &env, &mut decision, 0, core::Ask::Catalogue { models: models.clone() });
+    super::application(&mut domain, &env, &mut decision, 0, core::Ask::Catalogue { models: models.clone() });
     crate::decision::accept_routed(
         &mut domain.journal,
         &mut domain.engine.core_mut().counters,
@@ -82,7 +82,7 @@ fn the_catalogue_routes_names_and_efforts_by_model_number() {
         let models = numbered_models(stock, highest);
         let (mut domain, env) = crate::tests::resume_fixture::root();
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-        super::ask(&mut domain, &env, &mut decision, 0, core::Ask::Catalogue { models: models.clone() });
+        super::application(&mut domain, &env, &mut decision, 0, core::Ask::Catalogue { models: models.clone() });
         let mut out = Queue::uncapped();
         crate::release(&mut domain, &env, &mut out);
         let Some(Request::Store(StoreRequest::Catalogue { names })) = out.pop() else { panic!("store catalogue") };

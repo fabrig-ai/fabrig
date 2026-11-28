@@ -1,10 +1,11 @@
 //! Run preparation chooses instructions and messages for its reasons (jig/docs/design/domain/engine/executors.md, 1).
+use super::briefs::{SERVING, plan_fixture, section, tree_core_with_sections};
 use crate::routing::run::{
     parts::{offered_kinds, run_instructions},
     preparation,
 };
 use crate::tests::*;
-use jig_domain_brief as brief;
+use jig_domain_contract::parts;
 use jig_domain_link::{Form, Scheme};
 use tasks::Reasons;
 
@@ -106,7 +107,7 @@ fn preparation_offers_person_words_and_keeps_an_uncovered_question() {
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
     core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
     core.begin_transcript(1, 0, None);
-    watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+    plan_fixture(&mut core, &limits, 1);
     let attempt = core.workspace_flight(1).unwrap().1;
     let out = watch_outputs(
         &mut core,
@@ -166,7 +167,7 @@ enum Arrival {
 }
 
 fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
-    let (mut core, limits) = tree_core();
+    let (mut core, limits) = tree_core_with_sections(&[SERVING], limits().brief);
     let mut root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     root.wake.questions = questions;
     root.wake.words = tasks::WakeRule::Never;
@@ -249,7 +250,7 @@ fn sent_words_follow_prepared_parts_and_always_complete_their_route() {
     }
 }
 
-fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::MessageKind) {
+fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::MessageKind) -> Box<[Request]> {
     watch_outputs(
         core,
         limits,
@@ -269,7 +270,7 @@ fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::Mes
                 },
             },
         }),
-    );
+    )
 }
 
 fn notes_load(out: &[Request]) -> Token {
@@ -301,32 +302,40 @@ fn finish_brief(core: &mut Core, limits: &Limits, mut owner: Token) {
     }
     let mut planned = false;
     for request in &out {
-        if let Request::Now(now) = request
-            && let Now::BriefCorePlanned { task: 1, .. } = now.as_ref()
+        if let Request::Ask { connector: SERVING, ask: Ask::Connector(contract::Ask::Parts(parts::Ask::Plan(plan))) } =
+            request
+            && plan.task == 1
         {
             planned = true;
         }
     }
     assert!(planned, "preparation plans its brief");
-    watch_outputs(
+    watch_connector_outputs(
         core,
         limits,
-        Event::Brief(brief::GatherEvent::Plan {
-            brief: Token::new(1),
-            budget: 128,
-            deadline: Time::from_nanos(100),
-            sections: Box::new([brief::Planned::Connector {
-                name: b"context",
-                connector: 1,
-                kind: 1,
-                token: Token::new(19),
-                size: 0,
-                limit: 128,
-                priority: 0,
-                required: true,
-            }]),
+        SERVING,
+        contract::Up::Parts(parts::Up::Planned {
+            task: 1,
+            sections: Box::new([section(b"context", Token::new(19), 1, 128)]),
         }),
     );
+}
+
+fn finish_section(core: &mut Core, limits: &Limits) {
+    let out = watch_connector_outputs(
+        core,
+        limits,
+        SERVING,
+        contract::Up::Parts(parts::Up::Sized { task: 1, section: Token::new(19), size: 1 }),
+    );
+    for request in &out {
+        if let Request::Now(now) = request
+            && let Now::WorkspaceRequest { task: 1, .. } = now.as_ref()
+        {
+            return;
+        }
+    }
+    panic!("completed brief asks the workspace");
 }
 
 #[test]
@@ -366,14 +375,26 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
                 finish_brief(&mut core, &limits, owner.unwrap());
             }
             if arrival == Arrival::BeforeWorkspace {
-                watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+                finish_section(&mut core, &limits);
             }
-            arrive(&mut core, &limits, from, kind);
+            let out = arrive(&mut core, &limits, from, kind);
             assert_eq!(core.contexts.contains_key(&1), kept, "{arrival:?}: {name}: context current");
             if !kept {
-                let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = core.tasks.task(1).unwrap().phase else {
-                    panic!("{arrival:?}: {name}: stale preparation backs off");
-                };
+                let row = core.tasks.task(1).unwrap();
+                assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due), "{arrival:?}: {name}: due again");
+                assert_eq!(row.refusals, 0);
+                assert_eq!(row.tries, tasks::Tries::NONE);
+                assert!(row.retry_notice.is_none());
+                let mut reactivated = false;
+                for request in &out {
+                    if let Request::Now(now) = request
+                        && let Now::Activate { context } = now.as_ref()
+                        && context.task == 1
+                    {
+                        reactivated = true;
+                    }
+                }
+                assert!(reactivated, "{arrival:?}: {name}: requests a new activation");
                 assert!(!core.claiming.contains_key(&1));
                 continue;
             }
@@ -392,22 +413,8 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             if arrival != Arrival::BeforeComplete && arrival != Arrival::BeforeWorkspace {
                 finish_brief(&mut core, &limits, owner.unwrap());
             }
-            let out = watch_outputs(
-                &mut core,
-                &limits,
-                Event::Brief(brief::GatherEvent::Ready { brief: Token::new(1), section: Token::new(19), size: 1 }),
-            );
-            let mut complete = false;
-            for request in &out {
-                if let Request::Now(now) = request
-                    && let Now::CompleteBrief { .. } = now.as_ref()
-                {
-                    complete = true;
-                }
-            }
-            assert!(complete, "{arrival:?}: completes brief");
             if arrival != Arrival::BeforeWorkspace {
-                watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+                finish_section(&mut core, &limits);
             }
             let attempt = core.workspace_flight(1).unwrap().1;
             let out = watch_outputs(
@@ -506,7 +513,7 @@ fn overlay_run_preparation_selects_default_then_overlay_parts() {
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
     core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
     core.begin_transcript(1, 0, None);
-    watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+    plan_fixture(&mut core, &limits, 1);
     let attempt = core.workspace_flight(1).unwrap().1;
     let out = watch_outputs(
         &mut core,

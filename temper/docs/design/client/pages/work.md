@@ -304,8 +304,8 @@
   - **A landed row:** its landing's time in the mono face, in the clock
     form; then a goal's row its goal's title, its row's `goal`'s title,
     else its change's title (a goal's
-    landing takes the goal's title as its words, `../../domain/forge/branches.md`,
-    2), a link to the goal's `Task`; a change's row its change's title, a
+    landing takes the goal's title as its words, `../../domain/forge/branches-closer.md`,
+    1), a link to the goal's `Task`; a change's row its change's title, a
     link to its change's `Task`; then " · signed by NAMES", in the
     byline's style, while the `landed_default` row the row was made from
     kept sign-offs, a goal's row its newest landing's (*Who signed*);

@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 
 mod ask_dropped;
 mod call_room;
+mod close_delegate;
 mod due_ready;
 mod flake;
 mod landing_end;
@@ -39,42 +40,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
     assert_eq!(super::adoption_failure(skein_forge::api::Error::Busy), people::Outcome::Again(people::Again::Busy));
 }
 
-fn adopted(forge: u16) -> super::forge::Repository {
-    super::forge::Repository {
-        contexts: Box::new([]),
-        landing: b"main".as_slice().into(),
-        refusals: Box::default(),
-        workflows: Box::default(),
-        project: 5,
-        home: forge == 1,
-        provider: skein_forge::api::Repository { forge, repository: 1 },
-        host: Box::from(&b"forge.example"[..]),
-        owner: Box::from(&b"org"[..]),
-        name: Box::from(&b"repo"[..]),
-        prefix: Box::from(&b"temper/"[..]),
-        role: super::forge::Role::Owned,
-        ci: true,
-        checks: Box::new([]),
-        kinds: super::forge::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        },
-        protection: super::forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: Box::from(&b"main"[..]),
-            merge: true,
-            squash: true,
-            rebase: false,
-        },
-    }
-}
+pub(super) use crate::tests::owned_repository as adopted;
 
 #[test]
 fn tree_branches_count_prefix_slashes_against_authority_segments() {
@@ -129,7 +95,8 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
         )
         .expect("delegation admitted");
         let [tasks::Holding::Write { resource, .. }] = holdings.as_ref() else { panic!("one write holding") };
-        let name = super::forge_name(connector, resource, env.limits.forge.name_bytes).expect("forge holding");
+        let name = temper_engine_domain_translate::forge_name(connector, resource, env.limits.forge.name_bytes)
+            .expect("forge holding");
         assert_eq!((name.forge, name.repository), (number, 1));
     }
 }
@@ -177,7 +144,7 @@ fn goal_spec() -> super::tasks::Spec {
 #[test]
 fn a_tracked_task_naming_its_own_goal_branch_holds_g_in_the_home() {
     use super::{Work, tasks};
-    use jig_domain_core::{Event, effects::connector};
+    use jig_domain_core::effects::connector;
     let (mut domain, env) = two_forges();
     let forge_connector = domain.config.forge_connector;
     let holdings = super::task_holdings(
@@ -224,7 +191,15 @@ fn a_tracked_task_naming_its_own_goal_branch_holds_g_in_the_home() {
     let tasks::Holding::Write { resource: goal_resource, .. } = expected_goal else { unreachable!() };
     let mut reported = false;
     while let Some(work) = domain.work.pop() {
-        if let Work::Core(Event::EffectConnector(connector::Event::Resource { project, name, role, hold })) = work
+        if let Work::Connector(
+            _,
+            jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Resource {
+                project,
+                name,
+                role,
+                hold,
+            }),
+        ) = work
             && name == goal_resource
         {
             assert_eq!(project, GOAL_PROJECT);
@@ -306,7 +281,7 @@ fn holdings_asks_keep_the_refused_symbol() {
     let (mut domain, env) = two_forges();
     let connector = domain.config.forge_connector;
     let request = skein_lib::Token::new(GOAL_TASK);
-    let ask = core::Ask::TaskHoldings {
+    let ask = jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Holdings {
         request,
         project: GOAL_PROJECT,
         root: GOAL_ROOT,
@@ -315,10 +290,17 @@ fn holdings_asks_keep_the_refused_symbol() {
         spec: goal_spec(),
         tracked: true,
         symbols: Box::new([UNKNOWN_SYMBOL]),
-    };
+    });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::super::asks::ask(&mut domain, &env, &mut decision, connector, ask);
-    let Some(super::Work::Core(core::Event::Holdings { refused, holdings, request: answered, .. })) = domain.work.pop()
+    let Some(super::Work::Connector(
+        _,
+        jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Holdings {
+            refused,
+            holdings,
+            request: answered,
+        }),
+    )) = domain.work.pop()
     else {
         panic!("holdings answer")
     };
@@ -353,7 +335,7 @@ fn a_closer_waits_for_its_goals_branch_making() {
     let context = domain.engine.core().tasks.run_context(GOAL_DELEGATE).expect("due closer");
     domain.work.clear();
 
-    let mut decision = crate::restart::load_decision(&mut domain, &env.limits);
+    let mut decision = crate::store_route::load_decision(&mut domain, &env.limits);
     super::closer_route::start_closer_step(&mut domain, &env, &mut decision, &context);
     let mut step = None;
     while let Some(work) = domain.work.pop() {
@@ -603,21 +585,9 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             task: GOAL_CHANGE,
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
-            evidence: Some(forge::ChangeEvidence {
-                behind: None,
-                readback_owed: false,
-                nearest_write: None,
-                touched: forge::Touched::UNKNOWN,
-                size: None,
-                prior,
-                head: Some(SHA1),
-                base_tip: SHA1,
-                contains_base: forge_change::Status::Passed,
-                ci: forge_change::Status::Passed,
-                gates: Box::new([]),
-                reviews: Box::new([]),
-                reviews_complete: true,
-            }),
+            evidence: Some(passed_evidence(prior, SHA1, SHA1)),
+            close_at: None,
+            close_refusal: None,
         },
     );
     assert_eq!(domain.engine.core().tasks.writer(&resource).unwrap().writer, tasks::Writer::Effect { entry: ENTRY });
@@ -636,7 +606,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
         &env,
         &mut decision,
         0,
-        connector::Ask::Drop {
+        jig_domain_contract::effects::Ask::Drop {
             owner,
             answer: super::authority::Answer::Wait,
             findings: Box::new([]),
@@ -754,7 +724,7 @@ fn forge_party_with_link(
 
 #[test]
 fn a_review_counts_only_from_the_forge_it_was_made_on() {
-    use super::{forge, forge_change};
+    use super::forge;
     use skein_forge::api;
     let linked = Some(forge::Link { user: 7, person: 1 });
     for (key, link, forge, author, counted) in [
@@ -768,18 +738,6 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            size: None,
-            prior: row.change.clone(),
-            head: Some(SHA1),
-            base_tip: SHA1,
-            contains_base: forge_change::Status::Passed,
-            ci: forge_change::Status::Passed,
-            gates: Box::new([]),
-            reviews_complete: true,
             reviews: Box::new([api::Review {
                 id: 1,
                 provenance: api::Provenance::Original,
@@ -792,6 +750,7 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
                 at: skein_lib::Time::ZERO,
                 official: true,
             }]),
+            ..passed_evidence(row.change.clone(), SHA1, SHA1)
         };
         let facts = super::landing_reviewers(&domain, &env, &row, &evidence).expect("review facts");
         if counted {
@@ -1033,7 +992,17 @@ fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
     // The core's terminal acknowledgement asks Lost for parked and ended answers alike.
     let connector = domain.config.forge_connector;
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    super::super::asks::ask(&mut domain, &env, &mut decision, connector, core::Ask::Lost { task: 41, attempt: 1 });
+    super::super::asks::ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector,
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Lost {
+            task: 41,
+            attempt: 1,
+            resources: Box::new([]),
+        }),
+    );
     let Some(Work::Forge(finished @ forge::Event::Finished { task: 41, attempt: 1, lost: false })) = domain.work.pop()
     else {
         panic!("the parked attempt finishes before its push report")
@@ -1207,6 +1176,40 @@ fn task_event(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, e
     );
 }
 
+fn passed_evidence(
+    prior: super::forge_change::Change,
+    head: [u8; 32],
+    base_tip: [u8; 32],
+) -> super::forge::ChangeEvidence {
+    use super::{forge, forge_change::Status};
+    forge::ChangeEvidence {
+        behind: None,
+        readback_owed: false,
+        nearest_write: None,
+        touched: forge::Touched::UNKNOWN,
+        temper_dir: forge::TemperDirEvidence::Uncovered,
+        prior,
+        head: Some(head),
+        base_tip,
+        contains_base: Status::Passed,
+        ci: Status::Passed,
+        gates: Box::new([]),
+        reviews: Box::new([]),
+        reviews_complete: true,
+        size: None,
+    }
+}
+
+fn unavailable_evidence(prior: super::forge_change::Change, head: [u8; 32]) -> super::forge::ChangeEvidence {
+    use super::{forge, forge_change::Status};
+    forge::ChangeEvidence {
+        contains_base: Status::Unknown,
+        ci: Status::Unknown,
+        reviews_complete: false,
+        ..passed_evidence(prior, head, [0; 32])
+    }
+}
+
 #[test]
 fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
     use super::{forge, forge_change as change};
@@ -1248,21 +1251,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             was: Box::new(was),
             hold: change::Hold::new(change::Cause::BranchMoved, Wall::EPOCH),
         };
-        let evidence = forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            prior: row.change.clone(),
-            head: Some(observed),
-            base_tip: stale,
-            contains_base: change::Status::Passed,
-            ci: change::Status::Passed,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: true,
-            size: None,
-        };
+        let evidence = passed_evidence(row.change.clone(), observed, stale);
         restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         let mut routed = Queue::uncapped();
         routed.push(forge::Request::ChangeDecision {
@@ -1270,6 +1259,8 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             decision: change::Decision::Hold(change::Cause::BranchMoved),
             entry: None,
             evidence: Some(evidence),
+            close_at: None,
+            close_refusal: None,
         });
         super::outputs(&mut domain, &env, &mut decision, &mut routed);
         let Some(super::Work::Tasks(super::tasks::Event::HoldFrom { source, .. })) = domain.work.pop() else {
@@ -1339,11 +1330,145 @@ fn change_names(pull: Option<u64>) -> Box<[super::forge::Name]> {
     ])
 }
 
+type BriefEnv = skein_lib::Env<super::Limits>;
+
+fn goal_brief_wait() -> (super::Domain, BriefEnv, u64, super::forge::Name) {
+    use super::{forge, tasks};
+    use jig_domain_contract::ops;
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    assert!(domain.engine.core().charter(1).unwrap().policy.modify);
+    domain.forge.restore_begin(env.wall);
+    fresh_procedure_forge(&mut domain, &env);
+    let mut repository = adopted(1);
+    repository.project = 1;
+    let branch = super::tree_branch(&repository, task, b'g', task, None, env.limits.forge.name_bytes).unwrap();
+    let name = forge::Name {
+        forge: 1,
+        repository: 1,
+        what: super::branch_what(&branch, env.limits.forge.name_bytes).unwrap(),
+    };
+    restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Repository(repository));
+    let hold =
+        forge::Hold { name: name.clone(), task, writer: None, design_writers: Box::new([]), beside: None, drift: None };
+    restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Hold(hold));
+    assert!(domain.forge.goal_workspace_waiting(task, true));
+    plan_brief(&mut domain, &env, task, ops::Party::Deployment { project: 1 }, task, &[]);
+    (domain, env, task, name)
+}
+
+fn ask_brief(domain: &mut super::Domain, env: &BriefEnv, ask: jig_domain_contract::parts::Ask) {
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    let connector = domain.config.forge_connector;
+    super::super::asks::ask(domain, env, &mut decision, connector, jig_domain_contract::Ask::Parts(ask));
+    assert!(decision.empty());
+    crate::tests::accept_step(domain, env, decision);
+}
+
+#[test]
+fn a_modifying_goals_brief_waits_for_its_workspace_before_answering() {
+    use jig_domain_contract::{Up, parts};
+    let (mut domain, env, task, name) = goal_brief_wait();
+    assert!(domain.work.is_empty(), "plan did not answer while its workspace was waiting");
+    super::super::now::resume_workspaces(&mut domain, &env);
+    assert!(domain.work.is_empty(), "a resume still waits for readiness");
+
+    workspace_became_ready(&mut domain, &env, task, name);
+    let mut answers = 0_u32;
+    while let Some(work) = domain.work.pop() {
+        if let super::Work::Connector(_, Up::Parts(parts::Up::Planned { task: owner, .. })) = work {
+            assert_eq!(owner, task);
+            answers = answers.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(answers, 1);
+    super::super::now::resume_workspaces(&mut domain, &env);
+    assert!(domain.work.is_empty(), "the plan answers once");
+}
+
+fn workspace_became_ready(domain: &mut super::Domain, env: &BriefEnv, task: u64, name: super::forge::Name) {
+    let head = super::forge::BranchHead { name, commit: SHA1, owned: true };
+    restore_forge_with_engine_waits(domain, env, super::forge::Stored::BranchHead(head));
+    assert!(!domain.forge.goal_workspace_waiting(task, true));
+    super::super::now::resume_workspaces(domain, env);
+}
+
+#[test]
+fn abandoning_a_waiting_brief_forgets_its_plan() {
+    use jig_domain_contract::parts;
+    let (mut domain, env, task, name) = goal_brief_wait();
+    assert!(domain.work.is_empty());
+    assert!(domain.run_workspaces.contains_key(&task));
+    ask_brief(&mut domain, &env, parts::Ask::Abandon { task });
+    assert!(!domain.run_workspaces.contains_key(&task), "abandon forgets the waiting plan");
+    workspace_became_ready(&mut domain, &env, task, name);
+    assert!(domain.work.is_empty(), "an abandoned plan never answers");
+}
+
+fn plan_brief(
+    domain: &mut super::Domain,
+    env: &BriefEnv,
+    task: u64,
+    requester: jig_domain_contract::ops::Party,
+    root: u64,
+    core: &[jig_domain_brief::Planned],
+) {
+    use jig_domain_brief::Planned;
+    use jig_domain_contract::parts;
+    let mut claims = skein_lib::List::with_capacity(u32::try_from(core.len()).unwrap());
+    for section in core {
+        let Planned::Core { text, limit, priority, required, .. } = section else { panic!("core claim") };
+        let size = u32::try_from(text.len()).unwrap();
+        claims.push(parts::Claim { size, limit: *limit, priority: *priority, required: *required }).unwrap();
+    }
+    let plan = parts::Preparation {
+        task,
+        project: 1,
+        requester,
+        root,
+        documents: Box::new([]),
+        slots: env.limits.brief.sections.checked_sub(claims.len()).unwrap(),
+        core: claims.into_boxed(),
+        budget: env.limits.brief.brief_bytes,
+    };
+    ask_brief(domain, env, parts::Ask::Plan(Box::new(plan)));
+}
+
+fn restore_repair_brief(domain: &mut super::Domain, env: &BriefEnv, why: super::forge_change::Repair) {
+    let mut row = change_row(Some(7));
+    row.change.last_head = Some(SHA1);
+    row.delegate = Some((8, super::forge_change::Delegate::Repair(why)));
+    restore_forge_with_engine_waits(domain, env, super::forge::Stored::Change(Box::new(row)));
+}
+
+fn placed_repair_brief(
+    domain: &mut super::Domain,
+    env: &BriefEnv,
+    core: &[jig_domain_brief::Planned],
+) -> Box<[jig_domain_brief::Planned]> {
+    use jig_domain_contract::{Up, ops, parts};
+    plan_brief(domain, env, 8, ops::Party::Task(7), 7, core);
+    while let Some(work) = domain.work.pop() {
+        if let super::Work::Connector(connector, Up::Parts(parts::Up::Planned { task: 8, sections })) = work {
+            let jig_domain_brief::Placing::Placed { sections, dropped } = jig_domain_brief::place(
+                core,
+                &[],
+                &[jig_domain_brief::ConnectorPlan { connector: connector.0, sections }],
+                env.limits.brief.sections,
+            ) else {
+                panic!("repair sections fit")
+            };
+            assert!(dropped.is_empty());
+            return sections;
+        }
+    }
+    panic!("repair plan");
+}
+
 #[test]
 fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
-    use super::forge_change::{Delegate, Repair};
+    use super::forge_change::Repair;
     use crate::boundary::Work;
-    use jig_domain_brief::{GatherEvent, Planned};
+    use jig_domain_contract::{Up, ops, parts};
     use skein_lib::List;
 
     for (why, kinds) in [
@@ -1368,16 +1493,13 @@ fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
         (Repair::Review { head: [7; 32] }, [2, 3]),
     ] {
         let (mut domain, env) = two_forges();
-        let mut row = change_row(Some(7));
-        row.change.last_head = Some(SHA1);
-        row.delegate = Some((8, Delegate::Repair(why)));
-        restore_forge_with_engine_waits(&mut domain, &env, super::forge::Stored::Change(Box::new(row)));
-        crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), List::with_capacity(8), Box::new([]));
+        restore_repair_brief(&mut domain, &env, why);
+        plan_brief(&mut domain, &env, 8, ops::Party::Task(7), 7, &[]);
         let mut gathered = None;
         let mut partners = List::with_capacity(2);
         let mut request_source = None;
         while let Some(work) = domain.work.pop() {
-            if let Work::Brief(GatherEvent::Plan { sections, .. }) = work {
+            if let Work::Connector(_, Up::Parts(parts::Up::Planned { task: 8, sections })) = work {
                 gathered = Some(sections);
             } else if let Work::Forge(super::forge::Event::PlanBrief { section, source, partner }) = work {
                 if let super::forge::BriefSource::Request { .. } = source {
@@ -1398,13 +1520,11 @@ fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
         }
         let sections = gathered.expect("repair plan");
         assert_eq!(sections.len(), 2);
-        let mut tokens = List::with_capacity(2);
-        for (section, expected_kind) in sections.iter().zip(kinds) {
-            let Planned::Connector { kind, token, priority, size, limit, .. } = section else {
-                panic!("required forge section")
-            };
+        for ((section, expected_kind), expected_priority) in sections.iter().zip(kinds).zip([5, 6]) {
+            let parts::Section { kind, priority, size, limit, required, .. } = section;
+            assert!(*required);
             assert_eq!(*kind, expected_kind, "{why:?} section order");
-            assert_eq!(*priority, if *kind == 1 || *kind == 2 { 5 } else { 6 });
+            assert_eq!(*priority, expected_priority);
             assert_eq!(*size, 0);
             assert_eq!(
                 *limit,
@@ -1414,10 +1534,9 @@ fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
                     _ => domain.limits.brief.budgets.pull,
                 }
             );
-            tokens.push(*token).expect("two forge sections");
         }
-        let tokens = tokens.as_slice();
-        assert_eq!(partners.as_slice(), [(tokens[0], None), (tokens[1], Some(tokens[0]))]);
+        let (reason, pull) = (sections[0].token, sections[1].token);
+        assert_eq!(partners.as_slice(), [(reason, None), (pull, Some(reason))]);
     }
 }
 
@@ -1429,19 +1548,16 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
 }
 
 fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brief {
-    use crate::boundary::Work;
-    use jig_domain_brief::{Core, GatherEvent, Planned};
-    use skein_lib::{List, Writer};
+    use jig_domain_brief::{Core, Planned};
+    use jig_domain_contract::parts::Section as Part;
+    use skein_lib::List;
     let (mut domain, mut env) = two_forges();
     domain.limits.brief.sections = 8;
     domain.limits.brief.brief_bytes = 14_592;
     domain.limits.brief.budgets.pull = 4608;
     domain.limits.brief.budgets.ci = 4096;
     env.limits.brief = domain.limits.brief;
-    let mut row = change_row(Some(7));
-    row.change.last_head = Some(SHA1);
-    row.delegate = Some((8, super::forge_change::Delegate::Repair(why)));
-    restore_forge_with_engine_waits(&mut domain, &env, super::forge::Stored::Change(Box::new(row)));
+    restore_repair_brief(&mut domain, &env, why);
     let mut wanted = List::with_capacity(8);
     for (kind, size, priority, required) in [
         (Core::Task, 4608, 0, true),
@@ -1451,38 +1567,18 @@ fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brie
         (Core::Attempts, 128, 4, false),
         (Core::NotesIndex, 64, 4, false),
     ] {
-        let mut text = Writer::new(usize::try_from(size).unwrap());
-        for _ in 0..size {
-            text.put(b"x").unwrap();
-        }
-        wanted.push(Planned::Core { kind, text: text.finish(), limit: size, priority, required }).unwrap();
+        let text = padded_brief_text(usize::try_from(size).unwrap(), b"", b'x', b"");
+        wanted.push(Planned::Core { kind, text, limit: size, priority, required }).unwrap();
     }
-    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted, Box::new([]));
-    let mut gathered = None;
-    while let Some(work) = domain.work.pop() {
-        if let Work::Brief(GatherEvent::Plan { budget, sections, .. }) = work {
-            gathered = Some((budget, sections));
-        }
-    }
-    let (budget, mut sections) = gathered.expect("repair plan");
-    let mut pull = Writer::new(4608);
+    let mut sections = placed_repair_brief(&mut domain, &env, wanted.as_slice());
+    let budget = env.limits.brief.brief_bytes;
     let identity = b"Pull request: #7\nBranch: temper/7\nBase: main\nHead: abcdef0123456789abcdef0123456789abcdef01\nAddress: https://forge.example/org/repo/pulls/7\nTitle: Change\nBody: ";
-    pull.put(identity).unwrap();
-    for _ in identity.len()..4608 {
-        pull.put(b"p").unwrap();
-    }
-    let pull = pull.finish();
-    let mut ci = Writer::new(4096);
+    let pull = padded_brief_text(4608, identity, b'p', b"");
     let failure = b"Failed check: / changes (pull_request)\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\nFailed step: 1 changes\nEnd of its log:\n";
     let end = b"\nMissing changes/2.md\nRepair the failed check.\n";
-    ci.put(failure).unwrap();
-    for _ in failure.len()..4096_usize.checked_sub(end.len()).unwrap() {
-        ci.put(b"l").unwrap();
-    }
-    ci.put(end).unwrap();
-    let ci = ci.finish();
+    let ci = padded_brief_text(4096, failure, b'l', end);
     for section in &mut sections {
-        if let Planned::Connector { kind, size, .. } = section {
+        if let Planned::Connector { section: Part { kind, size, .. }, .. } = section {
             *size = u32::try_from(if *kind == 3 { pull.len() } else { ci.len() }).unwrap();
         }
     }
@@ -1490,32 +1586,47 @@ fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brie
     let mut rendered = List::with_capacity(8);
     for placed in &plan.order {
         let section = &sections[usize::try_from(placed.index).unwrap()];
-        match section {
-            Planned::Connector { kind: 1, .. } => {
-                assert_eq!(placed.size, 4096, "the repair's CI budget survives the maximal pull");
-                let kept = &ci[..usize::try_from(placed.size).unwrap()];
-                assert!(kept.starts_with(failure));
-                assert!(kept.ends_with(end));
-            }
-            Planned::Connector { kind: 3, .. } => assert_eq!(placed.size, 3392, "pull contents yield first"),
-            Planned::Core { limit, .. } => assert_eq!(placed.size, *limit, "other context still fits"),
-            Planned::Connector { .. } => panic!("two repair sections"),
-        }
+        let size = usize::try_from(placed.size).unwrap();
         let (title, text): (&[u8], &[u8]) = match section {
-            Planned::Connector { kind: 1, .. } => (b"CI", &ci),
-            Planned::Connector { kind: 3, .. } => (b"Pull request", &pull),
-            Planned::Core { text, .. } => (b"Task", text),
+            Planned::Connector { section: Part { kind: 1, .. }, .. } => {
+                assert_eq!(placed.size, 4096, "the repair's CI budget survives the maximal pull");
+                assert!(ci[..size].starts_with(failure));
+                assert!(ci[..size].ends_with(end));
+                (b"CI", &ci)
+            }
+            Planned::Connector { section: Part { kind: 3, .. }, .. } => {
+                assert_eq!(placed.size, 3392, "pull contents yield first");
+                (b"Pull request", &pull)
+            }
+            Planned::Core { text, limit, .. } => {
+                assert_eq!(placed.size, *limit, "other context still fits");
+                (b"Task", text)
+            }
             Planned::Connector { .. } => panic!("two repair sections"),
         };
-        rendered
-            .push(smith_domain_run::Section {
-                title: title.into(),
-                text: text[..usize::try_from(placed.size).unwrap()].into(),
-            })
-            .unwrap();
+        rendered.push(smith_domain_run::Section { title: title.into(), text: text[..size].into() }).unwrap();
     }
     assert_eq!(plan.size, budget);
     smith_domain_run::Brief { sections: rendered.into_boxed() }
+}
+
+fn padded_brief_text(size: usize, start: &[u8], pad: u8, end: &[u8]) -> Box<[u8]> {
+    let mut text = skein_lib::Writer::new(size);
+    text.put(start).unwrap();
+    for _ in 0..text.room().checked_sub(end.len()).unwrap() {
+        text.put(&[pad]).unwrap();
+    }
+    text.put(end).unwrap();
+    text.finish()
+}
+
+fn last_section_text(brief: &smith_domain_run::Brief, title: &[u8]) -> Box<[u8]> {
+    for section in brief.sections.iter().rev() {
+        if section.title.as_ref() == title {
+            return section.text.clone();
+        }
+    }
+    panic!("repair section not found")
 }
 
 #[test]
@@ -1524,17 +1635,8 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
     use smith_domain_run as run;
 
     let brief = planned_ci_repair(super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None });
-    let mut ci = None;
-    let mut pull = None;
-    for section in &brief.sections {
-        match section.title.as_ref() {
-            b"CI" => ci = Some(section.text.clone()),
-            b"Pull request" => pull = Some(section.text.clone()),
-            _ => {}
-        }
-    }
-    let ci = ci.expect("CI section");
-    let pull = pull.expect("pull section");
+    let ci = last_section_text(&brief, b"CI");
+    let pull = last_section_text(&brief, b"Pull request");
     let why = super::forge_change::Repair::LandingAt {
         gate: 1,
         candidate: SHA1,
@@ -1571,6 +1673,7 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
             endpoint: run::charter::Endpoint(0),
             model: b"model".as_slice().into(),
             effort: None,
+            speed: None,
             window: 65_536,
             output: 256,
         },
@@ -1600,9 +1703,8 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
 
 #[test]
 fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
-    use crate::boundary::{ForgeBriefKind, Work};
     use jig_domain_brief::{Core, GatherDomain, GatherEvent, GatherRequest, Planned, gather_step};
-    use skein_lib::{Id, List, Queue};
+    use skein_lib::Queue;
     let (mut domain, mut env) = two_forges();
     domain.limits.brief.sections = 3;
     domain.limits.brief.read_bytes = 512;
@@ -1610,45 +1712,47 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
     domain.limits.brief.budgets.pull = 512;
     domain.limits.brief.budgets.ci = 512;
     env.limits.brief = domain.limits.brief;
-    let mut row = change_row(Some(7));
-    row.change.last_head = Some(SHA1);
-    row.delegate = Some((8, super::forge_change::Delegate::Repair(super::forge_change::Repair::Ci)));
-    restore_forge_with_engine_waits(&mut domain, &env, super::forge::Stored::Change(Box::new(row)));
-    let mut wanted = List::with_capacity(3);
-    wanted
-        .push(Planned::Core {
-            kind: Core::Task,
-            text: b"Repair failed GitHub check check.\n".as_slice().into(),
-            limit: 512,
-            priority: 0,
-            required: true,
-        })
-        .unwrap();
-    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted, Box::new([]));
+    restore_repair_brief(&mut domain, &env, super::forge_change::Repair::Ci);
+    let wanted = [Planned::Core {
+        kind: Core::Task,
+        text: b"Repair failed GitHub check check.\n".as_slice().into(),
+        limit: 512,
+        priority: 0,
+        required: true,
+    }];
+    let sections = placed_repair_brief(&mut domain, &env, &wanted);
     let limits = crate::limits::brief_limits(&env.limits.brief);
     let gather_env = env.with(limits);
     let mut gather = GatherDomain::new(&limits);
     let mut out = Queue::uncapped();
-    while let Some(work) = domain.work.pop() {
-        if let Work::Brief(plan @ GatherEvent::Plan { .. }) = work {
-            gather_step(&mut gather, &gather_env, plan, &mut out);
-        }
-    }
+    gather_step(
+        &mut gather,
+        &gather_env,
+        GatherEvent::Plan {
+            brief: super::Token::new(8),
+            budget: limits.brief_bytes,
+            deadline: env.now.saturating_add(limits.gather),
+            sections,
+        },
+        &mut out,
+    );
     let pull = b"Pull request: #7\nBranch: temper/7\nBase: main\nHead: abcdef0123456789abcdef0123456789abcdef01\nAddress: https://github.com/org/repo/pull/7\n";
     let ci = b"Failed check: check\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\n[job log could not be read]\nRepair the failed check.\n";
     assert_eq!(out.len(), 2, "gather both required forge sections");
     for _ in 0..out.len() {
-        let Some(GatherRequest::Gather { section, budget: 512, .. }) = out.pop() else { panic!("bounded forge read") };
-        let kind = domain.brief_connectors.get(Id::from_token(section)).unwrap().kind.clone();
+        let Some(GatherRequest::Gather { brief, connector, section, budget: 512, .. }) = out.pop() else {
+            panic!("bounded forge read")
+        };
+        let kind = domain.brief_connectors.get(&section).unwrap().kind;
         let size = match kind {
-            ForgeBriefKind::Pull => pull.len(),
-            ForgeBriefKind::Ci => ci.len(),
-            ForgeBriefKind::Home | ForgeBriefKind::Reviews | ForgeBriefKind::Document(_) => panic!("pull and CI only"),
+            3 => pull.len(),
+            1 => ci.len(),
+            _ => panic!("pull and CI only"),
         };
         gather_step(
             &mut gather,
             &gather_env,
-            GatherEvent::Ready { brief: skein_lib::Token::new(8), section, size: u32::try_from(size).unwrap() },
+            GatherEvent::Sized { brief, connector, section, size: u32::try_from(size).unwrap() },
             &mut out,
         );
     }
@@ -1767,7 +1871,11 @@ fn a_finding_blame_mark_reaches_the_core_as_a_milestone_parts_mark() {
     out.push(forge::Request::MilestoneMarked { task: 812 });
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
-    let Some(Work::Core(jig_domain_core::Event::PartsMarked { connector, tasks })) = domain.work.pop() else {
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(connector),
+        jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Marked { tasks }),
+    )) = domain.work.pop()
+    else {
         panic!("finding marks the milestone's parts")
     };
     assert_eq!(connector, domain.config.forge_connector);
@@ -1819,23 +1927,26 @@ fn an_erased_tasks_unname_reaches_the_forge_as_unnamed() {
     let (mut domain, env, _) = restored_change([]);
     let connector = domain.config.forge_connector;
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    super::effect_ask(
+    crate::route::asks::ask(
         &mut domain,
         &env,
         &mut decision,
         connector,
-        jig_domain_core::effects::connector::Ask::Unname { task: 7 },
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Unname { task: 7 }),
     );
-    let Some(Work::Forge(forge::Event::Unnamed { task: 7 })) = domain.work.pop() else {
+    let Some(Work::Forge(forge::Event::Ask(jig_domain_contract::Ask::Resources(
+        jig_domain_contract::resources::Ask::Unname { task: 7 },
+    )))) = domain.work.pop()
+    else {
         panic!("the erased task reaches the forge");
     };
     assert!(domain.work.is_empty());
-    super::effect_ask(
+    crate::route::asks::ask(
         &mut domain,
         &env,
         &mut decision,
         connector + 1,
-        jig_domain_core::effects::connector::Ask::Unname { task: 7 },
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Unname { task: 7 }),
     );
     assert!(domain.work.is_empty());
 }
@@ -1971,7 +2082,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 },
                 &mut out,
             );
-            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Failed, None, None);
+            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Failed, None);
             let super::StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = decision.end else {
                 panic!("cancelled {name} needs a procedure hold with its account")
             };
@@ -1996,6 +2107,14 @@ fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
 }
 
 fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skein_lib::Env<super::Limits>) {
+    procedure_root_with_grants(&mut limits, Box::new([]), &[])
+}
+
+fn procedure_root_with_grants(
+    limits: &mut super::Limits,
+    grants: Box<[super::authority::Grant]>,
+    records: &[crate::Record],
+) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{authority, forge};
     let mut config = crate::tests::resume_fixture::config(7);
     let kinds = Box::new([
@@ -2008,13 +2127,15 @@ fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skei
     config.core.defaults.rules.maximum_run_spend = 1000;
     config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
     config.core.seed_projects[0].policy.policy.ceiling.delegation.kinds = kinds;
+    config.core.defaults.rules.ceiling.grants = grants.clone();
+    config.core.seed_projects[0].policy.policy.ceiling.grants = grants;
     // The closer procedure and close job add two executor places.
     limits.authority.executors = 5;
     // The closer procedure and close job add two executor places.
     limits.tasks.executor_kinds = 5;
     limits.tasks.parameters = 4;
     limits.tasks.spec_bytes = 256;
-    let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_records(config, limits, records);
     for event in [
         jig_domain_core::Event::Tasks(super::tasks::Event::Restored),
         jig_domain_core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
@@ -2216,7 +2337,7 @@ fn a_landing_merge_waiting_on_authority_is_deferred_not_vetoed() {
     assert!(domain.work.is_empty(), "waiting does not hold the landing");
 }
 
-fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> u64 {
     use super::tasks;
     let seed = domain.engine.core_mut().repair_seed(1).expect("unreserved period can fund an agent");
     let task = seed.number();
@@ -2241,6 +2362,7 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
     let funder = tasks::Funder::Period { project: 1, period: domain.engine.core().period(1) };
     let ledger = domain.engine.core().tasks.funding(funder).unwrap();
     assert_eq!(ledger.numbers.reserved, ledger.numbers.budget);
+    task
 }
 
 fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
@@ -2249,14 +2371,38 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
 fn reserved_turn_landing_with_limits(
     limits: &super::Limits,
 ) -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
-    use super::{Work, forge, forge_change};
     let (mut domain, env) = procedure_root_with_limits(*limits);
     reserve_period(&mut domain, &env);
+    let row = form_turn_landing(&mut domain, &env);
+    (domain, env, row)
+}
+
+fn take_landing_admission(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+) -> (super::forge::LandingRow, Box<[super::forge::Name]>) {
+    use super::Work;
+    use jig_domain_contract::{Up, resources};
+    use jig_domain_core::{Event, engine::In};
+
+    let Some(Work::Connector(connector, up @ Up::Resources(resources::Up::Resource { .. }))) = domain.work.pop() else {
+        panic!("branch resource")
+    };
+    assert_eq!(connector.0, domain.config.forge_connector);
+    drop(crate::engine::step(&mut domain.engine, env, In::Connector(connector, up)));
+    let Some(Work::Core(event @ Event::ConnectorRepair { .. })) = domain.work.pop() else { panic!("landing task") };
+    drop(crate::engine::step(&mut domain.engine, env, In::Core(event)));
+    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    (row, names)
+}
+
+fn form_turn_landing(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> super::forge::LandingRow {
+    use super::{Work, forge, forge_change};
     let mut row = change_row(Some(7));
     row.repository = adopted(1).provider;
     row.change.way = forge_change::Way::Turn;
     row.change.state = forge_change::State::Ready { head: SHA1, ready_since: env.wall };
-    restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    restore_forge_with_engine_waits(domain, env, forge::Stored::Change(Box::new(row)));
     assert!(domain.forge.project_landing(
         1,
         forge_change::Way::Turn,
@@ -2271,12 +2417,8 @@ fn reserved_turn_landing_with_limits(
             bound: skein_lib::Duration::from_secs(7200),
         }
     ));
-    super::start_landing(&mut domain, &env, 7);
-    let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), resource));
-    let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event));
-    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    super::start_landing(domain, env, 7);
+    let (row, names) = take_landing_admission(domain, env);
     assert_eq!(row.landing.members[0].change, 7);
     for name in names {
         domain.work.push(Work::Forge(forge::Event::Hold {
@@ -2287,7 +2429,7 @@ fn reserved_turn_landing_with_limits(
         }));
     }
     domain.forge_forming = None;
-    (domain, env, row)
+    row
 }
 
 #[test]
@@ -2477,7 +2619,7 @@ fn offer_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, t
         env,
         &mut decision,
         domain.config.forge_connector,
-        jig_domain_core::Ask::StartProcedure { context, step },
+        jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::Start { context, step, chat: None }),
     );
     crate::decision::accept_routed(
         &mut domain.journal,
@@ -2690,7 +2832,7 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
             }),
         ]);
         env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
-        let decision = super::change_hold_step(&domain, &env, 7, why, None, None);
+        let decision = super::change_hold_step(&domain, &env, 7, why, None);
         let category = if why == change::Cause::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
         assert_eq!(
             decision.end,
@@ -2745,20 +2887,10 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
         ]);
         let evidence = forge::ChangeEvidence {
             behind,
-            readback_owed: false,
             nearest_write: Some(3),
-            touched: forge::Touched::UNKNOWN,
-            prior,
-            head: Some(found),
-            base_tip: [0; 32],
-            contains_base: change::Status::Unknown,
-            ci: change::Status::Unknown,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: false,
-            size: None,
+            ..unavailable_evidence(prior, found)
         };
-        let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence), None);
+        let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence));
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2770,7 +2902,6 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one story compares the deciding read, its committed row and the re-hold")]
 fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_revision() {
     use super::{forge, forge_change as change, tasks};
     const EXPECTED: [u8; 32] = [0x12; 32];
@@ -2799,21 +2930,9 @@ fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_rev
         task,
         decision: change::Decision::Hold(change::Cause::BranchMoved),
         entry: None,
-        evidence: Some(forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            prior,
-            head: Some(FOUND),
-            base_tip: [0; 32],
-            contains_base: change::Status::Unknown,
-            ci: change::Status::Unknown,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: false,
-            size: None,
-        }),
+        evidence: Some(unavailable_evidence(prior, FOUND)),
+        close_at: None,
+        close_refusal: None,
     });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -2946,7 +3065,7 @@ fn checking_holds_name_the_bound_the_execution_clock_reached() {
         env.wall = Wall::from_nanos(1_000_000_000);
         env.limits.forge.change_policy.stall = Duration::from_secs(1800);
         env.limits.forge.change_policy.runner_wait = Duration::from_secs(14_400);
-        let decision = super::hold_change_decision(&domain, &env, 7, change::Cause::Stalled, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, change::Cause::Stalled, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2978,7 +3097,7 @@ fn a_hold_past_questions_names_its_bound() {
         row.questions.taken = 4;
         row.questions.open = open.into();
         let (domain, env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
-        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Questions, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Questions, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -3114,9 +3233,12 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     use temper_protocol_worker_wire::v1::{self, Record};
     for (head, head_text) in COMMITS {
         for (base, base_text) in COMMITS {
-            let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
+            let bytes =
+                super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, 4096).expect("merge spec");
             let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/merge");
+            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/hooks/merge");
+            assert!(decoded.find && !decoded.refusal);
+            assert_eq!(decoded.fallback.as_ref(), b"fabrig/.temper/merge");
             let expected = alloc::format!(
                 "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
                 core::str::from_utf8(head_text).unwrap(),
@@ -3124,8 +3246,8 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
             );
             assert_eq!(decoded.request.as_ref(), expected.as_bytes());
             let bound = u32::try_from(bytes.len()).unwrap();
-            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
-            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
+            assert_eq!(super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, bound), Some(bytes));
+            assert_eq!(super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, bound - 1), None);
         }
     }
 }
@@ -3185,7 +3307,7 @@ fn live_delegate_amendment(
     domain.forge.restore_begin(env.wall);
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     let delegate =
-        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)))
+        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)), None)
             .unwrap();
     let mut change = domain.engine.core().tasks.task(task).unwrap().clone();
     let mut child = change.clone();
@@ -3443,18 +3565,8 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
     env.limits.tasks.parameters = GATE_PARAMETERS;
     env.limits.tasks.spec_bytes = SPEC_BYTES;
-    let producing = tasks::LlmChoice {
-        later: None,
-        main: tasks::ModelEffort { model: 3, effort: Some(1) },
-        subagents: Box::new([]),
-        account: None,
-    };
-    let review = tasks::LlmChoice {
-        later: None,
-        main: tasks::ModelEffort { model: 2, effort: Some(0) },
-        subagents: Box::new([]),
-        account: None,
-    };
+    let producing = choice_at_speed(3, Some(1), b"ultrafast");
+    let review = choice_at_speed(2, Some(0), b"standard");
     let mut row = task_change_row(task, Some(7));
     row.change.last_head = Some(SHA1);
     row.producing_llm = Some(producing.clone());
@@ -3474,7 +3586,9 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
         (Delegate::Gate { number: CHECK_GATE, head: SHA1 }, Some(producing)),
         (Delegate::Gate { number: PERSON_GATE, head: SHA1 }, None),
     ] {
-        let Some(delegate) = super::change_delegate(&domain, &env, task, kind) else { panic!("delegate {kind:?}") };
+        let Some(delegate) = super::change_delegate(&domain, &env, task, kind, None) else {
+            panic!("delegate {kind:?}")
+        };
         assert_eq!(delegate.llm, expected, "{kind:?}");
     }
 }
@@ -3482,9 +3596,15 @@ fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
     super::tasks::LlmChoice {
         later: None,
         account: None,
-        main: super::tasks::ModelEffort { model, effort },
+        main: super::tasks::ModelEffort { model, effort, speed: None },
         subagents: Box::new([]),
     }
+}
+
+fn choice_at_speed(model: u8, effort: Option<u8>, speed: &[u8]) -> super::tasks::LlmChoice {
+    let mut llm = choice(model, effort);
+    llm.main.speed = Some(skein_lib::Name::from_checked(speed).expect("speed fixture fits"));
+    llm
 }
 
 #[test]
@@ -3501,12 +3621,26 @@ fn change_llm_text_round_trips_each_role_and_optional_effort() {
             crate::ChangeLlm {
                 producer: Some(tasks::LlmChoice {
                     subagents: Box::new([
-                        tasks::ModelEffort { model: 0, effort: Some(0) },
-                        tasks::ModelEffort { model: 2, effort: None },
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
                     ]),
                     ..choice(3, Some(1))
                 }),
                 review: Some(choice(3, Some(0))),
+            },
+        ),
+        (
+            b"6;3.1@ultrafast 0.0 2;3.0@standard",
+            Some(6),
+            crate::ChangeLlm {
+                producer: Some(tasks::LlmChoice {
+                    subagents: Box::new([
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
+                    ]),
+                    ..choice_at_speed(3, Some(1), b"ultrafast")
+                }),
+                review: Some(choice_at_speed(3, Some(0), b"standard")),
             },
         ),
         (
@@ -3537,6 +3671,12 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
         b";1.;",
         b";.1;",
         b";1.2.3;",
+        b";1@;",
+        b";1@abcdefghijklmnopqrstuvwxyz0123456;",
+        b";1@Fast;",
+        b";1@fast@standard;",
+        b";;1@fast.speed",
+        b";1@\xff;",
         b"; 1;",
         b";1 ;",
         b";1  2;",
@@ -3561,13 +3701,34 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
     assert_eq!(super::change_llm::read(text.as_slice()), None);
 }
 
-fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+pub(super) fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+    change_choice_world_with_producer_speeds(&[])
+}
+
+fn change_choice_world_with_producer_speeds(
+    speeds: &[&[u8]],
+) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
     use super::{authority, forge, tasks};
     let mut config = crate::tests::resume_fixture::config(7);
     let chat = crate::tests::resume_fixture::charter();
     let mut producer = chat.clone();
     producer.number = 6;
     producer.policy.model.name = b"producer".as_slice().into();
+    let model = &mut producer.policy.model;
+    let mut declared = skein_lib::List::with_capacity(u32::try_from(speeds.len()).expect("fixture speeds"));
+    for name in speeds {
+        declared
+            .push(jig_domain_core::Speed {
+                name: (*name).into(),
+                also: Box::new([]),
+                input_price: model.input_price.max(1),
+                cached_price: model.cached_price.max(1),
+                cache_write_price: model.cache_write_price,
+                output_price: model.output_price.max(1),
+            })
+            .unwrap();
+    }
+    model.speeds = declared.into_boxed();
     let mut review = chat.clone();
     review.number = 4;
     review.policy.model.name = b"review".as_slice().into();
@@ -3807,6 +3968,51 @@ fn a_changes_llm_choices_are_checked_against_their_own_charters_and_run_models()
     );
 }
 
+fn a_change_with_producer_choice(choice: super::tasks::LlmChoice) -> crate::ChangeCall {
+    crate::ChangeCall {
+        producer: Some(6),
+        llm: crate::ChangeLlm { producer: Some(choice), review: None },
+        ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None)
+    }
+}
+
+#[test]
+fn an_undeclared_change_speed_names_the_models_speeds_in_order() {
+    for (declared, expected) in [
+        (
+            &[b"turbo".as_slice(), b"fast"][..],
+            b"speed ultrafast is not one producer declares; it declares turbo, fast".as_slice(),
+        ),
+        (&[][..], b"speed ultrafast is not one producer declares; it declares none"),
+    ] {
+        let (domain, env, context) = change_choice_world_with_producer_speeds(declared);
+        // The same model may run as main and sub-agent, at different speeds.
+        let change = a_change_with_producer_choice(super::tasks::LlmChoice {
+            subagents: Box::new([choice_at_speed(1, None, b"ultrafast").main]),
+            ..choice_at_speed(1, None, b"standard")
+        });
+        let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 1, &context, &[change]) else {
+            panic!("the producer's speed was not refused in words")
+        };
+        assert_eq!(words.as_ref(), expected);
+    }
+}
+
+#[test]
+fn change_speed_choices_accept_declared_standard_and_omitted() {
+    let (domain, env, context) = change_choice_world_with_producer_speeds(&[b"ultrafast"]);
+    for (choice, expected) in [
+        (choice_at_speed(1, None, b"ultrafast"), b"6;1@ultrafast;".as_slice()),
+        (choice_at_speed(1, None, b"standard"), b"6;1@standard;"),
+        (choice(1, None), b"6;1;"),
+    ] {
+        let batch = change_choice_batch(&domain, &env, &context, a_change_with_producer_choice(choice)).unwrap();
+        assert!(
+            batch[0].spec.parameters.contains(&super::tasks::Parameter::Bytes { name: 11, value: expected.into() })
+        );
+    }
+}
+
 #[test]
 fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     use super::authority;
@@ -3854,7 +4060,7 @@ fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     assert!(lacks.executors);
 }
 
-fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
+pub(super) fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
     use super::{forge, tasks};
     let (mut domain, mut env, task) =
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
@@ -3949,17 +4155,17 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
     for (text, producer, llm) in [
         (None, 1, crate::ChangeLlm::default()),
         (
-            Some(b"6;3.1 0.0 2;3.0".as_slice()),
+            Some(b"6;3.1@ultrafast 0.0 2;3.0@standard".as_slice()),
             6,
             crate::ChangeLlm {
                 producer: Some(tasks::LlmChoice {
                     subagents: Box::new([
-                        tasks::ModelEffort { model: 0, effort: Some(0) },
-                        tasks::ModelEffort { model: 2, effort: None },
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
                     ]),
-                    ..choice(3, Some(1))
+                    ..choice_at_speed(3, Some(1), b"ultrafast")
                 }),
-                review: Some(choice(3, Some(0))),
+                review: Some(choice_at_speed(3, Some(0), b"standard")),
             },
         ),
         (Some(b";0;"), 1, crate::ChangeLlm { producer: Some(choice(0, None)), review: None }),
@@ -4115,6 +4321,8 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
     use forge_change::{Delegate, Freshness, Gate, GateKind, Repair};
     for (kind, fault, role) in [
         (Delegate::Produce, tasks::LlmFault::Charter, Some(b"producer".as_slice())),
+        (Delegate::Produce, tasks::LlmFault::Speed, Some(b"producer")),
+        (Delegate::Gate { number: 1, head: SHA1 }, tasks::LlmFault::Speed, Some(b"review")),
         (Delegate::Repair(Repair::Ci), tasks::LlmFault::Charter, Some(b"producer")),
         (Delegate::Resolve { base: SHA1 }, tasks::LlmFault::Charter, Some(b"producer")),
         (Delegate::Gate { number: 1, head: SHA1 }, tasks::LlmFault::Charter, Some(b"review")),
@@ -4128,6 +4336,8 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
         let mut row = task_change_row(task, Some(7));
         row.producing_charter = 2;
         row.review_charter = 4;
+        row.producing_llm = Some(choice_at_speed(0, None, b"ultrafast"));
+        row.review_llm = Some(choice_at_speed(0, None, b"fast"));
         let mut gates = skein_lib::List::with_capacity(3);
         for (number, kind) in [(1, GateKind::Agent), (2, GateKind::Check), (3, GateKind::Person)] {
             gates.push(Gate { number, kind, blocking: true, freshness: Freshness::Exact, eager: false }).unwrap();
@@ -4155,7 +4365,7 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             &env,
             &mut decision,
             connector,
-            jig_domain_core::Ask::StepRefused {
+            jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused {
                 task,
                 step,
                 why: jig_domain_core::StepRefusal::Refused(tasks::Problem {
@@ -4164,7 +4374,7 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
                     blocked_by: None,
                     capacity: None,
                 }),
-            },
+            }),
         );
         match role {
             Some(role) => {
@@ -4178,6 +4388,12 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
                 super::append(&mut expected, role);
                 super::append(&mut expected, b" choice names model ");
                 super::append(&mut expected, &domain.engine.core().settings.models[0].name);
+                if fault == tasks::LlmFault::Speed {
+                    super::append(
+                        &mut expected,
+                        if role == b"review" { b" at speed fast" } else { b" at speed ultrafast" },
+                    );
+                }
                 super::append(
                     &mut expected,
                     if role == b"review" { b", which charter 4" } else { b", which charter 2" },
@@ -4418,7 +4634,7 @@ fn a_held_branch_change_refuses_each_parameter_past_capacity() {
             SPEND,
         );
         if capacity < PARAMETERS {
-            assert_eq!(result.unwrap_err(), tasks::Refusal::Spec, "capacity {capacity}");
+            assert_eq!(result.unwrap_err().task_refusal(), tasks::Refusal::Spec, "capacity {capacity}");
         } else {
             assert_eq!(result.unwrap().spec.parameters.len(), usize::try_from(PARAMETERS).unwrap());
         }
@@ -4511,7 +4727,11 @@ fn a_live_room_refusal_rearms_the_change_delegate() {
         &env,
         &mut decision,
         connector,
-        jig_domain_core::Ask::StepRefused { task, step, why: jig_domain_core::StepRefusal::Refused(problem) },
+        jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused {
+            task,
+            step,
+            why: jig_domain_core::StepRefusal::Refused(problem),
+        }),
     );
     let Some(Work::Forge(forge::Event::DelegateAdmissionRefused {
         task: refused,
@@ -4680,11 +4900,11 @@ fn a_refused_change_step_still_holds_its_task_with_the_failure_words() {
         &env,
         &mut decision,
         connector,
-        jig_domain_core::Ask::StepRefused {
+        jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused {
             task,
             step,
             why: jig_domain_core::StepRefusal::Refused(tasks::Problem::new(Some(task), tasks::Refusal::Busy)),
-        },
+        }),
     );
     apply_change_task_work(&mut domain, &env);
     assert_failed_change_task(&domain, task);
@@ -4800,13 +5020,16 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
     assert_eq!(root.wire, wire::FAMILY);
     assert_eq!(root.declaration, "JobSpec");
     for (bytes, refusal) in [
-        (super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"), true),
-        (super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
+        (super::forge::jobs::close(b"repo", None, b"{}", 4096).expect("close spec"), true),
+        (super::forge::jobs::merge(b"repo", None, &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
         assert_eq!(spec.refusal, refusal);
+        assert_eq!(spec.outdated, refusal);
+        assert!(spec.find);
+        assert!(spec.fallback.is_empty());
     }
 }
 
@@ -4815,14 +5038,21 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
 fn a_close_jobs_spec_is_its_command_and_its_request() {
     use temper_protocol_worker_wire::v1::{self, Record};
     let request = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
-    let bytes = super::close::spec(b"fabrig", b".temper/close", request, 16384).expect("close spec");
+    let bytes = super::forge::jobs::close(b"fabrig", Some(b".temper/close"), request, 16384).expect("close spec");
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("job spec");
-    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/close");
+    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/hooks/close");
+    assert!(decoded.find && decoded.refusal);
+    assert_eq!(decoded.fallback.as_ref(), b"fabrig/.temper/close");
     assert_eq!(decoded.request.as_ref(), request);
     let bound = u32::try_from(bytes.len()).expect("bounded spec");
-    assert_eq!(super::close::spec(b"fabrig", b".temper/close", request, bound), Some(bytes));
+    assert_eq!(super::forge::jobs::close(b"fabrig", Some(b".temper/close"), request, bound), Some(bytes));
     assert_eq!(
-        super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
+        super::forge::jobs::close(
+            b"fabrig",
+            Some(b".temper/close"),
+            request,
+            bound.checked_sub(1).expect("nonempty spec")
+        ),
         None
     );
 }
@@ -4999,21 +5229,8 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
         env.limits.authority.segments,
     )
     .unwrap();
-    let evidence = forge::ChangeEvidence {
-        behind: None,
-        readback_owed: false,
-        nearest_write: None,
-        touched: forge::Touched::UNKNOWN,
-        size: None,
-        prior: row.change.clone(),
-        head: Some(SHA1),
-        base_tip: SHA1,
-        contains_base: forge_change::Status::Passed,
-        ci: forge_change::Status::Failed,
-        gates: Box::new([]),
-        reviews: Box::new([]),
-        reviews_complete: true,
-    };
+    let evidence =
+        forge::ChangeEvidence { ci: forge_change::Status::Failed, ..passed_evidence(row.change.clone(), SHA1, SHA1) };
     restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     let description = super::describe_change_effect(
         &domain,
@@ -5425,7 +5642,7 @@ fn every_change_hold_has_words_even_without_an_account() {
         row.effect = change::EffectResult::Failed;
         row.effect_account = Some(forge::EffectAccount { entry: 1, words: Box::new([]) });
         restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-        let step = super::hold_change_decision(&domain, &env, 7, why, None, None);
+        let step = super::hold_change_decision(&domain, &env, 7, why, None);
         let StepEnd::HoldFrom { source, .. } = step.end else { panic!("wordless hold: {why:?}") };
         let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account: {why:?}") };
         assert!(!words.is_empty(), "empty hold: {why:?}");
@@ -5447,7 +5664,7 @@ fn a_runner_hold_uses_its_own_account() {
     };
     row.runner_ci = Some(forge::RunnerCi::Held { words: WORDS.into() });
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-    let step = super::hold_change_decision(&domain, &env, TASK, change::Cause::Runner, None, None);
+    let step = super::hold_change_decision(&domain, &env, TASK, change::Cause::Runner, None);
     let StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = step.end else { panic!("runner hold account") };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
     assert_eq!(words.as_ref(), WORDS);
@@ -5467,7 +5684,7 @@ fn a_refused_change_delegate_holds_with_words_and_recovery() {
         &env,
         &mut decision,
         0,
-        jig_domain_core::Ask::DelegateRefused { task: Some(task) },
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::DelegateRefused { task: Some(task) }),
     );
     let Some(Work::Forge(forge::Event::DelegateRefused { .. })) = domain.work.pop() else { panic!("forge refusal") };
     let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
@@ -5745,56 +5962,6 @@ fn report_tests() -> super::forge::ReceiptReport {
     ]))
 }
 
-#[test]
-fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
-    use super::forge_change::{Below, Landed, Repair};
-    use skein_lib::bytes::{concat, find};
-    let mut row = change_row(Some(42));
-    row.change.last_head = Some(SHA1);
-    let why = Repair::LandingAt {
-        gate: 1,
-        candidate: SHA1,
-        below: Some(Below {
-            by_test: false,
-            top: false,
-            green: SHA256,
-            changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
-        }),
-    };
-    let mut failure = repair_failure(SHA1, Some(SHA256));
-    failure.report = report_tests();
-    let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-    let tests =
-        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
-    let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
-    let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
-    let job_at = find(&whole, b"\nFailed job: gate: read_ci what=job commit=").unwrap();
-    assert!(run_at < tests_at && tests_at < job_at);
-    let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
-    let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
-    assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
-    assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
-    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
-    let marker = b"\n[2 more failed tests and jobs: read_ci what=checks names them]";
-    let bound = u32::try_from(
-        usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
-    )
-    .unwrap();
-    let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
-    assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
-    for (report, line) in [
-        (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
-        (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
-        (super::forge::ReceiptReport::Unread, b"\nFailed tests: not known (its report could not be read)".as_slice()),
-    ] {
-        failure.report = report;
-        let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-        let at = find(&words, line).unwrap();
-        assert!(find(&words[..at], b"\nGate run:").is_some());
-        assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
-    }
-}
-
 /// questions.md, 1, What every delegate is told: the step's retained amendment is visible before admission.
 #[test]
 fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
@@ -5849,7 +6016,7 @@ fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
         step,
         connector,
         code,
-        &(change::Delegate::Repair(change::Repair::Ci), None),
+        &(change::Delegate::Repair(change::Repair::Ci), None, None),
     );
     let Some(super::Work::Core(jig_domain_core::Event::ProcedureStep { decision, .. })) = domain.work.pop() else {
         panic!("delegate step")

@@ -151,7 +151,13 @@ fn append_models(current: &Current, settings: &Settings, charters: &mut List<tas
             && change.value.is_none()
         {
             charters
-                .push(tasks::CharterModels { resumes: false, number: *number, revision: change.revision, models: None })
+                .push(tasks::CharterModels {
+                    resumes: false,
+                    number: *number,
+                    revision: change.revision,
+                    models: None,
+                    speeds: Box::default(),
+                })
                 .expect("removed charter version bound");
         }
     }
@@ -163,14 +169,19 @@ pub(crate) fn one_models(charter: &Charter, revision: u32, settings: &Settings) 
 
 pub(crate) fn one_models_rows(charter: &Charter, revision: u32, rows: &[crate::Model]) -> tasks::CharterModels {
     let count = charter.policy.alternatives.len().checked_add(1).expect("charter model count");
-    let mut models = List::with_capacity(u32::try_from(count).expect("charter model count"));
+    let count = u32::try_from(count).expect("charter model count");
+    let mut models = List::with_capacity(count);
+    let mut speeds =
+        List::with_capacity(count.checked_mul(super::catalogue::SPEEDS).expect("bounded declared speed count"));
     if let Some(main) = position(rows, &charter.policy.model) {
         models.push(main).expect("charter model count");
+        declared_speeds(main, &charter.policy.model, &mut speeds);
     }
     for model in &charter.policy.alternatives {
         let Some(index) = position(rows, model) else { continue };
         if !models.as_slice().contains(&index) {
             models.push(index).expect("charter model count");
+            declared_speeds(index, model, &mut speeds);
         }
     }
     tasks::CharterModels {
@@ -178,6 +189,14 @@ pub(crate) fn one_models_rows(charter: &Charter, revision: u32, rows: &[crate::M
         revision,
         resumes: charter.policy.resume,
         models: Some(models.into_boxed()),
+        speeds: speeds.into_boxed(),
+    }
+}
+
+fn declared_speeds(index: u8, model: &crate::Model, out: &mut List<tasks::DeclaredSpeed>) {
+    for speed in &model.speeds {
+        let name = skein_lib::Name::from_checked(&speed.name).expect("checked speed name");
+        out.push(tasks::DeclaredSpeed { model: index, name }).expect("bounded declared speed count");
     }
 }
 
@@ -252,6 +271,19 @@ impl Core {
     #[must_use]
     pub fn charter(&self, number: u32) -> Option<&Charter> {
         self.current.resolved_charter(number)
+    }
+
+    /// The newest offered charter under this name (domain/engine/settings.md, 1).
+    #[must_use]
+    pub fn charter_named(&self, name: &[u8]) -> Option<u32> {
+        for number in 1..=super::NUMBERS {
+            if let Some(charter) = self.charter(number)
+                && charter.name.as_deref() == Some(name)
+            {
+                return Some(number);
+            }
+        }
+        None
     }
 
     /// An admitted live agent task's run revision, or its own when no run lives.
@@ -372,7 +404,13 @@ pub(crate) fn held_models(core: &Core, limits: &Limits) -> Box<[tasks::CharterMo
     for (&key, value) in &core.held.versions {
         let models = match &value.charter {
             Some(charter) => one_models(charter, key.revision, &core.settings),
-            None => tasks::CharterModels { resumes: false, number: key.charter, revision: key.revision, models: None },
+            None => tasks::CharterModels {
+                resumes: false,
+                number: key.charter,
+                revision: key.revision,
+                models: None,
+                speeds: Box::default(),
+            },
         };
         values.push(models).expect("held model table");
     }

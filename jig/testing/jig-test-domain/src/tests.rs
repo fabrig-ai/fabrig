@@ -8,6 +8,7 @@ mod catalogue;
 #[test]
 fn declarations_use_each_named_connectors_kind_rows_and_world_rules() {
     use jig_domain_contract::{
+        Connector,
         effects::{EffectForm, EffectKind, Recovery},
         resources::{ResourceKind, Rule, Taken},
     };
@@ -42,11 +43,11 @@ fn declarations_use_each_named_connectors_kind_rows_and_world_rules() {
     let [one, two] = declarations.as_ref() else { panic!("both configured connectors") };
     assert_eq!(
         (one.connector, one.resources.as_ref(), one.effects.as_ref()),
-        (1, [write].as_slice(), [first].as_slice())
+        (Connector(1), [write].as_slice(), [first].as_slice())
     );
     assert_eq!(
         (two.connector, two.resources.as_ref(), two.effects.as_ref()),
-        (2, [pool].as_slice(), [second].as_slice())
+        (Connector(2), [pool].as_slice(), [second].as_slice())
     );
     config.core.connectors = Box::new([2]);
     assert_eq!(config.declarations().as_ref(), ::core::slice::from_ref(two));

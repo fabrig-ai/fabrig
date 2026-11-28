@@ -273,6 +273,7 @@ pub(super) fn settings_config() -> engine::Config {
         .expect("stock chat charter")
         .clone();
     charter.number = SETTINGS_CHARTER;
+    charter.name = None;
     charter.policy.tools = jig_domain_tasks::Tools(1920);
     charter.policy.modify = false;
     charter.policy.agents = false;
@@ -289,7 +290,8 @@ pub(super) fn settings_config() -> engine::Config {
         .expect("stock chat template")
         .clone();
     template.number = SETTINGS_TEMPLATE;
-    template.name = b"settings".as_slice().into();
+    template.name = None;
+    template.shown = b"settings".as_slice().into();
     template.executor = people::TemplateExecutor::Charter(SETTINGS_CHARTER);
     let mut templates = config.core.defaults.templates.into_vec();
     templates.push(template);
@@ -326,6 +328,7 @@ pub(super) fn moving_config() -> engine::Config {
         .expect("stock chat charter")
         .clone();
     charter.number = REMOVED;
+    charter.name = None;
     charter.policy.instructions = b"Keep this charter's instructions.".as_slice().into();
     let mut charters = config.core.defaults.charters.into_vec();
     charters.push(charter);
@@ -339,7 +342,8 @@ pub(super) fn moving_config() -> engine::Config {
         .expect("stock chat template")
         .clone();
     template.number = REMOVED;
-    template.name = b"removable".as_slice().into();
+    template.name = None;
+    template.shown = b"removable".as_slice().into();
     template.executor = people::TemplateExecutor::Charter(REMOVED);
     let mut templates = config.core.defaults.templates.into_vec();
     templates.push(template);

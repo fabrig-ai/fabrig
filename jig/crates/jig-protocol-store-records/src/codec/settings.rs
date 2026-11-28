@@ -16,6 +16,7 @@ use settings::application;
 use skein_lib::{List, Reader};
 #[cfg(test)]
 pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
+    model_effort_speed_some: 0,
     provider_text_bytes: 0,
     provider_list_keep: 0,
     provider_list_drop: 0,
@@ -60,6 +61,11 @@ pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     model_name: 0,
     model_efforts: 0,
     model_effort_some: 0,
+    speed_name: 0,
+    speed_also: 0,
+    speed_also_item: 0,
+    model_speeds: 0,
+    model_speed_some: 0,
     overlay_instructions: 0,
     overlay_parts: 0,
     overlay_documents_some: 0,
@@ -72,6 +78,7 @@ pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     document_heading_some: 0,
     charter_documents: 0,
     charter_parts: 0,
+    charter_setting_name_some: 0,
     charter_part_instructions: 0,
     last_exact_bytes: 0,
     last_open_bytes: 0,
@@ -86,6 +93,7 @@ pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     policy_requirements: 0,
     configured_policy_permissions: 0,
     configured_policy_templates: 0,
+    configured_policy_setting_name_some: 0,
     field_rule_name: 0,
     verdict_fields: 0,
     part_path_segments: 0,
@@ -95,6 +103,7 @@ pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     llm_later_subagents: 0,
     template_name: 0,
     template_resources: 0,
+    template_setting_name_some: 0,
     application_state_charters: 0,
     default_models: 0,
     changed_models: 0,

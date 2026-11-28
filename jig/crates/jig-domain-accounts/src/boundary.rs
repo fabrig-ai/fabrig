@@ -1,3 +1,5 @@
+pub use jig_domain_contract::ops::{Place, Unread};
+
 use crate::{Form, Grant};
 use crate::{Holder, Key, Kind, Refusal, SignInRedirectWhy, Stored, Use};
 use alloc::boxed::Box;
@@ -207,21 +209,6 @@ pub enum Failure {
         why: Unread,
     },
     Cancelled,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Place {
-    Directory,
-    File,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Unread {
-    Unreadable,
-    Refused,
-    Failed,
-    Stalled,
-    TooLarge,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -1,9 +1,11 @@
 //! Script transitions and journal release identities (jig/docs/design/domain/engine/restart.md).
+use crate::vocabulary::connector_ask;
 use crate::{
     Core, Key, Limits, Queue, Request, Write, people,
     start::{Action, Continuation, Failure, Linked, LiveSet, Phase, SweepInput},
     tasks,
 };
+use jig_domain_contract as contract;
 use skein_lib::Env;
 
 impl Core {
@@ -95,6 +97,7 @@ impl Core {
             Phase::Switch => Phase::Wires,
             Phase::Wires => return self.start_commit(Phase::AdoptRuns),
             Phase::AdoptRuns => {
+                self.start_store_reports();
                 if let Some(wait) = self.counters.deployment.restart_wait_ms {
                     let mut child = crate::step(
                         self,
@@ -131,10 +134,7 @@ impl Core {
                 }
                 self.start.phase = None;
                 for &connector in &self.connectors {
-                    out.push(Request::Ask {
-                        connector,
-                        ask: crate::Ask::Effect(crate::effects::connector::Ask::CatchUp),
-                    });
+                    out.push(connector_ask(connector, contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)));
                 }
                 return Action::Idle;
             }
@@ -247,6 +247,16 @@ impl Core {
             }
         }
         self.start_ask(continuation.phase)
+    }
+
+    fn start_store_reports(&mut self) {
+        if let Some(census) = self.start.census.take() {
+            self.census = Some(census);
+            self.touch_deployment();
+        }
+        if let Some(bytes) = self.start.fill.take() {
+            self.fill = bytes;
+        }
     }
 
     pub(crate) fn start_collect_failure(&mut self) {

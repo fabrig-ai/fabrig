@@ -19,6 +19,7 @@ pub struct Project {
 /// A numbered policy copied into projects made after the first start (protocol/configuration-engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct Policy {
+    pub name: Option<Box<[u8]>>,
     pub number: u32,
     pub roles: Box<[PermissionRole]>,
     pub templates: Box<[jig_domain_people::TemplateOverride]>,
@@ -50,6 +51,7 @@ pub fn policies(
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
         let Some(mut object) = check::object(document, *at, &path, problems, "configured-policy") else { continue };
+        let name = check::setting_name(&mut object, document, &path, problems);
         let number = check::count(&mut object, document, b"number", &path, problems);
         let at = object.required(document, b"policy", &path, problems);
         let policy = policy(document, at, &path.member(b"policy"), limits, configured, problems);
@@ -69,7 +71,7 @@ pub fn policies(
                     break;
                 }
             }
-            policies.push(Policy { number, roles, templates, policy }).expect("bounded policy input");
+            policies.push(Policy { name, number, roles, templates, policy }).expect("bounded policy input");
         }
     }
     Some(policies.into_boxed())

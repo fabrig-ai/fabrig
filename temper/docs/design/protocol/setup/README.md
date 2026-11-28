@@ -365,14 +365,6 @@ connected  the forge component       ◄── its access, built from the record
   digest alone; the engine's rules (../credentials.md, section 1) hold for
   the records and for the handover.
 
-## 6. Webhooks on a box
-
-Moved to [`webhooks.md`](webhooks.md), section 1.
-
-## 7. The crates
-
-Moved to [`crate-layout.md`](crate-layout.md), section 1.
-
 ## 8. Where it serves
 
 - **The first milestone** (`../../README.md`, section 2), on a box run from

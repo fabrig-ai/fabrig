@@ -150,8 +150,8 @@ finish, the run's own, keeps its retry policy whoever ends the task.
 A closer ends a task when nothing is left for its agent to judge: jig
 decides when, by 2's rule, and the application's procedure decides
 what, so that a model wakes for judgement alone and code does what is
-mechanical once the task's work is done (temper's `domain/forge/branches.md`,
-2, a goal's landing).
+mechanical once the task's work is done (temper's `domain/forge/branches-closer.md`,
+1, a goal's landing).
 
 - **Named at its making:** `ended_by` `Closer { connector, code }`, a
   procedure executor (3), given by its batch entry or its template
@@ -186,7 +186,7 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   (`../../protocol/store/records.md`, 1); jig reads no word of it. The
   closer's procedure reads it from its task's record when it reports,
   so that what the run said reaches the closer's result, and so its
-  requester (temper's `domain/forge/branches.md`, 2, *The report*).
+  requester (temper's `domain/forge/branches-closer.md`, 1, *The report*).
 - **Why a finish parks, not a run offered none.** A run offered no
   `finish` would need a mode of smith's beside `Finite` and `Open`, a
   change to the worker's wire bridged both ways, and would lose what
@@ -223,7 +223,7 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   the closer due (`Changed`, as a procedure's changed inputs do) where
   it is idle, whether it gave anything or not, so that a step the
   closer could not fund while a run held its funds is decided again
-  once that run has answered (temper's `domain/forge/branches.md`, 2).
+  once that run has answered (temper's `domain/forge/branches-closer.md`, 1).
 - **Its success ends the task:** the closer ending done, its result is
   the task's: checked against the task's contract as a run's finish is
   (7), and the task closes with it (1), no run claiming it. A

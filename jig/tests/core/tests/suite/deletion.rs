@@ -10,6 +10,7 @@ use jig_core_world::{
 };
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core::{self as core, documents};
 use jig_domain_fleet as fleet;
 use jig_domain_link::{Hello, Hosting, Phase};
@@ -932,7 +933,7 @@ fn a_resent_removal_answers_removed_then_unknown() {
     ));
     remove(&mut world, REMOVE);
     removed(&world);
-    world.send(root::Event::Core(core::Event::ProjectReleased { connector: 2, project: PROJECT }));
+    world.send(root::Event::connector_up(2, jig::Up::Lifecycle(jig::lifecycle::Up::Released { project: PROJECT })));
     finish(&mut world);
     let rows = world.store.rows.clone();
     remove(&mut world, REMOVE);
@@ -1095,7 +1096,7 @@ fn each_connector_is_asked_until_it_releases() {
     releases.sort_unstable();
     assert_eq!(releases, [(1, PROJECT), (2, PROJECT)], "a new start asks every connector again");
     assert!(world.store.rows.contains_key(&deletion()));
-    world.send(root::Event::Core(core::Event::ProjectReleased { connector: 2, project: PROJECT }));
+    world.send(root::Event::connector_up(2, jig::Up::Lifecycle(jig::lifecycle::Up::Released { project: PROJECT })));
     finish(&mut world);
     assert!(world.domain.ready());
     assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new());

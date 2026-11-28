@@ -196,6 +196,8 @@ forge, temper adds:
   - `domain/agent/tools-change.md`: a change in the run's words.
   - `domain/agent/tools-goal.md`: a goal in the run's words.
   - `domain/forge/README.md`: the forge connector and its documents.
+  - `domain/forge/branches.md`: task branches and held resources.
+  - `domain/forge/branches-closer.md`: the goal closer's close, land and report steps.
   - `domain/forge/effects.md`: effects and recovery across restarts.
   - `domain/forge/writes.md`: the record of temper's own writes, and drift judged against it.
   - `domain/forge/releases.md`: a task's release: it finds first, and each failure's account.
@@ -229,9 +231,13 @@ forge, temper adds:
   - `testing/reference-case.md`: the case library and its opening act.
   - `testing/reference-case-changing-direction.md`: the case's change of direction.
   - `testing/reference-case-milestones.md`: the case's milestones and hand-offs.
+  - `testing/workloads.md`: the fault vocabulary, seeded workloads in each world and restart comparisons.
+  - `testing/workloads-kit.md`: the seeded draw, logical names, parties' acts and outcomes.
+  - `testing/workloads-sweeps.md`: per-family and composed sweeps, exclusions and campaigns.
   - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
   - `testing/box/README.md`: where the box's own checks run, the facts they are handed at the shell's boundary, and what its slow binaries keep.
   - `testing/shells.md`: where temper's shells' own checks run, the facts they are handed at the shell's boundary, and what their slow binaries keep.
+  - `testing/fixture-lifetime.md`: how each process a test or a journey starts ends with it however the test ends, and the starts left as they are.
   - `testing/qa/README.md`: QA after landing, beside the deployment: its
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the
     watcher on main (`testing/qa/landings.md`), kept builds
@@ -262,12 +268,15 @@ forge, temper adds:
   - `protocol/store-restart.md`: the store's restart and restore protocol.
   - `protocol/git.md`: git invocation mechanics, processes and testing.
   - `protocol/git-operations.md`: the checkout's git operations.
+  - `protocol/temper-dir.md`: what temper reads of a repository's `.temper/` and the judgement it makes of it.
   - `protocol/configuration/settings-kinds.md`: the settings kinds and their values.
   - `protocol/configuration/settings-output.md`: output-derived bounds for larger models.
   - `protocol/configuration/worker.md`: the worker and agent configuration.
   - `protocol/configuration/startup.md`: configuration at the first and later starts.
   - `protocol/configuration/limits-startup.md`: cross-limit startup checks.
   - `protocol/configuration/limits-client.md`: engine and client bounds and watch rooms.
+  - `protocol/configuration/stock.md`: stock defaults and their sizing and policies.
+  - `protocol/configuration/stock-settings.md`: default charters, templates, policy and project settings.
   - `protocol/setup/box-supervision.md`: step supervision, restarts, stops and output.
   - `protocol/setup/box-backends.md`: the retained sandbox and fake backends.
   - `protocol/setup/box-front.md`: the box beneath its terminal front.
@@ -284,6 +293,8 @@ forge, temper adds:
   `client/web/journey-redaction.md` a person's recorded file's redaction,
   `client/journey-writer.md` the one writer of main's journey files,
   run after each landing,
+  `client/journey-writer-requests.md` how look requests are compared
+  and rendered against the print, and how their verdicts are kept,
   `client/journey-walks.md` a journey's walk, printed in one process
   with no box, browser or recording,
   `client/web/look-requests.md` the look requests' round trip,
@@ -374,7 +385,11 @@ forge, temper adds:
   is made, Apple Silicon's file for the site, and its walk on a fresh
   machine.
 - **`draft/`:** the drafts, the vision this design is written from
-  (the repository's `AGENTS.md`, section 6).
+  (the repository's `AGENTS.md`, section 6). `draft/after-landing-repairs.md`
+  stays here while its reference deployment milestones are still to run.
+- **`draft/archive/`:** finished drafts kept with their design departures,
+  including `draft/archive/layouts-both-ways.md`,
+  `draft/archive/model-speeds.md` and `draft/archive/whose-red.md`.
 - **Status files:** beside each document, `<name>.status.md`, where
   the code lags or departs from it; `STATUS.md` tells how to roll them up.
 

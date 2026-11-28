@@ -22,5 +22,6 @@ temper-engine-domain-forge.workspace = true
 temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-room.workspace = true
 temper-protocol-worker-wire.workspace = true
+temper-protocol-member-message.workspace = true
 [lints]
 workspace = true

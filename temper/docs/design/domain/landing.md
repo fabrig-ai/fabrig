@@ -321,7 +321,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     and its change waits;
   - its head moved, its goal having delivered or another hand having
     pushed: `head moved to HEAD`;
-  - it is cancelled, `cancelled`, or held, `held`;
+  - it is cancelled, `cancelled`, at the turn too (below), or held,
+    `held`;
   - a judgement gate at its prefix says no (section 3): `gate NAME
     refused`, and its change repairs;
   - a test gate fails at the candidate in a round of one unit (`landing-proof.md`, 2.3):
@@ -331,6 +332,15 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   - another change of its unit left: `change C of its unit left`; or
     its dependency, another member, left: `its dependency, change C,
     left`.
+- **A cancel takes its unit in the same decision:** a member cancelled
+  in any phase before its landing has landed or ended, the turn and a
+  hold included, leaves with every other active member of its unit at
+  once, `cancelled` for it and `change C of its unit left` for each of
+  the rest. A member already recorded
+  landed stays, and stays in its landing's index entry until the
+  landing ends (`landing-members.md`, 2.1). An upgraded single landing
+  (section 12) drops the cancelled member alone, prepares again with
+  the rest, and ends cancelled when none is left.
 - **It keeps its place:** its first ready time is unchanged, so once
   ready again it is first in line by that time. Leaving is never a
   repair by itself.
@@ -346,26 +356,6 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   the members below it keep their prefixes and receipts, those above
   it are stacked again onto the last kept prefix, and the landing
   proves its new top. With no member left, the landing ends (4.2).
-
-## 5. Prepare
-
-Moved to [`landing-prepare.md`](landing-prepare.md), section 1.
-
-## 6. Keys and receipts
-
-Moved to [`landing-proof.md`](landing-proof.md), section 1.
-
-## 7. Proof
-
-Moved to [`landing-proof.md`](landing-proof.md), section 2.
-
-## 8. The turn
-
-Moved to [`landing-turn.md`](landing-turn.md), section 1.
-
-## 9. Trains
-
-Moved to [`landing-turn.md`](landing-turn.md), section 2.
 
 ## 10. What the forge shows
 
@@ -636,7 +626,7 @@ across a restart, a worker's loss and a release
 saved delivery across its worker's loss beside a proving landing; going
 live by `turn` with running work's settings kept (13); a copied policy's
 ceilings on the shipped capacities; a goal's delivery leaving its
-landing mid-proof, or sharing its run; a turn's merge not made (8):
+landing mid-proof, or sharing its run; a turn's merge not made (`landing-turn.md`, 1):
 raced by a goal's design delivery and answered `500`, its round ending
 with no hold and the next landing; lost and found merged, landed; lost
 with its pull request open, made again and landed; withdrawn with it

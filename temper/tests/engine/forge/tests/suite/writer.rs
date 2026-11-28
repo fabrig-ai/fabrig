@@ -1,3 +1,4 @@
+use jig_domain_contract as contract;
 use skein_forge::api::{Commit, Error, MergeHow, Op, Read, Write};
 use skein_forge_client::{Condition, Effect, Entry, Made, Outcome, Writer};
 use skein_lib::{Duration, Wall};
@@ -223,7 +224,11 @@ fn goal_branch_reservation_blocks_later_projection() {
         if let top::Request::Outcome { entry: 1, outcome: Outcome::Made { .. }, .. } = request {
             completed.push(1);
         }
-        if let top::Request::ProjectionOutcome { entry: 2, outcome: Outcome::Made { .. } } = request {
+        if let top::Request::Up(contract::Up::Projections(contract::projections::Up::Outbox {
+            entry: 2,
+            outcome: contract::effects::OutboxOutcome::Made,
+        })) = request
+        {
             completed.push(2);
         }
         assert!(!matches!(request, top::Request::MakeFailed { .. } | top::Request::ProjectionFailed { .. }));

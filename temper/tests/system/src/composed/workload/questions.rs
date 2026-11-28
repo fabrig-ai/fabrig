@@ -6,8 +6,8 @@ impl World {
         let mut amendments = Vec::new();
         let story = self.workload.as_ref().expect("workload");
         for goal in &story.workload.goals {
-            if goal.train
-                && let Some(task) = story.names.task(&goal.name)
+            if let Some(task) = story.names.task(&goal.name)
+                && (goal.train || self.waits_for_branch_room(task))
                 && let Some(row) = self.root.tasks().task(task)
                 && !story.widened.contains(&task)
             {
@@ -23,7 +23,7 @@ impl World {
                 let Some(task) = story
                     .names
                     .task(&change.name)
-                    .and_then(|task| self.store.change(task))
+                    .and_then(|task| self.store.change_hot(task))
                     .and_then(|row| row.delegate.map(|(task, _)| task))
                 else {
                     continue;
@@ -66,11 +66,10 @@ impl World {
         }
     }
 
-    pub(super) fn answer_workload_questions(&mut self, tasks: &[tasks::ViewTask]) {
+    pub(super) fn answer_workload_questions(&mut self) {
         let mut answers = Vec::new();
         let story = self.workload.as_ref().expect("workload");
-        for view in tasks {
-            let row = self.root.tasks().task(view.number).expect("view task");
+        for row in self.workload_tasks() {
             if !matches!(row.executor, tasks::Executor::Person(_)) || story.answered.contains(&row.number) {
                 continue;
             }
@@ -145,17 +144,16 @@ impl World {
         }
     }
 
-    pub(super) fn latch_workload(&mut self, tasks: &[tasks::ViewTask]) {
+    pub(super) fn latch_workload(&mut self) {
         let story = self.workload.as_ref().expect("workload");
         if story.latch.is_some_and(|latch| story.answered.contains(&latch)) {
             return;
         }
         let goal = self.workload().goals.iter().find(|goal| goal.train).expect("train");
         let marker = format!("@latch:{}@", goal.name);
-        let latch = tasks.iter().find_map(|view| {
-            let row = self.root.tasks().task(view.number)?;
-            row.spec.words.starts_with(marker.as_bytes()).then_some((row.number, row.revisions.spec))
-        });
+        let latch = self
+            .workload_tasks()
+            .find_map(|row| row.spec.words.starts_with(marker.as_bytes()).then_some((row.number, row.revisions.spec)));
         let Some((latch, revision)) = latch else { return };
         let goal = goal.clone();
         self.workload.as_mut().expect("workload").latch = Some(latch);
@@ -193,7 +191,7 @@ impl World {
         let ready = goal.changes.iter().all(|change| {
             self.workload_names()
                 .task(&change.name)
-                .and_then(|task| self.store.change(task).map(|row| (task, row)))
+                .and_then(|task| self.store.change_hot(task).map(|row| (task, row)))
                 .is_some_and(|(task, row)| {
                     matches!(row.change.state, temper_engine_domain_forge_change::State::Gating { .. })
                         && self.root.tasks().procedure_due(task).is_none()

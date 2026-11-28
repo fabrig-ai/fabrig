@@ -124,6 +124,13 @@ its tests, is `cluster.md`.
     binary, `temper help`, and agents' `read_docs`.
 16. **tooling.md:** the contract with a project's own `prepare` and
     `key` commands, run as jobs on a worker for a landing by turn.
+    - **hooks.md:** a repository's hooks, `.temper/hooks/deliver`,
+      `finish`, `merge` and `close`: how long each may run, how each is
+      found, and the rule by repository while the older paths and
+      settings stay.
+    - **temper-dir.md:** what temper reads of a repository's
+      `.temper/` and the one judgement it makes of it: entries, each
+      file's form and format, names, links and home.
 17. **floor.md:** the oldest store this build opens: its families and
     versions, the owner sets temper hands jig's store, the golden
     deployment, named refusals and the policy on stored changes.
@@ -188,18 +195,6 @@ The forge's setup's names are setup/README.md's: connected, managed and owned
 (setup/README.md, section 2), the forge's directory (setup/README.md, section 3), reconcile, a plan of the
 setup host's (setup/reconcile.md),
 the pin (setup/owned.md, 1), the preparation (setup/owned.md, 3), the box and its steps (setup/box.md).
-
-## 4. The engine's service
-
-Moved to [`service-routing.md`](service-routing.md), section 1.
-
-## 5. The worker's service
-
-Moved to [`service-routing.md`](service-routing.md), section 2.
-
-## 6. One process
-
-Moved to [`service-process.md`](service-process.md), section 1.
 
 ## 7. Versions
 

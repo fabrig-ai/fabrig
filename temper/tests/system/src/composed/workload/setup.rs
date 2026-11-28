@@ -22,7 +22,7 @@ pub(super) fn marker(change: &temper_workload::draw::Change) -> String {
     format!(".workload/{}.tests", change.name)
 }
 
-pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload) -> engine::Config {
+pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload, park_cell: bool) -> engine::Config {
     let mut config = super::super::agreement::config(seed);
     for project in &mut config.core.seed_projects {
         for role in &mut project.policy.policy.roles {
@@ -32,6 +32,7 @@ pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload) -> e
     for charter in &mut config.core.defaults.charters {
         if charter.number == 2 {
             charter.policy.tools.0 |= jig_domain_core::ToolFamilies::JIG.delegate.0;
+            charter.policy.shell |= park_cell;
         }
     }
     for template in &mut config.core.defaults.templates {
@@ -105,11 +106,48 @@ pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload) -> e
     config
 }
 
-pub(super) fn limits(limits: &mut engine::Limits) {
+pub(super) fn limits(
+    limits: &mut engine::Limits,
+    planned: &[skein_world::faults::Kind],
+    workload: &temper_workload::draw::Workload,
+    close_refusal: bool,
+) {
+    use temper_faults::bounds;
+
+    if planned.contains(&bounds::FORGE_READ_ADMISSIONS) {
+        // Two admitted reads make COMPOSED reach this table while the
+        // other readers queue; the stock write table does not fill.
+        limits.forge.client.pending = 2;
+    } else if close_refusal {
+        // Leave room for the capability refresh when a close is refused
+        // alongside fresh gathers from released changes.
+        limits.forge.client.pending += 1;
+    }
+    if planned.contains(&bounds::BRANCH_HOLDS) {
+        // Six holds for a three-member train, two for a concurrent milestone
+        // change, and five for the goal branch and saved-work branches.
+        limits.forge.holds = 13;
+    }
+    if planned.contains(&bounds::LANDING_ROWS) {
+        // Keep one row per milestone change and closer, one for the train,
+        // and one for a held member landing after its release.
+        let changes: usize = workload.goals.iter().filter(|goal| !goal.train).map(|goal| goal.changes.len()).sum();
+        limits.forge.landings = u32::try_from(changes + workload.goals.len() + 1).expect("bounded landing rows");
+    }
     // Activations take turns on the composed world's single Smith process.
     limits.fleet.slots = 1;
     // COMPOSED has at most 2 + 2 + 3 named changes, each with a tree-cued gate.
     limits.forge.gates = limits.forge.gates.max(7);
+}
+
+pub(super) fn producer_seeds(streams: skein_world::streams::Streams) -> skein_fake_llm_domain::api::Seeds {
+    use skein_world::streams::Stream;
+
+    skein_fake_llm_domain::api::Seeds::Parts {
+        agent: streams.seed_of(Stream::Parties, "agent/model"),
+        faults: streams.seed_of(Stream::Faults, "llm"),
+        scheduling: streams.seed_of(Stream::Scheduling, "llm"),
+    }
 }
 
 pub(super) fn forge(world: &mut World) {
@@ -204,8 +242,10 @@ pub(super) fn goal(world: &World, goal: &Goal, milestone: u64) -> people::Ask {
     member.tracked = Some(1);
     member.label = 2;
     member.symbols = Box::new([people::Symbol { connector: 1, symbol: 1 }]);
-    member.authority.spend = 150;
-    // temper/docs/design/domain/forge/branches.md, 2: reserve twelve tasks
+    // The two-child goal and its change can pass a sixteenth of this spend to
+    // a producer. Each extra fake completion costs one unit, above the reserve.
+    member.authority.spend = 150 + 16 * 2 * u64::from(super::super::stretches::ROUNDS);
+    // temper/docs/design/domain/forge/branches-closer.md, 1: reserve twelve tasks
     // for (two repairs + the change) * (three landing attempts + one),
     // beside the original work and closer. Both COMPOSED changes may be red.
     member.authority.delegation.tasks = 24;
@@ -213,7 +253,7 @@ pub(super) fn goal(world: &World, goal: &Goal, milestone: u64) -> people::Ask {
     member.budget = people::Budget::Named;
     member.llm = Some(people::LlmChoice {
         account: Some(account(goal.party)),
-        main: people::ModelEffort { model: 0, effort: None },
+        main: people::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::default(),
         later: None,
     });

@@ -2,6 +2,7 @@ use crate::read_support::request;
 use jig_core_world::reads;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
+use jig_domain_contract as jig;
 use jig_domain_core::engine::{self, Admit};
 use jig_domain_core::{self as core, documents};
 use jig_domain_fleet as fleet;
@@ -204,13 +205,17 @@ fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
     use jig_domain_link::{Hello, Hosting, JobBound, JobKind, Phase};
     let (mut world, previous) = job_world(172, true);
     let (step, connector, code, _) = world.procedure_inputs.last().expect("fixture procedure");
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: previous,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report { words: Box::new([]) })),
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: previous,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report {
+                words: Box::new([]),
+            })),
+        }),
+    ));
     // The queued job belongs to a separate root, so finishing the hosted chat
     // does not await that job as one of its own delegates.
     let mut member = jig_test_profile::fixtures::people_member(b"job owner", 20);
@@ -246,13 +251,15 @@ fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
     child.authority.budget.spend = 0;
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let (step, connector, code, _) = world.procedure_inputs.last().expect("procedure started");
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: procedure,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: procedure,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+        }),
+    ));
     assert_eq!(live_row(&world, procedure).delegates.len(), 1, "the procedure admitted its job");
     let task = live_row(&world, procedure).delegates[0];
     let row = live_row(&world, task);
@@ -322,16 +329,18 @@ fn settling_holds_a_procedure_wake_until_the_next_start() {
     let child = member(&world, tasks::Executor::Procedure { connector: 1, code: 1 }, b"waiting procedure");
     let task = delegate(&mut world, run, 1, child);
     let (step, connector, code, _) = world.procedure_inputs.last().expect("procedure started");
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep::new(core::StepEnd::Wait),
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep::new(core::StepEnd::Wait),
+        }),
+    ));
     let steps = world.procedure_inputs.len();
     world.send(root::Event::Core(core::Event::Settling));
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task })));
     assert_eq!(world.procedure_inputs.len(), steps);
     assert_eq!(
         world.domain.core().tasks.task(task).expect("due procedure").phase,

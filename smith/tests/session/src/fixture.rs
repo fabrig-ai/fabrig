@@ -104,10 +104,12 @@ fn place(path: &Path) -> Option<Vec<u8>> {
 }
 
 /// Whether `outcome` may come of `call` on a session's tree, as it is or as
-/// the menu's writes and edits leave it. Failures any call may meet (a fault,
-/// a deadline, a cancel, a family not granted, a full kit) fit every call.
+/// the menu's writes and edits leave it. `created_at_store` is the checkout's
+/// evidence for this call and path, taken immediately before a successful store.
+/// Failures any call may meet (a fault, a deadline, a cancel, a family not
+/// granted, a full kit) fit every call.
 #[must_use]
-pub fn fits(call: &Call, outcome: &Outcome) -> bool {
+pub fn fits(call: &Call, outcome: &Outcome, created_at_store: Option<bool>) -> bool {
     if matches!(
         outcome,
         Outcome::Failed { .. } | Outcome::TimedOut | Outcome::Cancelled | Outcome::Busy | Outcome::NotGranted
@@ -149,10 +151,10 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
         return matches!(outcome, Outcome::Outside { .. });
     };
     let reference = path.absolute.then(|| beneath(&place, b"ref")).flatten();
-    fits_path(reference.unwrap_or(&place), reference.is_some(), call, outcome)
+    fits_path(reference.unwrap_or(&place), reference.is_some(), call, outcome, created_at_store)
 }
 
-fn fits_path(place: &[u8], reference: bool, call: &Call, outcome: &Outcome) -> bool {
+fn fits_path(place: &[u8], reference: bool, call: &Call, outcome: &Outcome, created_at_store: Option<bool>) -> bool {
     if reference {
         match outcome {
             Outcome::ReadOnly { path: Resolved::Other { directory, path } } => {
@@ -205,7 +207,9 @@ fn fits_path(place: &[u8], reference: bool, call: &Call, outcome: &Outcome) -> b
                             .any(|line| line.starts_with(&hit.text) && holds(line, pattern))))
         }),
         (Call::Remove { .. }, Outcome::Removed) => file(place) || directory(place),
-        (Call::Write { .. }, Outcome::Written { created }) => file(place) && (!*created || place == MISSING),
+        (Call::Write { .. }, Outcome::Written { created }) => {
+            !reference && file(place) && created_at_store == Some(*created)
+        }
         (Call::Edit { .. }, Outcome::Edited { .. } | Outcome::EditFailed { .. })
         | (Call::List { .. }, Outcome::NotDirectory { .. }) => file(place),
         (Call::Remove { .. }, Outcome::NotEmpty)

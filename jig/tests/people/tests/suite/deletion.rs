@@ -73,6 +73,7 @@ fn route(rows: &[Request]) -> Token {
         .find_map(|row| match row {
             Request::Route { request, .. } | Request::Act { request, .. } => Some(*request),
             Request::Acted { .. }
+            | Request::ConnectorActed { .. }
             | Request::ServiceMade { .. }
             | Request::ReadingLost { .. }
             | Request::RolesApplied { .. }

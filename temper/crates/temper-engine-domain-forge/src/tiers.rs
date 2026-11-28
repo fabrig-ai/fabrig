@@ -1922,16 +1922,12 @@ impl Domain {
     pub fn describe_tier_effect(&self, task: u64, entry: u64) -> Option<(Repository, What, crate::AgentEffect)> {
         let row = self.tier_task(task)?;
         if let Some((kind, what, state)) = post::describe(self, row, entry) {
-            let (form, recovery) = crate::effect_shape(kind)?;
+            crate::effect_shape(kind)?;
             let kept = &self.entries.get(&entry)?.entry;
             if kept.task != task || kept.repository != row.repository {
                 return None;
             }
-            return Some((
-                row.repository,
-                what,
-                crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery },
-            ));
+            return Some((row.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state }));
         }
         let run = row.record.run.as_ref()?;
         let (commit, key, tests) = candidate(run);
@@ -2002,7 +1998,7 @@ impl Domain {
             _ => return None,
         };
         described_purpose(self, row, operation, part_number(&run.part))?;
-        let (form, recovery) = crate::effect_shape(kind)?;
+        crate::effect_shape(kind)?;
         let state = match &kept.effect.write {
             Write::CreateBranch { commit, .. } => *commit,
             Write::Dispatch { .. } | Write::Rerun { .. } => commit,
@@ -2019,7 +2015,7 @@ impl Domain {
             | Write::Status { .. }
             | Write::DeleteBranch { .. } => return None,
         };
-        Some((row.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery }))
+        Some((row.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state }))
     }
 }
 

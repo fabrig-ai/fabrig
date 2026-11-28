@@ -898,6 +898,7 @@ fn referee_me() -> jig_client::contract::Me {
     use skein_lib::List;
     let words = c::DocumentText::complete(c::Text::new(b"Person".as_slice().into(), 6).expect("name"));
     c::Me {
+        charters: skein_lib::List::with_capacity(0),
         party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: words.clone(), name: words },
         projects: List::with_capacity(0),
         providers: List::with_capacity(0),
@@ -932,7 +933,7 @@ fn referee_json(argv: &[&str], page: &jig_client::contract::ActivityPage) -> Val
     let mut pending = std::collections::VecDeque::from([
         root::Event::Client { event: Event::StartUnlinked { kept: List::with_capacity(0) } },
         root::Event::Client { event: Event::SignIn { with: jig_client::With::Transport } },
-        root::Event::Client { event: Event::Up { up: Up::Served { served: true, versions: None } } },
+        root::Event::Client { event: Event::Up { up: Up::Served { served: true } } },
         root::Event::Client {
             event: Event::Up {
                 up: Up::Watched {
@@ -998,6 +999,7 @@ fn referee_turn() -> jig_client::contract::TurnRead {
                 input: text(b"request"),
                 outcome: outcome.map(text),
                 failed,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))
@@ -1765,7 +1767,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
 }
 
 #[test]
-fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
+fn stock_charters_keep_eight_models_and_choose_the_boxs_scripted_default() {
     use std::path::Path;
     use support::forge_land::{LiveModel, LiveProfile};
 
@@ -1780,7 +1782,7 @@ fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
         .filter(|entry| entry.number != 8)
         .map(|entry| (entry.model.name.as_ref(), entry.model.endpoint))
         .collect();
-    assert_eq!(ordinary.len(), 7);
+    assert_eq!(ordinary.len(), 8);
     ordinary.sort();
     for charter in &defaults.charters {
         assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"demo".as_slice(), 3));

@@ -113,10 +113,6 @@ and `connect-forge.html`.
   no version, even with `owned.runner`: "Fetching Forgejo" until
   fetched, then "Fetched Forgejo". These are shared by Connect a forge
   and the welcome. Preparing names no future login.
-## 2. Connecting a forge
-
-Moved to [`deployment-connect.md`](deployment-connect.md), section 1.
-
 ## 3. A forge’s row
 A row for each forge, by its number, its kind and its `web` address,
 says:

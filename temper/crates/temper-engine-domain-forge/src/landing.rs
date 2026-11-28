@@ -26,6 +26,7 @@ pub(crate) use read_wait::unavailable as read_unavailable;
 mod saved_follow;
 pub(crate) use saved_follow::rebuild;
 pub(crate) mod members;
+mod temper_dir;
 
 #[derive(Clone, Copy, Hash, Debug)]
 pub(crate) enum GateProblem {
@@ -122,9 +123,18 @@ pub(crate) struct Pending {
     cleaned: bool,
     upstream: Option<api::Commit>,
     paths: Box<[Paths]>,
+    temper_dir: Option<Box<temper_dir::Check>>,
     reads: Map<(api::Repository, GatherRead), Result<api::Answer, api::Error>>,
     stall: Option<crate::stall::Report>,
 }
+#[cfg(test)]
+impl Pending {
+    #[expect(clippy::match_like_matches_macro, reason = "the step's fixture uses the stage pattern")]
+    pub(crate) fn checking_temper_dir(&self) -> bool {
+        if let Stage::TemperDir = self.stage { true } else { false }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Retry {
     None,
@@ -136,6 +146,7 @@ enum Retry {
 struct Paths {
     files: Box<[Box<[u8]>]>,
     whole: bool,
+    comparison: Option<temper_dir::Comparison>,
 }
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 enum GatherRead {
@@ -161,6 +172,7 @@ enum Stage {
     Pull(u16),
     Reviews(u16, u32),
     Paths(u16),
+    TemperDir,
     Collect,
     CleanupPull,
     CleanupBranch(u16),
@@ -208,7 +220,7 @@ enum RoundRead {
     Branch,
     Prefix(u32),
     Head,
-    Contained(u32),
+    Contained,
     Pull,
     Upstream,
 }
@@ -618,7 +630,7 @@ impl Domain {
         *command = Some(close_job);
         true
     }
-    /// The project's optional close command (temper/docs/design/domain/forge/change/README.md, 1).
+    /// The project's optional close fallback (temper/docs/design/domain/forge/change/README.md, 1).
     #[must_use]
     pub fn close_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, _, command, _, _) = self.landing.projects.get(&project)?;
@@ -641,7 +653,7 @@ impl Domain {
         }
         None
     }
-    /// The project's optional merge command (temper/docs/design/protocol/configuration/engine.md).
+    /// The project's optional merge fallback (temper/docs/design/protocol/configuration/engine.md).
     #[must_use]
     pub fn merge_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, command, _, _, _) = self.landing.projects.get(&project)?;
@@ -996,7 +1008,6 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
 }
 
 /// Formed landings are sealed (domain/landing.md, 4.1).
-pub(crate) fn join(_d: &mut Domain, _task: u64, _member: policy::Member, _after: &[u64], _out: &mut Queue<Request>) {}
 pub(crate) fn order(_d: &mut Domain, _task: u64, _changes: &[u64], _out: &mut Queue<Request>) {}
 
 fn member_position(row: &LandingRow, prior: &LandingRow, old: u16) -> Option<u16> {
@@ -1343,6 +1354,7 @@ fn unread_evidence(member: u64, change: &crate::ChangeRow) -> crate::LandingEvid
             readback_owed: false,
             nearest_write: None,
             touched: crate::Touched::UNKNOWN,
+            temper_dir: crate::TemperDirEvidence::Uncovered,
             prior: change.change.clone(),
             head: None,
             base_tip: [0; 32],
@@ -1527,7 +1539,7 @@ pub(crate) fn step(
         let change = d.changes.get(&member.change).expect("member change");
         evidence.push(unread_evidence(member.change, change)).expect("bounded evidence");
         facts.push(fresh(d.train_gates(&row, repository(member)))).expect("admitted members");
-        paths.push(Paths { files: Box::new([]), whole: false }).expect("admitted members");
+        paths.push(Paths { files: Box::new([]), whole: false, comparison: None }).expect("admitted members");
     }
     let Some(first) = row.landing.members.first() else {
         return;
@@ -1563,6 +1575,7 @@ pub(crate) fn step(
                 woken: false,
                 evidence: evidence.into_boxed(),
                 paths: paths.into_boxed(),
+                temper_dir: None,
                 opened: None,
                 closed: policy::Status::Unknown,
                 round_pull: policy::RoundPull::Unread,
@@ -2135,6 +2148,7 @@ fn advance(
                 }
                 Stage::Reviews(_, _)
                 | Stage::Paths(_)
+                | Stage::TemperDir
                 | Stage::Collect
                 | Stage::Round { .. }
                 | Stage::StallRun
@@ -2203,6 +2217,9 @@ fn advance(
         Stage::Paths(index) => {
             let fact = p.facts.get(usize::from(index)).expect("member fact");
             let paths = p.paths.get_mut(usize::from(index)).expect("member paths");
+            if let api::Read::Compare { before, after } = p.read {
+                paths.comparison = Some(temper_dir::Comparison::new(before, after, &answer));
+            }
             if let Ok(api::Answer::Compare { before, after, files, changed, .. }) = answer {
                 paths.whole = before == fact.main
                     && Some(after) == path_candidate(&row, index)
@@ -2211,6 +2228,7 @@ fn advance(
             }
             next_member(d, env, owner, p, &row, index, out);
         }
+        Stage::TemperDir => temper_dir::answered(d, env, owner, p, &row, &answer, out),
         Stage::TurnPull => {
             let Ok(api::Answer::Pull(pull)) = answer else {
                 read_failed(d, &row, &p, error, out);
@@ -2756,7 +2774,7 @@ fn round_read(
             }
             match candidate {
                 Some(tip) => (RoundRead::Prefix(1), api::Read::Commits { before: below, after: tip, page: 1 }),
-                None => (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 }),
+                None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }),
             }
         }
         RoundRead::Prefix(page) => {
@@ -2797,7 +2815,7 @@ fn round_read(
             if merge {
                 (RoundRead::Head, api::Read::Commits { before: candidate.expect("prefix"), after: head, page: 1 })
             } else {
-                (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
+                (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
             }
         }
         RoundRead::Head => {
@@ -2810,39 +2828,28 @@ fn round_read(
                     return;
                 }
             }
-            (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
+            (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
         }
-        RoundRead::Contained(page) => {
-            let (more, trailers) = match &answer {
-                Ok(api::Answer::Commits { commits, more }) => (*more, head_commit_trailers(commits, head)),
-                Err(api::Error::TooLarge(_)) => (false, None),
+        RoundRead::Contained => {
+            let trailers = match &answer {
+                Ok(api::Answer::Commits { commits, .. }) => head_commit_trailers(commits, head),
+                Err(api::Error::TooLarge(_)) => None,
                 Ok(_) | Err(_) => {
                     read_failed(d, row, &p, error, out);
                     return;
                 }
             };
-            // The first page alone tells whether the base contains the head.
-            if page == 1 {
-                fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
-                    policy::Status::Passed
-                } else {
-                    policy::Status::Failed
-                };
-            }
-            if let Some(block) = trailers {
-                if !block.is_empty() {
-                    p.head_trailers
-                        .push(crate::LandingHeadTrailers { member: index, block })
-                        .expect("one block per member");
-                }
-            } else if more {
-                let Some(page) = page.checked_add(1) else {
-                    read_failed(d, row, &p, None, out);
-                    return;
-                };
-                p.stage = Stage::Round { member: index, stage: RoundRead::Contained(page), candidate };
-                ask(d, env, owner, p, repository(member), api::Read::Commits { before: base, after: head, page }, out);
-                return;
+            fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
+                policy::Status::Passed
+            } else {
+                policy::Status::Failed
+            };
+            if let Some(block) = trailers
+                && !block.is_empty()
+            {
+                p.head_trailers
+                    .push(crate::LandingHeadTrailers { member: index, block })
+                    .expect("one block per member");
             }
             round_member(d, env, owner, p, row, index.checked_add(1).expect("member bound"), out);
             return;
@@ -2865,7 +2872,7 @@ fn round_read(
 fn head_commit_trailers(commits: &[api::CommitMessage], head: api::Commit) -> Option<Box<[u8]>> {
     for commit in commits {
         if commit.id == head {
-            return Some(crate::member_message::trailers(&commit.message));
+            return Some(temper_protocol_member_message::trailers(&commit.message));
         }
     }
     None
@@ -3054,7 +3061,7 @@ fn upstream_branch(d: &Domain, row: &LandingRow) -> Option<Box<[u8]>> {
 }
 
 fn squash_head(message: &[u8], head: api::Commit) -> bool {
-    crate::member_message::names_head(message, head)
+    temper_protocol_member_message::names_head(message, head)
 }
 
 /// A receipt is shared by project, repository, gate and filtered tree, independent
@@ -3109,6 +3116,36 @@ fn cleanup_branch(
     p.cleaned = true;
     collect(d, env, owner, p, out);
 }
+/// Rebind a member's pass to the merge's target, not to that member's own prefix.
+pub(crate) fn temper_dir_tree(row: &LandingRow, prefix: api::Commit, tip: api::Commit) -> Option<api::Commit> {
+    if let policy::Phase::Turn { .. } = row.landing.phase
+        && row.landing.round.ending.is_none()
+    {
+        if row.landing.round.branch.is_empty() {
+            for member in &row.landing.members {
+                if member.left.is_none()
+                    && member.landed.is_none()
+                    && member.candidate == Some(prefix)
+                    && member.base == Some(tip)
+                {
+                    return Some(prefix);
+                }
+            }
+        } else {
+            let top = turn_top(row)?;
+            for member in row.landing.members.iter().take(usize::from(top).saturating_add(1)) {
+                if member.left.is_none() && member.landed.is_none() && member.candidate == Some(prefix) {
+                    let target = row.landing.members.get(usize::from(top))?;
+                    if target.base == Some(tip) {
+                        return target.candidate;
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 fn turn_top(row: &LandingRow) -> Option<u16> {
     if let policy::Phase::Turn { .. } = row.landing.phase
         && !row.landing.round.branch.is_empty()
@@ -3644,7 +3681,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         Some((_, _, _, _, _, settings, _)) => *settings,
         None => policy::Project::DEFAULT,
     };
-    let stepped = policy::step(
+    let mut stepped = policy::step(
         &row.landing,
         &facts,
         &project,
@@ -3659,6 +3696,19 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         },
         env.wall,
     );
+    let mut candidate_fault = None;
+    if let policy::Decision::Merge { member, candidate } = stepped.decision {
+        let target = temper_dir::Target::new(&row, &p, member, candidate);
+        if let Some(check) = temper_dir::checked(&p, target) {
+            if let temper_dir::Judgement::Fault(fault) = check {
+                stepped = policy::candidate_fault(row.landing.clone(), &facts, &fault.covered);
+                candidate_fault = Some(temper_dir::take_fault(&mut p));
+            }
+        } else {
+            temper_dir::start(d, env, owner, p, &row, target, out);
+            return;
+        }
+    }
     let writing = write_member(stepped.decision);
     if let Some((member, on)) = writing
         && !admit_entry(
@@ -3831,6 +3881,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                 evidence.facts.size = None;
             }
             evidence.facts.head = Some(candidate);
+            if !recording {
+                evidence.facts.temper_dir = temper_dir::evidence(&p, position);
+            }
             let paths = p.paths.get(usize::from(position)).expect("member paths");
             let classes = d.project_classes(row.landing.project);
             evidence.facts.touched = crate::touched(&classes, &paths.files, paths.whole);
@@ -4294,6 +4347,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     }
     if crate::views::matches_turn(&row.landing.phase) && !crate::views::matches_turn(&prior.landing.phase) {
         row.turn_since = Some(env.wall);
+    }
+    if let Some(fault) = candidate_fault {
+        temper_dir::hold_members(d, env, &row, fault, out);
     }
     save(d, env, row, out);
     if let Some(step) = news {
@@ -6076,7 +6132,11 @@ impl Domain {
         let (gate, candidate) = match why {
             change::Repair::LandingAt { gate, candidate, .. } => (gate, Some(candidate)),
             change::Repair::Landing { gate } => (gate, None),
-            change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
+            change::Repair::Ci
+            | change::Repair::Semantic
+            | change::Repair::Gate(_)
+            | change::Repair::Review { .. }
+            | change::Repair::TemperDir { .. } => {
                 return None;
             }
         };
@@ -6321,8 +6381,8 @@ impl Domain {
             | api::Write::Update { .. }
             | api::Write::CreateBranch { .. } => return None,
         };
-        let (form, recovery) = crate::effect_shape(kind)?;
-        Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery }))
+        crate::effect_shape(kind)?;
+        Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state }))
     }
 }
 /// Authority's wait is not a refused merge: it spent no send and keeps its turn

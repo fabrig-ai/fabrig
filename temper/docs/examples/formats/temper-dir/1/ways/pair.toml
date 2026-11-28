@@ -1,0 +1,15 @@
+# pair: you and one agent in its own copy; "Land this" hands its delivery in, by code
+start = "pair"
+[tasks.pair]
+executor = { agent = "pair" }
+contract = "report"
+conversation = true
+holds = ["copy"]
+offers = "land"
+[tasks.land]
+executor = "change"
+into = "base"
+producer = "handed"
+gates = []                           # no review: you're there
+landing = { ci = true, up_to_date = true }
+[reaches]                            # present and empty: everything asks, even when you're away

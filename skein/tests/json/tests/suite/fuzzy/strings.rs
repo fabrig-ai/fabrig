@@ -1,13 +1,15 @@
-//! Plain runs through the tokenizer (data/json.md, 6): decode is crate-private,
-//! and the fuzzy profile selects only the worlds' binaries. The step rows
-//! compare decode directly with next; these sweeps compare its tokens,
-//! outcomes and positions with the reference's naive byte-at-a-time reader.
+//! Plain runs through the tokenizer (skein/docs/design/data/json.md, 6):
+//! each case compares tokens, outcomes and positions with the reference's
+//! byte-at-a-time reader (skein/docs/design/testing/sweeps.md, 4).
 
 use skein_json::tokenizer::{Error, Event, Limits};
 use skein_json_world::world::{self, Settings};
 use skein_json_world::{Outcome, generate, reference};
 use skein_lib::Rng;
 use skein_protocol_kit::seen::Seen;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
+use std::convert::Infallible;
 
 const VALID: &[&[u8]] =
     &[br"\n", br"\\", br#"\""#, "é".as_bytes(), "😀".as_bytes(), "é".as_bytes(), "€".as_bytes(), "😀".as_bytes()];
@@ -50,68 +52,91 @@ fn plain(byte: u8) -> bool {
 
 #[test]
 fn strings_in_runs_read_as_the_reference_reads_them_wherever_they_are_cut() {
+    let at_gate = gate();
     let mut tally = Seen::default();
-    for round in 0..3_000 {
-        let seed = 0x005b_0000 + round;
-        let mut rng = Rng::new(seed);
-        let pieces = u32::try_from(rng.below(6)).unwrap();
-        let longest = u32::try_from(rng.below(48)).unwrap();
-        let body = generate::runs(&mut rng, if round % 2 == 0 { VALID } else { MIXED }, pieces, longest);
-        let document = enclosed(&body, rng.chance(500));
-        let string = if rng.chance(500) { 4096 } else { u32::try_from(rng.between(0, body.len() as u64)).unwrap() };
-        let limits =
-            Limits { depth: 4, number: 16, length: 1 << 12, string, chunk: u32::try_from(rng.between(1, 32)).unwrap() };
-        let settings = Settings::calm(&mut rng, limits);
-        let run = world::check(&document, &settings, seed);
-        let outcome = run.outcome.expect("calm neighbours finish");
-        tally.note(format!("{outcome:?}"));
-        if outcome == Outcome::Failed(Error::StringTooLong) {
-            let reading = reference::reading(&document, &limits);
-            let at = usize::try_from(reading.failed_at.unwrap().offset).unwrap();
-            if at > 0 && plain(document[at]) && plain(document[at - 1]) {
-                tally.note("a limit passed inside a run".into());
+    cases(
+        this_test!("strings_in_runs_read_as_the_reference_reads_them_wherever_they_are_cut"),
+        0x005b_0000..0x005b_0000 + 3_000,
+        |seed| {
+            let mut rng = Rng::new(seed);
+            let pieces = u32::try_from(rng.below(6)).unwrap();
+            let longest = u32::try_from(rng.below(48)).unwrap();
+            let body = generate::runs(&mut rng, if seed % 2 == 0 { VALID } else { MIXED }, pieces, longest);
+            let document = enclosed(&body, rng.chance(500));
+            let string = if rng.chance(500) { 4096 } else { u32::try_from(rng.between(0, body.len() as u64)).unwrap() };
+            let limits = Limits {
+                depth: 4,
+                number: 16,
+                length: 1 << 12,
+                string,
+                chunk: u32::try_from(rng.between(1, 32)).unwrap(),
+            };
+            let settings = Settings::calm(&mut rng, limits);
+            let run = world::check(&document, &settings, seed);
+            let outcome = run.outcome.expect("calm neighbours finish");
+            if at_gate {
+                tally.note(format!("{outcome:?}"));
+                if outcome == Outcome::Failed(Error::StringTooLong) {
+                    let reading = reference::reading(&document, &limits);
+                    let at = usize::try_from(reading.failed_at.unwrap().offset).unwrap();
+                    if at > 0 && plain(document[at]) && plain(document[at - 1]) {
+                        tally.note("a limit passed inside a run".into());
+                    }
+                }
             }
-        }
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        tally.assert_fell(&[
+            "Done",
+            "Failed(StringTooLong)",
+            "Failed(Utf8)",
+            "Failed(Control)",
+            "Failed(Escape)",
+            "Failed(Surrogate)",
+            "a limit passed inside a run",
+        ]);
     }
-    tally.assert_fell(&[
-        "Done",
-        "Failed(StringTooLong)",
-        "Failed(Utf8)",
-        "Failed(Control)",
-        "Failed(Escape)",
-        "Failed(Surrogate)",
-        "a limit passed inside a run",
-    ]);
 }
 
 #[test]
 fn text_caps_and_skips_count_runs_as_the_reference_does() {
+    let at_gate = gate();
     let mut tally = Seen::default();
-    for round in 0..1_000 {
-        let seed = 0x005c_0000 + round;
-        let mut rng = Rng::new(seed);
-        let pieces = u32::try_from(rng.below(6)).unwrap();
-        // The first run passes every Text cap drawn by check_demands (below 32).
-        let mut body = vec![b'a'; 40];
-        body.extend(generate::runs(&mut rng, VALID, pieces, 48));
-        let document = enclosed(&body, rng.chance(500));
-        let limits = Limits {
-            depth: 4,
-            number: 16,
-            length: 1 << 12,
-            string: 4096,
-            chunk: u32::try_from(rng.between(1, 32)).unwrap(),
-        };
-        let settings = Settings::calm(&mut rng, limits);
-        for event in world::check_demands(&document, &settings, seed).answers {
-            match event {
-                Event::Token(_) => tally.note("Token".into()),
-                Event::Long(_) => tally.note("Long".into()),
-                Event::Skipped(_) => tally.note("Skipped".into()),
-                Event::Done => {}
-                event @ (Event::Failed(_) | Event::Closed) => panic!("seed {seed}: {event:?}"),
+    cases(
+        this_test!("text_caps_and_skips_count_runs_as_the_reference_does"),
+        0x005c_0000..0x005c_0000 + 1_000,
+        |seed| {
+            let mut rng = Rng::new(seed);
+            let pieces = u32::try_from(rng.below(6)).unwrap();
+            // The first run passes every Text cap drawn by check_demands (below 32).
+            let mut body = vec![b'a'; 40];
+            body.extend(generate::runs(&mut rng, VALID, pieces, 48));
+            let document = enclosed(&body, rng.chance(500));
+            let limits = Limits {
+                depth: 4,
+                number: 16,
+                length: 1 << 12,
+                string: 4096,
+                chunk: u32::try_from(rng.between(1, 32)).unwrap(),
+            };
+            let settings = Settings::calm(&mut rng, limits);
+            for event in world::check_demands(&document, &settings, seed).answers {
+                match event {
+                    Event::Token(_) if at_gate => tally.note("Token".into()),
+                    Event::Long(_) if at_gate => tally.note("Long".into()),
+                    Event::Skipped(_) if at_gate => tally.note("Skipped".into()),
+                    Event::Token(_) | Event::Long(_) | Event::Skipped(_) | Event::Done => {}
+                    event @ (Event::Failed(_) | Event::Closed) => panic!("seed {seed}: {event:?}"),
+                }
             }
-        }
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        tally.assert_fell(&["Token", "Long", "Skipped"]);
     }
-    tally.assert_fell(&["Token", "Long", "Skipped"]);
 }

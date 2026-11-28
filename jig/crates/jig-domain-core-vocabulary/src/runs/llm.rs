@@ -1,10 +1,10 @@
-//! Charter model and effort rules (domain/tasks/README.md, 3;
+//! Charter model, effort and speed rules (domain/tasks/README.md, 3;
 //! domain/engine/executors.md, 1).
 
 use crate::{Model, RunPolicy};
 use jig_domain_tasks as tasks;
 
-/// The same charter model/effort rules used to construct a run's chosen policy, without
+/// Check a choice's models, efforts and speeds against the charter's policy, without
 /// allocating its models. Templates use these before publishing their retained choice.
 pub fn takes(models: &[Model], policy: &RunPolicy, choice: &tasks::LlmChoice) -> bool {
     if !takes_models(models, policy, choice.main, &choice.subagents) {
@@ -36,10 +36,19 @@ fn takes_models(
 pub fn takes_model(models: &[Model], policy: &RunPolicy, chosen: tasks::ModelEffort) -> bool {
     let Some(configured) = models.get(usize::from(chosen.model)) else { return false };
     let Some(model) = charter_model(policy, &configured.name) else { return false };
-    match chosen.effort {
+    takes_effort_and_speed(model, chosen)
+}
+
+pub(crate) fn takes_effort_and_speed(model: &Model, chosen: tasks::ModelEffort) -> bool {
+    let effort = match chosen.effort {
         Some(effort) => usize::from(effort) < model.efforts.len(),
         None => model.efforts.is_empty(),
-    }
+    };
+    let speed = match &chosen.speed {
+        Some(speed) => Some(speed.as_bytes()),
+        None => None,
+    };
+    effort && model.takes_speed(speed)
 }
 
 #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]

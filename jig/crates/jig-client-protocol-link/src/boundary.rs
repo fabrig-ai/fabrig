@@ -11,7 +11,6 @@ pub struct Record {
     pub key: Box<[u8]>,
     pub bytes: Box<[u8]>,
 }
-pub type Saved = RequestRecord<jig_client_domain::Held>;
 pub enum Event {
     SignIn {
         with: With,
@@ -35,7 +34,7 @@ pub enum Event {
         kept: List<Record>,
     },
     Save {
-        record: Saved,
+        record: RequestRecord<jig_client_domain::Held>,
     },
     Erase {
         key: RequestKey,
@@ -107,7 +106,7 @@ pub enum Request {
         key: Box<[u8]>,
     },
     Kept {
-        record: Saved,
+        record: RequestRecord<jig_client_domain::Held>,
     },
     Dropped,
     /// One message; its transport owns the mapping and deadline.
@@ -157,7 +156,6 @@ pub enum Request {
     },
     Hello {
         family: Option<u16>,
-        versions: Option<contract::VersionRange>,
         served: bool,
     },
     /// A lost read may be sent once more if its token is still current.

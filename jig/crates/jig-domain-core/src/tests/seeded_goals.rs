@@ -1,5 +1,6 @@
 //! Application-made goals use their requester's money and identity (domain/authority.md, 6.3).
 use super::*;
+use jig_domain_contract as contract;
 
 const TASK: u64 = 1;
 const BUDGET: u64 = 4_000;
@@ -40,7 +41,7 @@ fn goal(context: &tasks::DelegationContext, budget: u64) -> connector::SeededGoa
         authority: context.authority.clone(),
         llm: Some(tasks::LlmChoice {
             account: None,
-            main: tasks::ModelEffort { model: 0, effort: Some(1) },
+            main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
             subagents: Box::new([]),
             later: None,
         }),
@@ -165,10 +166,11 @@ fn check_make_requires_the_resource_report_before_saying_a_goal_can_be_made() {
     asked.holdings = Box::new([tasks::Holding::Write { resource: resource.clone(), kind: 1 }]);
     let make = seed.goal(TASK, &context, asked).expect("fits the requester");
     assert_eq!(core.check_make(&env.limits, &make), Err(tasks::Refusal::Unreported));
-    step(
+    connector_step(
         &mut core,
         &env,
-        Event::EffectConnector(connector::Event::Resource {
+        resource.connector,
+        contract::Up::Resources(contract::resources::Up::Resource {
             project: 1,
             name: resource.clone(),
             role: connector::ResourceRole::Unavailable,
@@ -176,10 +178,11 @@ fn check_make_requires_the_resource_report_before_saying_a_goal_can_be_made() {
         }),
     );
     assert_eq!(core.check_make(&env.limits, &make), Err(tasks::Refusal::ResourceUnavailable));
-    step(
+    connector_step(
         &mut core,
         &env,
-        Event::EffectConnector(connector::Event::Resource {
+        resource.connector,
+        contract::Up::Resources(contract::resources::Up::Resource {
             project: 1,
             name: resource,
             role: connector::ResourceRole::Owned,

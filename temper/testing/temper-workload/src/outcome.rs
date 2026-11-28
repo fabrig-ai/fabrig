@@ -1,4 +1,4 @@
-//! Outcomes in logical names (`temper/docs/design/testing/workloads.md`, 3.4).
+//! Outcomes in logical names (`temper/docs/design/testing/workloads-kit.md`, 1.4).
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -1,5 +1,6 @@
 //! A restart makes a missing goal branch from the beginning of catching up
 //! (temper/docs/design/domain/forge/branches.md, 1).
+use jig_domain_contract as contract;
 use skein_forge::api::{Op, Write};
 use skein_forge_client::{Condition, Effect, Entry};
 use temper_engine_domain_forge as top;
@@ -98,8 +99,12 @@ pub(super) fn held_dispatch(number: u64) -> top::Stored {
 fn restart_with_other_fresh_reads_out(world: &mut World) {
     world.restart();
     world.run_for(2);
-    assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Settled }));
-    assert!(!world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
+    assert!(world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::Settled
+    }))));
+    assert!(!world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::ReadAfresh
+    }))));
     assert!(!world.has_branch(BRANCH));
     assert!(matches!(
         world.stored().get(&top::Key::Hold(name())),
@@ -124,7 +129,9 @@ fn finish_making(world: &mut World) {
     assert_eq!(world.branch(BRANCH), world.branch(b"main"));
     assert_eq!(world.writes(), 1);
     assert!(
-        !world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }),
+        !world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: top::RestartStage::ReadAfresh
+        }))),
         "a making is made while other resources still owe fresh reads"
     );
     assert_eq!(
@@ -144,7 +151,10 @@ fn finish_making(world: &mut World) {
         world
             .seen()
             .iter()
-            .filter(|request| **request == top::Request::RestartDone { stage: top::RestartStage::ReadAfresh })
+            .filter(|request| **request
+                == top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                    stage: top::RestartStage::ReadAfresh
+                })))
             .count(),
         1,
         "only the other resource held the fresh pass open"

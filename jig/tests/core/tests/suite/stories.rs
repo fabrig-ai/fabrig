@@ -5,6 +5,7 @@ pub(crate) use jig_core_world::fixtures::{ask_as, configure_resources, resource_
 use jig_core_world::world::Setup;
 use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -1021,12 +1022,15 @@ fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
         number: FIRST_CONNECTOR,
         event: connector::Event::Names { task, project: 1, resources: Box::new([resource.clone()]) },
     });
-    world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
-        project: 2,
-        name: tasks::Name { connector: FIRST_CONNECTOR, path: resource.segments().into() },
-        role: core::effects::connector::ResourceRole::Context,
-        hold: core::effects::connector::HoldKind::Exclusive { wait: true },
-    })));
+    world.send(root::Event::connector_up(
+        FIRST_CONNECTOR,
+        jig::Up::Resources(jig::resources::Up::Resource {
+            project: 2,
+            name: tasks::Name { connector: FIRST_CONNECTOR, path: resource.segments().into() },
+            role: core::effects::connector::ResourceRole::Context,
+            hold: core::effects::connector::HoldKind::Exclusive { wait: true },
+        }),
+    ));
     world.send(root::Event::Connector {
         number: FIRST_CONNECTOR,
         event: connector::Event::Adopt {
@@ -1856,13 +1860,15 @@ fn an_approval_reaches_its_asking_procedure_connector_as_the_whole_durable_input
             key: tasks::PartKey::Number(45),
         },
     };
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: parent,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: parent,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+        }),
+    ));
     let task = *live_row(&world, parent).delegates.first().expect("person delegate");
     ask(&mut world, 81, people::Ask::TakePerson { project: 1, task });
     let revision = live_row(&world, task).revisions.person;
@@ -2034,13 +2040,16 @@ fn a_procedure_delegate_identity_is_committed_with_its_child_by_the_actual_conne
     child.authority.budget.spend = 5;
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: parent,
-        step,
-        connector: number,
-        code: u32::from(code),
-        decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
-    }));
+    world.send(root::Event::connector_up(
+        number,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: parent,
+            step,
+
+            code: u32::from(code),
+            decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+        }),
+    ));
     let child = *live_row(&world, parent).delegates.first().expect("committed child");
     let record = connector::Record::ProcedureDelegateOutcome {
         task: parent,
@@ -2071,13 +2080,16 @@ fn a_refused_procedure_delegation_retains_the_exact_none_outcome() {
     let (step, number, code) = (*step, *number, *code);
     let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"over budget");
     child.authority.budget.spend = u64::MAX;
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: parent,
-        step,
-        connector: number,
-        code: u32::from(code),
-        decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
-    }));
+    world.send(root::Event::connector_up(
+        number,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: parent,
+            step,
+
+            code: u32::from(code),
+            decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+        }),
+    ));
     assert!(live_row(&world, parent).delegates.is_empty());
     let record =
         connector::Record::ProcedureDelegateOutcome { task: parent, step, child: None, revisions: Box::new([]) };
@@ -2118,13 +2130,16 @@ fn procedure_delegate_outcomes_without_a_live_procedure_owner_are_not_routed() {
     let mut world = World::new(Setup { seed: 460, configuration: Some(configuration), limits, ..Setup::default() });
     let agent = world.assignments[0].0;
     for task in [agent, u64::MAX] {
-        world.send(root::Event::Core(core::Event::ProcedureStep {
-            task,
-            step: u64::MAX,
-            connector: 2,
-            code: 1,
-            decision: core::ProcedureStep { batch: Box::new([]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
-        }));
+        world.send(root::Event::connector_up(
+            2,
+            jig::Up::Procedures(jig::procedures::Up::Step {
+                task,
+                step: u64::MAX,
+
+                code: 1,
+                decision: core::ProcedureStep { batch: Box::new([]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+            }),
+        ));
     }
     assert!(!world.store.rows.values().any(|row| matches!(
         row,

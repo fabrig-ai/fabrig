@@ -1,6 +1,6 @@
 # codec-shape: execution
 
-2026-11-18. How [codec-shape.md](codec-shape.md) gets built. The user approved both drafts on 11-18, to run as two milestones, one per draft, on the lean design template. This draft is the first milestone, its six goals below. [../layouts-both-ways.execution.md](../layouts-both-ways.execution.md) is the second, made once this one has ended. Each goal writes its own design from the draft as it runs, and lands whole, with its own tests, fixtures, workspace entries and gate rules. Plans use the focused and fuzzy suites alone.
+2026-11-18. How [codec-shape.md](codec-shape.md) gets built. The user approved both drafts on 11-18, to run as two milestones, one per draft, on the lean design template. This draft is the first milestone, its six goals below. [layouts-both-ways.execution.md](layouts-both-ways.execution.md) is the second, made once this one has ended. Each goal writes its own design from the draft as it runs, and lands whole, with its own tests, fixtures, workspace entries and gate rules. Plans use the focused and fuzzy suites alone.
 
 ## 1. The goals
 

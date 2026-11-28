@@ -541,7 +541,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         root: definition.root,
         depth: definition.depth,
         executor: mapped::executor_to_domain(definition.executor),
-        llm: value::read_llm(definition.llm),
+        llm: value::read_llm(definition.llm)?,
         kept_account: definition.kept_account,
         taken_by: definition.taken_by,
         person_answer: read_optional_person_answer(definition.person_answer),

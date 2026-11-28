@@ -70,7 +70,7 @@ landing queue (`../domain/forge/README.md`).
 - **What it holds:** the stories whose behaviour crosses the engine,
   the worker and an agent, each placed here by the design that owns it:
   the composed workload, several goals of two parties on one fake forge,
-  and its sweep of every family of faults (`workloads.md`, 5 and 8.2);
+  and its sweep of every family of faults (`workloads.md`, 5, and `workloads-sweeps.md`, 1.2);
   a change's merge job, from the job made to the engine going on from
   its branch, its command the world's (`../domain/forge/change/repairs.md`;
   `../domain/worker/jobs.md`), its rows of the worker alone the worker's
@@ -346,6 +346,18 @@ terminal client, the captures and the faults.
   sockets are io's own, out of the simulator's faults (skein's `runtime/io/sockets.md`,
   5), so the link's cuts and stalls are jig's channel world's, not
   this world's.
+- **Parks against wakes** (`jig/docs/design/domain/testing-cells.md`, 5):
+  a focused story, at the world's fixture seed, whose driver arms a
+  delegate of a person's chat, a change's producer or a delegate the
+  chat's script makes, to park with its `wait` withheld and nothing to
+  await (`WITHHELD_WAIT_PARKS_ON_NOTHING`, or
+  `JOB_RUNNING_PARKS_ON_NOTHING` where its agent runs a yielding shell).
+  It keys the park by the delegate's task, its attempt from the start the
+  referee correlates with its run proof, and park 1; smith's half is seen
+  in the agent's frames, jig's in the committed rows when the notice
+  wakes the task. The story's ledger holds the cell once, and the
+  resumed run reads the notice once and finishes. The world's fuzzy
+  sweeps park no delegate, so none configures a cell.
 - **Its referee:**
   - jig's conformance referee, through bytes, as jig's one-process world
     has it: nothing a party, a host or the forge saw depended on a commit
@@ -451,8 +463,8 @@ hands it its macOS tiers' runs. Linux's own tests are listed by name.
 - **The budgets raised for now** (`README.md`, 1, `process-tier.md`): the process
   tier's 540 CPU s is the tier's 6-minute aim raised by half by the user's
   word of 11-08, for now.
-  Revisiting them, and to what, is the user's, as it is for the browser
-  tier's 127.5 (`../client/web/README.md`, 3).
+  Revisiting them, and to what, is the user's, as it was for the browser
+  tier's 140, the user's word of 11-27 (`../client/web/README.md`, 3).
 
 - **The second printed link's cause** (`process-tier.md`): a serve restart draws a new
   link; a retry whose earlier sign-in spent its secret can also ask for

@@ -19,8 +19,9 @@ pub(super) enum Place {
     Result { message: u32, block: u32 },
 }
 
+/// A program tool result still in the transcript or owed by the provider.
 #[derive(Debug)]
-struct Claim {
+pub struct Claim {
     place: Place,
     // The map key owns the id; metadata.id stays empty until an observation is emitted.
     metadata: ToolCall,
@@ -58,7 +59,25 @@ pub(super) struct Owed {
     entries: Map<Box<[u8]>, Claim>,
 }
 
+impl Claim {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_receiving(&self) -> Option<(u64, u64)> {
+        self.state.receiving()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_call(&self) -> &ToolCall {
+        &self.metadata
+    }
+}
+
 impl Owed {
+    pub(super) fn inspection_entries(&self) -> &Map<Box<[u8]>, Claim> {
+        &self.entries
+    }
+
     pub(super) fn with_capacity(calls: u32) -> Owed {
         Owed { entries: Map::with_capacity(calls) }
     }
@@ -72,16 +91,15 @@ impl Owed {
         true
     }
 
-    #[cfg(test)]
-    pub(super) fn credit(&self) -> u64 {
+    pub(super) fn inspection_credit(&self) -> Option<u64> {
         let mut held = 0_u64;
         for (_, claim) in &self.entries {
             if let Some((credit, kept_bytes)) = claim.state.receiving() {
-                let unused = credit.checked_sub(kept_bytes).expect("a program claim's unused credit");
-                held = held.checked_add(unused).expect("program claims fit history");
+                let unused = credit.checked_sub(kept_bytes)?;
+                held = held.checked_add(unused)?;
             }
         }
-        held
+        Some(held)
     }
 
     pub(super) fn moved(&mut self, message: u32) {

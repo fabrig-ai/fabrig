@@ -167,6 +167,10 @@ fn encode_workspace(
             git: directory.git,
             conflicts,
             results: directory.results.clone(),
+            hooks: match &directory.hooks {
+                Some(hooks) => Some(mapped::hook_times_to_record(hooks)),
+                None => None,
+            },
         };
         if items.push(item).is_err() {
             return Err(Error::MissingValue);

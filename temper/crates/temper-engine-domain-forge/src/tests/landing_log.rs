@@ -132,6 +132,7 @@ fn a_pull_seen_merged_is_logged() {
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
         retry_at: None,
         read: None,

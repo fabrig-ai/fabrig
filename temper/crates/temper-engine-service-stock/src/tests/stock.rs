@@ -360,6 +360,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     let charter = defaults.charters.iter().find(|charter| charter.number == 11).expect("Ask temper charter");
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
     expected.number = 11;
+    expected.name = Some(b"ask-temper".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/ask.txt").as_slice().into();
     expected.policy.inspect = false;
     expected.policy.modify = false;
@@ -386,7 +387,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     }
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
-    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number."));
+    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold and a name of its own that no item of its kind has, never a stock item's; a stock item keeps its name. A model you add takes the highest free number."));
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
@@ -422,7 +423,8 @@ A flow is one path: draw each path as a flow of its own, and set options side by
     }
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 5;
-    expected.name = b"ask".as_slice().into();
+    expected.name = Some(b"ask-temper".as_slice().into());
+    expected.shown = b"ask".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);
 }
@@ -440,6 +442,7 @@ fn the_drafter_is_charter_12_and_template_6() {
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
     expected.number = 12;
+    expected.name = Some(b"drafter".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/drafter.txt").as_slice().into();
     expected.policy.inspect = false;
     expected.policy.modify = false;
@@ -449,7 +452,8 @@ fn the_drafter_is_charter_12_and_template_6() {
     assert_eq!(*charter, expected);
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 6;
-    expected.name = b"design session".as_slice().into();
+    expected.name = Some(b"design-session".as_slice().into());
+    expected.shown = b"design session".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(12);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 6).unwrap(), expected);
     let policy = &defaults.policies.get(&1).unwrap().policy;
@@ -497,7 +501,7 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     assert_eq!((charter.policy.turns, charter.policy.time), (coordinator.policy.turns, coordinator.policy.time));
     assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(300)));
     let template = defaults.templates.iter().find(|template| template.number == 7).expect("standing role template");
-    assert_eq!(template.name.as_ref(), b"standing role");
+    assert_eq!(template.shown.as_ref(), b"standing role");
     assert_eq!(template.executor, TemplateExecutor::Chosen);
     assert_eq!(template.budget, TemplateBudget::Given);
     assert_eq!(template.deadline, TemplateDeadline::None);
@@ -522,8 +526,9 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
     assert_eq!(
         *template,
         jig_domain_core::Template {
+            name: Some(b"milestone".as_slice().into()),
             number: 8,
-            name: b"milestone".as_slice().into(),
+            shown: b"milestone".as_slice().into(),
             executor: TemplateExecutor::Chosen,
             contract: Contract::Report { words: engine.limits.core.tasks.result_bytes },
             shallower: 1,
@@ -568,7 +573,7 @@ fn the_stocks_ways_are_two_and_four_never_eight() {
     let project = me.projects.get_mut(0).unwrap();
     project.templates = skein_lib::List::uncapped();
     for template in &defaults.templates {
-        let mut client = view::goals::template(template.number, &template.name, template.tracked.is_some());
+        let mut client = view::goals::template(template.number, &template.shown, template.tracked.is_some());
         client.flags.ended_by = match template.flags.ended_by {
             EndedBy::Requester => c::EndedBy::Requester,
             EndedBy::Result => c::EndedBy::Result,
@@ -618,18 +623,20 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
     let configured = fixtures::engine();
     let limits = crate::limits::engine(&configured.jig.limits, &configured.limits).unwrap();
     let stock = crate::stock::forge(&limits);
-    for (number, text, words) in [
+    for (number, name, text, words) in [
         (
             14,
+            b"triager".as_slice(),
             include_str!("../stock/triager.md"),
             "Routes what comes in to its area's owner, and triages what fits no area.",
         ),
         (
             15,
+            b"prover",
             include_str!("../stock/prover.md"),
             "Owns its area's tests: triages their reds and flakes and makes the repairs.",
         ),
-        (16, include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
+        (16, b"porter", include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
     ] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("stock role");
         let mut sections = text.strip_prefix("## shared\n").unwrap().split("\n## ");
@@ -637,6 +644,7 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
         assert_eq!(charter.policy.instructions.as_ref(), shared.as_bytes());
         let mut expected = standing.clone();
         expected.number = number;
+        expected.name = Some(name.into());
         expected.policy.instructions = shared.as_bytes().into();
         for (part, section) in expected.parts.iter_mut().zip(sections) {
             let (heading, words) = section.split_once('\n').unwrap();
@@ -648,7 +656,7 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
             assert_eq!(part.on, reasons);
             part.instructions = words.trim_matches('\n').as_bytes().into();
         }
-        assert_eq!(charter, &expected, "only instructions differ for charter {number}");
+        assert_eq!(charter, &expected, "only name and instructions differ for charter {number}");
         assert!(shared.contains("Never accept your own proposal"));
         assert!(shared.contains("Never change what is outside your area"));
         assert!(shared.contains("Before every park, write your Now"));
@@ -689,7 +697,7 @@ fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
 #[test]
 fn stock_models_keep_a_five_minute_cache_except_the_scripted_one() {
     let models = crate::stock::models(&with_scripted(engine(&generated()).llm));
-    assert_eq!(models.len(), 8);
+    assert_eq!(models.len(), 9);
     for model in models {
         assert_eq!(model.model.cache_life_ms, if model.model.name.as_ref() == b"demo" { 0 } else { 300_000 });
     }
@@ -1120,6 +1128,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "gpt-6-astra",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
             vec![
                 "claude-opus-5-5",
@@ -1129,6 +1138,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "claude-fable-5-1",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
         ),
         (
@@ -1141,6 +1151,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "gpt-6-astra",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
             vec![
                 "claude-opus-5-5",
@@ -1150,12 +1161,13 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "claude-fable-5-1",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
         ),
         (
             unnamed.llm,
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "gpt-6.2-sol"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "gpt-6.2-sol"],
         ),
     ] {
         let defaults = crate::stock::checked_with(llm.models.clone(), 10_660).expect("representable stock");
@@ -1206,7 +1218,7 @@ fn stock_charters_put_revised_requests_and_answers_first() {
     assert_eq!(
         implementer.lines().find(|line| line.starts_with("- **In repairs and resolutions,**")),
         Some(
-            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included, and each side's intended deletions and renames: a file the base deleted stays deleted unless the requested change needs it, and you read the commit that deleted it before you restore anything. Restore losses a review names; never remove content just to pass a check, and keeping an intended deletion removes none; unless its current spec or a ruling says otherwise: your spec ends with them, and they come before its original request and this rule. Your result says, for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why."
+            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included, and each side's intended deletions and renames: a file the base deleted stays deleted unless the requested change needs it, and you ask your requester why it went before you restore it. Restore losses a review names; never remove content just to pass a check, and keeping an intended deletion removes none; unless its current spec or a ruling says otherwise: your spec ends with them, and they come before its original request and this rule. Your result says, for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why."
         )
     );
 }
@@ -1371,6 +1383,7 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
     expected.number = 4;
+    expected.name = Some(b"reviewer".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/review.txt").as_slice().into();
     expected.policy.modify = false;
     expected.policy.agents = false;
@@ -1463,7 +1476,9 @@ fn a_stock_landing_can_start_its_prepare_job() {
     let mut declarations =
         skein_lib::List::with_capacity(u32::try_from(config.connectors.len()).expect("connector count"));
     for connector in &config.connectors {
-        declarations.push(jig_domain_contract::Declaration::empty(*connector)).expect("connector declaration");
+        declarations
+            .push(jig_domain_contract::Declaration::empty(jig_domain_contract::Connector(*connector)))
+            .expect("connector declaration");
     }
     let mut jig = Engine::new(config, declarations.as_slice(), &env.limits).expect("stock core");
     let mut action = jig.core_mut().start_begin(false, env.wall);
@@ -1546,8 +1561,12 @@ fn a_stock_landing_can_start_its_prepare_job() {
         &mut out,
     );
     let mut refused = None;
-    while let Some(Out::Core(request)) = out.pop() {
-        if let jig_domain_core::Request::Ask { ask: jig_domain_core::Ask::StepRefused { why, .. }, .. } = request {
+    while let Some(output) = out.pop() {
+        if let Out::Ask(
+            _,
+            jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused { why, .. }),
+        ) = output
+        {
             refused = Some(why);
         }
     }
@@ -1556,13 +1575,15 @@ fn a_stock_landing_can_start_its_prepare_job() {
     step(
         &mut jig,
         &env,
-        In::Core(Event::ProcedureHoldings {
-            task,
-            step: number,
-            connector: 1,
-            holdings: Some(Box::new([Box::new([])])),
-            refused: None,
-        }),
+        In::Connector(
+            jig_domain_contract::Connector(1),
+            jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::ProcedureHoldings {
+                task,
+                step: number,
+                holdings: Some(Box::new([Box::new([])])),
+                refused: None,
+            }),
+        ),
         &mut out,
     );
     drop(out);
@@ -1664,7 +1685,7 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
     );
     assert!(words.contains("each side's intended deletions and renames"));
     assert!(words.contains("a file the base deleted stays deleted unless the requested change needs it"));
-    assert!(words.contains("read the commit that deleted it before you restore anything"));
+    assert!(words.contains("ask your requester why it went before you restore it"));
     assert!(words.contains("Restore losses a review names; never remove content just to pass a check"));
     assert!(words.contains("keeping an intended deletion removes none"));
     assert!(words.contains(
@@ -1850,7 +1871,7 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 14,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 8),
+                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 4 + 32),
                 per_scope: 1,
                 charters: 0
             },
@@ -1858,7 +1879,7 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 15,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 9,
+                value_bytes: 1 + 4 + 32,
                 per_scope: 1,
                 charters: 0
             },
@@ -2153,6 +2174,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     let coordinator = stock.charters.iter().find(|charter| charter.number == 5).unwrap();
     let mut expected = stock.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
     expected.number = 5;
+    expected.name = Some(b"goal".as_slice().into());
     expected.policy.instructions = coordinator.policy.instructions.clone();
     expected.parts = coordinator.parts.clone();
     expected.policy.resume = false;
@@ -2170,7 +2192,8 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     assert_eq!(coordinator, &expected);
     let mut expected = stock.templates.iter().find(|template| template.number == 2).unwrap().clone();
     expected.number = 4;
-    expected.name = b"goal for a draft".as_slice().into();
+    expected.name = Some(b"draft-goal".as_slice().into());
+    expected.shown = b"goal for a draft".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
     expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
     expected.flags.ended_by = jig_domain_tasks::EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 });
@@ -2265,6 +2288,7 @@ fn the_status_charter_is_small_and_reaches_nothing() {
     let status = defaults.charters.iter().find(|charter| charter.number == 9).expect("status charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 9;
+    expected.name = Some(b"status".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/status.txt").as_slice().into();
     expected.policy.turns = 4;
     expected.policy.time = skein_lib::Duration::from_secs(300);
@@ -2316,6 +2340,7 @@ fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     let trial = defaults.charters.iter().find(|charter| charter.number == 10).expect("trial charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 10;
+    expected.name = Some(b"trial".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/trial.txt").as_slice().into();
     expected.policy.turns = 2;
     expected.policy.time = skein_lib::Duration::from_secs(120);
@@ -2360,7 +2385,7 @@ fn stock_numbers_each_model_for_good() {
     // A typed caller's leftover table cannot replace the binary's catalogue.
     llm.models = Box::new([fixtures::small_model()]);
     let models = crate::stock::models(&llm);
-    assert_eq!(models.len(), 8);
+    assert_eq!(models.len(), 9);
     for (entry, (number, provider, name, cached, cache_write)) in models.iter().zip([
         (1, 2, "claude-opus-5-5", 200, Some(5_000)),
         (2, 2, "claude-sonnet-5-5", 200, Some(2_500)),
@@ -2370,6 +2395,7 @@ fn stock_numbers_each_model_for_good() {
         (6, 1, "gpt-6.1-terra", 1_000, None),
         (7, 1, "gpt-6-luna", 100, None),
         (8, 3, "demo", 1, None),
+        (9, 1, "gpt-6.2-sol", 100, Some(2_500)),
     ]) {
         assert_eq!(
             (entry.number, entry.model.provider, entry.model.name.as_ref()),
@@ -2389,14 +2415,62 @@ fn stock_numbers_each_model_for_good() {
 }
 
 #[test]
-fn all_deployments_keep_seven_models_and_the_boxs_default_is_scripted() {
+fn the_stock_declares_faster_speeds_without_choosing_them() {
+    use jig_domain_core::settings::{catalogue, charters};
+    type SpeedRow<'a> = (&'a [u8], &'a [&'a [u8]], u64, u64, u64, u64);
+
+    let engine = engine(&generated());
+    let llm = with_scripted(engine.llm);
+    let defaults = crate::stock::checked(&llm, engine.limits.core.tasks.result_bytes).unwrap();
+    let sol = defaults.models.iter().find(|entry| entry.number == 9).expect("GPT-6.2 Sol at stock number 9");
+    assert_eq!(sol.shown.as_deref(), Some(b"GPT-6.2 Sol".as_slice()));
+    assert_eq!(sol.model.effort.as_deref(), Some(b"high".as_slice()));
+    assert!(sol.model.efforts.iter().map(Box::as_ref).eq([b"low".as_slice(), b"medium", b"high", b"xhigh", b"max"]));
+    assert_eq!((sol.model.price_unit, sol.model.input_price, sol.model.output_price), (1_000_000, 2_000, 10_000));
+
+    for entry in &defaults.models {
+        let model = &entry.model;
+        assert!(catalogue::speeds_fit(model));
+        assert!(catalogue::fits(entry, entry.number));
+        assert_eq!(model.speed, None);
+        let speeds: &[SpeedRow<'_>] = match model.name.as_ref() {
+            b"claude-opus-5-5" => &[(b"fast", &[], 8_000, 400, 10_000, 40_000)],
+            b"gpt-6.2-sol" => &[
+                (b"fast", &[b"priority"], 4_000, 200, 5_000, 20_000),
+                (b"ultrafast", &[], 12_000, 600, 15_000, 60_000),
+            ],
+            _ => &[],
+        };
+        assert_eq!(model.speeds.len(), speeds.len(), "model {}", entry.number);
+        for (speed, &(name, aliases, input, cached, cache_write, output)) in model.speeds.iter().zip(speeds) {
+            assert_eq!(speed.name.as_ref(), name);
+            assert!(speed.also.iter().map(Box::as_ref).eq(aliases.iter().copied()));
+            assert_eq!(
+                (speed.input_price, speed.cached_price, speed.cache_write_price, speed.output_price),
+                (input, cached, Some(cache_write), output)
+            );
+        }
+    }
+    for charter in &defaults.charters {
+        let resolved = charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
+        assert!(
+            core::iter::once(&resolved.policy.model)
+                .chain(&resolved.policy.alternatives)
+                .all(|model| model.speed.is_none())
+        );
+    }
+    assert!(defaults.templates.iter().all(|template| template.llm.is_none()));
+}
+
+#[test]
+fn all_deployments_keep_eight_models_and_the_boxs_default_is_scripted() {
     let bare = engine(&temper_config_shell::init_document(false));
     let models = crate::stock::models(&bare.llm);
-    assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
+    assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7, 9]);
     let mut llm = with_scripted(engine(&generated()).llm);
     llm.providers = llm.providers.into_vec().into_iter().filter(|provider| provider.number == 3).collect();
     let models = crate::stock::models(&llm);
-    assert_eq!(models.len(), 8);
+    assert_eq!(models.len(), 9);
     assert_eq!((models[7].number, models[7].model.provider, models[7].model.name.as_ref()), (8, 3, b"demo".as_slice()));
     let defaults = crate::stock::checked(&llm, 10_660).unwrap();
     for charter in &defaults.charters {
@@ -2471,4 +2545,45 @@ fn with_scripted(mut llm: config::Llm) -> config::Llm {
     llm.providers = providers.into_boxed_slice();
     llm.endpoints = endpoints.into_boxed_slice();
     llm
+}
+
+#[test]
+fn stock_setting_names_and_template_display_words_are_distinct() {
+    let defaults = crate::stock::checked_with(Box::new([fixtures::small_model()]), 10_660).unwrap();
+    let charters = [
+        (1, b"chat".as_slice()),
+        (2, b"implementer"),
+        (4, b"reviewer"),
+        (5, b"goal"),
+        (9, b"status"),
+        (10, b"trial"),
+        (11, b"ask-temper"),
+        (12, b"drafter"),
+        (13, b"standing-role"),
+        (14, b"triager"),
+        (15, b"prover"),
+        (16, b"porter"),
+    ];
+    assert_eq!(defaults.charters.len(), charters.len());
+    for (number, name) in charters {
+        let charter = defaults.charters.iter().find(|v| v.number == number).unwrap();
+        assert_eq!(charter.name.as_deref(), Some(name), "charter {number}");
+    }
+    let templates = [
+        (1, b"chat".as_slice(), b"chat".as_slice()),
+        (2, b"goal", b"goal"),
+        (4, b"draft-goal", b"goal for a draft"),
+        (5, b"ask-temper", b"ask"),
+        (6, b"design-session", b"design session"),
+        (7, b"standing-role", b"standing role"),
+        (8, b"milestone", b"milestone"),
+    ];
+    assert_eq!(defaults.templates.len(), templates.len());
+    for (number, name, shown) in templates {
+        let template = defaults.templates.iter().find(|v| v.number == number).unwrap();
+        assert_eq!(template.name.as_deref(), Some(name), "template {number}");
+        assert_eq!(template.shown.as_ref(), shown, "template {number}");
+    }
+    assert_eq!(defaults.policies.len(), 1);
+    assert_eq!(defaults.policies.get(&1).unwrap().name.as_deref(), Some(b"stock".as_slice()));
 }

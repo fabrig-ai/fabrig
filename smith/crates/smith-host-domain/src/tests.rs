@@ -182,6 +182,7 @@ fn mount(name: &[u8], writable: bool, git: bool, conflicts: &[&[u8]]) -> crate::
     }
     crate::Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         root: Token::new(1),
         name: Box::from(name),
@@ -353,6 +354,7 @@ fn empty_charter() -> crate::Charter {
         budget: run::Budget { turns: 0, spend: 0, time: Duration::ZERO },
         llm: run::charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 0 },
             dialect: 0,
             account: Some(0),

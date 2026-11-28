@@ -221,7 +221,8 @@ impl World {
             calls: BTreeSet::new(),
             replies: BTreeMap::new(),
             deferred: Vec::new(),
-            next: settings.seed.saturating_mul(1000),
+            // Leave room for the world's sequential names even at a full-width seed.
+            next: (settings.seed & u64::from(u32::MAX)) * 1000,
             issued: 0,
             durable: 0,
             stats: Stats::default(),
@@ -580,6 +581,7 @@ impl World {
                     self.stats.routes += 1;
                     self.acts.push((request, connector, *act));
                 }
+                Request::ConnectorActed { .. } => unreachable!("world uses reply tokens for acts"),
                 Request::Acted { to, outcome } => replies.push((to.into_token().raw(), Reply::Outcome(outcome))),
                 Request::Save { record } => changes.push(Change::Save(record)),
                 Request::Erase { key } => changes.push(Change::Erase(key)),

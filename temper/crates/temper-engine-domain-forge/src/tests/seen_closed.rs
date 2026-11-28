@@ -1,6 +1,7 @@
 //! A release uses the pull state its poll kept (forge/change/README.md, 4).
 use super::*;
 use crate::domain::{from_client, pull_changed};
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, Error, Op, Permission, Read, State, UserPermission, Write};
 use temper_engine_domain_forge_change as change;
 
@@ -119,7 +120,10 @@ fn refused_with_account(out: Queue<Request>, parts: &[&str]) {
 
 fn ended(d: &Domain, out: &[Request], closer: bool) {
     no_pull_write(out);
-    assert!(out.contains(&Request::Released { task: TASK }), "{out:?}");
+    assert!(
+        out.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK }))),
+        "{out:?}"
+    );
     assert!(d.landed.is_empty(), "another hand's merge is not a landing");
     assert_eq!(d.change(TASK).unwrap().change.state, change::State::Ended);
     let holder = match d.hold(&branch_name(GOAL_BRANCH)) {
@@ -388,7 +392,7 @@ fn a_full_release_table_names_its_limit() {
     let first = Event::SettleEffects { task: GOAL, root: GOAL, ending: ReleaseEnding::Done };
     let mut out = Queue::uncapped();
     step(&mut d, &clock, first, &mut out);
-    assert!(collected(out).contains(&Request::EffectsSettled { task: GOAL }));
+    assert!(collected(out).contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: GOAL }))));
     for event in [
         Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Done },
         Event::Release { task: TASK, root: TASK, ending: ReleaseEnding::Done, reason: None, entry: ENTRY },

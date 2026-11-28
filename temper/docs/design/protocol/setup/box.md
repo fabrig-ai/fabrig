@@ -224,10 +224,6 @@ temper-box
   owned Forgejo (`owned.md`, 5). No step is a link: serve's links are the
   person's.
 
-## 2. What it does
-
-Moved to [`box-supervision.md`](box-supervision.md), section 1.
-
 ## 3. What it names
 
 - **Steps only:** each step's name, its arguments and whether it is
@@ -320,14 +316,6 @@ it.
   with no group's file, as a host's own units do;
 - **a container image** whose entry point is `temper box`, every process
   of its tree ending with the container.
-
-## 5. The welcome's fake backends
-
-Moved to [`box-backends.md`](box-backends.md), section 1.
-
-## 6. In front of `temper box`
-
-Moved to [`box-front.md`](box-front.md), section 1.
 
 ## 7. Open questions
 

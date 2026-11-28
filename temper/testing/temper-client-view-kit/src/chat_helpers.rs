@@ -37,6 +37,7 @@ pub fn structured_messages() -> List<c::Message> {
                 input: c::Text::new(Box::from([]), TEXT).expect("input"),
                 outcome: None,
                 failed: false,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))
@@ -221,6 +222,7 @@ pub fn model_effort(model: &str, effort: Option<&str>) -> c::ModelEffort {
             Some(effort) => Some(fixtures::first_run::text(effort.as_bytes())),
             None => None,
         },
+        speed: None,
     }
 }
 

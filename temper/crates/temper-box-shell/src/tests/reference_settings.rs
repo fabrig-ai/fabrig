@@ -101,7 +101,7 @@ fn the_reference_settings_file_decodes() {
     };
     assert_eq!(goal.number, GOAL);
     assert_eq!(goal.executor, TemplateExecutor::Charter(COORDINATOR));
-    assert_eq!(goal.name.bytes(), b"goal for a draft");
+    assert_eq!(goal.shown.bytes(), b"goal for a draft");
     assert_eq!(goal.tracked, Some(1));
     assert_eq!(goal.label, 2);
     assert_eq!(

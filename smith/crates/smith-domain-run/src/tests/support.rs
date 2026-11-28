@@ -118,6 +118,7 @@ impl Harness {
                 | Request::Close { .. }
                 | Request::Read { .. }
                 | Request::Probe { .. }
+                | Request::ProbeHooks { .. }
                 | Request::Check { .. }
                 | Request::Abort { .. }
                 | Request::Checking { .. }
@@ -316,6 +317,7 @@ pub(crate) fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"temper"),
             root: Token::new(900),
@@ -365,6 +367,7 @@ pub(crate) fn charter() -> Charter {
         budget: BUDGET,
         llm: Llm {
             effort: None,
+            speed: None,
             prices: crate::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(1),
@@ -377,6 +380,7 @@ pub(crate) fn charter() -> Charter {
         conventions: Some(crate::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),
@@ -413,6 +417,7 @@ pub(crate) fn failed(failure: RunFailure, spent: Spend) -> Answer {
 pub(crate) fn repository(name: &[u8]) -> Directory {
     Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: bytes(name),
         root: Token::new(1),
@@ -484,6 +489,7 @@ pub(crate) fn coding_workspace() -> Workspace {
         directories: Box::new([
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"temper"),
                 root: Token::new(900),
@@ -493,6 +499,7 @@ pub(crate) fn coding_workspace() -> Workspace {
             },
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"docs"),
                 root: Token::new(901),
@@ -548,6 +555,7 @@ pub(crate) fn agents() -> Charter {
     let grants = Grants { agents: true, ..charter().grants };
     let models = Box::new([Llm {
         effort: None,
+        speed: None,
         prices: crate::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         account: Some(0),
         endpoint: Endpoint(2),
@@ -734,6 +742,7 @@ pub(crate) fn workspace_directory(name: &[u8], root: u64, writable: bool, git: b
     }
     Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: bytes(name),
         root: Token::new(root),

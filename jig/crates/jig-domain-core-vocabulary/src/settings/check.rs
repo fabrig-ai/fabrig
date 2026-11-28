@@ -183,7 +183,8 @@ pub fn numbers(current: &Current) -> Box<[crate::start::Numbered]> {
 /// Admission judges the offered numbers before the edits' other faults (domain/engine/settings.md, 1).
 pub fn check_edits(current: &Current, items: &[Item], limits: &Limits) -> Result<(), Failure> {
     check_ranges(current, false, items)?;
-    super::change_shape(items, limits)
+    super::change_shape(items, limits)?;
+    super::names::check_edits(current, items)
 }
 
 /// Check proposed settings through the same borrowed selection as startup.
@@ -249,6 +250,9 @@ pub fn check_set(
     limits: &Limits,
 ) -> Result<(), Failure> {
     check_ranges(current, defaults, items)?;
+    if defaults {
+        super::names::check_defaults(current)?;
+    }
     super::workers::check_set(current, defaults, items)?;
     super::providers::check_set(current, defaults, items)?;
     let providers = super::providers::overlay(current, defaults, items);
@@ -377,13 +381,13 @@ pub fn check_set(
                 if let Some(fault) = contract_fault(&template.contract, connectors) {
                     return Err(Failure { setting, fault, detail: None });
                 }
-                template_fault(current, defaults, items, template, template.executor, &models, limits)
+                template_fault(current, defaults, items, template, template.executor, (&catalogue, &models), limits)
             }
             Value::Policy(policy) => match authority::policy_refusal(rules, &limits.authority, &policy.policy) {
                 Some(authority::PolicyRefusal::AboveRules) => Some(Fault::Rules),
                 Some(authority::PolicyRefusal::Oversized | authority::PolicyRefusal::InvalidRole) => Some(Fault::Shape),
                 Some(authority::PolicyRefusal::Full) => Some(Fault::Count),
-                None => policy_fault(current, defaults, items, policy, &models, connectors, limits),
+                None => policy_fault(current, defaults, items, policy, (&catalogue, &models), connectors, limits),
             },
             Value::Model(value) => super::catalogue::shape(value, value.number, &providers).err(),
             Value::Overlay(_) => unreachable!("overlay made into a charter"),
@@ -450,6 +454,11 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
 }
 /// Stored values retain their byte and count bounds without judging their writer.
 pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
+    if let Some(name) = value.name()
+        && !people::is_name(name)
+    {
+        return Err(Failure { setting, fault: Fault::Shape, detail: None });
+    }
     let valid = match value {
         Value::Overlay(value) => return overlay_fit(setting, value, limits),
         Value::Charter(value) => {
@@ -462,7 +471,7 @@ pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(
             true
         }
         Value::Template(value) => {
-            value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
+            value.shown.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
                 && contract_fits(&value.contract, &limits.tasks)
         }
         Value::Policy(value) => {
@@ -710,7 +719,8 @@ fn named_fault(charter: &crate::Charter, models: &[crate::Model], limits: &Limit
     for named in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
         let mut found = false;
         for model in models {
-            found |= !model.is_hole() && model.name == named.name;
+            // The charter selects a speed from the catalogue; its copy does not declare it.
+            found |= !model.is_hole() && model.name == named.name && model.takes_speed(named.speed.as_deref());
         }
         if !found {
             return Some(Fault::Reference);
@@ -800,7 +810,7 @@ fn template_fault(
     items: &[Item],
     template: &crate::Template,
     executor: people::TemplateExecutor,
-    models: &[crate::Model],
+    (catalogue, models): (&[super::CatalogueModel], &[crate::Model]),
     limits: &Limits,
 ) -> Option<Fault> {
     if let Some(grace) = template.grace
@@ -824,23 +834,15 @@ fn template_fault(
             };
             let Some(charter) = charter else { return Some(Fault::Reference) };
             if let Some(choice) = &template.llm {
-                let catalogue = super::catalogue::overlay(current, defaults, items);
-                let policy = match super::charters::resolved(&charter, &catalogue, limits) {
-                    Some(resolved) => resolved.policy,
-                    None => charter.policy.clone(),
+                let Some(resolved) = super::charters::resolved(&charter, catalogue, limits) else {
+                    return Some(Fault::Reference);
                 };
-                if !crate::runs::llm::takes(models, &policy, choice) {
+                if !crate::runs::llm::takes(models, &resolved.policy, choice) {
                     return Some(Fault::Reference);
                 }
             }
         }
-        people::TemplateExecutor::Chosen => {
-            if let Some(choice) = &template.llm
-                && !choice_valid(models, choice)
-            {
-                return Some(Fault::Reference);
-            }
-        }
+        people::TemplateExecutor::Chosen => {}
     }
     None
 }
@@ -856,7 +858,7 @@ pub fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool 
     }
 }
 fn agents_valid(models: &[crate::Model], main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> bool {
-    if subagents.len() > skein_lib::length::usize_of(tasks::MODELS) || !effort_valid(models, main) {
+    if subagents.len() > skein_lib::length::usize_of(tasks::MODELS) || !model_choice_valid(models, main) {
         return false;
     }
     for (at, chosen) in subagents.iter().enumerate() {
@@ -865,7 +867,7 @@ fn agents_valid(models: &[crate::Model], main: tasks::ModelEffort, subagents: &[
                 return false;
             }
         }
-        if !effort_valid(models, *chosen) {
+        if !model_choice_valid(models, *chosen) {
             return false;
         }
     }
@@ -876,10 +878,11 @@ fn policy_fault(
     defaults: bool,
     items: &[Item],
     configured: &crate::ConfiguredPolicy,
-    models: &[crate::Model],
+    catalogue: (&[super::CatalogueModel], &[crate::Model]),
     connectors: &[u16],
     limits: &Limits,
 ) -> Option<Fault> {
+    let (_, models) = catalogue;
     let policy = &configured.policy;
     let mut owner = false;
     for role in &policy.roles {
@@ -935,7 +938,7 @@ fn policy_fault(
         if let Some(fault) = contract_fault(&template.contract, connectors) {
             return Some(fault);
         }
-        if let Some(fault) = template_fault(current, defaults, items, template, executor, models, limits) {
+        if let Some(fault) = template_fault(current, defaults, items, template, executor, catalogue, limits) {
             return Some(fault);
         }
     }
@@ -1037,13 +1040,7 @@ pub fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result
     *count = count.saturating_add(1);
     if *count > bound { Err(Failure { setting, fault: Fault::Count, detail: None }) } else { Ok(()) }
 }
-pub(super) fn effort_valid(models: &[crate::Model], chosen: tasks::ModelEffort) -> bool {
+fn model_choice_valid(models: &[crate::Model], chosen: tasks::ModelEffort) -> bool {
     let Some(model) = models.get(usize::from(chosen.model)) else { return false };
-    if model.is_hole() {
-        return false;
-    }
-    match chosen.effort {
-        Some(effort) => usize::from(effort) < model.efforts.len(),
-        None => model.efforts.is_empty(),
-    }
+    !model.is_hole() && crate::runs::llm::takes_effort_and_speed(model, chosen)
 }

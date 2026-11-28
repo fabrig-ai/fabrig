@@ -31,6 +31,8 @@ pub struct NamedLater {
 pub struct NamedModel {
     pub model: Box<[u8]>,
     pub effort: Option<Box<[u8]>>,
+    /// A declared speed by name, `standard`, or none for the charter's speed.
+    pub speed: Option<Box<[u8]>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Repairs {
@@ -59,6 +61,9 @@ fn model_heap(v: &NamedModel) -> Option<u64> {
     let mut held = skein_lib::len_u64(v.model.len());
     if let Some(effort) = &v.effort {
         held = held.checked_add(skein_lib::len_u64(effort.len()))?;
+    }
+    if let Some(speed) = &v.speed {
+        held = held.checked_add(skein_lib::len_u64(speed.len()))?;
     }
     Some(held)
 }

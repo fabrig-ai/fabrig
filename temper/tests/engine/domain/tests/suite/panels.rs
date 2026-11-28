@@ -137,6 +137,7 @@ fn the_panel_stays_held_until_the_asking_decision_is_durable() {
         task: CHANGE,
         child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
+        close_at: None,
     })));
     for _ in 0..8 {
         driver.advance(false);
@@ -160,6 +161,7 @@ fn a_saved_change_marks_the_forges_subject_and_delivers_the_panel_again() {
         task: CHANGE,
         child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
+        close_at: None,
     })));
     driver.settle();
     let got = panels(&driver);
@@ -185,6 +187,7 @@ fn a_project_landings_watch_delivers_its_list_after_the_commit_barrier() {
             task: CHANGE,
             child: PRODUCER,
             kind: temper_engine_domain_forge_change::Delegate::Produce,
+            close_at: None,
         })));
         watch(&mut driver, 1, forge::landings_subject(1, ended));
         for _ in 0..8 {
@@ -221,6 +224,7 @@ fn a_project_changes_watch_delivers_its_document_after_the_commit_barrier() {
         task: CHANGE,
         child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
+        close_at: None,
     })));
     watch(&mut driver, 1, forge::changes_subject(1));
     for _ in 0..8 {
@@ -325,10 +329,13 @@ fn status_driver() -> Driver {
     ];
     driver.store.seed(rows.map(|row| root::Record::Forge { row: Box::new(row) }).into(), Box::new([]));
     let limits = driver.env.limits;
+    let forge = driver.forge.take();
     let store = driver.take_store();
     let now =
         Wall::from_nanos(OWN_LATEST.as_nanos().checked_add(forge::SITTING.as_nanos()).expect("the next sitting fits"));
     let mut driver = Driver::from_store_at(store, temper_engine_domain_world::walking::config(71), &limits, now);
+    driver.forge = forge;
+    driver.connect_forges();
     driver.settle();
     driver.sign_in();
     driver.settle();
@@ -466,8 +473,11 @@ fn panel_sign_in(driver: &mut Driver, identity: u64) -> (u64, u64) {
 fn restarted_panels(driver: &mut Driver) -> Driver {
     let limits = driver.env.limits;
     let wall = driver.env.wall;
+    let forge = driver.forge.take();
     let store = driver.take_store();
     let mut driver = Driver::from_store_at(store, temper_engine_domain_world::walking::config(71), &limits, wall);
+    driver.forge = forge;
+    driver.connect_forges();
     driver.settle();
     driver
 }

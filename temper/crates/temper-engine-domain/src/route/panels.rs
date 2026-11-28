@@ -73,7 +73,10 @@ pub(crate) fn document(
     let mut requests = crate::engine::step(
         &mut domain.engine,
         env,
-        In::Core(core::Event::View(views::Event::Made { watcher, outcome })),
+        In::Connector(
+            jig_domain_contract::Connector(connector),
+            jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Made { watcher, outcome }),
+        ),
     );
     for _ in 0..requests.len() {
         let request = requests.pop().expect("document completion output");

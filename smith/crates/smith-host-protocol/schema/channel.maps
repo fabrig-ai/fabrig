@@ -13,6 +13,8 @@ direction to domain
 record CallName = c::CallName to record
 record CallName = crate::component::CallKey
 record Window = c::Window to record
+record HookTime = c::HookTime to record
+record HookTimes = c::HookTimes to record
 record Directory by hand
 record ListRow = h::ListedModel { efforts slice }
 enum ListFailed by hand

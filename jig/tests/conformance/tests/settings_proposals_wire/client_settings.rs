@@ -37,6 +37,85 @@ fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, ()> {
     }
 }
 #[test]
+fn an_undeclared_default_speed_is_refused_as_shape_across_the_wire() {
+    use jig_core_kit::world::{Setup, World};
+    use jig_domain_core::{self as core, settings as s};
+    use jig_domain_people as p;
+    use jig_engine_clients_kit::{Peer, fixtures};
+    use jig_test_domain as root;
+    use skein_lib::Reader;
+
+    let mut setup = Setup { seed: 6002, require_assignment: false, ..Setup::default() };
+    setup.limits.core.run_bytes = 1024;
+    let mut world = World::new(setup);
+    assert!(world.domain.ready(), "start: {:?}", world.domain.start_failure());
+    let owner = world.sign_in.expect("owner sign-in");
+    world.send(root::Event::Core(core::Event::People(p::Event::Roles {
+        project: 0,
+        holdings: Box::new([p::Holding { person: 1, role: p::Role::Owner }]),
+    })));
+    let setting = s::Setting::Model(1);
+    let limits = fixtures::limits().wire;
+    let current = world.domain.settings().value(setting).expect("catalogue model");
+    let value = jig_protocol_engine_clients::translate::settings::value(current, &[], &limits).unwrap();
+    let w::SettingValue::Model(mut model) = value else { panic!("model value") };
+    model.model.speeds = List::from_boxed(Box::new([w::SettingSpeed {
+        name: b"fast".as_slice().into(),
+        also: List::with_capacity(0),
+        input_price: model.model.input_price,
+        cached_price: model.model.cached_price,
+        cache_write_price: model.model.cache_write_price,
+        output_price: model.model.output_price,
+    }]));
+    model.model.speed = Some(b"unoffered".as_slice().into());
+    let setting = w::Setting::Model(w::SettingNumber { number: 1 });
+    let item =
+        w::SettingItem { setting, edit: w::SettingEdit::Set(w::SettingSet { value: w::SettingValue::Model(model) }) };
+    let piece = encoded!(&item);
+    let mut pieces = Writer::new(4 + piece.len());
+    pieces.put(&u32::try_from(piece.len()).unwrap().to_be_bytes()).unwrap();
+    pieces.put(&piece).unwrap();
+    let ask =
+        w::Ask::ChangeSettings(w::ChangeSettings { against: 1, items: pieces.finish(), running: w::Running::Stays });
+    let request =
+        w::Keyed { key: [1; 16], owner: w::Owner::Jig, version: w::VERSION, request: encoded!(&ask), value: None };
+    let mut peer = Peer::started(&fixtures::settings());
+    let bearer = fixtures::signed_in(&mut peer);
+    let exchange = peer.post(b"/jig/v1/request", encoded!(&request), Some(&bearer));
+    let Some(core::Event::ChangeSettings { reply_to, key, digest, change, .. }) = peer.take_core() else {
+        panic!("model set reaches the core")
+    };
+    let reply_token = reply_to.into_token();
+    world.send(root::Event::Core(core::Event::ChangeSettings {
+        reply_to: skein_lib::ReplyTo::new(reply_token),
+        sign_in: owner,
+        key,
+        digest,
+        change,
+    }));
+    let reply = world.people_answers.last().expect("core's reply").clone();
+    peer.answer_request(skein_lib::ReplyTo::new(reply_token), reply);
+    let bytes = peer.answered(exchange).expect("wire answer");
+    let record = w::KeyedAnswer::decode(&limits, &mut Reader::new(bytes)).unwrap();
+    let link = Limits::new(jig_client_kit::test::limits().client.domain, 8).unwrap();
+    let answer = translate::answers::answer(record, &link).unwrap();
+    assert_eq!(
+        answer,
+        c::Answer::Refused {
+            at: None,
+            refusal: c::Refusal::Malformed {
+                at: 0,
+                why: c::Malformed::Settings(c::MalformedSettings {
+                    setting: c::Setting::Model(c::SettingNumber { number: 1 }),
+                    fault: c::SettingFault::Shape,
+                    detail: None,
+                }),
+            },
+        }
+    );
+}
+
+#[test]
 fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     let mut client = jig_client_kit::test::limits().client;
     client.domain.rows = 8;
@@ -139,8 +218,9 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let mut settings = List::with_capacity(1);
     settings
         .push(d::SettingLine {
-            setting: s::Setting::Rules,
             name: None,
+            setting: s::Setting::Rules,
+            shown: None,
             follows: d::Follows::Default,
             last: Some(6),
             application: None,

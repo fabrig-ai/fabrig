@@ -353,7 +353,7 @@ fn census_reports_replace_the_deployment_and_deliver_each_to_its_watcher() {
             })
             .unwrap();
         let census = Box::new(StoreCensus { commit, since: 1, keyspaces });
-        drop(watch_outputs(&mut core, &limits, Event::Census(census.clone())));
+        drop(watch_store_outputs(&mut core, &limits, crate::engine::store::In::Census(census.clone())));
         assert_eq!(deployment(&core, &limits).census, Some(census.clone()));
         let changed = finish_watch_outputs(&mut core, &limits);
         assert_eq!(changed.len(), 1, "each report marks the deployment");

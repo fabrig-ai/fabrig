@@ -157,28 +157,17 @@ pub(super) fn start(root: &mut Domain, kept: List<crate::store::Record>) -> Toke
     Token::new(0)
 }
 pub(super) fn confirm(root: &mut Domain, watch: Token, party: u64) -> Vec<Request> {
-    drive(
-        root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-    );
+    drive(root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } });
     for family in [crate::FIRST, crate::SECOND] {
         drive(
             root,
             Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::FamilyServed {
-                        family,
-                        served: true,
-                        versions: Some(contract::VersionRange {
-                            first: jig_client_test_protocol_wire::VERSION,
-                            last: jig_client_test_protocol_wire::VERSION,
-                        }),
-                    },
-                },
+                event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family, served: true } },
             },
         );
     }
     let frame = Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

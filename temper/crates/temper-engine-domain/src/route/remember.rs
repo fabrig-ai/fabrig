@@ -115,7 +115,7 @@ pub(crate) fn loaded(
         Ok(Some(range)) => {
             *domain.archive_reads.get_mut(Id::from_token(waiter)).expect("remember load slot") =
                 Some(Read::Remember(read));
-            crate::restart::request_load(domain, waiter, range, None, out);
+            crate::store_route::request_load(domain, waiter, range, None, out);
         }
         Ok(None) => domain.archive_reads.retire(Id::from_token(waiter)),
         Err(why) => {

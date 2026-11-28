@@ -107,6 +107,8 @@ fn finish_wait(domain: &mut Domain, env: &Env<Limits>) {
         decision: change::Decision::Wait { until: None },
         entry: None,
         evidence: None,
+        close_at: None,
+        close_refusal: None,
     });
     domain.work.push(Work::ForgeSettings(out));
     super::judge_trains(domain, env);

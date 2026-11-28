@@ -48,7 +48,7 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
     match landing.phase {
         Phase::Waiting | Phase::Preparing | Phase::Proving => {
             for (index, (member, fresh)) in next.members.iter().zip(&facts.members).enumerate() {
-                if member.landed.is_none() && !fresh.ready {
+                if active(member) && !fresh.ready {
                     next.phase = Phase::Waiting;
                     if let Some(decision) = failed_post(&mut next, facts) {
                         return done(next, decision);
@@ -70,7 +70,7 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
         Phase::Preparing => preparing(next, facts, limits, now),
         Phase::Proving => {
             for (member, fresh) in next.members.iter().zip(&facts.members) {
-                if member.landed.is_none() && member.head != Some(fresh.head) {
+                if active(member) && member.head != Some(fresh.head) {
                     next.phase = Phase::Preparing;
                     return done(next, Decision::None);
                 }
@@ -129,7 +129,7 @@ fn cancelled(mut landing: Landing, facts: &Facts, limits: &Limits) -> Stepped {
 
 fn preparing(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Stepped {
     for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
-        if member.landed.is_some() {
+        if !active(member) {
             continue;
         }
         if member.candidate.is_some() && member.head == Some(fresh.head) && member.base == Some(fresh.main) {
@@ -212,7 +212,7 @@ fn failed_post(landing: &mut Landing, facts: &Facts) -> Option<Decision> {
 fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limits, now: Wall) -> Stepped {
     let mut blocked = None;
     for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
-        if member.landed.is_some() {
+        if !active(member) {
             continue;
         }
         let candidate = member.candidate.expect("proving has every candidate");
@@ -365,12 +365,12 @@ fn gate_step(
 fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Stepped {
     // Record read-back successes before any stale exit (domain/landing-turn.md, 1).
     for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
-        if member.candidate.is_some() && fresh.merged == member.candidate {
+        if active(member) && member.candidate.is_some() && fresh.merged == member.candidate {
             member.landed = member.candidate;
         }
     }
     for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
-        if member.landed.is_some() {
+        if !active(member) {
             continue;
         }
         let candidate = member.candidate.expect("turn has every candidate");
@@ -378,7 +378,7 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
             member.landed = Some(candidate);
             continue;
         }
-        if member.base != Some(fresh.main) || fresh.merge == Status::Failed {
+        if member.head != Some(fresh.head) || member.base != Some(fresh.main) || fresh.merge == Status::Failed {
             return stale(landing, facts);
         }
         return match fresh.merge {
@@ -396,7 +396,9 @@ fn stale(mut landing: Landing, facts: &Facts) -> Stepped {
     landing.phase = Phase::Preparing;
     landing.stale_proofs = landing.stale_proofs.checked_add(1).expect("stale proof count fits u32");
     for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
-        if member.landed.is_none() && (member.base != Some(fresh.main) || fresh.merge == Status::Failed) {
+        if active(member)
+            && (member.head != Some(fresh.head) || member.base != Some(fresh.main) || fresh.merge == Status::Failed)
+        {
             member.candidate = None;
             member.asked = None;
             for gate in &mut member.gates {

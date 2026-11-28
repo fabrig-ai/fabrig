@@ -97,7 +97,8 @@ fn limits(context: &Context<'_>, out: &mut String) {
         line(out, &format!("            self.{name},"));
     }
     line(out, "        ].into())\n    }\n");
-    expectation(out, bounds.len().checked_add(5).expect("source length"));
+    // Clippy counts the binding and both braces of the Limits literal, not the function's own braces.
+    expectation(out, bounds.len().checked_add(3).expect("source length"));
     // The binding keeps the signature unchanged for a family without limits.
     line(
         out,

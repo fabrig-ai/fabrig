@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::documents::{Proposer, QueryOrder, SubjectShape as Shape, TaskQuery, Touch};
+use jig_domain_contract as contract;
 use jig_domain_people::ApplicationScope;
 
 const PARTY: u64 = 1;
@@ -135,7 +136,10 @@ fn subject_partitions_preserve_watch_routing() {
         if let Some((connector, subject, ..)) = application {
             let Some(Request::Ask {
                 connector: found_connector,
-                ask: crate::Ask::DropDocument { subject: found_subject },
+                ask:
+                    crate::Ask::Connector(contract::Ask::Parts(contract::parts::Ask::DropDocument {
+                        subject: found_subject,
+                    })),
             }) = refused.pop()
             else {
                 panic!("application document dropped before refusal: {:?}", row.subject);

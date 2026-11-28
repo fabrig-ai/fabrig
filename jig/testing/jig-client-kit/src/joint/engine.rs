@@ -2,7 +2,6 @@
 //! It accepts supplied clocks and owner inputs and exposes only external peer
 //! deliveries. Request durability and every business decision stay in the root.
 use super::transport::Transport;
-use jig_client_domain::contract::VersionRange;
 use jig_core_kit::client_peer::ClientPeer;
 use jig_core_kit::peers::Peers;
 use jig_core_kit::world::Setup;
@@ -35,10 +34,9 @@ impl Driver {
     pub fn new(configuration: root::Config, limits: root::Limits, peers: Peers, now: Time, wall: Wall) -> Self {
         let key_bytes = configuration.core.settings.key_bytes;
         let redirect_bytes = configuration.core.settings.redirect_bytes;
-        let configured = limits.core.documents.versions;
         let models = configuration.core.settings.models.clone();
         let providers = configuration.core.settings.llm_providers.clone();
-        let mut transport = Transport::new(VersionRange { first: configured.minimum, last: configured.maximum });
+        let mut transport = Transport::new(true);
         transport.models = models;
         transport.providers = providers;
         let mut world = World::new(Setup {
@@ -190,6 +188,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         core::Held::WatchEnded { watcher, why } => Event::WatchEnded { watcher, why },
         core::Held::CarriedUnused { number } => Event::Application(clients::FromApplication::Unused { number }),
         core::Held::Acted { .. }
+        | core::Held::Connector(_, _)
         | core::Held::Drained
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }
@@ -198,7 +197,6 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::PublicRead { .. }
         | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }
-        | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
         | core::Held::Assign { .. }
         | core::Held::Grant { .. }
@@ -258,8 +256,6 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::NoteBusy { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::CompleteBrief { .. }
-        | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
@@ -309,8 +305,7 @@ mod tests {
     fn actual_root_driver_releases_the_supplied_identity_and_independent_session_only_after_its_store_commit() {
         let now = Time::from_nanos(17);
         let wall = Wall::from_nanos(1_000_000_000_000);
-        let mut limits = jig_test_profile::limits();
-        limits.core.documents.versions = core::documents::Versions { minimum: 1, maximum: u32::MAX };
+        let limits = jig_test_profile::limits();
         let mut driver =
             Driver::new(jig_test_profile::config(8455), limits, Peers::new(Vec::new(), Vec::new()), now, wall);
         let supplied = people::Identity {
@@ -319,7 +314,7 @@ mod tests {
             name: b"Person".as_slice().into(),
         };
         driver.transport.bind(ClientId(0), 1, supplied.clone());
-        assert_eq!(driver.transport.hello(), jig_client::Up::Served { served: true, versions: None });
+        assert_eq!(driver.transport.hello(), jig_client::Up::Served { served: true });
         driver.world.cut = Some(jig_core_kit::world::Cut::Submitted(driver.world.store.applied + 1));
         let event = driver.transport.start_sign_in(ClientId(0));
         let core::Event::SignIn { identity, .. } = &event else { panic!("real sign-in") };
@@ -436,7 +431,7 @@ mod tests {
         assert_eq!(driver.transport.reply_tokens().len(), 0);
 
         // A caller can reuse a retired opaque destination. Ownership follows
-        // the live route table, never that destination's old person or range.
+        // the live route table, never that destination's old person.
         // An unknown Stop retains an ordinary answer without changing a task.
         driver.world.peers.as_mut().expect("ordinary peers").parties.push(Party::new(
             1,

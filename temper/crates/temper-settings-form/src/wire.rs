@@ -464,6 +464,7 @@ pub(crate) fn settings_restore_setting_policy(
         templates.push(settings_restore_template_override(item)).expect("same capacity");
     }
     Ok(c::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: value.escalation_role,
         ceiling: documents_owner_authority_fields(&value.ceiling, limits)?,
         projections,
@@ -531,9 +532,10 @@ pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Res
         resources.push(c::Symbol { connector: resource.connector, symbol: resource.symbol }).expect("same capacity");
     }
     Ok(c::Template {
+        name: value.name.clone(),
         resources,
         number: value.number,
-        name: facts_document_text(&value.name, limits)?,
+        shown: facts_document_text(&value.shown, limits)?,
         executor: operations_restore_executor(&value.executor),
         contract: documents_task_contract_document_fields(&value.contract, limits)?,
         shallower: value.shallower,
@@ -588,6 +590,10 @@ pub(crate) fn llm_model_effort(value: &w::ModelEffort, limits: &Limits) -> Resul
         model: llm_name(value.model.as_ref(), limits.settings.model_effort_model)?,
         effort: match &value.effort {
             Some(effort) => Some(llm_name(effort, limits.settings.model_effort_effort_some)?),
+            None => None,
+        },
+        speed: match &value.speed {
+            Some(speed) => Some(llm_name(speed, limits.settings.model_effort_speed_some)?),
             None => None,
         },
     })
@@ -873,6 +879,7 @@ pub(crate) fn settings_restore_charter(value: &w::Charter) -> Result<c::Charter,
             .expect("same capacity");
     }
     Ok(c::Charter {
+        name: value.name.clone(),
         parts,
         rest: value.rest,
         documents,
@@ -907,6 +914,23 @@ pub(crate) fn settings_restore_setting_model(value: &w::SettingModel) -> Result<
     for item in &value.efforts {
         efforts.push(settings_text(item, 32)?).expect("same capacity");
     }
+    let mut speeds = List::with_capacity(value.speeds.len());
+    for speed in &value.speeds {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(settings_text(name, 32)?).expect("same capacity");
+        }
+        speeds
+            .push(c::SettingSpeed {
+                name: settings_text(&speed.name, 32)?,
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
+    }
     Ok(c::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -926,6 +950,11 @@ pub(crate) fn settings_restore_setting_model(value: &w::SettingModel) -> Result<
         efforts,
         effort: match &value.effort {
             Some(item) => Some(settings_text(item, 32)?),
+            None => None,
+        },
+        speeds,
+        speed: match &value.speed {
+            Some(name) => Some(settings_text(name, 32)?),
             None => None,
         },
     })
@@ -1010,8 +1039,9 @@ pub(crate) fn settings_restore_setting_line(
     limits: &Limits,
 ) -> Result<c::SettingLine, w::Problem> {
     Ok(c::SettingLine {
+        name: value.name.clone(),
         setting: settings_restore_setting(&value.setting),
-        name: match &value.name {
+        shown: match &value.shown {
             Some(item) => Some(facts_document_text(item, limits)?),
             None => None,
         },
@@ -1318,6 +1348,7 @@ pub(crate) fn settings_wire_setting_policy(
         templates.push(settings_wire_template_override(item)).expect("same capacity");
     }
     Ok(w::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: value.escalation_role,
         ceiling: asks_wire_owner_authority(&value.ceiling, limits)?,
         projections,
@@ -1394,9 +1425,10 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
         resources.push(w::Symbol { connector: resource.connector, symbol: resource.symbol }).expect("same capacity");
     }
     Ok(w::Template {
+        name: value.name.clone(),
         resources,
         number: value.number,
-        name: settings_wire_document_text(&value.name),
+        shown: settings_wire_document_text(&value.shown),
         executor: operations_executor(value.executor),
         contract: settings_wire_task_contract(&value.contract, limits)?,
         shallower: value.shallower,
@@ -1451,7 +1483,11 @@ pub(crate) fn llm_wire_choice(value: &c::LlmChoice) -> w::LlmChoice {
 }
 
 pub(crate) fn llm_wire_model_effort(value: &c::ModelEffort) -> w::ModelEffort {
-    w::ModelEffort { model: bytes::copy_of(value.model.bytes()), effort: optional_text(value.effort.as_ref()) }
+    w::ModelEffort {
+        model: bytes::copy_of(value.model.bytes()),
+        effort: optional_text(value.effort.as_ref()),
+        speed: optional_text(value.speed.as_ref()),
+    }
 }
 
 pub(crate) fn settings_wire_task_contract(
@@ -1560,6 +1596,7 @@ pub(crate) fn settings_wire_charter(value: &c::Charter) -> w::Charter {
             .expect("same capacity");
     }
     w::Charter {
+        name: value.name.clone(),
         parts,
         documents,
         rest: value.rest,
@@ -1598,6 +1635,23 @@ pub(crate) fn settings_wire_setting_model(value: &c::SettingModel) -> w::Setting
     for item in &value.efforts {
         efforts.push(bytes::copy_of(item.bytes())).expect("same capacity");
     }
+    let mut speeds = List::with_capacity(value.speeds.len());
+    for speed in &value.speeds {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(bytes::copy_of(name.bytes())).expect("same capacity");
+        }
+        speeds
+            .push(w::SettingSpeed {
+                name: bytes::copy_of(speed.name.bytes()),
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
+    }
     w::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -1613,6 +1667,8 @@ pub(crate) fn settings_wire_setting_model(value: &c::SettingModel) -> w::Setting
         price_unit: value.price_unit,
         efforts,
         effort: optional_text(value.effort.as_ref()),
+        speeds,
+        speed: optional_text(value.speed.as_ref()),
     }
 }
 

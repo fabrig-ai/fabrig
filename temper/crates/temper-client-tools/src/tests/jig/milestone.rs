@@ -24,7 +24,7 @@ fn me() -> c::Me {
     let project = me.projects.get_mut(0).unwrap();
     let mut template = project.templates.get(0).unwrap().clone();
     template.number = 8;
-    template.name = f::document_text(b"milestone");
+    template.shown = f::document_text(b"milestone");
     template.deadline = c::TemplateDeadline::None;
     template.tracked = Some(1);
     template.flags.ended_by = c::EndedBy::Requester;

@@ -1,5 +1,7 @@
 //! Conformance over decoded client/agent bytes and independently read durable rows.
 pub(super) mod agent;
+mod drawn;
+mod park;
 use crate::world::Proc;
 use jig_channel_kit::world::store::Store;
 use jig_client_domain::contract as client;
@@ -39,6 +41,7 @@ pub struct ChatOutcome {
 pub struct Referee {
     finding: Option<String>,
     chat: crate::fixtures::Chat,
+    park: Option<Box<park::Driver>>,
     chat_outcome: Rc<RefCell<Option<ChatOutcome>>>,
     idle_until: Option<Time>,
     handed: bool,
@@ -88,6 +91,7 @@ impl Referee {
         Self {
             finding,
             chat,
+            park: (chat == crate::fixtures::Chat::DelegateWait).then(|| Box::new(park::Driver::default())),
             chat_outcome,
             idle_until: None,
             handed: false,
@@ -171,7 +175,16 @@ impl Referee {
     }
 
     fn expectation_deadline(&self) -> Time {
-        Time::from_nanos(if self.chat == crate::fixtures::Chat::Finite { 10_000_000_000 } else { 60_000_000_000 })
+        Time::from_nanos(
+            if matches!(
+                self.chat,
+                crate::fixtures::Chat::Finite | crate::fixtures::Chat::Drawn | crate::fixtures::Chat::DelegateWait
+            ) {
+                10_000_000_000
+            } else {
+                60_000_000_000
+            },
+        )
     }
     fn accounts(&mut self, procs: &mut [Proc]) {
         for (index, proc) in procs.iter_mut().enumerate() {
@@ -204,6 +217,20 @@ impl Referee {
                 }
             }
         }
+    }
+    fn drawn_reached(&self, other: &[Proc]) -> Result<bool, String> {
+        if terminals(&self.store.borrow()) == 0 {
+            return Ok(false);
+        }
+        let peer = other
+            .iter()
+            .find_map(|proc| match proc {
+                Proc::Peer(peer) => Some(peer),
+                _ => None,
+            })
+            .ok_or("drawn chat's provider")?;
+        drawn::check(peer.observations(), &self.store.borrow())?;
+        Ok(true)
     }
     fn text_reached(&mut self, now: Time, service: &crate::world::ServiceHost, other: &[Proc]) -> Result<bool, String> {
         use crate::fixtures::Chat;
@@ -297,6 +324,28 @@ impl Referee {
                 && service.wire.events.iter().any(|event| matches!(event, rules::Observed::Assigned { attempt: 2, .. }))
         })
     }
+    fn agent_frames(&mut self, now: Time, wire: &agent::Wire, procs: &[Proc]) -> Result<(), String> {
+        if let Some(driver) = self.park.as_mut() {
+            let frames = wire.park_frames.as_ref().ok_or("park story's agent frames")?;
+            if self.agent_seen == frames.len() {
+                return Ok(());
+            }
+            let provider_seen = park::observations(procs)?.len();
+            let mut rules = self.rules.borrow_mut();
+            for frame in &frames[self.agent_seen..] {
+                if let Some(event) = driver.agent(now, frame, &self.rows, provider_seen)? {
+                    rules.observe(now.as_nanos(), event).map_err(|why| format!("agent frame: {why:?}"))?;
+                }
+            }
+            self.agent_seen = frames.len();
+        } else {
+            for event in &wire.events[self.agent_seen..] {
+                self.say(now, event.clone())?;
+            }
+            self.agent_seen = wire.events.len();
+        }
+        Ok(())
+    }
     fn say(&mut self, now: Time, event: rules::Observed) -> Result<(), String> {
         self.rules
             .borrow_mut()
@@ -304,17 +353,25 @@ impl Referee {
             .map_err(|why| format!("one-process conformance over bytes and durable rows: {why:?}"))
     }
 }
-pub(super) fn conformance() -> Rc<RefCell<rules::Referee>> {
-    Rc::new(RefCell::new(rules::Referee::new(policy())))
+pub(super) fn conformance(chat: crate::fixtures::Chat) -> Rc<RefCell<rules::Referee>> {
+    Rc::new(RefCell::new(rules::Referee::new(policy(chat))))
 }
-fn policy() -> rules::Policy {
-    let scope = rules::Scope {
+fn policy(chat: crate::fixtures::Chat) -> rules::Policy {
+    let mut scope = rules::Scope {
         budget: 100,
         executors: BTreeSet::from([(0, 1)]),
         descendants: 8,
         depth: 8,
         ..rules::Scope::default()
     };
+    match chat {
+        crate::fixtures::Chat::Drawn => {
+            scope.tools = crate::fixtures::drawn::TOOLS;
+            scope.executors.insert((2, 0)); // Person 1 holds role 0 in this project's delegation policy.
+        }
+        crate::fixtures::Chat::DelegateWait => scope.tools = crate::fixtures::park::TOOLS,
+        crate::fixtures::Chat::Finite | crate::fixtures::Chat::OpenText | crate::fixtures::Chat::FiniteText => {}
+    }
     rules::Policy {
         deployment: scope.clone(),
         projects: BTreeMap::from([(1, scope.clone())]),
@@ -551,6 +608,9 @@ impl skein_world::Referee<Proc> for Referee {
                     }
                 }
             }
+            if let Some(driver) = self.park.as_mut() {
+                driver.durable(now, &self.rows)?;
+            }
             self.applied = commit.number;
             self.say(now, rules::Observed::Durable { number: commit.number, snapshot: snapshot(&self.rows) })?;
         }
@@ -559,10 +619,7 @@ impl skein_world::Referee<Proc> for Referee {
             self.say(now, rules::Observed::ColdStore { receipts: snapshot(&durable.rows).receipts })?;
             self.cold = None;
         }
-        for event in &service.wire.events[self.agent_seen..] {
-            self.say(now, event.clone())?;
-        }
-        self.agent_seen = service.wire.events.len();
+        self.agent_frames(now, &service.wire, procs)?;
         for (index, proc) in procs.iter().enumerate() {
             if let Proc::Client(client) = proc {
                 let offset = self.clients.get(&index).copied().unwrap_or(0);
@@ -610,6 +667,9 @@ impl skein_world::Referee<Proc> for Referee {
     }
     fn overdue(&self, now: Time) -> Option<String> {
         if !self.done && now >= self.expectation_deadline() {
+            if let Some(park) = &self.park {
+                return Some(park.overdue(&self.rows));
+            }
             Some(format!(
                 "one-process expectation not met: restarts{} link{}, finished{} lost{}, durable{}, clients{:?}",
                 *self.restarts.borrow(),
@@ -629,6 +689,21 @@ impl skein_world::Referee<Proc> for Referee {
 }
 
 impl Referee {
+    fn answer_reached(
+        &mut self,
+        now: Time,
+        service: &crate::world::ServiceHost,
+        other: &[Proc],
+    ) -> Result<bool, String> {
+        use crate::fixtures::Chat;
+        match self.chat {
+            Chat::Finite => Ok(terminals(&self.store.borrow()) > 0),
+            Chat::Drawn => Ok(self.done || self.drawn_reached(other)?),
+            Chat::DelegateWait => Ok(self.done || self.park.as_ref().expect("park driver").reached(other, &self.rows)?),
+            Chat::OpenText | Chat::FiniteText => self.text_reached(now, service, other),
+        }
+    }
+
     fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.accounts(procs);
         let clients_done = procs
@@ -685,14 +760,8 @@ impl Referee {
         }
         let gate_ready = self.scenario == Scenario::MarkGate && self.mark_gate(now, service)?;
         let reached = match self.scenario {
-            Scenario::Answer => {
-                clients_done
-                    && if self.chat == crate::fixtures::Chat::Finite {
-                        terminals(&self.store.borrow()) > 0
-                    } else {
-                        self.text_reached(now, service, other)?
-                    }
-            }
+            Scenario::Answer if !clients_done => false,
+            Scenario::Answer => self.answer_reached(now, service, other)?,
             Scenario::MidRun => {
                 clients_done
                     && agent_started

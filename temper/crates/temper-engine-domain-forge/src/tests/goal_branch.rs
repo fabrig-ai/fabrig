@@ -1,4 +1,5 @@
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, BranchCreation, Error, Op, Read, Write};
 
 const GOAL: u64 = 7;
@@ -65,6 +66,11 @@ fn fresh() -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     restore_done(&mut d);
+    d
+}
+fn fresh_with_home_read() -> Domain {
+    let mut d = fresh();
+    fixtures::settle_home_reads(&mut d, &env(), TIP);
     d
 }
 fn restore_done(d: &mut Domain) {
@@ -226,7 +232,7 @@ fn a_goal_branch_hold_is_exclusive_and_refusing() {
 
 #[test]
 fn taking_a_missing_goal_branch_makes_it_at_the_default_branchs_tip() {
-    let mut d = fresh();
+    let mut d = fresh_with_home_read();
     take(&mut d);
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
@@ -336,7 +342,7 @@ fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
             Some(b"its outbox entry 1 is already in use".as_slice()),
         ),
     ] {
-        let mut d = fresh();
+        let mut d = fresh_with_home_read();
         outputs(&mut d, Event::Hold { entry: number, task: GOAL, resource: name(GOAL_BRANCH), from: None });
         fixtures::answer_next(&mut d, Err(Error::Missing));
         let (call, _) = fixtures::next_call(&mut d);
@@ -543,6 +549,7 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
         at_step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) });
         at_step(&mut d, &environment, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         at_step(&mut d, &environment, Event::CatchUp);
+        fixtures::settle_home_reads(&mut d, &environment, TIP);
 
         for number in 1..=u64::from(entries) {
             at_step(&mut d, &environment, Event::Enqueue { entry: status(number, 9) });
@@ -701,7 +708,7 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
 
 #[test]
 fn taking_an_existing_goal_branch_makes_nothing() {
-    let mut d = fresh();
+    let mut d = fresh_with_home_read();
     take(&mut d);
     let answered = fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
     assert_no_making(&answered);
@@ -748,7 +755,9 @@ fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
             until: Some(Wall::from_nanos(env().wall.as_nanos().saturating_add(LIMITS.change_policy.stall.as_nanos())))
         },
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
+        close_refusal: None,
     }));
     let made = fixtures::answer(&mut d, making_call, Ok(Answer::Branch(BranchCreation::Created)));
     assert!(made.contains(&self::made()), "{made:?}");
@@ -779,7 +788,9 @@ fn a_change_waiting_for_its_base_to_be_made_is_bounded_by_its_stall() {
         task: fixtures::CHANGE,
         decision: change::Decision::Wait { until: Some(until) },
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
+        close_refusal: None,
     }));
     d.wait_change(&env(), fixtures::CHANGE, Some(until));
     let mut later = env();
@@ -814,7 +825,10 @@ fn a_closing_goal_keeps_its_branch_when_no_change_landed_it() {
         fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
         let released =
             outputs(&mut d, Event::Release { task: GOAL, root: OTHER, ending, reason: None, entry: CLOSING });
-        assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+        assert!(
+            released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+            "{released:?}"
+        );
         assert_no_making(&released);
         for request in &released {
             if let Request::Retained { .. } = request {
@@ -838,7 +852,7 @@ fn landed_row(head: Option<skein_forge::api::Commit>) -> ChangeRow {
 }
 
 fn held_goal_with_change(row: ChangeRow) -> Domain {
-    let mut d = fresh();
+    let mut d = fresh_with_home_read();
     take(&mut d);
     fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
@@ -851,7 +865,10 @@ fn release(d: &mut Domain, ending: ReleaseEnding) -> Box<[Request]> {
 
 fn assert_kept_goal(d: &mut Domain) {
     let released = release(d, ReleaseEnding::Failed);
-    assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+    assert!(
+        released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "{released:?}"
+    );
     assert!(released.contains(&Request::Erase { key: Key::Hold(name(GOAL_BRANCH)) }), "{released:?}");
     for request in &released {
         if let Request::Retained { .. }
@@ -867,7 +884,10 @@ fn assert_kept_goal(d: &mut Domain) {
 
 fn deleting_goal(d: &mut Domain, ending: ReleaseEnding) -> Token {
     let requests = release(d, ending);
-    assert!(!requests.contains(&Request::Released { task: GOAL }), "delete must settle first: {requests:?}");
+    assert!(
+        !requests.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "delete must settle first: {requests:?}"
+    );
     assert!(d.hold(&name(GOAL_BRANCH)).is_some());
     outputs(d, Event::Committed { entry: CLOSING });
     fixtures::answer_next(d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
@@ -881,7 +901,10 @@ fn complete_goal_delete(d: &mut Domain, call: Token, result: Result<Answer, Erro
     assert!(deleted.contains(&Request::ContinueRelease { task: GOAL }), "{deleted:?}");
     assert_eq!(d.hold(&name(GOAL_BRANCH)), None);
     let released = outputs(d, Event::ContinueRelease { task: GOAL, entry: CLOSING });
-    assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+    assert!(
+        released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "{released:?}"
+    );
 }
 
 #[test]
@@ -958,7 +981,10 @@ fn a_goal_branchs_refused_delete_fails_the_release() {
         }
     }
     assert!(release_failed, "{failed:?}");
-    assert!(!failed.contains(&Request::Released { task: GOAL }), "{failed:?}");
+    assert!(
+        !failed.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "{failed:?}"
+    );
     assert!(d.hold(&name(GOAL_BRANCH)).is_some());
 }
 
@@ -1019,7 +1045,12 @@ fn restart_makings(read_room: u32) -> (Domain, Env<Limits>) {
 fn restart_finishes_while_a_making_waits_for_read_room() {
     let (mut d, env) = restart_makings(ONE_READ);
     let answered = at_answer(&mut d, &env, Ok(Answer::Commit(TIP)));
-    assert!(answered.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{answered:?}");
+    assert!(
+        answered.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))),
+        "{answered:?}"
+    );
     assert!(d.repository_fresh(REPO));
     assert!(d.goal_branch_waiting(&name(GOAL_BRANCH)));
 
@@ -1081,7 +1112,12 @@ fn restart_does_not_wait_for_a_makings_forge() {
         at_answer(&mut d, &env, Err(error));
         assert!(d.repository_fresh(REPO), "{error:?}");
         let answered = at_answer_call(&mut d, &env, first, Ok(Answer::Commit(TIP)));
-        assert!(answered.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{answered:?}");
+        assert!(
+            answered.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                stage: RestartStage::ReadAfresh
+            }))),
+            "{answered:?}"
+        );
         assert!(d.goal_branch_waiting(&name(GOAL_BRANCH)));
     }
 }
@@ -1103,6 +1139,8 @@ fn a_change_waits_for_making_after_read_afresh() {
         decision: change::Decision::Wait { until: Some(until) },
         entry: None,
         evidence: None,
+        close_at: None,
+        close_refusal: None,
     }));
 
     finish_restarted_making(&mut d, &env);
@@ -1267,9 +1305,16 @@ fn a_goal_branch_found_missing_after_restart_is_asked_as_its_read_ends() {
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let started = outputs(&mut d, Event::CatchUp);
-    assert!(started.contains(&Request::RestartDone { stage: RestartStage::Settled }));
+    assert!(started.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::Settled
+    }))));
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
-    assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{missing:?}");
+    assert!(
+        missing.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))),
+        "{missing:?}"
+    );
     assert_no_making(&missing);
     assert!(missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
     outputs(&mut d, Event::ContinueGoalBranch { task: GOAL, entry: TAKING });
@@ -1449,6 +1494,7 @@ fn goal_branch_reads_wait_out_an_outage_with_capped_backoff_reset_by_an_answer()
         at_step(&mut d, &env, Event::Restore { record: Stored::Repository(adopted()) });
         at_step(&mut d, &env, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         at_step(&mut d, &env, Event::CatchUp);
+        fixtures::settle_home_reads(&mut d, &env, TIP);
 
         at_step(&mut d, &env, Event::Hold { entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None });
         for seconds in waits {
@@ -1484,6 +1530,7 @@ fn a_goal_branch_making_reads_past_a_restored_default_tip() {
         Event::Restore { record: Stored::BranchHead(BranchHead { name: name(b"main"), commit: TIP, owned: false }) },
     );
     restore_done(&mut d);
+    fixtures::settle_home_reads(&mut d, &env(), CURRENT);
     take(&mut d);
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
     assert_no_making(&missing);
@@ -1558,7 +1605,9 @@ fn a_goal_branch_taking_blocks_a_writer_during_its_reads() {
 
 #[test]
 fn a_goal_branch_taking_waits_for_its_forge_to_connect() {
-    let mut d = fresh();
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(Repository { home: false, ..adopted() }) });
+    restore_done(&mut d);
     take(&mut d);
     fixtures::answer_next(&mut d, Err(Error::NotConnected));
     assert!(!d.is_ready());
@@ -1590,7 +1639,9 @@ fn a_goal_branch_making_restored_before_sending_keeps_its_taking_entry() {
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
-    assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(missing.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
     assert_no_making(&missing);
 
     fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));

@@ -92,7 +92,7 @@ pub const fn unstarted(end: smith::End) -> Option<&'static [u8]> {
 
 /// Preserve agent start policy separately from its diagnostic bytes.
 #[must_use]
-pub const fn start_cause(why: smith::RunInvalid) -> host::StartCause {
+pub const fn start_cause(why: &smith::RunInvalid) -> host::StartCause {
     match why {
         smith::RunInvalid::Grants => host::StartCause::Grants,
         smith::RunInvalid::HostPart { .. }
@@ -109,6 +109,7 @@ pub const fn start_cause(why: smith::RunInvalid) -> host::StartCause {
         | smith::RunInvalid::Budget(_)
         | smith::RunInvalid::Price(_)
         | smith::RunInvalid::Llm
+        | smith::RunInvalid::ProgramSpeed { .. }
         | smith::RunInvalid::Effort
         | smith::RunInvalid::Conversation
         | smith::RunInvalid::Endpoint => host::StartCause::Other,

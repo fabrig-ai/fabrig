@@ -53,6 +53,7 @@ fn endpoints_with_client(connect: Duration, client: skein_llm::client::Limits) -
 fn prompt() -> llm::Prompt {
     llm::Prompt {
         effort: None,
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard: None },
         choice: smith_domain::llm::ToolChoice::Auto,
         namespace: smith_domain::tools::Namespace::One,

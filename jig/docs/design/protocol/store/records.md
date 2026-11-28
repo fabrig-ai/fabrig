@@ -17,7 +17,9 @@ offered kinds of a run under a charter with no parts are all fourteen. An
 LLM choice, the tasks', the people's and a template's in the settings
 family alike, keeps its optional `later`, a main model with its effort and
 its sub-agents' models with theirs, and no account (`../../domain/tasks/README.md`,
-section 3). The settings family's charter keeps its parts, in order, at
+section 3); each model's speed is kept beside its effort by its name,
+at most 32 bytes, `standard` as written, or none, an added field whose
+default is none, so that a choice stored before it reads with no speed. The settings family's charter keeps its parts, in order, at
 most 8, each its `on` as the same bits and its instructions as text, as
 the charter's own are. It stores a job task (`../../domain/tasks/lifecycle.md`, 3.1): its
 executor `Job { kind }`, its spec's bytes and deadline beside its words,
@@ -307,7 +309,7 @@ settings (decided 2026-11-03).
   or unreadable. The registry's conversion at read does not translate
   a different family version (`layouts.md`, 5).
 - **The levels** (temper's `draft/upgrades.md`, 4.2): beside the
-  versions, the row names each owner's patch level, an optional
+  versions, the row names each owner's level, an optional
   number per owner whose records the store keeps: jig's, the
   application's, skein's (its OAuth records in the secrets' store) and
   smith's (its turns' fields, `transcripts.md`, 1). They are fields of the component's
@@ -345,7 +347,7 @@ settings (decided 2026-11-03).
       5.1). A number past the binary's is not refused by it: the levels
       and layouts decide;
     - then any owner's store level behind the binary's: `OlderBuild`
-      with `Older::Behind`, a store from a build whose patches this
+      with `Older::Behind`, a store from a build whose jobs this
       one no longer keeps (temper's `draft/archive/store-floor.md`, 4.1), the
       first in `Owner`'s order;
     - equal, or both none: the versions must be the binary's, or

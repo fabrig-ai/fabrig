@@ -483,7 +483,7 @@ fn a_refused_remember_call_writes_nothing() {
                     )
                     .unwrap();
                 }
-                crate::restart::request_load(
+                crate::store_route::request_load(
                     &mut domain,
                     waiter,
                     crate::Range::Core(crate::CoreRange::ApplicationNotes(notes::Range::Lines {

@@ -202,6 +202,7 @@ fn admission_refusals_preserve_separate_process_rights() {
             Start {
                 directories: Box::new([smith_host_domain::Directory {
                     results: None,
+                    hooks: None,
                     host: Box::from(b"/host".as_slice()),
                     root: Token::new(1),
                     name: Box::from(&b"a"[..]),
@@ -257,7 +258,7 @@ fn admission_refusal_and_working_traffic_are_distinct() {
         world.spawn(start());
         world.spawned();
         world.sent();
-        last(&mut world, RunResult::Refused { refusal }, 0, 0);
+        last(&mut world, RunResult::Refused { refusal: refusal.clone() }, 0, 0);
         assert_eq!(
             world.seen.answer.as_ref().expect("refusal reaches the parent").result,
             RunResult::Refused { refusal }

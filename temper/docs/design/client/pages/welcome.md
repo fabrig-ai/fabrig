@@ -244,10 +244,6 @@
     "Continue", to Ready when a model is usable, else to Model; then the
     foot. A set up failed, a forge cut short, GitHub's installation and
     Forgejo's admin steps keep what this entry says of them.
-### 1.2 The Model step
-
-Moved to [`welcome-model.md`](welcome-model.md), section 1.
-
 ### 1.3 Ready
 
     *Ready* is headed "Almost ready", with "Your first project can be

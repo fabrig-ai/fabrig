@@ -44,6 +44,7 @@ fn configured(granted: bool, under_box: bool) -> engine::Config {
         .insert(
             1,
             core::ConfiguredPolicy {
+                name: None,
                 policy: seed.policy.clone(),
                 permissions: seed.permissions.clone(),
                 templates: seed.templates.clone(),

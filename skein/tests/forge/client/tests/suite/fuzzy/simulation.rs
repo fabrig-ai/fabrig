@@ -1,13 +1,25 @@
+//! The fault and branch sweeps take cases (skein/docs/design/testing/sweeps.md, 4.2 to 4.5).
+//! The update keeps its grid of every cut (skein/docs/design/testing/README.md, 7.1).
+
+use std::convert::Infallible;
+
 use skein_forge::api;
 use skein_forge_client::{Condition, Effect, Entry};
 use skein_forge_client_world::{REPO, Settings, World};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
+
 #[test]
 fn seeded_faults_restarts_and_keyed_effects() {
+    let test = this_test!("seeded_faults_restarts_and_keyed_effects");
+    let at_gate = gate();
     let mut unavailable = 0;
     let mut timeouts = 0;
     let mut landings = 0;
     let mut limited = 0;
-    for seed in 0..128 {
+    cases(test, 0..128, |seed| -> Result<(), Infallible> {
         let mut world = World::new(Settings::random(seed));
         for entry in 1..=4 {
             world.make(Entry {
@@ -34,17 +46,24 @@ fn seeded_faults_restarts_and_keyed_effects() {
         world.finish();
         let stats = world.stats();
         assert_eq!(stats.calls, stats.terminals);
-        unavailable += stats.unavailable;
-        timeouts += stats.timeouts;
-        landings += stats.late_landings;
-        limited += stats.limited;
+        if at_gate {
+            unavailable += stats.unavailable;
+            timeouts += stats.timeouts;
+            landings += stats.late_landings;
+            limited += stats.limited;
+        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        assert!(unavailable > 0 && timeouts > 0 && landings > 0 && limited > 0, "every configured fault actually fell");
     }
-    assert!(unavailable > 0 && timeouts > 0 && landings > 0 && limited > 0, "every configured fault actually fell");
 }
 
 #[test]
 fn unrecoverable_branch_creation_survives_cuts_before_and_after_its_late_copy() {
-    for seed in 0..64 {
+    let test = this_test!("unrecoverable_branch_creation_survives_cuts_before_and_after_its_late_copy");
+    cases(test, 0..64, |seed| -> Result<(), Infallible> {
         let mut world = World::new(Settings::calm(seed));
         let head = world.branch(b"main").expect("fixture main");
         world.land_writes_late(skein_lib::Duration::from_secs(5));
@@ -73,7 +92,9 @@ fn unrecoverable_branch_creation_survives_cuts_before_and_after_its_late_copy() 
         assert_eq!(world.stats().late_landings, 1, "seed {seed}");
         assert_eq!(world.stats().writes, 1, "seed {seed}");
         world.finish();
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]

@@ -2,6 +2,7 @@
 use crate::engine::store as engine_store;
 use crate::tests::new_core;
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 fn core() -> (Core, Limits) {
     let (mut core, limits) = tests::core();
@@ -10,6 +11,16 @@ fn core() -> (Core, Limits) {
     tasks::step(&mut core.tasks, &env, tasks::Event::Check, &mut out);
     tasks::step(&mut core.tasks, &env, tasks::Event::Restored, &mut out);
     (core, limits)
+}
+
+// These tests observe cancellation while the connector's close operation is still pending.
+fn closing_core() -> (Core, Limits) {
+    tree_core_with_kinds(Box::new([declared_write()]), Box::new([]))
+}
+
+fn closing_tree() -> (Core, Limits) {
+    let (core, limits) = closing_core();
+    (make_tree_in(core, &limits), limits)
 }
 
 fn environment(limits: &Limits) -> Env<Limits> {
@@ -72,7 +83,11 @@ fn only_decided(out: Queue<Request>) {
 fn released_connectors(requests: &[Request]) -> Box<[u16]> {
     let mut connectors = List::uncapped();
     for request in requests {
-        if let Request::Ask { connector, ask: Ask::ReleaseProject { project } } = request {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project })),
+        } = request
+        {
             assert_eq!(*project, 1);
             connectors.push(*connector).unwrap();
         }
@@ -82,7 +97,7 @@ fn released_connectors(requests: &[Request]) -> Box<[u16]> {
 
 #[test]
 fn removing_a_project_closes_it_and_answers_in_one_decision() {
-    let (mut core, limits) = make_tree();
+    let (mut core, limits) = closing_tree();
     let mut work = Queue::uncapped();
     let mut out = Queue::uncapped();
     crate::routing::party::deployment_acts::route(
@@ -352,7 +367,7 @@ const CHAT_GROUP: u32 = 4; // The conversation and its three delegates.
 const GRACE: Duration = Duration::from_secs(5);
 
 fn conversation_tree() -> (Core, Limits) {
-    let (mut core, mut limits) = make_tree();
+    let (mut core, mut limits) = closing_tree();
     limits.people.operations = CHAT_GROUP + 1; // Room for the chat group and the plain root.
     restore_conversation(&mut core, &limits, CHAT);
     (core, limits)
@@ -543,7 +558,7 @@ fn removing_an_unknown_or_deleting_project_is_refused_unknown() {
 
 #[test]
 fn live_roots_past_the_operation_bound_are_cancelled_next() {
-    let (mut core, mut limits) = tree_core();
+    let (mut core, mut limits) = closing_core();
     limits.people.operations = 1;
     let first = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
     let second = new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None);
@@ -679,7 +694,7 @@ fn a_freed_name_restores_beside_its_new_holder() {
 
 #[test]
 fn a_kept_deletion_resumes_at_its_tasks_step_after_open() {
-    let (mut core, limits) = make_tree();
+    let (mut core, limits) = closing_tree();
     deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks, None);
     core.start.phase = Some(crate::start::Phase::Open);
     let _closed = resume_fleet(&mut core, &environment(&limits));
@@ -798,7 +813,8 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
     for timer in [false, true] {
         let (mut core, limits) = core();
         let _started = begin(&mut core, &limits, 1, None);
-        let metered = step(&mut core, &environment(&limits), Event::Fill { bytes: 1 });
+        let metered =
+            crate::routing::step_store(&mut core, &environment(&limits), crate::engine::store::In::Fill { bytes: 1 });
         only_decided(metered);
         let requests = if timer {
             fire(&mut core, &environment(&limits), Timer::Tasks)

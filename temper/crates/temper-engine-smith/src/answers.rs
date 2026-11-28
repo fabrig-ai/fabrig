@@ -1454,6 +1454,7 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
             jig_domain_tasks::LlmFault::Authority => b"model outside authority",
             jig_domain_tasks::LlmFault::Procedure => b"no model runs this task",
             jig_domain_tasks::LlmFault::Repeated => b"model repeated",
+            jig_domain_tasks::LlmFault::Speed => b"speed is not one the model declares",
         }),
     }?;
     if let Some(blocked_by) = &problem.blocked_by {
@@ -2068,7 +2069,7 @@ fn directory_text(
         }
         text.add(&entry.name)?;
         match entry.kind {
-            api::EntryKind::File => {}
+            api::EntryKind::File | api::EntryKind::Link => {}
             api::EntryKind::Directory => text.add(b"/")?,
             api::EntryKind::Submodule => text.add(b" (submodule)")?,
         }

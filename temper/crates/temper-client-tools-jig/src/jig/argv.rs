@@ -4,6 +4,7 @@ use super::{
     Limits,
     call::{Call, Parsed, Source, Value, Values},
     key::Name,
+    rows::{AMEND_CHOICE, CHAT_CHOICE, ChoiceFlags, GOAL_CHOICE},
     subject,
     table::{Argument, Keyed, Kind, Occurs, Place, Tool, bound},
 };
@@ -750,26 +751,41 @@ fn check_inbox(call: &Call) -> Result<(), Usage> {
     Ok(())
 }
 
-/// argv is protocol input: validate names without allocating another copy.
-#[expect(clippy::disallowed_methods, reason = "the model/effort argv rule validates UTF-8 at the input boundary")]
-fn check_choice(call: &Call, model: usize, effort: usize, limits: &Limits) -> Result<(), Usage> {
-    for index in [model, effort] {
-        let argument = u8::try_from(index).or(Err(Usage::Tool))?;
-        if let Some(value) = crate::jig::call::value(call, index) {
-            let Value::Text(text) = value else { return Err(Usage::Kind { tool: 0, form: 0, argument }) };
-            if text.len() > usize::try_from(limits.words).expect("words bound fits") {
-                return Err(Usage::Long { tool: 0, form: 0, argument });
-            }
-            if core::str::from_utf8(text).is_err() {
+/// Validate names at the input boundary without allocating another copy.
+fn check_choice(call: &Call, flags: ChoiceFlags, limits: &Limits) -> Result<(), Usage> {
+    for index in [flags.model, flags.effort, flags.speed] {
+        if let Some(value) = super::call::value(call, index) {
+            check_choice_name(value, index, limits)?;
+        }
+    }
+    if !present(call, flags.model) && (present(call, flags.effort) || present(call, flags.speed)) {
+        let argument = u8::try_from(flags.model).expect("model argument");
+        return Err(Usage::Missing { tool: 0, form: 0, argument });
+    }
+    if let Some(values) = super::call::repeated(call, flags.subagent_speed) {
+        for value in values {
+            let text = check_choice_name(value, flags.subagent_speed, limits)?;
+            let argument = u8::try_from(flags.subagent_speed).expect("sub-agent speed argument");
+            let Some((model, speed)) = super::call::split_model_value(text) else {
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
+            };
+            if model.is_empty() || speed.is_empty() {
                 return Err(Usage::Kind { tool: 0, form: 0, argument });
             }
         }
     }
-    if crate::jig::call::value(call, effort).is_some() && crate::jig::call::value(call, model).is_none() {
-        let argument = u8::try_from(model).or(Err(Usage::Tool))?;
-        return Err(Usage::Missing { tool: 0, form: 0, argument });
-    }
     Ok(())
+}
+fn check_choice_name<'a>(value: &'a Value, index: usize, limits: &Limits) -> Result<&'a [u8], Usage> {
+    let argument = u8::try_from(index).expect("choice argument");
+    let Value::Text(text) = value else { return Err(Usage::Kind { tool: 0, form: 0, argument }) };
+    if text.len() > usize::try_from(limits.words).expect("words bound fits") {
+        return Err(Usage::Long { tool: 0, form: 0, argument });
+    }
+    if !skein_lib::bytes::is_utf8(text) {
+        return Err(Usage::Kind { tool: 0, form: 0, argument });
+    }
+    Ok(text)
 }
 
 fn present(call: &Call, index: usize) -> bool {
@@ -779,8 +795,14 @@ fn present(call: &Call, index: usize) -> bool {
     }
 }
 fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
-    check_choice(call, 10, 11, limits)?;
-    let mut needs_revision = present(call, 13) || present(call, 16);
+    check_choice(call, AMEND_CHOICE, limits)?;
+    let mut needs_revision = present(call, 13)
+        || present(call, 16)
+        || present(call, AMEND_CHOICE.speed)
+        || match super::call::repeated(call, AMEND_CHOICE.subagent_speed) {
+            Some(values) => !values.is_empty(),
+            None => false,
+        };
     let mut change = needs_revision || present(call, 14) || present(call, 15);
     for index in 2..12 {
         if present(call, index) {
@@ -868,7 +890,7 @@ fn help_valid(table: &[&Tool], call: &Call) -> bool {
 }
 
 fn check_goal(call: &Call, limits: &Limits) -> Result<(), Usage> {
-    check_choice(call, 8, 9, limits)?;
+    check_choice(call, GOAL_CHOICE, limits)?;
     if present(call, 5) && present(call, 6) {
         return Err(Usage::Twice { tool: 0, form: 0, argument: 6 });
     }
@@ -883,7 +905,7 @@ fn check_goal(call: &Call, limits: &Limits) -> Result<(), Usage> {
 
 fn check_creation(tool: &Tool, call: &Call, limits: &Limits) -> Result<(), Usage> {
     if tool.name == super::rows::CHAT_CREATE.name && tool.keyed == Keyed::Required {
-        check_choice(call, 3, 4, limits)?;
+        check_choice(call, CHAT_CHOICE, limits)?;
     }
     if tool.name == super::rows::GOAL_START.name {
         check_goal(call, limits)?;

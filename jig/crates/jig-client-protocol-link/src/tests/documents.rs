@@ -225,6 +225,7 @@ fn a_raw_live_call_keeps_its_provider_retry_and_start() {
 }
 #[test]
 fn a_decoded_live_call_keeps_its_committed_call() {
+    // The fixture expects every supplied field and no answer kind.
     assert_eq!(
         live::live_call(fixtures::decoded_live_call(), &fixtures::limits()),
         Ok(fixtures::decoded_live_call_expected())

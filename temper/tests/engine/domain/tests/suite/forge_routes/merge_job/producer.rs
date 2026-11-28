@@ -180,6 +180,10 @@ fn a_conflict_waits_for_the_producers_last_push_and_terminal() {
     Writer::Run(&producer).push(&mut world, head);
     world.forge_reads = Some(Vec::new());
     finish_resolution(&mut world, &producer);
+    let job = next_job(&mut world, task, false);
+    check_job_with_settings(&world, task, &job, head, base, DEFAULT_CEILING, false);
+    assert_eq!(world.assigned.len(), 3, "the merge job precedes the resolution");
+    finish_job(&mut world, &job, NONE);
     let deadline =
         world.env.now.saturating_add(world.env.limits.forge.client.settle).saturating_add(Duration::from_secs(20));
     while world.env.now <= deadline && world.assigned.len() < 4 {
@@ -189,6 +193,9 @@ fn a_conflict_waits_for_the_producers_last_push_and_terminal() {
         world.assigned.get(3).unwrap_or_else(|| panic!("resolution: {:?}", change_row(&world, task))).clone();
     assert_eq!(change_row(&world, task).change.last_head, Some(translate::commit(head)));
     assert_preserving_resolution(&live_task(&world, resolution.task).spec.words);
+    let finished = super::super::goal_landing::ended(&world, job.run.raw()).expect("merge job ended");
+    assert_eq!(finished.tries, tasks::Tries::NONE);
+    assert!(world.jobs.is_empty(), "none does not retry the merge job");
     assert_eq!(
         resolution.workspace.repositories[0].start,
         engine::ForgeStart::Merge { branch: BRANCH.into(), base: translate::commit(base) }

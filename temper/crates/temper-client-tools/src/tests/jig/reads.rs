@@ -251,8 +251,12 @@ fn a_refused_act_says_why_without_a_call() {
 }
 #[test]
 fn me_prints_the_live_frame() {
+    let mut me = super::goal_template::goal_me();
+    me.projects.get_mut(0).expect("project").creating = None;
     for (argv, golden) in [(fixtures::ME_CALL, "me"), (fixtures::ME_JSON_CALL, "me_json")] {
-        let (mut root, call) = fixtures::read_call(argv);
+        let mut root = fixtures::started(skein_lib::List::with_capacity(fixtures::EMPTY));
+        root.deliver(jig_client::contract::Delivery::Me(Box::new(me.clone())));
+        let call = root.submit(argv);
         let answer = root.answer(call).expect("live frame answered");
         if temper_test_env::rewrite() {
             std::fs::write(std::path::Path::new("src/tests/golden").join(golden).with_extension("txt"), &answer.stdout)
@@ -1236,7 +1240,7 @@ fn empty_account_wait_names_claude_login_path() {
             Some(model) => Some(c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: c::Text::new(Box::from(model), 32).unwrap(), effort: None },
+                main: c::ModelEffort { model: c::Text::new(Box::from(model), 32).unwrap(), effort: None, speed: None },
                 subagents: skein_lib::List::with_capacity(0),
             }),
             None => None,
@@ -1524,7 +1528,7 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
         task.llm = Some(c::LlmChoice {
             later: None,
             account: None,
-            main: c::ModelEffort { model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(), effort: None },
+            main: c::ModelEffort { model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(), effort: None, speed: None },
             subagents: skein_lib::List::with_capacity(0),
         });
         task.run_wait = Some(wait);

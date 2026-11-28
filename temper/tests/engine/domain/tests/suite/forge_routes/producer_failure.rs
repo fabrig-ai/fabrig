@@ -452,7 +452,7 @@ fn producing_goal() -> (World, engine::Assignment, engine::Assignment, u64) {
     call.llm.producer = Some(tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: 0, effort: None },
+        main: tasks::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
     });
     let engine::CallAnswer::Delegated(made) =

@@ -4,6 +4,7 @@ mod credentials;
 mod grants;
 use crate::Store;
 use jig_domain_accounts as accounts;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::engine::{self, Admit};
@@ -262,7 +263,7 @@ pub struct World {
     /// Referee observations, independent of the root state.
     pub observer: crate::conformance::Observer,
     heap: crate::conformance::Heap,
-    restoring: Option<(core::start::Phase, usize)>,
+    switch_held: bool,
     pub events: VecDeque<root::Event>,
     limits: root::Limits,
     /// Pause at a selected transaction boundary, with its traffic retained.
@@ -521,19 +522,21 @@ impl World {
             let env = self.env();
             self.record_wall = self.record_wall.max(env.wall);
             self.observer.systems(self.wall, &self.systems)?;
-            let sweep_waits = store_check::sweep_waits(&self.domain, self.events.front());
-            if consume
-                && !sweep_waits
-                && let Some(mut event) = self.events.pop_front()
-            {
+            if consume && let Some(mut event) = self.events.pop_front() {
                 self.start_input(&event);
                 if !matches!(
                     event,
                     root::Event::StartBegin { .. }
-                        | root::Event::StartRecord(_)
-                        | root::Event::StartMissing { .. }
+                        | root::Event::ConnectorPage { .. }
+                        | root::Event::Store(
+                            engine_store::In::Loaded {
+                                result: engine_store::Answer::Rows(engine_store::Rows::Start { .. }),
+                                ..
+                            } | engine_store::In::Switched
+                                | engine_store::In::Census(_)
+                        )
                         | root::Event::StartPageRefused { .. }
-                        | root::Event::StartDone(_)
+                        | root::Event::Engine(_)
                 ) {
                     self.observer.inbound(&self.store, self.wall, &mut event)?;
                     if let Some(offers) = &mut self.offers {
@@ -578,7 +581,6 @@ impl World {
                     root::Request::Workers(_)
                     | root::Request::StoreCatalogue { .. }
                     | root::Request::ClientsCatalogue { .. } => {}
-                    root::Request::Start { phase, census } => self.start_step(phase, census),
 
                     root::Request::Commit { number, mut writes } => {
                         let mut rows = Vec::new();
@@ -709,7 +711,10 @@ impl World {
             while let Some((connector, project)) = self.domain.take_project_release() {
                 self.project_releases.push((connector, project));
                 if !self.hold_project_releases.contains(&connector) {
-                    self.events.push_back(root::Event::Core(core::Event::ProjectReleased { connector, project }));
+                    self.events.push_back(root::Event::connector_up(
+                        connector,
+                        jig::Up::Lifecycle(jig::lifecycle::Up::Released { project }),
+                    ));
                 }
             }
             if !self.stopped {
@@ -767,14 +772,14 @@ impl World {
             if steps == 1 {
                 return Ok(());
             }
-            let held_restore = self.hold_restore_pages && self.restoring.is_some() && self.store.loading();
+            let held_restore = self.hold_restore_pages && !self.domain.ready() && self.store.loading();
             if empty
                 && self.events.is_empty()
                 && self.store.pending.is_empty()
                 && (!self.store.loading() || held_restore)
                 && (self.domain.quiescent()
                     || held_restore
-                    || self.hold_switch
+                    || self.switch_held
                     || !self.store.held.is_empty()
                     || self.reads.as_ref().is_some_and(crate::reads::Parties::paused))
                 && self.watches.as_ref().is_none_or(crate::peers::WatchParties::quiescent)
@@ -961,7 +966,7 @@ impl World {
         }
         self.drain();
         if let Some(task) = self.procedure {
-            self.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
+            self.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task })));
         }
     }
 }

@@ -56,6 +56,7 @@ fn limits_take_each_bound_from_its_source_field() {
             items_repositories: 2,
             job_spec_command: 4096,
             job_spec_request: 1_048_576,
+            job_spec_fallback: 4096,
             repository_save_some: 16,
             left_landed: 2,
             files_files: 2,
@@ -89,21 +90,31 @@ fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(crate::limits(&bounds), None, "past the repository ceiling");
 }
 
-/// temper/docs/design/protocol/tooling.md, 2 and 6: command and request bytes are bounded.
+/// temper/docs/design/protocol/tooling.md, 2 and 6, and wires.md, 8: job spec bytes are bounded.
 #[test]
 fn a_job_specs_fields_stop_at_their_bounds_when_encoded_and_decoded() {
-    let limits = v1::Limits { job_spec_command: 8, job_spec_request: 16, ..fixtures::limits() };
-    for (command, bound, path) in
-        [(true, 8_usize, v1::paths::JOB_SPEC_COMMAND), (false, 16_usize, v1::paths::JOB_SPEC_REQUEST)]
-    {
+    use v1::paths::{JOB_SPEC_COMMAND, JOB_SPEC_FALLBACK, JOB_SPEC_REQUEST};
+    let limits = v1::Limits { job_spec_command: 8, job_spec_request: 16, job_spec_fallback: 8, ..fixtures::limits() };
+    for (path, bound) in [(JOB_SPEC_COMMAND, 8_usize), (JOB_SPEC_REQUEST, 16), (JOB_SPEC_FALLBACK, 8)] {
         for past in [false, true] {
             let length = bound.checked_add(usize::from(past)).expect("test length");
-            let parts = v1::JobSpec {
-                command: if command { skein_lib::bytes::zeroed(length) } else { b"tool".as_slice().into() },
-                request: if command { b"{}".as_slice().into() } else { skein_lib::bytes::zeroed(length) },
+            let mut value = v1::JobSpec {
+                command: b"tool".as_slice().into(),
+                request: b"{}".as_slice().into(),
                 refusal: false,
+                result: 512,
+                outdated: false,
+                find: true,
+                fallback: b"other".as_slice().into(),
             };
-            let value = parts;
+            let bytes = skein_lib::bytes::zeroed(length);
+            if path == JOB_SPEC_COMMAND {
+                value.command = bytes;
+            } else if path == JOB_SPEC_REQUEST {
+                value.request = bytes;
+            } else {
+                value.fallback = bytes;
+            }
             let built = value.encode(&limits);
             let bytes = value.encode(&v1::CEILINGS).expect("within schema ceilings");
             let mut reader = skein_lib::Reader::new(&bytes);
@@ -182,8 +193,9 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     // Five prefix branches fit the channel's 1 MiB Items ceiling; six do not.
     let largest = v1::Items::encoded_bound(&v1::CEILINGS).expect("ceiling bound");
     // At ceilings: 64 * 15,434-byte repositories, a four-byte list length, the two-byte version,
-    // and the five-byte optional rerun bound (a one-byte tag and a four-byte value).
-    assert_eq!(largest, 987_787);
+    // the five-byte optional rerun bound (a one-byte tag and a four-byte value), and the
+    // four-byte hook_timeout_max_seconds ceiling field.
+    assert_eq!(largest, 987_791);
     assert!(largest <= 1_048_576);
     let one_more =
         largest + u64::from(v1::CEILINGS.items_repositories) * (4 + u64::from(v1::CEILINGS.prefixes_branches_item));
@@ -226,7 +238,7 @@ fn largest_writable_items_count_the_own_delivery_head() {
     for _ in 0..limits.items_repositories {
         repositories.push(repository.clone()).unwrap();
     }
-    let items = v1::Items { repositories, rerun: Some(u32::MAX) };
+    let items = v1::Items { repositories, rerun: Some(u32::MAX), hook_timeout_max_seconds: 3600 };
     let bytes = crate::items(&items);
     assert_eq!(u32::try_from(bytes.len()).unwrap(), crate::largest(&limits).unwrap().items);
     assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap(), items);

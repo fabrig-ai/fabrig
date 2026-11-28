@@ -172,6 +172,8 @@ fn red_goal() -> (World, engine::Assignment, u64) {
     let red = produce(&mut world, &goal, 93, b"failures", tier_runs::FAILURES);
     assert_eq!(task(&world, red).requester, tasks::Party::Task(goal.task));
     assert_eq!(world.fake.branch(b"org/repo", b"main").map(translate::commit), Some(merge(&world, red)));
+    // Take the landing's own news before parking for verification's news.
+    world.until(Until::Ready);
     let taken = task(&world, goal.task).inbox.iter().map(|word| word.number).max();
     world.send(protocol::turn(Token::new(7), goal.task, goal.attempt, 1, 0, taken, b"Await main's verdict"));
     world.until(Until::Ready);

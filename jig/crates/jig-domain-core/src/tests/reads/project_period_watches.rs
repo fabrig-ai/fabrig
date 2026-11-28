@@ -24,7 +24,12 @@ fn period_core(configured: u64) -> (Core, Limits) {
     let seed = |number: u32, name: &str| SeedProject {
         number,
         name: name.into(),
-        policy: ConfiguredPolicy { policy: policy.clone(), permissions: Box::new([]), templates: Box::new([]) },
+        policy: ConfiguredPolicy {
+            name: None,
+            policy: policy.clone(),
+            permissions: Box::new([]),
+            templates: Box::new([]),
+        },
     };
     config.seed_projects = Box::new([seed(1, "Project 1"), seed(2, "Project 2")]);
     let mut core = seeded_core(config, &limits).expect("fixture core configuration");

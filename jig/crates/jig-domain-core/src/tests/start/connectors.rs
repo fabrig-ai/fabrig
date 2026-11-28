@@ -1,11 +1,12 @@
 //! Connector loading and the durable output gate (jig/docs/design/domain/engine/restart.md).
 use crate::tests::new_core;
 use crate::{
-    Ask, CoreRecord, Event, Held, Restored,
+    CoreRecord, Event, Held, Restored,
     effects::{connector, resources},
     people, tasks,
     tests::start::{Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, step_phase},
 };
+use jig_domain_contract as contract;
 use skein_lib::{ReplyTo, Token};
 
 fn fresh() -> (Core, Env<crate::Limits>) {
@@ -87,10 +88,11 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
                 &mut child,
             );
             assert!(child.is_empty());
-            let out = crate::step(
+            let out = crate::tests::connector_step(
                 &mut core,
                 &env,
-                Event::EffectConnector(connector::Event::Resource {
+                name(connector).connector,
+                contract::Up::Resources(contract::resources::Up::Resource {
                     project: 1,
                     name: name(connector),
                     role: connector::ResourceRole::Context,
@@ -126,13 +128,23 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
     let (mut core, env) = fresh();
     to_connectors(&mut core, &env);
     // An internal output fixture pins the same held queue used by loading decisions.
-    core.start.held.push(Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::CatchUp) });
+    core.start.held.push(Request::Ask {
+        connector: 2,
+        ask: crate::Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)),
+    });
     assert_eq!(core.start.held.len(), 1);
-    let Some(Request::Ask { connector, ask: Ask::Effect(connector::Ask::CatchUp) }) = core.start.held.pop() else {
+    let Some(Request::Ask {
+        connector,
+        ask: crate::Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)),
+    }) = core.start.held.pop()
+    else {
         panic!("typed held connector ask")
     };
     assert_eq!(connector, 2);
-    core.start.held.push(Request::Ask { connector, ask: Ask::Effect(connector::Ask::CatchUp) });
+    core.start.held.push(Request::Ask {
+        connector,
+        ask: crate::Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)),
+    });
     let mut out = Queue::uncapped();
     step_phase(
         core.start_done(&env, Phase::RestoreConnector { connector: 1 }, &mut out),
@@ -147,7 +159,11 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
     assert_eq!(core.start.held.len(), 2);
     step_phase(core.start_resume(&env, wires, &mut out), Phase::AdoptRuns);
     assert!(core.start.held.is_empty());
-    let Some(Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::CatchUp) }) = out.pop() else {
+    let Some(Request::Ask {
+        connector: 2,
+        ask: crate::Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)),
+    }) = out.pop()
+    else {
         panic!("connector ask releases after Wires")
     };
     for _ in 0..out.len() {
@@ -203,7 +219,11 @@ fn opening_asks_each_connector_to_catch_up_without_waiting_for_reports() {
     assert_eq!(core.start_phase(), None);
     for expected in [1, 2] {
         assert!(!core.caught_up(expected));
-        let Some(Request::Ask { connector, ask: Ask::Effect(connector::Ask::CatchUp) }) = out.pop() else {
+        let Some(Request::Ask {
+            connector,
+            ask: crate::Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)),
+        }) = out.pop()
+        else {
             panic!("one catching-up ask per connector")
         };
         assert_eq!(connector, expected);

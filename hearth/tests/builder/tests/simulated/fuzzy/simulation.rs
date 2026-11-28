@@ -1,15 +1,28 @@
+//! Builder simulation sweeps and fixed restart cuts (hearth/docs/design/testing/README.md, 4.5).
+
 use hearth_builder_world::{fixtures, simulated};
 use skein_io::kernel::Exit;
-use skein_world::Cut;
+use skein_world::{Cut, sweep::cases, this_test};
+use std::convert::Infallible;
 
 #[test]
 fn random_seeds_under_chaos_settle_with_the_calm_runs_spec() {
     let calm = fixtures::simulated_thin();
-    for seed in 0..fixtures::FUZZY_SEEDS {
-        let outcome = simulated::run(&fixtures::thin(), seed, simulated::chaos());
-        assert_eq!(outcome.machine.contents(fixtures::OUTPUT), calm.machine.contents(fixtures::OUTPUT), "seed {seed}");
-        assert_eq!(fixtures::client_exits(&outcome), [Exit::Code(0)], "seed {seed}");
-    }
+    cases(
+        this_test!("random_seeds_under_chaos_settle_with_the_calm_runs_spec"),
+        0..fixtures::FUZZY_SEEDS,
+        |seed| -> Result<(), Infallible> {
+            let outcome = simulated::run(&fixtures::thin(), seed, simulated::chaos());
+            assert_eq!(
+                outcome.machine.contents(fixtures::OUTPUT),
+                calm.machine.contents(fixtures::OUTPUT),
+                "seed {seed}"
+            );
+            assert_eq!(fixtures::client_exits(&outcome), [Exit::Code(0)], "seed {seed}");
+            Ok(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]

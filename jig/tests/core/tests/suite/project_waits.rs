@@ -2,6 +2,7 @@
 use jig_core_world::fixtures::{PARTY, ask_as, delegate, member, second_party, sign_in};
 use jig_core_world::reads::{Parties, ask, latest};
 use jig_core_world::world::{Cut, Setup, World};
+use jig_domain_contract as jig;
 use jig_domain_core::{self as core, AtBound, Bound, Unbounded, WaitKind, WaitObject, documents, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -86,7 +87,10 @@ fn report_step(world: &mut World, task: u64) {
             object: WaitObject::Procedure { step: 4, things: List::with_capacity(0) },
         },
     ];
-    world.send(root::Event::Core(core::Event::Waits { connector: 1, task, waits: List::from_boxed(Box::new(waits)) }));
+    world.send(root::Event::connector_up(
+        1,
+        jig::Up::Procedures(jig::procedures::Up::Waits { task, waits: List::from_boxed(Box::new(waits)) }),
+    ));
 }
 
 struct Project {

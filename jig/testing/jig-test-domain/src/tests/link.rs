@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Delivery, Payload, Request, link};
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, In};
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, GrantTable, Hosting, Phase};
@@ -86,6 +86,60 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     assert_eq!(assignment.transcript.as_ref(), [Box::<[u8]>::from(b"prior turn".as_slice())]);
     assert_eq!(assignment.grants[0].form.table(), GrantTable::Accounts);
 }
+#[test]
+fn a_resumed_core_load_leaves_once_in_held_order() {
+    use core::engine::store;
+    use jig_domain_notes as notes;
+
+    const PROJECT: u32 = 1;
+    let mut domain = fixtures::domain();
+    let env = fixtures::env();
+    let mut full = env.with(env.limits.core);
+    full.limits.load_slots = 0;
+    let mut blocked = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
+        &full,
+        In::Core(core::Event::Notes(notes::Event::DropProject { owner: Token::new(1), project: PROJECT })),
+        &mut blocked,
+    );
+    assert!(blocked.is_empty(), "the notes page waits for load room");
+
+    let mut decision = domain.journal.decide();
+    let mut requests = Queue::uncapped();
+    requests.push(core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Entry { name: 1 }))));
+    requests.push(core::Request::ProjectMade { project: 2 });
+    let resumed = core::resume_fleet(domain.engine.core_mut(), &env.with(env.limits.core));
+    for request in resumed.into_boxed() {
+        requests.push(request);
+    }
+    requests.push(core::Request::ProjectMade { project: 3 });
+    crate::routes::route_core(&mut domain, &env, &mut decision, requests, &mut fixtures::work());
+    let header =
+        domain.engine.core_mut().decision_header(domain.decision_wrote).expect("the writing decision's header");
+    decision.push_write(crate::Write::Save(crate::Record::Core(header)));
+    domain.journal.accept(decision);
+
+    let mut out = Queue::uncapped();
+    crate::release(&mut domain, &env, &mut out);
+    let Some(Request::Commit { number, .. }) = out.pop() else { panic!("the write commits first") };
+    assert!(out.is_empty(), "nothing held leaves before the commit is durable");
+    crate::step(&mut domain, &env, crate::Event::Committed { number, fill: 0 });
+    crate::release(&mut domain, &env, &mut out);
+    let released = out.into_boxed();
+    let [
+        Request::Deliver(Delivery::ProjectMade { project: 2 }),
+        Request::Deliver(Delivery::Store(store::Out::Load {
+            range: store::Range::Notes(notes::Range::Project { project: PROJECT, after: None }),
+            ..
+        })),
+        Request::Deliver(Delivery::ProjectMade { project: 3 }),
+    ] = released.as_ref()
+    else {
+        panic!("one held load at its place: {released:?}");
+    };
+}
+
 #[test]
 fn a_lost_link_reaches_the_fleet_as_its_channel_lost() {
     let event = link::lost(fixtures::CHANNEL);
@@ -178,52 +232,6 @@ fn core_request(request: core::Request) -> Queue<core::Request> {
     out.push(request);
     out
 }
-fn gather_brief(
-    domain: &mut crate::Domain,
-    env: &skein_lib::Env<crate::Limits>,
-    decision: &mut skein_lib::Decision<crate::Write, Delivery>,
-    work: &mut Queue<crate::Work>,
-) {
-    use jig_domain_brief::{Core, Planned};
-    let mut sections = skein_lib::List::with_capacity(2);
-    for (kind, text) in [(Core::Task, b"request".as_slice()), (Core::Results, b"previous".as_slice())] {
-        sections
-            .push(Planned::Core { kind, text: text.into(), limit: 32, priority: 0, required: true })
-            .expect("sections");
-    }
-    crate::routes::route_core(
-        domain,
-        env,
-        decision,
-        core_request(core::Request::Now(Box::new(core::Now::BriefCorePlanned {
-            task: fixtures::RUN.raw(),
-            parent: None,
-            documents: Box::new([]),
-            sections,
-        }))),
-        work,
-    );
-    let crate::Work::Core(core::Event::Brief(event)) = work.pop().expect("brief planned") else {
-        panic!("brief child");
-    };
-    let mut completed = Queue::uncapped();
-    jig_domain_brief::gather_step(
-        &mut domain.engine.core_mut().brief,
-        &env.with(env.limits.core.brief),
-        event,
-        &mut completed,
-    );
-    let jig_domain_brief::GatherRequest::Complete { brief, order } = completed.pop().expect("completed brief") else {
-        panic!("complete typed sections");
-    };
-    crate::routes::route_core(
-        domain,
-        env,
-        decision,
-        core_request(core::Request::Now(Box::new(core::Now::CompleteBrief { brief, order }))),
-        work,
-    );
-}
 fn prepare_brief_assignment(
     domain: &mut crate::Domain,
     env: &skein_lib::Env<crate::Limits>,
@@ -231,6 +239,13 @@ fn prepare_brief_assignment(
     work: &mut Queue<crate::Work>,
 ) {
     let fixture = fixtures::assignment();
+    let brief = Box::new([
+        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Task, text: b"request".as_slice().into() },
+        jig_domain_brief::GatherPlaced::Core {
+            kind: jig_domain_brief::Core::Results,
+            text: b"previous".as_slice().into(),
+        },
+    ]);
     domain.workspace_writes.insert(fixture.task, Box::default()).expect("workspace");
     crate::routes::route_core(
         domain,
@@ -249,6 +264,7 @@ fn prepare_brief_assignment(
             answered: Box::default(),
             parts: Box::default(),
             grants: fixture.grants,
+            brief,
         }))),
         work,
     );
@@ -272,7 +288,6 @@ fn an_assignment_carries_its_brief_s_sections_in_order() {
     let env = fixtures::env();
     let mut decision = domain.journal.decide();
     let mut work = fixtures::work();
-    gather_brief(&mut domain, &env, &mut decision, &mut work);
     prepare_brief_assignment(&mut domain, &env, &mut decision, &mut work);
     domain.journal.accept(decision);
     let mut released = Queue::uncapped();
@@ -497,20 +512,25 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     }
     assert!(work.is_empty(), "ordinary handoffs finish before the projection pass");
     let requests = core::finish_decision(domain.engine.core_mut(), &core_env);
-    let outputs = &requests;
+    let mut outputs = Queue::uncapped();
+    engine::append(requests, &mut outputs);
     let mut feeds = 0_u32;
-    for request in outputs {
-        if let core::Request::Ask { ask: core::Ask::ProjectGoal { .. }, .. } = request {
+    for output in &outputs {
+        if let Out::Ask(
+            _,
+            jig_domain_contract::Ask::Projections(jig_domain_contract::projections::Ask::Project { .. }),
+        ) = output
+        {
             feeds = feeds.checked_add(1).expect("bounded connectors");
         }
-        if let core::Request::Held(held) = request
+        if let Out::Core(core::Request::Held(held)) = output
             && let core::Held::WatchEnded { .. } | core::Held::Drained = held.as_ref()
         {
             panic!("projection output must defer watch and drain terminals");
         }
     }
     assert_eq!(feeds, 2, "one projection per connector defers watches");
-    crate::routes::route_core(&mut domain, &env, &mut decision, requests, &mut fixtures::work());
+    crate::routes::route_engine(&mut domain, &env, &mut decision, outputs, &mut fixtures::work());
     let header = domain.engine.core_mut().counters.next_commit();
     crate::write(
         &mut domain,
@@ -540,7 +560,6 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
                 other @ (Request::StoreCatalogue { .. }
                 | Request::Workers(_)
                 | Request::ClientsCatalogue { .. }
-                | Request::Start { .. }
                 | Request::ReadResult { .. }
                 | Request::Busy { .. }
                 | Request::Deliver(_)

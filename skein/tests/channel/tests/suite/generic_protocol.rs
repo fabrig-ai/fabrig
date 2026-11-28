@@ -3,8 +3,7 @@
 use std::collections::VecDeque;
 
 use skein_channel::{
-    Direction, Event, Kind, Limits, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, Version,
-    frame_writer,
+    Direction, Event, Kind, Limits, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, frame_writer,
 };
 use skein_lib::{List, Queue, Rng, Token, stream};
 
@@ -116,8 +115,8 @@ impl Peer {
         }
         while let Some(event) = self.above.pop() {
             match event {
-                Event::Opening { .. } => self.down(Request::Accept { version: 1 }),
-                Event::Ready { version: 1, .. } => self.ready = true,
+                Event::Opening { .. } => self.down(Request::Accept),
+                Event::Ready { .. } => self.ready = true,
                 Event::Drained => self.drained = self.drained.checked_add(1).expect("bounded count"),
                 Event::OutputFailed => self.output_failed = true,
                 Event::Sent { .. } => {}
@@ -172,9 +171,7 @@ fn schema() -> Schema {
     let mut kinds = List::with_capacity(2);
     kinds.push(Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 32 }).expect("first kind");
     kinds.push(Kind { kind: 0x0101, direction: Direction::FromResponder, largest: 32 }).expect("second kind");
-    let mut versions = List::with_capacity(1);
-    versions.push(Version { version: 1, kinds }).expect("one version");
-    Schema { magic: *b"dupx", versions }
+    Schema { magic: *b"dupx", version: 1, kinds }
 }
 
 fn limits() -> Limits {

@@ -332,7 +332,7 @@ fn the_stock_has_room_for_its_landing_members() {
 #[test]
 fn the_standard_brief_and_its_carriers_share_their_bounds() {
     // The stock host room less titles, framing and margin (stock.md, 7).
-    const STANDARD_BRIEF_BYTES: u32 = 317_786;
+    const STANDARD_BRIEF_BYTES: u32 = 315_505;
     let own = limits::stock();
     let jig = jig_protocol_config_fixtures::small();
     let root = limits::engine(&jig, &own).expect("coherent brief carriers");
@@ -745,7 +745,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 39_828_995);
+    assert_eq!(profile.store.page.bytes, 40_010_979);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -1079,17 +1079,22 @@ fn follow_limits_have_their_profile_values_and_dotted_overrides() {
 fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
     let mut jig = jig_protocol_config_fixtures::small();
     let bound = limits::close_bound();
+    assert_eq!(bound.result, 512, "placement still accepts older workers");
+    let result = 8_192;
+    let prepare = limits::prepare_bound();
     let merge = limits::merge_bound();
     jig.core.tasks.spec_bytes = bound.spec;
-    jig.core.tasks.result_bytes = bound.result;
-    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+    jig.core.tasks.result_bytes = result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [prepare, merge, bound]);
     jig.core.tasks.spec_bytes = bound.spec - 1;
     assert_eq!(limits::jobs(&jig).as_ref(), [merge]);
     jig.core.tasks.spec_bytes = bound.spec;
-    jig.core.tasks.result_bytes = bound.result - 1;
-    assert!(limits::jobs(&jig).is_empty());
+    jig.core.tasks.result_bytes = result - 1;
+    assert_eq!(limits::jobs(&jig).as_ref(), [prepare, merge]);
     jig.core.tasks.result_bytes = bound.result;
-    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge]);
+    jig.core.tasks.result_bytes = result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [prepare, merge, bound]);
 }
 
 /// temper/docs/design/domain/worker/jobs.md.

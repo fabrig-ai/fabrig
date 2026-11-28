@@ -66,6 +66,7 @@ fn setup() -> (Agent, Host) {
     start.workspace = Some(Token::new(1));
     start.directories = Box::new([host::Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         root: Token::new(1),
         name: b"work".as_slice().into(),

@@ -1,6 +1,7 @@
 //! A person's projectless task (jig/docs/design/domain/authority.md, 6.1).
 use super::runs::run_choice::{account, granted, host};
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 const PERSON: u64 = 1;
 const OTHER: u64 = 2;
@@ -343,24 +344,24 @@ fn a_task_held_to_an_account_runs_on_it_alone() {
             &[(1, 1), (2, 2)][..],
             2,
             b"second".as_slice(),
-            tasks::ModelEffort { model: 1, effort: Some(1) },
-            tasks::ModelEffort { model: 0, effort: Some(0) },
+            tasks::ModelEffort { model: 1, effort: Some(1), speed: None },
+            tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
             1,
         ), // Claude, then ChatGPT
         (
             &[(1, 2), (2, 1)][..],
             2,
             b"scripted".as_slice(),
-            tasks::ModelEffort { model: 0, effort: Some(0) },
-            tasks::ModelEffort { model: 1, effort: Some(1) },
+            tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+            tasks::ModelEffort { model: 1, effort: Some(1), speed: None },
             2,
         ), // ChatGPT, then Claude
         (
             &[(1, 2), (2, 2)][..],
             2,
             b"second".as_slice(),
-            tasks::ModelEffort { model: 1, effort: Some(1) },
-            tasks::ModelEffort { model: 0, effort: Some(0) },
+            tasks::ModelEffort { model: 1, effort: Some(1), speed: None },
+            tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
             1,
         ), // A second account of one provider
     ] {
@@ -401,8 +402,8 @@ fn an_account_choice_requires_coverage_and_waits_for_its_source() {
             Some(tasks::LlmChoice {
                 later: None,
                 account: Some(1),
-                main: tasks::ModelEffort { model: 1, effort: Some(1) },
-                subagents: Box::new([tasks::ModelEffort { model: 0, effort: Some(0) }]),
+                main: tasks::ModelEffort { model: 1, effort: Some(1), speed: None },
+                subagents: Box::new([tasks::ModelEffort { model: 0, effort: Some(0), speed: None }]),
             }),
         ),
     ] {
@@ -530,7 +531,7 @@ fn failures_past_the_tries_hold_without_an_inbox_until_cancelled() {
     ));
     // The unit fixture has no connector roots; supply their settled cleanup.
     drop(step(&mut core, &env, Event::Tasks(tasks::Event::EffectsSettled { task })));
-    drop(step(&mut core, &env, Event::Tasks(tasks::Event::Settled { task })));
+    drop(connector_step(&mut core, &env, 1, contract::Up::Effects(contract::effects::Up::Released { task })));
     if let Some(row) = core.tasks.task(task) {
         match row.phase {
             tasks::Phase::Ended(_) => {}
@@ -545,7 +546,8 @@ fn failures_past_the_tries_hold_without_an_inbox_until_cancelled() {
 fn ending_summary_keeps_the_core_assigned_result_position() {
     let (mut core, env) = fixture();
     let task = make_person(&mut core, &env);
-    drop(step(
+    // Without effect declarers, cancellation settles in this step.
+    let out = step(
         &mut core,
         &env,
         Event::Tasks(tasks::Event::Cancel {
@@ -553,9 +555,7 @@ fn ending_summary_keeps_the_core_assigned_result_position() {
             by: tasks::Party::Deployment { project: PROJECT },
             operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
         }),
-    ));
-    drop(step(&mut core, &env, Event::Tasks(tasks::Event::EffectsSettled { task })));
-    let out = step(&mut core, &env, Event::Tasks(tasks::Event::Settled { task }));
+    );
     let mut ended = None;
     let mut summary = None;
     for request in &out {

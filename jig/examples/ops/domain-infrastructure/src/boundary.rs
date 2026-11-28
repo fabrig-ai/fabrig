@@ -151,7 +151,7 @@ pub enum Backend {
     NoOperationIds,
 }
 
-/// A infrastructure effect.
+/// An infrastructure effect.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
     /// Restart once by operation ID where supported.
@@ -197,10 +197,6 @@ pub struct Description {
     pub resources: Box<[Resource]>,
     /// Whether the system checks the starting state when applying.
     pub condition: bool,
-    /// Creation, transition or set.
-    pub form: Form,
-    /// Recovery offered by this backend.
-    pub recovery: Recovery,
     /// Maximum cost, if this is priced.
     pub price: Option<u64>,
     /// State the requirement judges are asked about.
@@ -460,8 +456,16 @@ impl Record {
 }
 
 /// Root-to-connector events.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// An engine ask routed by connector number.
+    Ask(jig_domain_contract::Ask),
+    /// An engine output released after its commit.
+    Released(jig_domain_contract::Released),
+    /// Keep a typed call payload under the owner reserved at call ingress.
+    StageEffect { owner: Token, effect: Effect },
+    /// Answer the connector's request for a procedure effect owner.
+    EffectOwner { task: u64, owner: Token },
     /// Authority's answer for the procedure's staged effect.
     ProcedureAdmission { task: u64, answer: Admission },
     /// A connector reports that this resource changed.
@@ -535,6 +539,8 @@ pub enum Event {
     ResolveEntry { entry: u64, repeat: bool },
     /// Restore one committed record.
     Restore { record: Record },
+    /// The store reached the end of this connector's restore walk.
+    RestoreDone,
     /// Refresh the resources restored by the preceding live load.
     ReadAfresh,
     /// Settle restored entries after all live reads have answered.
@@ -587,6 +593,31 @@ pub enum SystemEvent {
 }
 
 /// Requests to the root and its journal.
+#[derive(Debug)]
+pub enum Out {
+    /// Load this connector's live records after the journal releases the request.
+    LoadRestore,
+    /// What this connector says to the engine in this decision.
+    Up(jig_domain_contract::Up),
+    /// Feed an internal continuation back after its commit.
+    AfterCommit(Box<Event>),
+    /// Feed an internal continuation back in this decision.
+    Continue(Box<Event>),
+    /// An admitted client read's own held answer.
+    ClientRead { reply: skein_lib::ReplyTo, answer: Result<crate::ClientDocument, crate::DocumentMissing> },
+    /// Save a connector-owned record.
+    Save { record: Record },
+    /// Erase a connector-owned record.
+    Erase { key: RecordKey },
+    /// A call to the system below the connector.
+    System(SystemRequest),
+    /// Reserve a core effect owner for a procedure effect.
+    EffectOwner { task: u64 },
+    /// Tell this connector's procedures that an owned resource changed.
+    Changed { resource: Resource },
+}
+
+/// System-side outcomes before translation at the connector's port.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Ask for the deployment's close under this retained key.
@@ -618,7 +649,7 @@ pub enum Request {
     /// A fact changed and procedures should step again.
     Changed { resource: Resource },
     /// Description for the core's authority check.
-    Described { token: Token, description: Description, waits_for_dependencies: bool },
+    Described { token: Token, description: Description },
     /// An invalid effect was refused before authority.
     Refused { token: Token },
     /// A committed outbox entry ready to make after release.

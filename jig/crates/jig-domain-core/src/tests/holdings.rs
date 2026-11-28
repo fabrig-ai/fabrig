@@ -1,8 +1,9 @@
 //! A member's symbols and connector refusals (domain/tasks/holds.md, 1 and 2).
 use super::{
-    fill::{ask, filled_core, goal, signed_in},
+    fill::{ask, goal, signed_in},
     *,
 };
+use jig_domain_contract as contract;
 
 const OWNER: u64 = 1;
 const CHILD: u64 = 2;
@@ -16,7 +17,15 @@ const SECOND_RESOURCE: u16 = 2;
 const CONNECTORS: usize = 2;
 
 fn party_core() -> (Core, Env<Limits>) {
-    let (mut core, env) = filled_core(0);
+    party_core_declaring(&[FIRST_CONNECTOR, SYMBOL_CONNECTOR])
+}
+
+fn party_core_declaring(resources: &[u16]) -> (Core, Env<Limits>) {
+    let limits = limits();
+    let config = config(41);
+    let declarations = fixture_declarations(&config, resources, &[], &[]);
+    let mut core = core_with_declarations(config, &limits, &declarations);
+    let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
     signed_in(&mut core, &env);
     (core, env)
 }
@@ -31,7 +40,11 @@ fn holdings_request(mut out: Queue<Request>) -> Token {
     let mut asked = 0_usize;
     let mut request = None;
     while let Some(next) = out.pop() {
-        if let Request::Ask { ask: Ask::TaskHoldings { request: token, .. }, .. } = next {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Holdings { request: token, .. })),
+            ..
+        } = next
+        {
             request = Some(token);
             asked = asked.checked_add(1).unwrap();
         }
@@ -74,7 +87,9 @@ fn a_members_symbols_reach_only_their_connector_with_whether_it_is_tracked() {
 fn a_persons_batch_beneath_a_child_asks_each_members_holdings_under_the_tree_root() {
     let (_, mut limits) = tree_core();
     limits.authority.batch = 2;
-    let mut core = core_with_limits(&limits);
+    let config = config(41);
+    let declarations = fixture_declarations(&config, &[FIRST_CONNECTOR, SYMBOL_CONNECTOR], &[], &[]);
+    let mut core = core_with_declarations(config, &limits, &declarations);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     signed_in(&mut core, &env);
     let mut root = new_row(&core, OWNER, tasks::Funder::Period { project: 1, period: 1 }, None);
@@ -97,7 +112,17 @@ fn a_persons_batch_beneath_a_child_asks_each_members_holdings_under_the_tree_roo
         let mut request = None;
         let mut connectors = List::with_capacity(u32::try_from(CONNECTORS).unwrap());
         while let Some(next) = out.pop() {
-            if let Request::Ask { connector, ask: Ask::TaskHoldings { request: token, root, number: new, .. } } = next {
+            if let Request::Ask {
+                connector,
+                ask:
+                    Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Holdings {
+                        request: token,
+                        root,
+                        number: new,
+                        ..
+                    })),
+            } = next
+            {
                 assert_eq!(root, OWNER);
                 assert_eq!(new, number);
                 connectors.push(connector).unwrap();
@@ -109,10 +134,15 @@ fn a_persons_batch_beneath_a_child_asks_each_members_holdings_under_the_tree_roo
         assert_eq!(connectors.as_slice(), &[FIRST_CONNECTOR, SYMBOL_CONNECTOR]);
         let request = request.expect("each member asks both connectors");
         for connector in connectors.into_boxed() {
-            let mut answered = step(
+            let mut answered = connector_step(
                 &mut core,
                 &env,
-                Event::Holdings { request, connector, holdings: Some(Box::new([])), refused: None },
+                connector,
+                contract::Up::Resources(contract::resources::Up::Holdings {
+                    request,
+                    holdings: Some(Box::new([])),
+                    refused: None,
+                }),
             );
             while let Some(next) = answered.pop() {
                 out.push(next);
@@ -120,8 +150,10 @@ fn a_persons_batch_beneath_a_child_asks_each_members_holdings_under_the_tree_roo
         }
     }
     for number in [3, 4] {
-        assert_eq!(core.tasks.root(number), Some(OWNER));
+        assert_eq!(core.tasks.root(number), Some(OWNER), "final delegate batch: {out:?}");
     }
+    assert!(core.judgements.outstanding().is_none(), "both declarers answered each member");
+    drop(finish_decision(&mut core, &env));
 }
 
 #[test]
@@ -132,14 +164,26 @@ fn a_symbol_naming_no_connector_refuses_the_batch_before_any_ask() {
 }
 
 fn refused_person(refused: Option<HoldingsRefusal>, which: people::LimitKind) {
-    let (mut core, env) = party_core();
-    let request = holdings_request(ask(&mut core, &env, symbolic_goal(SYMBOL_CONNECTOR)));
-    drop(step(&mut core, &env, Event::Holdings { request, connector: SYMBOL_CONNECTOR, holdings: None, refused }));
+    let (mut core, env) = party_core_declaring(&[SYMBOL_CONNECTOR]);
+    let mut requests = ask(&mut core, &env, symbolic_goal(SYMBOL_CONNECTOR));
+    let mut requested = None;
+    while let Some(next) = requests.pop() {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Holdings { request, .. })),
+        } = next
+        {
+            assert_eq!(connector, SYMBOL_CONNECTOR);
+            assert!(requested.replace(request).is_none());
+        }
+    }
+    let request = requested.expect("only the resource declarer is asked");
     person_refusal(
-        step(
+        connector_step(
             &mut core,
             &env,
-            Event::Holdings { request, connector: FIRST_CONNECTOR, holdings: Some(Box::new([])), refused: None },
+            SYMBOL_CONNECTOR,
+            contract::Up::Resources(contract::resources::Up::Holdings { request, holdings: None, refused }),
         ),
         which,
     );
@@ -172,15 +216,25 @@ fn a_project_deleted_while_its_connectors_answer_refuses_the_batch() {
         let mut work = Queue::uncapped();
         let mut out = Queue::uncapped();
         deletion::begin(&mut core, &env, &mut work, &mut out, Token::new(90), project, None).unwrap();
-        drop(step(
+        drop(connector_step(
             &mut core,
             &env,
-            Event::Holdings { request, connector: FIRST_CONNECTOR, holdings: Some(Box::new([])), refused: None },
+            FIRST_CONNECTOR,
+            contract::Up::Resources(contract::resources::Up::Holdings {
+                request,
+                holdings: Some(Box::new([])),
+                refused: None,
+            }),
         ));
-        let mut out = step(
+        let mut out = connector_step(
             &mut core,
             &env,
-            Event::Holdings { request, connector: SYMBOL_CONNECTOR, holdings: Some(Box::new([])), refused: None },
+            SYMBOL_CONNECTOR,
+            contract::Up::Resources(contract::resources::Up::Holdings {
+                request,
+                holdings: Some(Box::new([])),
+                refused: None,
+            }),
         );
         let mut reply = None;
         while let Some(next) = out.pop() {
@@ -240,27 +294,32 @@ fn refused_delegate(refused: Option<HoldingsRefusal>, expected: tasks::Problem) 
     let mut token = None;
     let mut asks = 0_usize;
     while let Some(next) = out.pop() {
-        if let Request::Ask { ask: Ask::DelegateHoldings { request, .. }, .. } = next {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::DelegateHoldings { request, .. })),
+            ..
+        } = next
+        {
             token = Some(request);
             asks = asks.checked_add(1).unwrap();
         }
     }
     assert_eq!(asks, CONNECTORS);
     let request = token.expect("delegation asks for holdings");
-    drop(step(
+    drop(connector_step(
         &mut core,
         &env,
-        Event::DelegateHoldings { request, connector: SYMBOL_CONNECTOR, holdings: None, refused },
+        SYMBOL_CONNECTOR,
+        contract::Up::Resources(contract::resources::Up::DelegateHoldings { request, holdings: None, refused }),
     ));
-    let mut out = step(
+    let mut out = connector_step(
         &mut core,
         &env,
-        Event::DelegateHoldings {
+        FIRST_CONNECTOR,
+        contract::Up::Resources(contract::resources::Up::DelegateHoldings {
             request,
-            connector: FIRST_CONNECTOR,
             holdings: Some(Box::new([Box::new([])])),
             refused: None,
-        },
+        }),
     );
     let mut part = None;
     while let Some(next) = out.pop() {
@@ -297,7 +356,7 @@ fn an_unnamed_holdings_failure_keeps_the_delegate_holds_refusal() {
 }
 
 fn refused_procedure(refused: Option<HoldingsRefusal>, expected: tasks::Problem) {
-    let (mut core, env) = party_core();
+    let (mut core, env) = party_core_declaring(&[SYMBOL_CONNECTOR]);
     let mut parent = new_row(&core, OWNER, tasks::Funder::Period { project: 1, period: 1 }, None);
     parent.executor = tasks::Executor::Procedure { connector: SYMBOL_CONNECTOR, code: 1 };
     send_task(
@@ -315,49 +374,47 @@ fn refused_procedure(refused: Option<HoldingsRefusal>, expected: tasks::Problem)
     core.counters.deployment.tasks = OWNER;
     let batch = Box::new([delegate(&core)]);
     let (_, _, step_number) = core.tasks.procedure_due(OWNER).expect("due procedure");
-    let mut out = step(
+    let mut out = connector_step(
         &mut core,
         &env,
-        Event::ProcedureStep {
+        SYMBOL_CONNECTOR,
+        contract::Up::Procedures(contract::procedures::Up::Step {
             task: OWNER,
             step: step_number,
-            connector: SYMBOL_CONNECTOR,
             code: 1,
             decision: ProcedureStep { batch, ..ProcedureStep::new(StepEnd::Wait) },
-        },
+        }),
     );
-    let mut asks = 0_usize;
+    let mut asks = 0_u32;
     while let Some(next) = out.pop() {
-        if let Request::Ask { ask: Ask::ProcedureHoldings { .. }, .. } = next {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::ProcedureHoldings { .. })),
+        } = next
+        {
+            assert_eq!(connector, SYMBOL_CONNECTOR);
             asks = asks.checked_add(1).unwrap();
         }
     }
-    assert_eq!(asks, CONNECTORS);
-    drop(step(
+    assert_eq!(asks, 1);
+    let mut out = connector_step(
         &mut core,
         &env,
-        Event::ProcedureHoldings {
+        SYMBOL_CONNECTOR,
+        contract::Up::Resources(contract::resources::Up::ProcedureHoldings {
             task: OWNER,
             step: step_number,
-            connector: SYMBOL_CONNECTOR,
             holdings: None,
             refused,
-        },
-    ));
-    let mut out = step(
-        &mut core,
-        &env,
-        Event::ProcedureHoldings {
-            task: OWNER,
-            step: step_number,
-            connector: FIRST_CONNECTOR,
-            holdings: Some(Box::new([Box::new([])])),
-            refused: None,
-        },
+        }),
     );
     let mut refusal = None;
     while let Some(next) = out.pop() {
-        if let Request::Ask { connector: SYMBOL_CONNECTOR, ask: Ask::StepRefused { task, step, why } } = next {
+        if let Request::Ask {
+            connector: SYMBOL_CONNECTOR,
+            ask: Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::StepRefused { task, step, why })),
+        } = next
+        {
             assert_eq!((task, step), (OWNER, step_number));
             assert!(refusal.replace(why).is_none(), "one step refusal");
         }
@@ -393,7 +450,18 @@ type SymbolAsk = (u16, Box<[u16]>, bool, u64, u64);
 fn symbol_asks(mut out: Queue<Request>) -> Box<[SymbolAsk]> {
     let mut asks = List::with_capacity(u32::try_from(CONNECTORS).unwrap());
     while let Some(next) = out.pop() {
-        if let Request::Ask { connector, ask: Ask::TaskHoldings { symbols, tracked, number, root, .. } } = next {
+        if let Request::Ask {
+            connector,
+            ask:
+                Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Holdings {
+                    symbols,
+                    tracked,
+                    number,
+                    root,
+                    ..
+                })),
+        } = next
+        {
             asks.push((connector, symbols, tracked, number, root)).unwrap();
         }
     }
@@ -419,7 +487,11 @@ fn a_proposals_members_keep_their_symbol_order_and_tracking_separately() {
     let mut request = None;
     let mut first = Queue::uncapped();
     while let Some(next) = out.pop() {
-        if let Request::Ask { ask: Ask::TaskHoldings { request: token, .. }, .. } = &next {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Holdings { request: token, .. })),
+            ..
+        } = &next
+        {
             request = Some(*token);
         }
         first.push(next);
@@ -432,15 +504,25 @@ fn a_proposals_members_keep_their_symbol_order_and_tracking_separately() {
         ]
     );
     let request = request.expect("the first member asks for holdings");
-    drop(step(
+    drop(connector_step(
         &mut core,
         &env,
-        Event::Holdings { request, connector: FIRST_CONNECTOR, holdings: Some(Box::new([])), refused: None },
+        FIRST_CONNECTOR,
+        contract::Up::Resources(contract::resources::Up::Holdings {
+            request,
+            holdings: Some(Box::new([])),
+            refused: None,
+        }),
     ));
-    let out = step(
+    let out = connector_step(
         &mut core,
         &env,
-        Event::Holdings { request, connector: SYMBOL_CONNECTOR, holdings: Some(Box::new([])), refused: None },
+        SYMBOL_CONNECTOR,
+        contract::Up::Resources(contract::resources::Up::Holdings {
+            request,
+            holdings: Some(Box::new([])),
+            refused: None,
+        }),
     );
     assert_eq!(
         symbol_asks(out).as_ref(),

@@ -1,5 +1,5 @@
 //! Seeded, sharded whole-engine follows (forge/follows.md, 11).
-//! Each shard supplies its own cases (`temper/docs/design/testing/workloads.md`, 8.5).
+//! Each shard supplies its own cases (`temper/docs/design/testing/workloads-sweeps.md`, 1.5).
 use crate::forge_routes::follow_changes::{proof, role};
 use jig_domain_tasks as tasks;
 use skein_forge::api::Commit;

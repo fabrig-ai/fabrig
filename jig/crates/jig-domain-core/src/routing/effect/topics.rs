@@ -1,6 +1,6 @@
 //! Offered topic calls are reads before they enter the task hub (domain/authority-checks.md, 1.5).
 use crate::{
-    CallKey, CallPart, Core, Event, Family, Held, Limits, PendingCall, Request, RoutedCall, fresh, routing::Work,
+    CallHolder, CallKey, CallPart, Core, Event, Family, Held, Limits, Request, RoutedCall, fresh, routing::Work,
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -25,7 +25,7 @@ pub(crate) fn subscribe(
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: record.part })));
         return out;
     }
-    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, PendingCall::Routed) {
+    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, CallHolder::Routed) {
         out.push(Request::Now(Box::new(crate::Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
         return out;
     }
@@ -45,7 +45,7 @@ pub(crate) fn subscribe(
         crate::routing::run::calls::call_decision(core, &mut out, to, key, part);
     } else if let Some(subscription) = fresh(&mut core.counters, Family::Message) {
         let token = to.into_token();
-        let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
+        let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription, topic: Some((connector, topic)) });
         work.push(Work::Event(Event::Tasks(tasks::Event::SubscribeTopic {
             reply_to: ReplyTo::new(token),
             task: key.task,

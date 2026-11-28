@@ -38,8 +38,63 @@ pub fn model_name_to_domain(record: crate::settings_v3::ModelName) -> jig_domain
     }
 }
 
+pub fn speed_to_record(value: &jig_domain_core_vocabulary::Speed) -> Result<crate::settings_v3::Speed, crate::settings_v3::Problem> {
+    let jig_domain_core_vocabulary::Speed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = value;
+    Ok(crate::settings_v3::Speed {
+        name: field_000000.clone(),
+        also: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::settings_v3::paths::SPEED_ALSO.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = item.clone();
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        input_price: *field_000002,
+        cached_price: *field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: *field_000005
+    })
+}
+
+#[must_use]
+pub fn speed_to_domain(record: crate::settings_v3::Speed) -> jig_domain_core_vocabulary::Speed {
+    let crate::settings_v3::Speed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = record;
+    jig_domain_core_vocabulary::Speed {
+        name: field_000000,
+        also: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        input_price: field_000002,
+        cached_price: field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: field_000005
+    }
+}
+
 pub fn model_to_record(value: &jig_domain_core_vocabulary::Model) -> Result<crate::settings_v3::Model, crate::settings_v3::Problem> {
-    let jig_domain_core_vocabulary::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014 } = value;
+    let jig_domain_core_vocabulary::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014, speeds: field_000015, speed: field_000016 } = value;
     Ok(crate::settings_v3::Model {
         provider: *field_000000,
         dialect: *field_000001,
@@ -82,13 +137,30 @@ pub fn model_to_record(value: &jig_domain_core_vocabulary::Model) -> Result<crat
                 Some(converted)
             }
             None => None,
+        },
+        speeds: {
+            let source = field_000015;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::settings_v3::paths::MODEL_SPEEDS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = speed_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        speed: match field_000016 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
 #[must_use]
 pub fn model_to_domain(record: crate::settings_v3::Model) -> jig_domain_core_vocabulary::Model {
-    let crate::settings_v3::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014 } = record;
+    let crate::settings_v3::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014, speeds: field_000015, speed: field_000016 } = record;
     jig_domain_core_vocabulary::Model {
         provider: field_000000,
         dialect: field_000001,
@@ -129,6 +201,23 @@ pub fn model_to_domain(record: crate::settings_v3::Model) -> jig_domain_core_voc
             Box::from(translated)
         },
         effort: match field_000014 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        speeds: {
+            let source = field_000015;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = speed_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        speed: match field_000016 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
@@ -317,7 +406,7 @@ pub fn charter_part_to_domain(record: crate::settings_v3::CharterPart) -> Result
 }
 
 pub fn charter_to_record(value: &jig_domain_core_vocabulary::Charter, context: &crate::settings_v3::Limits) -> Result<crate::settings_v3::Charter, crate::settings_v3::Problem> {
-    let jig_domain_core_vocabulary::Charter { rest: field_000000, number: field_000001, policy: field_000002, hosts: field_000003, spend: field_000004, wake: field_000005, documents: field_000006, parts: field_000007 } = value;
+    let jig_domain_core_vocabulary::Charter { rest: field_000000, number: field_000001, policy: field_000002, hosts: field_000003, spend: field_000004, wake: field_000005, documents: field_000006, parts: field_000007, name: field_000008 } = value;
     Ok(crate::settings_v3::Charter {
         rest: *field_000000,
         number: *field_000001,
@@ -344,12 +433,19 @@ pub fn charter_to_record(value: &jig_domain_core_vocabulary::Charter, context: &
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        setting_name: match field_000008 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
 pub fn charter_to_domain(record: crate::settings_v3::Charter, context: &crate::settings_v3::Limits) -> Result<jig_domain_core_vocabulary::Charter, crate::settings_v3::Problem> {
-    let crate::settings_v3::Charter { rest: field_000000, number: field_000001, policy: field_000002, hosts: field_000003, spend: field_000004, wake: field_000005, documents: field_000006, parts: field_000007 } = record;
+    let crate::settings_v3::Charter { rest: field_000000, number: field_000001, policy: field_000002, hosts: field_000003, spend: field_000004, wake: field_000005, documents: field_000006, parts: field_000007, setting_name: field_000008 } = record;
     Ok(jig_domain_core_vocabulary::Charter {
         rest: field_000000,
         number: field_000001,
@@ -376,6 +472,13 @@ pub fn charter_to_domain(record: crate::settings_v3::Charter, context: &crate::s
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
+        },
+        name: match field_000008 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
@@ -1983,7 +2086,7 @@ pub fn template_override_to_domain(record: crate::settings_v3::TemplateOverride)
 }
 
 pub fn configured_policy_to_record(value: &jig_domain_core_vocabulary::ConfiguredPolicy) -> Result<crate::settings_v3::ConfiguredPolicy, crate::settings_v3::Problem> {
-    let jig_domain_core_vocabulary::ConfiguredPolicy { policy: field_000000, permissions: field_000001, templates: field_000002 } = value;
+    let jig_domain_core_vocabulary::ConfiguredPolicy { policy: field_000000, permissions: field_000001, templates: field_000002, name: field_000003 } = value;
     Ok(crate::settings_v3::ConfiguredPolicy {
         policy: policy_to_record(field_000000)?,
         permissions: {
@@ -2005,13 +2108,20 @@ pub fn configured_policy_to_record(value: &jig_domain_core_vocabulary::Configure
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        setting_name: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
 #[must_use]
 pub fn configured_policy_to_domain(record: crate::settings_v3::ConfiguredPolicy) -> jig_domain_core_vocabulary::ConfiguredPolicy {
-    let crate::settings_v3::ConfiguredPolicy { policy: field_000000, permissions: field_000001, templates: field_000002 } = record;
+    let crate::settings_v3::ConfiguredPolicy { policy: field_000000, permissions: field_000001, templates: field_000002, setting_name: field_000003 } = record;
     jig_domain_core_vocabulary::ConfiguredPolicy {
         policy: policy_to_domain(field_000000),
         permissions: {
@@ -2033,6 +2143,13 @@ pub fn configured_policy_to_domain(record: crate::settings_v3::ConfiguredPolicy)
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
+        },
+        name: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
@@ -2222,7 +2339,7 @@ pub fn flags_to_domain(record: crate::settings_v3::Flags) -> jig_domain_tasks::F
 
 #[must_use]
 pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::settings_v3::ModelEffort {
-    let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001 } = value;
+    let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     crate::settings_v3::ModelEffort {
         model: *field_000000,
         effort: match field_000001 {
@@ -2231,14 +2348,20 @@ pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::s
                 Some(converted)
             }
             None => None,
+        },
+        speed: match field_000002 {
+            Some(item) => {
+                let converted = crate::codec::convert::speed_name_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
-#[must_use]
-pub fn model_effort_to_domain(record: crate::settings_v3::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    let crate::settings_v3::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    jig_domain_tasks::ModelEffort {
+pub fn model_effort_to_domain(record: crate::settings_v3::ModelEffort) -> Result<jig_domain_tasks::ModelEffort, crate::settings_v3::Problem> {
+    let crate::settings_v3::ModelEffort { model: field_000000, effort: field_000001, speed: field_000002 } = record;
+    Ok(jig_domain_tasks::ModelEffort {
         model: field_000000,
         effort: match field_000001 {
             Some(item) => {
@@ -2246,8 +2369,15 @@ pub fn model_effort_to_domain(record: crate::settings_v3::ModelEffort) -> jig_do
                 Some(converted)
             }
             None => None,
+        },
+        speed: match field_000002 {
+            Some(item) => {
+                let converted = match crate::codec::convert::speed_name_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::settings_v3::paths::MODEL_EFFORT_SPEED.problem(reason)) };
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
 pub fn llm_later_to_record(value: &jig_domain_tasks::LlmLater) -> Result<crate::settings_v3::LlmLater, crate::settings_v3::Problem> {
@@ -2267,22 +2397,21 @@ pub fn llm_later_to_record(value: &jig_domain_tasks::LlmLater) -> Result<crate::
     })
 }
 
-#[must_use]
-pub fn llm_later_to_domain(record: crate::settings_v3::LlmLater) -> jig_domain_tasks::LlmLater {
+pub fn llm_later_to_domain(record: crate::settings_v3::LlmLater) -> Result<jig_domain_tasks::LlmLater, crate::settings_v3::Problem> {
     let crate::settings_v3::LlmLater { main: field_000000, subagents: field_000001 } = record;
-    jig_domain_tasks::LlmLater {
-        main: model_effort_to_domain(field_000000),
+    Ok(jig_domain_tasks::LlmLater {
+        main: model_effort_to_domain(field_000000)?,
         subagents: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item);
+                let converted = model_effort_to_domain(item)?;
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    }
+    })
 }
 
 pub fn llm_choice_to_record(value: &jig_domain_tasks::LlmChoice) -> Result<crate::settings_v3::LlmChoice, crate::settings_v3::Problem> {
@@ -2316,10 +2445,9 @@ pub fn llm_choice_to_record(value: &jig_domain_tasks::LlmChoice) -> Result<crate
     })
 }
 
-#[must_use]
-pub fn llm_choice_to_domain(record: crate::settings_v3::LlmChoice) -> jig_domain_tasks::LlmChoice {
+pub fn llm_choice_to_domain(record: crate::settings_v3::LlmChoice) -> Result<jig_domain_tasks::LlmChoice, crate::settings_v3::Problem> {
     let crate::settings_v3::LlmChoice { account: field_000000, main: field_000001, subagents: field_000002, later: field_000003 } = record;
-    jig_domain_tasks::LlmChoice {
+    Ok(jig_domain_tasks::LlmChoice {
         account: match field_000000 {
             Some(item) => {
                 let converted = item;
@@ -2327,25 +2455,25 @@ pub fn llm_choice_to_domain(record: crate::settings_v3::LlmChoice) -> jig_domain
             }
             None => None,
         },
-        main: model_effort_to_domain(field_000001),
+        main: model_effort_to_domain(field_000001)?,
         subagents: {
             let source = field_000002;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item);
+                let converted = model_effort_to_domain(item)?;
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         later: match field_000003 {
             Some(item) => {
-                let converted = llm_later_to_domain(item);
+                let converted = llm_later_to_domain(item)?;
                 Some(converted)
             }
             None => None,
         }
-    }
+    })
 }
 
 #[must_use]
@@ -2367,7 +2495,7 @@ pub fn symbol_to_domain(record: crate::settings_v3::Symbol) -> jig_domain_people
 }
 
 pub fn template_to_record(value: &jig_domain_core_vocabulary::Template, context: &crate::settings_v3::Limits) -> Result<crate::settings_v3::Template, crate::settings_v3::Problem> {
-    let jig_domain_core_vocabulary::Template { number: field_000000, name: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = value;
+    let jig_domain_core_vocabulary::Template { number: field_000000, shown: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012, name: field_000013 } = value;
     Ok(crate::settings_v3::Template {
         number: *field_000000,
         name: field_000001.clone(),
@@ -2408,15 +2536,22 @@ pub fn template_to_record(value: &jig_domain_core_vocabulary::Template, context:
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        setting_name: match field_000013 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
 pub fn template_to_domain(record: crate::settings_v3::Template, context: &crate::settings_v3::Limits) -> Result<jig_domain_core_vocabulary::Template, crate::settings_v3::Problem> {
-    let crate::settings_v3::Template { number: field_000000, name: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = record;
+    let crate::settings_v3::Template { number: field_000000, name: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012, setting_name: field_000013 } = record;
     Ok(jig_domain_core_vocabulary::Template {
         number: field_000000,
-        name: field_000001,
+        shown: field_000001,
         executor: template_executor_to_domain(field_000002),
         contract: crate::codec::settings::contract_to_domain(field_000003, context)?,
         shallower: field_000004,
@@ -2440,7 +2575,7 @@ pub fn template_to_domain(record: crate::settings_v3::Template, context: &crate:
         },
         llm: match field_000011 {
             Some(item) => {
-                let converted = llm_choice_to_domain(item);
+                let converted = llm_choice_to_domain(item)?;
                 Some(converted)
             }
             None => None,
@@ -2454,6 +2589,13 @@ pub fn template_to_domain(record: crate::settings_v3::Template, context: &crate:
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
+        },
+        name: match field_000013 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
         }
     })
 }

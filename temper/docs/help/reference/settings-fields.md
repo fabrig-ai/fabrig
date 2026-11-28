@@ -4,20 +4,21 @@ Kind: reference
 
 JSON types, bounds and effects for settings files and `settings show`.
 
-Read/edit/set whole: `settings show KIND N`. Refusals=shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend=deployment model-price units. uN=unsigned 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ?=optional; !=required; |null=nullable. Choices=JSON strings; A|B=alternatives; choice=described alternatives. set=setting.kind; project-policy=policy.
+`settings show KIND N`: read/edit/set whole. Refusals: shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend: deployment model-price units. uN=unsigned 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ? optional, ! required, |null nullable. A|B=alternatives; choice=described JSON strings. set=setting.kind; project-policy=policy. Setting names: lowercase letters/digits/-, letter first; stock keeps its name.
 
 ## file
 `settings apply`/`settings propose` file.
-- items:[1024] item;One item per changed setting, each setting once.
+- items:[1024] item;One item per changed setting.
+- format:u64;? min 1, default 1.
 
 ## item
-A `setting`; exactly one `set`/`edit`/`overlay`.
-- setting:setting;setting the item changes.
-- overlay:overlay;charter overlay instead of set/edit.
-- remove:bool;true instead of set/edit/overlay; withdraw.
-- reset:bool;true instead of set/edit/overlay; follow default.
+A `setting` and exactly one `set`/`edit`/`overlay`/`remove`/`reset`.
+- setting:setting;Target.
+- overlay:overlay;Charter overlay.
+- remove:bool;true: withdraw.
+- reset:bool;true: follow default.
 - set:the value for `setting.kind`;Whole replacement.
-- edit:choice;edit instead of a value. `removed`: Withdraw, default included; rules cannot be removed. `reset`: Erase change; follow default.
+- edit:choice;Named edit. `removed`: Withdraw even a default, except rules. `reset`: Erase change; use default.
 
 ## setting
 Kind and number, or project for project settings.
@@ -29,13 +30,14 @@ Kind and number, or project for project settings.
 Task-creation revision's run policy.
 - rest:bool;Offer remaining catalogue models after named choices; default false.
 - number:u32;Same as `setting.number`.
+- name:t[32];? Setting name.
 - instructions:t[1048576];Agent's first read, before task brief.
 - waiting:ns;Idle wait for words/news before parking.
-- resume:bool;Resume any task transcript instead of starting afresh.
+- resume:bool;Resume any task transcript rather than start fresh.
 - turns:u32;Most model turns; more than `reserve_turns`, else `budget` refusal.
 - time:ns;Run cancellation time; more than `reserve_time`, else `budget` refusal.
 - reserve_turns:u32;Of `turns`, finish/report reserve.
-- reserve_time:ns;Of `time`, finish/report reserve. With `modify`: >= check_timeout ms in each applicable current or held charter, else worker admission refuses. Held-revision recovery: settings help.
+- reserve_time:ns;Finish/report reserve from `time`. With `modify`, worker admission requires >= check_timeout ms in each applicable current or held charter. Held-revision recovery: settings help.
 - model:model;Default: first payable of `model`/`alternatives`.
 - alternatives:[32] model;After `model`, each once; sub-agents may use them.
 - inspect:bool;May read/list/search workspace?
@@ -43,19 +45,19 @@ Task-creation revision's run policy.
 - shell:bool;May run workspace commands?
 - agents:bool;May open sub-agents with at most its own tools?
 - call_timeout:ns;Longest call to temper's tools.
-- tools:u64;Host families need charter/task leave. Asking (2048): see/document; with settings (1024), propose_settings too. Without asking, 1024 grants settings tools. Default 1023 excludes both.
-- hosts:choice;Run hosts. `workers`: Deployment workers only. `engine`: The engine's own slots alone. `both`: Either.
-- spend:u64;>= (reserve_turns + 1) costliest default-model completions, else budget refusal. Runs get task funds left, half if delegation is allowed; <=rules.maximum_run_spend.
-- wake:wake|null;Wake for tasks made under this charter if batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
+- tools:u64;Host families need charter/task leave. 2048: see/document; +1024: also propose_settings. 1024 alone: settings tools. Default 1023: neither.
+- hosts:choice;Run hosts. `workers`: Deployment workers only. `engine`: Engine slots only. `both`: Either.
+- spend:u64;Budget refusal below (reserve_turns + 1) costliest default-model completions. Runs get remaining funds (half with delegation), <=rules.maximum_run_spend.
+- wake:wake|null;Wake if the batch omits it. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers wake.
 - documents:[8] document;Brief documents; at most `tasks.charter_documents`, else `shape` refusal.
 - parts:[8] charter-part;Ordered parts by run reasons; <=tasks.charter_parts; default [].
 
 ## overlay
 Optional default replacements/added text: charters or literal instructions/parts, not both.
-As `charter`'s fields, replacing the default whole: `rest`, `waiting`, `resume`, `turns`, `time`, `reserve_turns`, `reserve_time`, `model`, `alternatives`, `inspect`, `modify`, `shell`, `agents`, `call_timeout`, `tools`, `hosts`, `spend`, `documents`.
+Same as `charter`, replacing each default whole: `rest`, `waiting`, `resume`, `turns`, `time`, `reserve_turns`, `reserve_time`, `model`, `alternatives`, `inspect`, `modify`, `shell`, `agents`, `call_timeout`, `tools`, `hosts`, `spend`, `documents`.
 
-- instructions:t[1048576];Optional added text, empty when absent; not beside charters.
-- parts:[8] charter-part;Optional added text, empty when absent; not beside charters.
+- instructions:t[1048576];? added text; absent=empty; excludes charters.
+- parts:[8] charter-part;? added text; absent=empty; excludes charters.
 - charters:[4294967295] t[4294967295];Optional nonempty settings-file-relative directories replace instructions/parts; charters 5/2 only. Markdown counts in file bound.
 
 ## charter-part
@@ -65,10 +67,10 @@ Instructions after shared text, read when run reasons meet `on`.
 
 ## document
 Brief file at preparation branch head.
-- forge:t[32768];Resource `host` with port: `see settings`/`project repositories` or `temper ctl DIR forge list`; not forge number/web address.
+- forge:t[32768];Resource `host`:port from `see settings`/`project repositories` or `temper ctl DIR forge list`, not a forge number/web address.
 - repository:t[65537];OWNER/NAME; if no project adopts it, the section says so.
 - branch:t[131075];Branch head to read; segments joined by `/`.
-- path:t[256];file's path in the repository, at most 256 bytes.
+- path:t[256];Repository-relative file path, <=256 bytes.
 - heading:t[80]|null;Heading: read until next peer/ancestor heading; null reads whole file.
 
 ## provider
@@ -92,7 +94,7 @@ Sources optional; {}=none. Programs unique: 1..32 lowercase ASCII letters/digits
 - sign_in:provider-registration;?
 
 ## provider-registration
-Public sign-in, no secret. issuer/client/authorization/token/keys nonempty. redirect_path: no leading /, query or fragment. TLS needs server_name; plaintext omits server_name/trust.
+Public sign-in (no secret). Nonempty issuer/client/authorization/token/keys. redirect_path: no leading /, query or fragment. TLS: server_name. Plaintext: no server_name/trust.
 - issuer:t[4096];!
 - client:t[4096];!
 - authorization:t[4096];!
@@ -110,7 +112,7 @@ Public sign-in, no secret. issuer/client/authorization/token/keys nonempty. redi
 - trust:t[4096];?
 
 ## provider-endpoint
-provider implicit; program optional. TLS needs server_name; plaintext no server_name/trust, loopback only. _ms=milliseconds; 64 endpoints total.
+Implicit provider; optional program. TLS: server_name. Plaintext: loopback only, no server_name/trust. _ms=milliseconds; max 64 endpoints.
 - name:t[4096];!
 - number:u32;!
 - dialect:u32;!
@@ -143,49 +145,60 @@ Name/places/secret digest; remove withdraws name; reset needs a default.
 - withdrawn:bool;Absent: false; true is read-only. Withdraw by a removed edit.
 
 ## catalogue
-Numbered runtime model; display facts.
-- number:u32;Permanent number, 1 to 64, matching setting.number.
-- model:model;runtime model, whole.
-- shown:t[4096]|null;name for showing, or null.
-- description:t[512]|null;description, or null.
-- picker:bool;Whether a model picker shows it.
-- withdrawn:bool;Whether it is withdrawn; its number and name stay.
-- source:choice;Where the model came from. `stock`: binary. `list`: provider list. `person`: person.
-- estimated:bool;Whether its prices are provider defaults.
+Numbered model and its display facts.
+- number:u32;Keeps setting.number (1..64).
+- model:model;Whole model.
+- shown:t[4096]|null;Display name.
+- description:t[512]|null;Description.
+- picker:bool;Show in picker?
+- withdrawn:bool;Withdrawn? Number and name stay.
+- source:choice;Origin. `stock`: binary. `list`: provider list. `person`: person.
+- estimated:bool;Provider default prices?
 
 ## model
-Whole runtime model; charter fields except `effort` match config, else `reference` refusal.
-- provider:u32;configured LLM provider that serves it; 1 when absent.
-- dialect:u32;Configured model protocol.
-- endpoint:u32;Configured serving endpoint's number.
-- program:t[32]|null;Configured program running it, or null for none.
+Whole runtime model. Spend units per `price_unit` tokens. Charter fields except `effort` match config (`reference`).
+- provider:u32;Serving LLM provider; absent: 1.
+- dialect:u32;Model protocol.
+- endpoint:u32;Endpoint number.
+- program:t[32]|null;Serving program, if any.
 - name:t[4096];Provider's model name.
-- window:u32;most tokens of input it reads.
-- output:u32;Most tokens per completion, thinking included.
-- input_price:u64;Fresh input cost: spend units per `price_unit` tokens.
-- cached_price:u64;Cached input cost: spend units per `price_unit` tokens.
-- cache_write_price:u64|null;Cache write cost per `price_unit` tokens; null uses fresh-input price.
-- output_price:u64;Output cost: spend units per `price_unit` tokens.
-- price_unit:u32;number of tokens each price is for.
-- efforts:[16] t[32];Configured efforts, in order.
-- effort:t[32]|null;One of `efforts`; null: default effort.
+- window:u32;Input token limit.
+- output:u32;Completion tokens, thinking included.
+- input_price:u64;Fresh input price.
+- cached_price:u64;Cached input price.
+- cache_write_price:u64|null;Cache write price; null uses fresh-input price.
+- output_price:u64;Output price.
+- price_unit:u32;Tokens per price.
+- efforts:[16] t[32];Efforts, in order.
+- effort:t[32]|null;One of `efforts`; null: default.
+- speeds:[4] setting-speed;Ordered; absent: [].
+- speed:t[32]|null;Default from `speeds` (else `shape`); absent/null: standard.
+
+## setting-speed
+Faster speed, model price unit.
+- name:t[32];Provider speed name.
+- also:[2] t[32]|null;Reported aliases; absent/null: [].
+- input_price:u64;Fresh input cost.
+- cached_price:u64;Cached input cost.
+- cache_write_price:u64|null;Cache writes; absent/null: input price.
+- output_price:u64;Output cost.
 
 ## wake
 Wake by message kind; proposals, escalations and cancels always wake.
-- words:wake_rule;Task and deployment words; a person's always wake it at once.
-- notices:wake_rule;Notices: referenced task done/held, proposal passing through, awaited hold.
-- news:wake_rule;News its connectors class as waking for it.
+- words:wake_rule;Task/deployment words; a person's wake at once.
+- notices:wake_rule;Referenced task done/held; passing proposal; awaited hold.
+- news:wake_rule;News its connectors class as waking.
 - results:choice;delegates' results. `never`: None wakes it. `each`: Each delegate's result wakes it. `last_or_failure`: last delegate's result, or any failure.
-- questions:bool;Whether a delegate's question wakes it.
-- answers:bool;Whether an answer to its own question wakes it.
-- timers:bool;Whether its timers wake it.
+- questions:bool;Wake for delegate's question?
+- answers:bool;Wake for answer to own question?
+- timers:bool;Wake for its timers?
 
 ## wake_rule
 Wake by message kind: a word or one-member object.
 - `never`:It waits for the task's next run.
 - `immediate`:It wakes the task at once.
 - batch:wake_batch;Once enough arrive or the oldest waits long enough.
-- paced:ns;At most once per span from last run start; first after quiet wakes now. Positive, else `shape` refusal.
+- paced:ns;At most once per positive span from run start. First after quiet wakes now. Nonpositive: `shape`.
 
 ## wake_batch
 Message batch waking a task once.
@@ -195,16 +208,17 @@ Message batch waking a task once.
 ## template
 Executor and defaults for new tasks.
 - resources:[32] symbol;Optional, default []: distinct resource-symbol pairs resolved for new task. Forge connector 1, symbol 1: its own goal branch.
-- number:u32;Template number matching `setting.number`; chat: 1, goal: 2.
-- name:text;name, as clients show it.
+- number:u32;Match `setting.number`; chat 1, goal 2.
+- name:t[32];? Setting name.
+- shown:text;Display name; plain string or text object.
 - executor:executor;Who runs the task.
 - contract:contract;result the task must give.
-- shallower:u32;Delegation depth below creator role; 0 makes the template unusable.
+- shallower:u32;Below creator role's delegation depth; 0 disables template.
 - budget:budget;What the task may spend.
 - deadline:deadline;By when the task must end.
-- tracked:u32|null;default priority as tracked work, lower first, or null for untracked.
+- tracked:u32|null;Default tracking priority, lower first; null untracked.
 - flags:flags;How the task behaves and is kept.
-- label:u32;Number grouping ended tasks in lists; temper reads nothing else from it.
+- label:u32;Groups ended tasks in lists; no other effect.
 - grace:ns|null;Chat closing time/null; unfinished runs cancel then. Beyond deployment limit: `grace` refusal.
 - llm:llm|null;Asked models; null: charter's default.
 
@@ -216,7 +230,7 @@ Resource resolved at creation.
 ## text
 text, whole.
 - bytes:t[65536];text.
-- cut:bool;Always false: a value is set whole.
+- cut:bool;Always false: set whole.
 
 ## executor
 Task executor.
@@ -253,7 +267,7 @@ Report in words.
 ## verdict
 One verdict choice and its required fields.
 - choices:[1048576] choice;choices the task gives one of.
-- cut:bool;Always false: a value is set whole.
+- cut:bool;Always false: set whole.
 
 ## choice
 A verdict choice.
@@ -309,24 +323,26 @@ Closes task when nothing remains to await.
 - code:u32;procedure's code.
 
 ## llm
-The models a task asks for.
+Task model choice.
 - account:u32|null;Paying account; null: any able to pay.
-- main:model_effort;main model and its effort.
-- subagents:[64] model_effort;models its runs' sub-agents may use, each named once.
-- later:llm-later;Optional, left out none: the choice after the task's first activation.
+- main:model_effort;Main model choice.
+- subagents:[64] model_effort;Sub-agent models, each named once.
+- later:llm-later;Absent: none. Choice after first activation.
 
 ## llm-later
 Model choice after the first activation.
-- main:model_effort;later main model and its effort.
-- subagents:[64] model_effort;Absent: []. Models for later runs' sub-agents, each named once.
+- main:model_effort;Later main model choice.
+- subagents:[64] model_effort;Absent: []. Later sub-agent models, each named once.
 
 ## model_effort
-model, by name, and its effort.
-- model:t[4096];configured model's name, one the task's charter offers.
+model, by name, with its effort and speed.
+- model:t[4096];Named model the charter offers.
 - effort:t[32]|null;Model's effort; null if it takes none.
+- speed:t[32];declared speed by name or `standard`; absent: the charter's speed for the model.
 
 ## policy
 Project policy copied at creation; changes affect later projects.
+- name:t[32];? Setting name.
 - escalation_role:u32|null;Final escalation role or null; must accept proposals and decide escalations.
 - ceiling:authority;Project task ceiling; within rules, else `rules` refusal.
 - projections:[32] grant;Goal projection writes to project homes; each grant within `ceiling`.
@@ -545,7 +561,7 @@ Classes by kind and path set; absent: Agents review's table.
 Kind/set, optional words, class; one wordless item per subject. Money, irreversible, rules and other always wait, with no item.
 - kind:`wording|retry|implementation|tests|dependency|departure|findings`;Exactly one of kind or set.
 - set:u8;set in this table, from 1 to 6; exactly one of kind or set.
-- words:t[120];Optional wording for this item, empty when absent.
+- words:t[120];? item wording; absent=empty.
 - class:choice;Wait is never a table class. `decide`: Agents decide and list it. `ask`: Ask the person; Away may decide. `ask-away`: Ask the person even when away.
 
 ## path-set
@@ -573,11 +589,13 @@ Landing at the next start.
 - tier_retries:u8;? default 2.
 - flakes:landing-flakes;? default rerun at checkout.rerun_processes.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
+- hook_timeout_max_seconds:u32;? 1 to 86400; default 3600.
+- temper_dir_sign_off:bool;? default false; true requires an eligible owner on every writable repository's forge.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
-- verification_bound_ms:u64;? ms; default 7200000.
+- verification_bound_ms:u64;? default 7200000.
 - merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.
 - close_job:t[4096];? relative, no NUL or .. segments.
-- repairs:repairs;? no repairs by default; needs wait landed.
+- repairs:repairs;? default none; requires wait landed.
 
 ## landing-flakes
 String `none` or object `{"rerun": N}`.
@@ -611,8 +629,8 @@ How trains combine changes.
 A repository's test gates and tiers.
 - forge:u16;! the adopted repository.
 - repository:u32;! the adopted repository.
-- gates:[1114240] gate-check;? at most forge.gates.
-- tiers:[1114240] tier-check;? at most forge.tiers.tiers.
+- gates:[1114240] gate-check;? <=forge.gates.
+- tiers:[1114240] tier-check;? <=forge.tiers.tiers.
 
 ## gate-check
 A workflow gate proving a landing.
@@ -663,7 +681,7 @@ Owner: task, party, role or charter.
 - task:u64;live task of the project.
 - party:u64;party with a role in the project.
 - role:u32;Below authority.roles; 0 is the owners.
-- charter:u32;From 1 through 64.
+- charter:u32|t[32];1..64, or charter name.
 
 ## agents
 Agent profile and endpoint limits, taken at each worker's next start.
@@ -684,7 +702,7 @@ Endpoint limits; all integers >0.
 - reasoning_item:u32;Reasoning item bytes.
 - head_ms:u64;Milliseconds.
 - idle_ms:u64;Milliseconds.
-- oversized:choice;Oversized reasoning behavior. `fail`: Refuse an oversized reasoning item. `drop`: Drop an oversized reasoning item.
+- oversized:choice;Oversized reasoning item. `fail`: Refuse the item. `drop`: Drop the item.
 
 ## limits
 Core limits: whole list; default=[]; no number/project.
@@ -699,3 +717,7 @@ Reasoned override.
 - name:t[64];! 1-64 bytes: a-z/0-9/_/.; ascending, unique.
 - value:u64;! limit's unit.
 - reason:t[120];! 1-120 UTF-8 bytes: why override stock.
+
+## Formats
+
+Newest format `temper ctl` reads: 1; no `format`: 1.

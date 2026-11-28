@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Map, Queue, Wall};
 pub use temper_engine_domain_forge_vocabulary::restore::*;
 
-/// The forge's half of a start's Link phase (temper/docs/design/testing/store-check.md, 2).
+/// The forge's link while it restores (temper/docs/design/testing/store-check.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartLink {
     Row(Key),
@@ -14,7 +14,85 @@ pub enum StartLink {
     Link(MissingLink),
 }
 
+/// A restored row whose bookkeeping or refusal the root carries at its edge.
+#[derive(Debug)]
+pub enum RestoreRow {
+    Kept,
+    LimitHold(crate::LimitHold),
+    Refused(crate::settings::SettingKey),
+}
+
+/// An adoption saved by this connector, reported at restore or on a new adoption.
+#[must_use]
+pub fn adoption_up(connector: u16, repository: &crate::Repository) -> jig_domain_contract::Up {
+    use jig_domain_contract::lifecycle::{AdoptionRole, Up};
+    let role = match repository.role {
+        crate::Role::Owned => AdoptionRole::Owned,
+        crate::Role::Adopted => AdoptionRole::Participant,
+        crate::Role::Fork => AdoptionRole::Fork,
+        crate::Role::Context => AdoptionRole::Context,
+    };
+    let name = jig_domain_tasks::Name {
+        connector,
+        path: Box::new([
+            Box::from(repository.provider.forge.to_be_bytes()),
+            Box::from(repository.provider.repository.to_be_bytes()),
+        ]),
+    };
+    jig_domain_contract::Up::Lifecycle(Up::Adopted { project: repository.project, name, role, home: repository.home })
+}
+
 impl Domain {
+    /// Take a row of the forge's live walk and report the adoption it kept.
+    pub fn restore_start_row(
+        &mut self,
+        env: &Env<Limits>,
+        connector: u16,
+        record: Stored,
+        out: &mut Queue<Request>,
+    ) -> RestoreRow {
+        let adoption = if let Stored::Repository(row) = &record { Some(adoption_up(connector, row)) } else { None };
+        if let Stored::LimitHold(row) = record {
+            return RestoreRow::LimitHold(row);
+        }
+        if let Stored::RefusedSetting(key) = record {
+            out.push(Request::Up(jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Unfit {
+                kind: key.kind,
+                scope: key.scope,
+                number: key.number,
+            })));
+            return RestoreRow::Refused(key);
+        }
+        super::restore(self, env, record);
+        if self.restore_fit_failure().is_none()
+            && let Some(adoption) = adoption
+        {
+            out.push(Request::Up(adoption));
+        }
+        RestoreRow::Kept
+    }
+
+    /// Finish the forge's own restore before reporting it done.
+    /// # Errors
+    /// Names the first kept row, fit, or link that the forge cannot restore.
+    pub fn restore_finished(
+        &mut self,
+        env: &Env<Limits>,
+        tasks: &jig_domain_tasks::Domain,
+        party: Option<u64>,
+        convert_branch_writes: bool,
+        stock: Option<Box<[crate::settings::Stock]>>,
+        out: &mut Queue<Request>,
+    ) -> Result<(), StartLink> {
+        self.start_links(tasks, env, convert_branch_writes, out)?;
+        super::step(self, env, crate::Event::Owner { party }, out);
+        if let Some(stock) = stock {
+            self.report_defaults(stock, out);
+        }
+        super::restored(self, env, skein_forge_client::RecoveryClock::Wall, out);
+        Ok(())
+    }
+
     /// Link restored records in the same order at a root start and a store check.
     pub fn start_links(
         &mut self,
@@ -437,6 +515,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.person_briefs.len(),
             d.person_briefs.capacity(),
             d.person_briefs.contains_key(&(row.party, row.project)),
+        ),
+        Stored::DotTemperRevision(row) => room(
+            K::DotTemperRevision,
+            Rows(K::DotTemperRevision),
+            d.temper_revisions.rows.len(),
+            d.temper_revisions.rows.capacity(),
+            d.temper_revisions.rows.contains_key(&row.project),
         ),
         Stored::ProjectFacts(row) => room(
             K::ProjectFacts,

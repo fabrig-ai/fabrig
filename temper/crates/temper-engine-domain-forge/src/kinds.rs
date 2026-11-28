@@ -301,6 +301,35 @@ impl Domain {
         states.into_boxed()
     }
 
+    /// Say the differences in this connector's supplied and stored defaults, before Restored.
+    pub(super) fn report_defaults(&mut self, stock: Box<[settings::Stock]>, out: &mut Queue<Request>) {
+        use jig_domain_contract::settings::{DefaultState, DroppedDefault, Up};
+        let mut defaults = List::uncapped();
+        for state in self.give_settings_defaults(stock) {
+            defaults
+                .push(DefaultState {
+                    kind: state.kind,
+                    scope: state.scope,
+                    number: state.number,
+                    size: state.size,
+                    charters: match state.charter {
+                        Some(charter) => Box::new([charter]),
+                        None => Box::default(),
+                    },
+                    differs: state.differs,
+                })
+                .expect("one state per forge default");
+        }
+        let mut dropped = List::uncapped();
+        for (kind, scope, number) in self.dropped_settings_defaults() {
+            dropped.push(DroppedDefault { kind, scope, number }).expect("one name per dropped forge default");
+        }
+        out.push(Request::Up(jig_domain_contract::Up::Settings(Up::Defaults {
+            defaults: defaults.into_boxed(),
+            dropped: dropped.into_boxed(),
+        })));
+    }
+
     /// The stored defaults the stock last given no longer holds, kind 2's
     /// every-project entries (scope 0) left out as `give_settings_defaults`
     /// leaves them out (temper/docs/design/protocol/configuration/stock.md).

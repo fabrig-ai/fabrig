@@ -643,7 +643,7 @@ fn review_resolves_reset_removal_and_addition_against_its_revision() {
     change(&mut world, owner, 130, 1, Box::new([charter_item(b"stored override")]));
     let mut added = configuration().0.core.defaults.templates[0].clone();
     added.number = 33;
-    added.name = b"added template".as_slice().into();
+    added.shown = b"added template".as_slice().into();
     let added_value = s::Value::Template(Box::new(added));
     let number = propose(
         &mut world,
@@ -809,7 +809,7 @@ fn model_proposal_items(model: core::Model) -> Box<[s::Item]> {
     charter.policy.model = model;
     charter.policy.instructions = b"proposed model and instructions".as_slice().into();
     let mut template = jig_test_profile::fixtures::templates()[0].clone();
-    template.name = b"proposed chat name".as_slice().into();
+    template.shown = b"proposed chat name".as_slice().into();
     Box::new([
         s::Item {
             setting: s::Setting::Template(template.number),
@@ -853,7 +853,7 @@ fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
                 llm: Some(people::LlmChoice {
                     later: None,
                     account: None,
-                    main: people::ModelEffort { model: 0, effort: Some(0) },
+                    main: people::ModelEffort { model: 0, effort: Some(0), speed: None },
                     subagents: Box::new([]),
                 }),
                 ..jig_test_profile::fixtures::person_unchanged(b"keep the current model")
@@ -889,7 +889,7 @@ fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
     assert_eq!(second_before.settings.task, 2);
     let mut items = model_proposal_items(model);
     let s::Edit::Set(s::Value::Template(template)) = &mut items[0].edit else { unreachable!("template item") };
-    template.name = b"third proposed chat name".as_slice().into();
+    template.shown = b"third proposed chat name".as_slice().into();
     let s::Edit::Set(s::Value::Charter(charter)) = &mut items[1].edit else { unreachable!("charter item") };
     charter.policy.instructions = b"a third charter version".as_slice().into();
     let number = propose(&mut world, owner, 156, 2, items);

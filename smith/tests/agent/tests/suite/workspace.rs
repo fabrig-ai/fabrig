@@ -98,6 +98,7 @@ fn remove_and_offset_read_decode_like_the_session_on_both_paths() {
             affinity: llm::Affinity { key: [0; 16], thread: 0 },
             model: Box::from(b"fake-1".as_slice()),
             effort: None,
+            speed: None,
             system: Box::from(b"@decode".as_slice()),
             tools: grants,
             namespace: tools::Namespace::One,
@@ -161,6 +162,7 @@ fn mixed_disk() -> (Checkout, run::Workspace) {
         let root = Token::new(disk.root(name));
         directories.push(run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: name.into(),
             root,
@@ -387,6 +389,7 @@ fn a_delivery_to_three_directories_failing_in_the_second_names_that_directory() 
         disk.write(&[name, b"/src/lib.rs"].concat(), b"pub fn answer() -> u32 { 43 }\n");
         directories.push(run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: name.into(),
             root: Token::new(disk.root(name)),

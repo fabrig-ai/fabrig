@@ -270,7 +270,7 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
     }
 }
 
-// An ended live state's single hold stores its ending cause (temper/docs/design/domain/forge/branches.md, 2).
+// An ended live state's single hold stores its ending cause (temper/docs/design/domain/forge/branches-closer.md, 1).
 fn encode_change_state(state: &d::State, ended_held: Option<d::Cause>) -> w::ChangeState {
     let mut holds = List::with_capacity(1);
     if let d::State::Held { was, hold } = state {
@@ -605,6 +605,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
             None => None,
         },
         producer_failure: value.producer_failure.clone(),
+        temper_dir_fault: value.temper_dir_fault.clone(),
         questions: map::questions_to_record(&value.questions).expect(FITS),
         follow_check: match &value.follow_check {
             Some(value) => Some(map::follow_check_progress_to_record(value).expect(FITS)),
@@ -728,6 +729,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
         producer_failure: value.producer_failure,
+        temper_dir_fault: value.temper_dir_fault,
         questions: map::questions_to_domain(value.questions).or(Err(super::Undecodable::Malformed))?,
         follow_check: match value.follow_check {
             Some(value) => Some(map::follow_check_progress_to_domain(value)),
@@ -799,10 +801,18 @@ fn decode_gate_failures(values: List<w::GateFailure>) -> Box<[d::GateFailure]> {
 }
 
 fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
-    crate::generated::store::model_effort_to_record(&value)
+    let speed = match value.speed {
+        Some(speed) => Some(skein_lib::bytes::copy_of(speed.as_bytes())),
+        None => None,
+    };
+    w::ModelEffort { model: value.model, effort: value.effort, speed }
 }
 fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    crate::generated::store::model_effort_to_domain(value)
+    let speed = match value.speed {
+        Some(speed) => Some(skein_lib::Name::from_checked(&speed).expect("stored speed fits the codec's bound")),
+        None => None,
+    };
+    jig_domain_tasks::ModelEffort { model: value.model, effort: value.effort, speed }
 }
 pub(super) fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
     let jig_domain_tasks::LlmChoice { main, subagents, account, .. } = value?;

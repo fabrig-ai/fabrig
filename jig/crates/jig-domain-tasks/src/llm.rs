@@ -1,5 +1,5 @@
 //! An agent task's LLM choice: its main model and the models its runs' sub-agents may use, each
-//! with an effort (domain/tasks/README.md, section 3). Tasks checks a choice as a batch or an amendment is
+//! with an effort and a speed (domain/tasks/README.md, section 3). Tasks checks a choice as a batch or an amendment is
 //! checked: an agent task's only, each model configured, each effort among those its model
 //! declares, each model among its charter's and within its authority's models (domain/tasks/README.md, section 4 and domain/tasks/changes.md
 //! ; domain/authority-checks.md, section 1.1). It resolves a charter's default for the
@@ -11,10 +11,12 @@
 //! efforts and belongs to no charter. Effort `e` is the `e`th effort that row declares
 //! (domain/engine/settings-catalogue.md, 1; `../../../docs/design/protocol/configuration-engine.md`, section 1).
 
-use alloc::boxed::Box;
-pub use jig_domain_contract::ops::{LlmChoice, LlmLater, ModelEffort};
+pub use jig_domain_contract::ops::{AccountWhy, LlmFault};
 
-use skein_lib::List;
+use alloc::boxed::Box;
+pub use jig_domain_contract::ops::{LlmChoice, LlmLater, ModelEffort, STANDARD_SPEED};
+
+use skein_lib::{List, Name};
 
 use crate::domain::Domain;
 use crate::{Authority, Executor, Models, Refusal};
@@ -22,23 +24,6 @@ use crate::{Authority, Executor, Models, Refusal};
 /// Most catalogue rows, the bits of `Models` (`../../../docs/design/protocol/configuration-engine.md`, section 1). A
 /// choice's sub-agents name at most this many.
 pub const MODELS: u32 = 64;
-
-/// Why an LLM choice is refused (domain/tasks/README.md, section 4 and domain/tasks/changes.md).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum LlmFault {
-    /// The model is not configured.
-    Unconfigured,
-    /// The effort is not one the model declares, or none is named for a model that declares some.
-    Effort,
-    /// The model is not one of the task's charter's.
-    Charter,
-    /// The task's authority does not allow the model (domain/authority.md, section 3).
-    Authority,
-    /// The task is a procedure's or a person's, whose executor runs no model.
-    Procedure,
-    /// The sub-agents name the model twice.
-    Repeated,
-}
 
 /// One charter version's models, in charter order; a removal offers none
 /// (domain/engine/settings.md, 3).
@@ -51,6 +36,43 @@ pub struct CharterModels {
     pub revision: u32,
     /// Its configured model indices, at most `MODELS`; none marks a removal.
     pub models: Option<Box<[u8]>>,
+    /// The declared speed names for those models, without aliases.
+    pub speeds: Box<[DeclaredSpeed]>,
+}
+
+/// One model's declared speed name in a charter version.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct DeclaredSpeed {
+    pub model: u8,
+    pub name: Name<32>,
+}
+
+impl CharterModels {
+    pub(crate) fn takes_speed(&self, chosen: ModelEffort) -> bool {
+        let Some(name) = chosen.speed else { return true };
+        if name.as_bytes() == STANDARD_SPEED {
+            return true;
+        }
+        for speed in &self.speeds {
+            if speed.model == chosen.model && speed.name == name {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+/// The latest charter version at or before `revision` (including removals).
+pub(crate) fn version(charters: &[CharterModels], charter: u32, revision: u32) -> Option<&CharterModels> {
+    let mut found = None;
+    let mut latest = 0;
+    for version in charters {
+        if version.number == charter && version.revision <= revision && version.revision >= latest {
+            latest = version.revision;
+            found = Some(version);
+        }
+    }
+    found
 }
 
 /// Whether `choice` has the shape a task keeps: its sub-agents at most `MODELS`.
@@ -99,33 +121,27 @@ fn check_agent(
     allowed: Models,
     choice: &LlmChoice,
 ) -> Result<(), Refusal> {
-    let models = domain.charter_models(charter, revision).unwrap_or(&[]);
-    check_models(domain, models, allowed, choice.main, &choice.subagents)?;
+    let version = version(&domain.charters, charter, revision);
+    check_models(domain, version, allowed, choice.main, &choice.subagents)?;
     if let Some(later) = &choice.later {
-        let mut latest = 0;
-        let mut resumes = false;
-        for version in &domain.charters {
-            if version.number == charter && version.revision <= revision && version.revision >= latest {
-                latest = version.revision;
-                resumes = version.resumes;
-            }
-        }
-        if resumes {
+        if let Some(version) = version
+            && version.resumes
+        {
             return Err(Refusal::Llm { model: later.main.model, why: LlmFault::Charter });
         }
-        check_models(domain, models, allowed, later.main, &later.subagents)?;
+        check_models(domain, version, allowed, later.main, &later.subagents)?;
     }
     Ok(())
 }
 
 fn check_models(
     domain: &Domain,
-    models: &[u8],
+    version: Option<&CharterModels>,
     allowed: Models,
     main: ModelEffort,
     subagents: &[ModelEffort],
 ) -> Result<(), Refusal> {
-    fits(domain, models, allowed, main)?;
+    fits(domain, version, allowed, main)?;
     for (at, chosen) in subagents.iter().enumerate() {
         for earlier in subagents.iter().take(at) {
             if earlier.model == chosen.model {
@@ -133,12 +149,12 @@ fn check_models(
             }
         }
         // Each passing entry names another configured model, so the loop ends by `MODELS`.
-        fits(domain, models, allowed, *chosen)?;
+        fits(domain, version, allowed, *chosen)?;
     }
     Ok(())
 }
 
-fn fits(domain: &Domain, charter: &[u8], allowed: Models, chosen: ModelEffort) -> Result<(), Refusal> {
+fn fits(domain: &Domain, version: Option<&CharterModels>, allowed: Models, chosen: ModelEffort) -> Result<(), Refusal> {
     let Some(declared) = domain.efforts.get(usize::from(chosen.model)) else {
         return Err(Refusal::Llm { model: chosen.model, why: LlmFault::Unconfigured });
     };
@@ -149,14 +165,14 @@ fn fits(domain: &Domain, charter: &[u8], allowed: Models, chosen: ModelEffort) -
     if !effort {
         return Err(Refusal::Llm { model: chosen.model, why: LlmFault::Effort });
     }
-    let mut listed = false;
-    for model in charter {
-        if *model == chosen.model {
-            listed = true;
-        }
-    }
-    if !listed {
+    let Some(version) = version else {
         return Err(Refusal::Llm { model: chosen.model, why: LlmFault::Charter });
+    };
+    if !version.models.as_deref().unwrap_or(&[]).contains(&chosen.model) {
+        return Err(Refusal::Llm { model: chosen.model, why: LlmFault::Charter });
+    }
+    if !version.takes_speed(chosen) {
+        return Err(Refusal::Llm { model: chosen.model, why: LlmFault::Speed });
     }
     if !allows(allowed, chosen.model) {
         return Err(Refusal::Llm { model: chosen.model, why: LlmFault::Authority });
@@ -191,7 +207,7 @@ fn first_effort(domain: &Domain, model: u8) -> Option<u8> {
 impl Domain {
     /// Check `choice` for an agent task of `charter` within `models`, at the newest
     /// revision, as a batch checks it (domain/tasks/README.md, section 4): each model configured,
-    /// named once among the sub-agents, each effort one its model declares, each model one
+    /// named once among the sub-agents, with an allowed effort and speed; each model one
     /// the charter allows and `models` allows. A refusal names the first model that fails.
     pub fn check_llm(&self, charter: u32, models: Models, choice: &LlmChoice) -> Result<(), Refusal> {
         check_agent(self, charter, self.newest(), models, choice)
@@ -220,7 +236,7 @@ impl Domain {
             }
             // The first effort is the fallback; core applies each charter model's named
             // default (protocol/configuration-engine.md, 1) when it resolves a run's choice.
-            let chosen = ModelEffort { model: *model, effort: first_effort(self, *model) };
+            let chosen = ModelEffort { model: *model, effort: first_effort(self, *model), speed: None };
             match main {
                 None => main = Some(chosen),
                 Some(_) => subagents.push(chosen).expect("one per charter model"),
@@ -237,13 +253,4 @@ pub(crate) fn replaces_account(kept: Option<u32>, choice: &LlmChoice) -> bool {
         Some(account) => kept.is_some() && kept != Some(account),
         None => false,
     }
-}
-
-/// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AccountWhy {
-    Unknown,
-    Provider,
-    Uses,
-    Limited,
 }

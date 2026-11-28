@@ -12,6 +12,7 @@ pub use jig_domain_link::Class;
 pub fn class(event: &Event) -> Class {
     match event {
         Event::Core(event) => Class::of(event.new_work()),
+        Event::Engine(input) => Class::of(input.new_work()),
         Event::Timer(timer) => Class::of(timer.new_work()),
         Event::Link { link, .. } => match link {
             crate::link::Event::Hello { .. } | crate::link::Event::Lost => Class::Admitted,
@@ -32,8 +33,8 @@ pub fn class(event: &Event) -> Class {
         Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
-        | Event::StartBegin { .. }
         | Event::Credential { .. }
+        | Event::StartBegin { .. }
         | Event::ProjectionEffect { .. }
         | Event::TopicCall { .. }
         | Event::EffectCall { .. } => Class::New,
@@ -41,10 +42,8 @@ pub fn class(event: &Event) -> Class {
         | Event::ResultRead { .. }
         | Event::Stop
         | Event::ConnectorTimer { .. }
-        | Event::StartRecord(_)
-        | Event::StartMissing { .. }
+        | Event::ConnectorPage { .. }
         | Event::StartPageRefused { .. }
-        | Event::StartDone(_)
         | Event::CallAnswered { .. }
         | Event::Text { .. }
         | Event::Turn { .. }
@@ -76,7 +75,11 @@ fn connector_class(event: &connector::Event) -> Class {
             | connector::SystemEvent::Unavailable { .. }
             | connector::SystemEvent::Pool { .. } => Class::New,
         },
-        connector::Event::DocumentPrepare { .. }
+        connector::Event::Ask(_)
+        | connector::Event::Released(_)
+        | connector::Event::StageEffect { .. }
+        | connector::Event::WriterRead { .. }
+        | connector::Event::DocumentPrepare { .. }
         | connector::Event::DocumentForget { .. }
         | connector::Event::Document { .. }
         | connector::Event::ReadDocument { .. }
@@ -114,6 +117,7 @@ fn connector_class(event: &connector::Event) -> Class {
         | connector::Event::Resolve { .. }
         | connector::Event::Withdraw { .. }
         | connector::Event::ReleaseProject { .. }
+        | connector::Event::RestoredPage { .. }
         | connector::Event::Restore { .. } => Class::Admitted,
     }
 }
@@ -122,7 +126,8 @@ fn connector_class(event: &connector::Event) -> Class {
 #[expect(clippy::result_large_err, reason = "the admission boundary returns the original owned event")]
 pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<(), Event> {
     match event {
-        Event::Core(core::Event::PublicRead { reply, read }) => {
+        Event::Core(core::Event::PublicRead { reply, read })
+        | Event::Engine(core::engine::In::Core(core::Event::PublicRead { reply, read })) => {
             if public_admits(domain, &env.limits) {
                 step(domain, env, Event::Core(core::Event::PublicRead { reply, read }));
             } else {
@@ -135,10 +140,9 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             Ok(())
         }
         event @ (Event::Store(_)
-        | Event::StartRecord(_)
-        | Event::StartMissing { .. }
+        | Event::Engine(core::engine::In::Store(_))
+        | Event::ConnectorPage { .. }
         | Event::StartPageRefused { .. }
-        | Event::StartDone(_)
         | Event::Core(core::Event::PublicDurable { .. })) => {
             domain.store_answers.push(Box::new(event));
             Ok(())
@@ -157,6 +161,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::ConnectorTimer { .. }
         | Event::StartBegin { .. }
         | Event::Timer(..)
+        | Event::Engine(..)
         | Event::Core(..)
         | Event::Credential { .. }
         | Event::Connector { .. }
@@ -238,13 +243,12 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::Application { .. }
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
-        | Event::StartBegin { .. }
-        | Event::StartRecord(_)
-        | Event::StartMissing { .. }
+        | Event::ConnectorPage { .. }
         | Event::StartPageRefused { .. }
-        | Event::StartDone(_)
+        | Event::StartBegin { .. }
         | Event::Timer(..)
         | Event::Store(_)
+        | Event::Engine(..)
         | Event::Core(..)
         | Event::Credential { .. }
         | Event::Connector { .. }
@@ -310,7 +314,11 @@ mod tests {
     fn link_calls_are_new_work_and_new_work_waits_at_the_watermark() {
         let env = fixtures::env();
         let mut domain = fixtures::domain();
-        fixtures::fill_to_watermark(&mut domain, &env);
+        let commits = fixtures::fill_to_watermark(&mut domain, &env);
+        // These synthetic commits stand in for decisions that saved their headers.
+        for _ in 0..commits {
+            domain.engine.core_mut().counters.next_commit();
+        }
         let event = Event::Core(core::Event::People(people::Event::Ask {
             models: Box::new([]),
             reply_to: ReplyTo::new(Token::new(7)),

@@ -1,4 +1,5 @@
 //! Room behind live and ended writers (engine-checks.md, 5.1).
+use jig_domain_contract as contract;
 use skein_lib::{Duration, Wall};
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
@@ -67,7 +68,9 @@ fn a_change_waiting_for_room_has_a_bound() {
     assert!(
         !world.seen().iter().any(|request| matches!(
             request,
-            top::Request::EffectsSettled { task: WRITER } | top::Request::Released { task: WRITER }
+            top::Request::Up(contract::Up::Effects(
+                contract::effects::Up::Closed { task: WRITER } | contract::effects::Up::Released { task: WRITER }
+            ))
         )),
         "cancellation closes the writer while its attempted write remains uncertain"
     );

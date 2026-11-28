@@ -34,7 +34,9 @@ fn clients(document: &serde_json::Value) -> SocketAddr {
 #[test]
 fn a_fresh_box_holds_serves_clients_port() {
     let root = scratch("first");
-    let mut child = command(&root, "").stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("box");
+    let mut command = command(&root, "");
+    command.stdout(Stdio::null()).stderr(Stdio::null());
+    let mut child = crate::support::fixture::spawn(&mut command, skein_io::kernel::Signal::Terminate).expect("box");
     let dirs = temper_agent_fixtures::directories(&root.join("config"));
     let mut address = None;
     let mut deadline = Deadline::arm("the box's listener document", skein_lib::Duration::from_secs(3));

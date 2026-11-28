@@ -43,6 +43,10 @@ fn map_problem(problem: w::Problem) -> Untranslatable {
 }
 pub(crate) fn model_from_record(value: w::SettingModel) -> c::Model {
     let v = value;
+    let mut speeds = List::with_capacity(v.speeds.len());
+    for speed in v.speeds.into_boxed() {
+        speeds.push(mapped::setting_speed_to_domain(speed)).expect("same count");
+    }
     c::Model {
         provider: v.provider,
         dialect: v.dialect,
@@ -59,6 +63,8 @@ pub(crate) fn model_from_record(value: w::SettingModel) -> c::Model {
         price_unit: v.price_unit,
         efforts: v.efforts.into_boxed(),
         effort: v.effort,
+        speeds: speeds.into_boxed(),
+        speed: v.speed,
     }
 }
 fn wake_rule(value: w::WakeRule) -> t::WakeRule {
@@ -105,6 +111,7 @@ pub(crate) fn charter_from_record(value: w::Charter) -> c::Charter {
         parts.push(mapped::charter_part_to_domain(item)).expect("same count");
     }
     c::Charter {
+        name: v.name,
         parts: parts.into_boxed(),
         rest,
         documents: documents.into_boxed(),
@@ -203,6 +210,7 @@ pub(crate) fn policy_from_record(
     }
     let overrides = operations::overrides(v.templates);
     Ok(c::ConfiguredPolicy {
+        name: v.name,
         policy: a::Policy {
             escalation_role: v.escalation_role,
             ceiling: authority(v.ceiling, models, limits)?,
@@ -243,7 +251,7 @@ pub(crate) fn template_from_record(
     limits: &w::Limits,
 ) -> Result<c::Template, Untranslatable> {
     let v = value;
-    if v.name.cut {
+    if v.shown.cut {
         return Err(bad());
     }
     let flags = v.flags;
@@ -251,7 +259,9 @@ pub(crate) fn template_from_record(
         Some(value) => {
             let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded models"));
             for value in value.subagents {
-                subagents.push(t::ModelEffort { model: value.model, effort: value.effort }).expect("same count");
+                subagents
+                    .push(t::ModelEffort { model: value.model, effort: value.effort, speed: value.speed })
+                    .expect("same count");
             }
             Some(t::LlmChoice {
                 later: match value.later {
@@ -259,7 +269,7 @@ pub(crate) fn template_from_record(
                     None => None,
                 },
                 account: value.account,
-                main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
+                main: t::ModelEffort { model: value.main.model, effort: value.main.effort, speed: value.main.speed },
                 subagents: subagents.into_boxed(),
             })
         }
@@ -272,9 +282,10 @@ pub(crate) fn template_from_record(
             .expect("same capacity");
     }
     Ok(c::Template {
+        name: v.name,
         resources: resources.into_boxed(),
         number: v.number,
-        name: v.name.bytes,
+        shown: v.shown.bytes,
         executor: operations::executor(v.executor),
         contract: contract(v.contract, limits)?,
         shallower: v.shallower,
@@ -393,10 +404,12 @@ pub(crate) fn catalogue_from_record(value: w::CatalogueEntry) -> s::CatalogueMod
 fn task_later(value: p::LlmLater) -> t::LlmLater {
     let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded models"));
     for item in value.subagents {
-        subagents.push(t::ModelEffort { model: item.model, effort: item.effort }).expect("same count");
+        subagents
+            .push(t::ModelEffort { model: item.model, effort: item.effort, speed: item.speed })
+            .expect("same count");
     }
     t::LlmLater {
-        main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
+        main: t::ModelEffort { model: value.main.model, effort: value.main.effort, speed: value.main.speed },
         subagents: subagents.into_boxed(),
     }
 }

@@ -194,6 +194,7 @@ impl Operation {
             | git::Done::ParentUnreachable { .. }
             | git::Done::Looked { .. }
             | git::Done::IsAncestor { .. }
+            | git::Done::Message { .. }
             | git::Done::Brings { .. }
             | git::Done::Merged
             | git::Done::Conflicted { .. }
@@ -252,6 +253,7 @@ impl Operation {
             | Command::WriteTree
             | Command::CommitTree { .. }
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => kind,
@@ -290,6 +292,7 @@ impl Operation {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => false,
@@ -329,6 +332,7 @@ impl Operation {
             | Command::WriteTree
             | Command::CommitTree { .. }
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => match &self.op {
@@ -348,6 +352,7 @@ impl Operation {
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Message { .. }
                     | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. }
@@ -414,6 +419,7 @@ impl Operation {
             Phase::Active(_) | Phase::Waiting | Phase::Spawning { .. } | Phase::Settled => None,
         }
     }
+    #[expect(clippy::too_many_lines, reason = "the terminal stdout rules cover every command in one table")]
     fn result(&self, child: &Child, checkout: &checkout::Limits) -> Next {
         let tail = child.stderr.tail();
         if let Some(fault) = self.stop {
@@ -446,14 +452,22 @@ impl Operation {
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Message { .. }
                     | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Push { .. },
                 )
                 | None => false,
             };
-        let progress = match self.command {
-            Command::Merge { .. } | Command::MergeHistory { .. } => true,
+        let invalid = match self.command {
+            Command::ReadMessage { .. } => {
+                if child.dropped > 0 && child.exited == Some(kernel::Exit::Code(0)) {
+                    return Next::End(git::Done::Message { message: None });
+                }
+                // The raw message need not end with a newline.
+                false
+            }
+            Command::Merge { .. } | Command::MergeHistory { .. } => false,
             Command::Reds(_)
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
@@ -486,14 +500,13 @@ impl Operation {
             | Command::MergeBases { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
-            | Command::Push { .. } => false,
-        };
-        let invalid = if progress {
-            false
-        } else if child.dropped == 0 {
-            !stdout.is_empty() && stdout.last().copied() != Some(self.delimiter())
-        } else {
-            !merge_listing
+            | Command::Push { .. } => {
+                if child.dropped == 0 {
+                    !stdout.is_empty() && stdout.last().copied() != Some(self.delimiter())
+                } else {
+                    !merge_listing
+                }
+            }
         };
         if invalid {
             return sequence::failed(git::Fault::Broken, &tail, child.stderr.dropped());
@@ -549,6 +562,7 @@ impl Operation {
             | Command::WriteTree
             | Command::CommitTree { .. }
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => b'\n',

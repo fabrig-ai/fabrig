@@ -1,15 +1,20 @@
-//! Seeded header, opening, terms and channel worlds (net/channel.md, section 11).
+//! Seeded header, opening, terms and channel worlds (net/channel.md, section 11;
+//! skein/docs/design/testing/sweeps.md, 4.2–4.5).
+use std::convert::Infallible;
+
 use skein_channel::{
-    Direction, Event, Kind, Limits, Lower, LowerEvent, Machine, Role, Schema, Version, decode_control, parse_header,
+    Direction, Event, Kind, Limits, Lower, LowerEvent, Machine, Role, Schema, decode_control, parse_header,
 };
 use skein_lib::{List, Queue, Rng, stream};
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
 
 fn schema() -> Schema {
     let mut kinds = List::with_capacity(1);
     kinds.push(Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 64 }).expect("kind");
-    let mut versions = List::with_capacity(1);
-    versions.push(Version { version: 1, kinds }).expect("version");
-    Schema { magic: *b"fuzz", versions }
+    Schema { magic: *b"fuzz", version: 1, kinds }
 }
 
 fn limits() -> Limits {
@@ -17,8 +22,8 @@ fn limits() -> Limits {
 }
 
 #[test]
-fn fuzzy_header_opening_and_terms_on_a_machine() {
-    for seed in 0..512_u64 {
+fn fuzzy_header_opening_and_terms_on_a_machine() -> Result<(), Case<Infallible>> {
+    cases(this_test!("fuzzy_header_opening_and_terms_on_a_machine"), 0..512, |seed| {
         let mut rng = Rng::new(seed);
         let mut header = [0_u8; 8];
         for byte in &mut header {
@@ -56,12 +61,14 @@ fn fuzzy_header_opening_and_terms_on_a_machine() {
         assert!(saw_rest, "seed {seed}");
         machine.up(LowerEvent::Read(stream::Up::Bytes(Box::from(&header[1..]))), &mut above, &mut below);
         machine.poll(&mut above, &mut below);
-    }
+        Ok(())
+    })
 }
 
 #[test]
-fn fuzzy_two_channel_protocol_worlds() {
-    for seed in 0..64_u64 {
+fn fuzzy_two_channel_protocol_worlds() -> Result<(), Case<Infallible>> {
+    cases(this_test!("fuzzy_two_channel_protocol_worlds"), 0..64, |seed| {
         crate::generic_protocol::seeded_protocol(seed);
-    }
+        Ok(())
+    })
 }

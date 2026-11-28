@@ -186,7 +186,7 @@ pub(crate) fn ended(
             }
         }
         crate::Ending::Failed { reason } => {
-            row.tries.add(Class::Run);
+            crate::failures::add_try(&mut row.tries, Class::Run);
             if row.tries.run > env.limits.retries.run.retries {
                 row.phase = Phase::Closing(crate::Closing {
                     stage: match attempt {

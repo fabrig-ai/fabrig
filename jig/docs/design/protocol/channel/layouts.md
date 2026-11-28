@@ -5,7 +5,7 @@ when their layouts of a worker wire differ: the engine converts what it
 receives from the worker's layout to its own and what it sends from its
 own to the worker's, by plans derived from both sides' schema texts
 (skein's `data/codec/layouts.md`), and the worker speaks its own layouts
-alone. It carries temper's `draft/layouts-both-ways.md`, sections 5, 6
+alone. It carries temper's `draft/archive/layouts-both-ways.md`, sections 5, 6
 and 7.3, for jig's channel. The opening that gives the engine the
 worker's texts, and checks them, is `wires.md`'s; what an application
 puts through the channel is its own (temper's `protocol/wires.md`).
@@ -32,7 +32,10 @@ puts through the channel is its own (temper's `protocol/wires.md`).
   waits for another worker, spending no try; a message to a running
   attempt is discarded and its channel takes nothing more.
 - **Written converters** (6) are their owner's, for what no plan
-  derives; none is needed yet.
+  derives: the same function a store's written job calls (skein's
+  `data/codec/layouts.md`, 4). Where a value type's plan would run and
+  a converter takes it, the engine holds the value, asks its owner
+  through the service, and goes on with the answer.
 
 ## 2. What converts
 
@@ -83,7 +86,7 @@ in each direction it crosses, and no other:
   and the worker's lacks is dropped only at the default the way back
   writes (from the engine's field or the worker's tombstone), or where
   the engine's text marks it `droppable`; anything else refuses the value (5).
-- **The modes are temper's draft's** (`draft/layouts-both-ways.md`,
+- **The modes are temper's draft's** (`temper/docs/design/draft/archive/layouts-both-ways.md`,
   4.4): the engine receives through Read plans and sends through Keep
   plans, whichever of the two builds is newer.
 
@@ -109,11 +112,13 @@ at another layout whose value types' plans all keep (skein's
      the layout the worker stated;
   3. a plan is derived for each value type of 2.1, in each direction it
      crosses, from the worker's text to the engine's for Read and from
-     the engine's to the worker's for Keep.
+     the engine's to the worker's for Keep; where none derives, a
+     written entry (6) naming the value type and the worker's layout of
+     it makes that direction's pass a written one.
 
   The first that fails refuses the opening with *wires*, its text as
   `wires.md`, 3 gives it. A value type with no plan, and no written
-  converter (6), names the wire, the value type, the direction and the
+  entry (6), names the wire, the value type, the direction and the
   change, so the operator knows which worker to drain and restart on the
   new build (temper's `draft/archive/redeploys.md`, 6.1).
 - **The worker's kinds' table** comes from its `jig-worker-wire` text
@@ -219,7 +224,7 @@ for what it receives. Its kind is skein's `Refused`: `variant`, `field`,
   mismatched, so the fleet places nothing more there while what it
   hosts goes on (`wires.md`, 6).
 - **A redeploy's order costs refusals, never correctness**
-  (`draft/layouts-both-ways.md`, 6.1): no gate holds these kinds total
+  (`temper/docs/design/draft/archive/layouts-both-ways.md`, 6.1): no gate holds these kinds total
   across layouts. A change that a running attempt's messages cannot
   carry to the previous build's workers is met by draining them
   (temper's `draft/archive/redeploys.md`, 6.1).
@@ -270,19 +275,57 @@ for what it receives. Its kind is skein's `Refused`: `variant`, `field`,
 
 ## 6. Written converters
 
-- **The rule** (`draft/layouts-both-ways.md`, 7.3): a retype or a
-  reshape of a wire's value type, which no plan derives, is converted by
-  a pair of functions in the wire owner's crate, for that value type and
-  the two layouts, named by both family fingerprints, one each way; one
-  direction may refuse. They run where the value type's plan would, and
-  go once dev.fabrig.ai and every part it runs are past the layout that
-  needed them (7.4 there).
-- **None is needed yet,** so none is built, nor the engine's hook for
-  one: a value type with no plan refuses the opening (3). The first
-  change of a wire that needs one designs its hook in this section. The
-  common changes need none: a field added with a default, a field
-  dropped with its tombstone (`dropped name: type = default`), a variant
-  added, a bound widened (skein's `data/codec/layouts.md`, 2).
+- **The rule:** a change of a wire's value type that no plan derives (a
+  retype, a reshape) is converted by its owner's written converter,
+  skein's `data/codec/layouts.md`, 4: one function for the value type,
+  from one layout to another given both texts, the same one its store's
+  written job calls for a stored value of that type (`../store/jobs.md`,
+  4). It runs where the value type's plan would, either way, and one way
+  may refuse. It goes once dev.fabrig.ai and every part it runs are past
+  the layout that needed it (temper's `draft/archive/layouts-both-ways.md`,
+  7.4). The common changes need none: a field added with a default, a
+  field dropped with its tombstone (`dropped name: type = default`), a
+  variant added, a bound widened (skein's `data/codec/layouts.md`, 2).
+- **Declared by its wire's owner,** as data the opening reads (7): a
+  written entry names the wire, the value type's declaration and the
+  worker's layout of it (skein's `data/codec/fingerprints.md`, 1.4),
+  and says that its owner's converter takes that value type between
+  that layout and the engine's own, both ways. jig declares its wires'
+  entries, smith's families' among them, and the application its own.
+  None is declared today.
+- **At the opening** (3): a direction whose plan does not derive, for a
+  value type a written entry names at the worker's layout, is a written
+  pass. It parses as any differing text does, is kept with the plans
+  by the worker's text, and lists no gap (5.4), since which values it
+  refuses is its owner's.
+- **Where it runs, the value waits for its owner.** Step code calls no
+  function an owner hands in, so the engine holds the value and asks:
+  - the component holds the value where its pass would run (4.1, 4.2),
+    with its wire, its direction's mode, both sides' parsed texts and
+    roots (the worker's from its text, the engine's own) and the bound
+    its result is held to (4.1, 4.2), and says a conversion waits;
+  - the service lends the waiting value from the component, calls the
+    converter of the wire's owner (jig's for jig's four wires,
+    `jig_protocol_worker_wire::convert`, which hands smith's families to
+    smith's crates once smith has a converter; the application's for its
+    own), and answers the
+    component with the bytes or the refusal, before it routes anything
+    else of the component's;
+  - one value waits at a time, the oldest first; while a channel's
+    value waits, that channel reads nothing more, and its later sends
+    wait behind it, in order, at most the channel's output frames
+    (skein's `net/channel.md`, 10), one past them unsent as a full
+    output's is;
+  - with the answer, the conversion goes on as after a plan's pass: the
+    next value of the frame, then the frame. A refusal is a plan's
+    refusal (5), named by the value type, the converter's declaration
+    and part, and its why; a channel gone while its value waits takes
+    the answer as nothing.
+- **Why held, not called:** the store hands an owner its written job's
+  pages through the shell for the same reason (`../store/jobs.md`, 3);
+  a converter is needed only between two builds whose layouts no plan
+  joins, so a held value costs only a worker of another build, and only
+  while the change is within the floor.
 
 ## 7. The application's interface
 
@@ -297,13 +340,37 @@ pub struct Spoken {
 }
 pub enum Carried { Items, Left, Saved, Preparation, JobSpec, JobResult, Grant, Ask, Answer }
 pub struct Root { pub carried: Carried, pub wire: &'static str, pub declaration: &'static str }
+pub struct Written {          // a written entry (6)
+    pub wire: &'static str,   // its wire's family, as its `Spoken` names it
+    pub declaration: &'static str, // the value type's root: a `Root`'s declaration, or `FromWorker` or `FromEngine`
+    pub layout: [u8; 32],     // the worker's layout of that value type (skein's data/codec/fingerprints.md, 1.4)
+}
 pub struct Application {
     pub spoken: List<Spoken>, // its wires, stated at the opening after jig's
     pub roots: List<Root>,    // what each carried part holds; a part with none crosses as is
+    pub written: List<Written>, // the layouts its converter takes, of its own wires' value types
 }
 impl Application {
-    /// An application whose parts cross unconverted: no root.
+    /// An application whose parts cross unconverted: no root, no written entry.
     pub fn opaque(spoken: List<Spoken>) -> Application;
+}
+pub fn written() -> List<Written>; // jig's own entries, for its four wires: none today
+pub fn convert(mode: Mode, from: &Side<'_>, to: &Side<'_>, value: &[u8], out: &mut Buffer)
+    -> Result<(), Refusal>;   // jig's written converters (skein's data/codec/layouts.md, 4): none today
+
+// jig_protocol_engine_workers::host
+pub enum Output { /* ... */ Convert } // a value waits for its written converter (6)
+pub struct Converting<'a> {
+    pub wire: &'a str,        // the owner the service asks: jig's for jig's four, else the application's
+    pub mode: Mode,
+    pub from: Side<'a>,       // the worker's layout for Read, the engine's for Keep
+    pub to: Side<'a>,
+    pub value: &'a [u8],
+    pub bound: u32,           // the most bytes the result may hold (4.1, 4.2)
+}
+impl Workers {
+    pub fn converting(&self) -> Option<Converting<'_>>;   // the value that waits, lent
+    pub fn converted(&mut self, now: Time, answer: Result<Box<[u8]>, Refusal>); // its owner's answer
 }
 ```
 
@@ -319,6 +386,14 @@ impl Application {
   `spoken` at the opening and uses no roots for conversion.
 - **A part's direction is its `Carried`'s** (2.1); the engine derives
   that one direction's plan for it.
+- **A written entry is checked as a root is:** one naming a wire with no
+  `Spoken`, a declaration its text lacks, or a value type named twice
+  at one layout refuses the component's construction (`Unusable`).
+- **The service routes `Convert`** as the store's `Event::Job` is
+  routed (`../store/jobs.md`, 3): by `Converting.wire`, to
+  `jig_protocol_worker_wire::convert` for jig's four wires and to the
+  application's own function for its, then `converted` with what it
+  wrote, before it takes the component's next output.
 
 ## 8. Testing
 
@@ -354,6 +429,18 @@ Focused and fuzzy alone; a story through temper's parts is temper's
   and puts nothing more there while its running attempt can finish.
 - **Fuzzy:** drawn records of every kind, at the derived layout, through
   both components: each arrives as itself or is refused, never altered.
+- **Written converters** (6), with one converter written for the tests,
+  in `jig-test-layouts`, over a fixture family whose two texts retype a
+  field (a number at one, its decimal text at the other): the same
+  function the store's written-job test calls (`../store/jobs.md`, 6).
+  At the wire crate: a written entry makes the pass where no plan
+  derives, and the opening without it still refuses naming the change.
+  In the worker-link world, a test application carrying that value type
+  as its part, the worker at the older text: what the engine sends and
+  receives crosses converted both ways, each value held and answered
+  through the world's service; a value the converter refuses is refused
+  as a plan's refusal is (5.1, 5.3); a channel's later sends wait behind
+  a held one, in order; another channel goes on meanwhile.
 - **The gaps** (5.4), at the wire crate: none at the same layout; none
   for a derived text that only adds; one for a field the derived text
   lacks, a kind the engine always sends that it lacks, and a narrowed
@@ -362,12 +449,12 @@ Focused and fuzzy alone; a story through temper's parts is temper's
 
 ## 9. Open questions
 
-- **A plan's cost on a hot path** (`draft/layouts-both-ways.md`, 10): a
+- **A plan's cost on a hot path** (`temper/docs/design/draft/archive/layouts-both-ways.md`, 10): a
   pass is one walk over the bytes with no allocation (skein's
   `data/codec/layouts.md`, 3), and the same layout costs nothing; it is
   not yet measured on dev.fabrig.ai.
 - **`smith-pieces` converted** once the store keeps the layout of the
   pieces it holds.
-- **Clients converted the same way** (`draft/layouts-both-ways.md`, 10).
+- **Clients converted the same way** (`temper/docs/design/draft/archive/layouts-both-ways.md`, 10).
 - **Names at the opening:** should it compare names as well as layouts,
   so a swap of names between kinds of one shape is visible (2.3)?

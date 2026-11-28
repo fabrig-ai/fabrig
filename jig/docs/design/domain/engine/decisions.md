@@ -123,7 +123,15 @@ answers to a run's reads.
     escalation or proposal, a batch's inputs, a person's ended task) is
     answered busy at once: a party's request `Again(Busy)`, a run's call
     unavailable. A notes operation's page fails at once, and the notes
-    child answers busy (`briefs.md`, 2.2).
+    child answers busy (`briefs.md`, 2.2);
+  - **a project deletion's notes page** is the one that waits: the notes
+    child retries that page on its failure until the project's notes are
+    dropped (`briefs.md`, 2), so failing it at once would hand the child
+    its own retry in the same decision, again and again. The engine keeps
+    the one page the retry asks for, since notes serves one operation at
+    a time, and sends it once a load frees, after the ended tasks' loads
+    waiting then; a stopping engine drops it, and the deletion's kept
+    step takes the page up again after the restart.
 - **Busy is a load that failed.** A load of an ended task is answered
   with its row, with none, or busy: the store could not serve it, its
   answer `Failed` or `Busy` (`vocabulary.md`, 2.4). So is any other load

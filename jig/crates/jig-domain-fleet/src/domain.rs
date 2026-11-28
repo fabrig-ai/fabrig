@@ -502,6 +502,12 @@ impl Domain {
         call::reply_bound(self, run, attempt)
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_attempt_capacity(&self) -> u32 {
+        self.attempts.capacity()
+    }
+
     /// Copy bounded current attempt facts, without exposing outstanding replies.
     #[must_use]
     pub fn attempt_views(&self) -> List<crate::AttemptView> {

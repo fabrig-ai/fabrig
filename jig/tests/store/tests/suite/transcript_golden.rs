@@ -114,8 +114,8 @@ fn assert_kept(made: &[u8]) {
         _ => None,
     };
     let reason = changed_body.map_or_else(
-        || "the transcripts' framing changed (protocol/store/transcripts.md, 1, and protocol/store/testing.md, 1): from the first release a deployment holds these bytes, and changing them needs an upgrade of its own, run before the records' patches".to_owned(),
-        |index| format!("frame {}'s body changed: the core's `TurnRecord` or smith's turn, whose changes are the patches' and their goldens' (protocol/store/transcripts.md, 6, and protocol/store/testing.md, 1); the kept file is replaced in place before the first release", index + 1),
+        || "the transcripts' framing changed (protocol/store/transcripts.md, 1, and protocol/store/testing.md, 1): from the first release a deployment holds these bytes, and changing them needs an upgrade of its own, run before the records' upgrade".to_owned(),
+        |index| format!("frame {}'s body changed: the core's `TurnRecord` or smith's turn, whose changes belong to the layout transitions and their goldens (protocol/store/transcripts.md, 6, and protocol/store/testing.md, 1); the kept file is replaced in place before the first release", index + 1),
     );
     let offset = KEPT.iter().zip(made).position(|(kept, made)| kept != made).unwrap_or(KEPT.len().min(made.len()));
     panic!(

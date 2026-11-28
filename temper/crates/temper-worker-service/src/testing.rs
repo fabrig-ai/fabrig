@@ -23,11 +23,25 @@ pub fn startup_hello(service: &mut crate::worker_alone::Service) -> Option<jig_d
 pub const JOB: Token = Token::new(81);
 
 pub fn launch_args(worker: &mut Worker, args: Box<[Box<[u8]>]>, deadline: Time) -> (Token, kernel::Spawn) {
+    request_command(worker, args, deadline);
+    take_spawn(worker)
+}
+
+pub(crate) fn request_command(worker: &mut Worker, args: Box<[Box<[u8]>]>, deadline: Time) {
+    request_with_hooks(worker, args, deadline, root::tooling::Hooks::new(None, 3600));
+}
+
+pub(crate) fn request_with_hooks(
+    worker: &mut Worker,
+    args: Box<[Box<[u8]>]>,
+    deadline: Time,
+    hooks: root::tooling::Hooks,
+) {
     worker.job_request(
         JOB,
         Request::Spawn {
             owner: JOB,
-            program: b"workspaces/7/home/tool".as_slice().into(),
+            program: args.first().expect("the command is argv[0]").clone(),
             args,
             env: Box::new([
                 (b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into()),
@@ -37,8 +51,12 @@ pub fn launch_args(worker: &mut Worker, args: Box<[Box<[u8]>]>, deadline: Time) 
             ]),
             dir: b"workspaces/7".as_slice().into(),
             deadline,
+            hooks,
         },
     );
+}
+
+pub(crate) fn take_spawn(worker: &mut Worker) -> (Token, kernel::Spawn) {
     let io::Request::Spawn { owner, spawn } = worker.io().pop().expect("job spawn") else { unreachable!("job spawn") };
     (owner, spawn)
 }

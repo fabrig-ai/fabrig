@@ -8,9 +8,9 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall, bytes::copy_of};
 
 use crate::{
-    Ask, AuthorityHold, AuthorityLack, Cause, Change, Decision, Delegate, Early, Effect, EffectResult, Facts,
-    Freshness, Gate, GateFailure, GateKind, Handed, Heard, Hold, Judged, Limits, PendingKind, Pull, Recheck, Repair,
-    StartedFrom, State, Status, Stepped, Took, Verification, Wait, Way,
+    Ask, AuthorityHold, AuthorityLack, Cause, Change, CloseOutdated, Decision, Delegate, Early, Effect, EffectResult,
+    Facts, Freshness, Gate, GateFailure, GateKind, Handed, Heard, Hold, Judged, Limits, PendingKind, Pull, Recheck,
+    Repair, Replay, StartedFrom, State, Status, Stepped, TemperDir, Took, Verification, Wait, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -148,7 +148,8 @@ fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
             | Repair::Landing { .. }
             | Repair::LandingAt { .. }
             | Repair::Gate(_)
-            | Repair::Review { .. } => Some(facts.base_tip),
+            | Repair::Review { .. }
+            | Repair::TemperDir { .. } => Some(facts.base_tip),
         },
         State::Taking { .. }
         | State::Producing { .. }
@@ -440,7 +441,7 @@ pub fn held_on_ci(state: &State) -> bool {
         Cause::Repairs | Cause::Authority(_) => ci_state(was),
         Cause::Failed | Cause::Stalled | Cause::RedStands => {
             if let State::Repairing { why, .. } = was.as_ref() {
-                ci_reason(*why)
+                why.ci()
             } else {
                 false
             }
@@ -751,19 +752,13 @@ fn reenter(
         && rejection_stands(&change, head, facts, clean)
     {
         change.clean = Box::from(clean);
-        return replay_judgement(
-            change,
-            prior,
-            now,
-            facts.hold_account_bytes,
-            head,
-            b"its rejection at ",
-            b" stands; it goes on once the person answers their gate again.",
-        );
+        return replay_judgement(change, prior.judged, now, Replay::Rejected { head });
     }
     if why == Cause::CloseRefused && facts.close && change.state == (State::Producing { requested: true }) {
-        if !facts.measure && close_refusal_stands(facts) {
-            return hold(change, why, now);
+        if !facts.measure
+            && let Some(replay) = close_refusal_stands(facts)
+        {
+            return replay_judgement(change, prior.judged, now, replay);
         }
         change.state = State::Producing { requested: false };
         return Stepped { took: None, change, decision: Decision::None };
@@ -808,7 +803,7 @@ fn release_red(mut change: Change, why: Repair, prior: &Hold, facts: &Facts, now
         Pull::Closed => State::Reopening { requested: false, retarget: false },
         Pull::Missing | Pull::Merged { .. } => State::Opening { requested: false },
     };
-    if !matches_open(facts.pull) || Some(head) != previous || (ci_reason(why) && green_head(facts).is_some()) {
+    if !matches_open(facts.pull) || Some(head) != previous || (why.ci() && green_head(facts).is_some()) {
         change.state = checked;
         return Stepped { took: None, change, decision: Decision::None };
     }
@@ -820,11 +815,10 @@ fn release_red(mut change: Change, why: Repair, prior: &Hold, facts: &Facts, now
             return Stepped { took: None, change, decision: Decision::None };
         }
         if facts.recheck == Recheck::Taken {
-            return replay_judgement(change, prior, now, facts.hold_account_bytes, head,
-                b"its red at ", b" stands at the same content and spec; amend this change to ask a fresh repair, measure it again, or cancel it.");
+            return replay_judgement(change, prior.judged, now, Replay::RedStands { head });
         }
     }
-    if ci_reason(why) && facts.rerun && facts.ci.head == head && facts.ci.status == Status::Failed {
+    if why.ci() && facts.rerun && facts.ci.head == head && facts.ci.status == Status::Failed {
         change.state = State::Checking { head };
         return rerun(change, head, now);
     }
@@ -854,29 +848,11 @@ fn rejection_stands(change: &Change, head: [u8; 32], facts: &Facts, clean: &[[u8
     false
 }
 
-fn replay_judgement(
-    change: Change,
-    prior: &Hold,
-    now: Wall,
-    bound: u32,
-    head: [u8; 32],
-    reason: &[u8],
-    rest: &[u8],
-) -> Stepped {
-    let mut stepped = hold(change, prior.cause, now);
+fn replay_judgement(change: Change, judged: Option<Judged>, now: Wall, replay: Replay) -> Stepped {
+    let mut stepped = hold(change, replay.cause(), now);
     if let State::Held { hold, .. } = &mut stepped.change.state {
-        hold.judged = prior.judged;
-        let mut words = List::with_capacity(bound);
-        put(&mut words, b"not measured again: ");
-        put(&mut words, reason);
-        for byte in head.get(..6).expect("six bytes of a commit") {
-            put(&mut words, &[skein_lib::bytes::hex_digit(*byte >> 4), skein_lib::bytes::hex_digit(*byte & 15)]);
-        }
-        put(&mut words, rest);
-        put(&mut words, b"\n\n");
-        let room = skein_lib::usize_of(words.room());
-        put(&mut words, skein_lib::bytes::utf8_prefix(&prior.words, room));
-        hold.words = words.into_boxed();
+        hold.judged = judged;
+        stepped.decision = Decision::ReplayJudgement(replay);
     }
     stepped
 }
@@ -1226,7 +1202,11 @@ fn producing_close(
     }
     if requested {
         if facts.delegate == Some(Delegate::Close) {
-            change.state = State::NoChange { words: copy_of(b"Nothing to settle.") };
+            let words = match facts.close_at {
+                Some(crate::CloseAt { branch, outdated: Some(finding), .. }) => outdated_close_words(branch, finding),
+                Some(_) | None => copy_of(b"Nothing to settle."),
+            };
+            change.state = State::NoChange { words };
             return Stepped { took: None, change, decision: Decision::NoChange };
         }
         return waiting(change, facts, now, limits);
@@ -1235,16 +1215,38 @@ fn producing_close(
         return Stepped { took: None, change, decision: Decision::Wait { until: None } };
     };
     change.state = State::Producing { requested: true };
-    if close_refusal_stands(facts) {
-        return hold(change, Cause::CloseRefused, now);
+    if let Some(replay) = close_refusal_stands(facts) {
+        return replay_judgement(change, None, now, replay);
     }
     change.since = now;
     Stepped { took: None, change, decision: Decision::Delegate(Delegate::Close) }
 }
 
-fn close_refusal_stands(facts: &Facts) -> bool {
-    let (Some(at), Some(tips)) = (facts.close_at, facts.close_tips) else { return false };
-    at.refused.is_some() && at.branch == tips.branch && at.landing == tips.landing
+fn outdated_close_words(branch: [u8; 32], finding: CloseOutdated) -> Box<[u8]> {
+    let reason: &[u8] = match finding {
+        CloseOutdated::Window => b"it holds none of the commits main's published counts cover",
+        CloseOutdated::Ancestry => b"its ancestry was incomplete",
+    };
+    let mut words = List::uncapped();
+    put(&mut words, b"The close check didn't judge the goal's branch at ");
+    for byte in branch.get(..6).expect("the first twelve hex digits of a commit") {
+        let digits = [skein_lib::bytes::hex_digit(*byte >> 4), skein_lib::bytes::hex_digit(*byte)];
+        put(&mut words, &digits);
+    }
+    put(&mut words, b": ");
+    put(&mut words, reason);
+    put(&mut words, b"; it asks for the goal's catch-up from main.");
+    words.into_boxed()
+}
+
+fn close_refusal_stands(facts: &Facts) -> Option<Replay> {
+    let at = facts.close_at?;
+    let tips = facts.close_tips?;
+    if at.refused.is_some() && at.branch == tips.branch && at.landing == tips.landing {
+        Some(Replay::CloseRefused { branch: tips.branch, landing: tips.landing })
+    } else {
+        None
+    }
 }
 
 // A catch-up's producer is the merge job (temper/docs/design/domain/forge/change/README.md, 2, temper/docs/design/domain/forge/change/repairs.md).
@@ -1255,8 +1257,16 @@ fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, 
             Stepped { took: None, change, decision: Decision::NoChange }
         }
         Status::Failed => {
-            change.state = State::Producing { requested: true };
-            Stepped { took: None, change, decision: Decision::Delegate(Delegate::Merge { base: commit, from: None }) }
+            if facts.merge_job {
+                change.state = State::Producing { requested: true };
+                Stepped {
+                    took: None,
+                    change,
+                    decision: Decision::Delegate(Delegate::Merge { base: commit, from: None }),
+                }
+            } else {
+                hold(change, Cause::Failed, now)
+            }
         }
         Status::Unknown | Status::Pending => waiting(change, facts, now, limits),
     }
@@ -1574,6 +1584,32 @@ fn gate_verdict(
     }
 }
 
+// The queue's update is still serialized by First. The turn checks its own head
+// before the change joins, and checks again if its pair changes while ready.
+fn temper_gate(change: &Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Option<Stepped> {
+    let until = match facts.temper_dir {
+        TemperDir::Uncovered | TemperDir::Passed | TemperDir::Update => return None,
+        TemperDir::Fault { head } => {
+            return Some(repair_due(change.clone(), Repair::TemperDir { head }, facts, now, limits));
+        }
+        TemperDir::OwnerRequested { head } => {
+            return Some(repair_due(change.clone(), Repair::Review { head }, facts, now, limits));
+        }
+        TemperDir::Pending => Some(Wall::from_nanos(now.as_nanos().saturating_add(Duration::from_secs(1).as_nanos()))),
+        TemperDir::AwaitingOwner { until } => Some(until),
+    };
+    let mut change = change.clone();
+    change.owns_turn = false;
+    if let (Way::Queue, TemperDir::AwaitingOwner { .. }) = (change.way, facts.temper_dir) {
+        if let State::First { ready_since, .. } = change.state {
+            change.state = State::Queued { head, ready_since };
+        }
+    } else if let State::Queued { .. } | State::First { .. } | State::Ready { .. } = change.state {
+        change.state = State::Gating { head, asked: Box::new([]) };
+    }
+    Some(Stepped { took: None, change, decision: Decision::Wait { until } })
+}
+
 fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     if facts.branch.is_none() {
         return waiting(change, facts, now, limits);
@@ -1648,6 +1684,12 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         change.owns_turn = false;
         return Stepped { took: None, change, decision: Decision::Wait { until: None } };
     }
+    if let (Way::Queue, TemperDir::AwaitingOwner { .. }) = (change.way, facts.temper_dir) {
+        // Keep its first ready time while it waits out of the queue.
+        change.owns_turn = false;
+    } else if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
+    }
     let since = match change.ready_since {
         Some(since) => since,
         None => {
@@ -1706,6 +1748,9 @@ fn queued(
     }
     if let Some(reviewed) = standing.review_request {
         return repair_due(change, Repair::Review { head: reviewed }, facts, now, limits);
+    }
+    if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
     }
     if facts.kept
         || facts.ci.head != head
@@ -1786,6 +1831,9 @@ fn first(
     if let Some(reviewed) = standing.review_request {
         return repair_due(change, Repair::Review { head: reviewed }, facts, now, limits);
     }
+    if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
+    }
     if facts.kept
         || facts.ci.head != head
         || facts.ci.status != Status::Passed
@@ -1821,7 +1869,7 @@ fn first(
                 decision: Decision::Effect(Effect::Merge { head, base: facts.expected_base }),
             }
         }
-        Status::Failed => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
+        Status::Failed => conflict_due(change, facts.base_tip, head, facts, standing, now, limits),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
     }
 }
@@ -1839,7 +1887,7 @@ fn updating(
 ) -> Stepped {
     match standing.effect {
         EffectResult::Stale => stale_update(change, facts, now, limits),
-        EffectResult::Conflict => conflict_due(change, base, Some(from), facts, standing, now, limits),
+        EffectResult::Conflict => conflict_due(change, base, from, facts, standing, now, limits),
         EffectResult::Failed => hold(change, Cause::Failed, now),
         EffectResult::Made => {
             let Some(head) = facts.branch else { return waiting(change, facts, now, limits) };
@@ -1976,7 +2024,12 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
     change.repairs = change.repairs.checked_add(1).expect("repair count below limit");
     match why {
         Repair::Semantic => {}
-        Repair::Ci | Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => {
+        Repair::Ci
+        | Repair::Gate(_)
+        | Repair::LandingAt { .. }
+        | Repair::Landing { .. }
+        | Repair::Review { .. }
+        | Repair::TemperDir { .. } => {
             change.clean = Box::new([]);
         }
     }
@@ -2004,15 +2057,18 @@ fn update_due(
 fn conflict_due(
     change: Change,
     base: [u8; 32],
-    from: Option<[u8; 32]>,
+    from: [u8; 32],
     facts: &Facts,
     standing: &Heard,
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if standing.delegate_live || change.resolutions >= limits.resolutions {
+        return resolving_due(change, base, facts, standing, now, limits);
+    }
     let mut stepped = resolving_due(change, base, facts, standing, now, limits);
-    if facts.merge_job && stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
-        stepped.decision = Decision::Delegate(Delegate::Merge { base, from });
+    if facts.merge_job {
+        stepped.decision = Decision::Delegate(Delegate::Merge { base, from: Some(from) });
     }
     stepped
 }
@@ -2052,7 +2108,7 @@ fn repairing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    if ci_reason(why)
+    if why.ci()
         && let Some(head) = green_head(facts)
     {
         if !requested
@@ -2072,7 +2128,7 @@ fn repairing(
     if !requested {
         return repair_due(change, why, facts, now, limits);
     }
-    if ci_reason(why)
+    if why.ci()
         && standing.delegate == Status::Passed
         && let Some(head) = facts.branch
         && Some(head) == facts.repair_head.or(change.last_head)
@@ -2091,13 +2147,6 @@ fn repairing(
     delegated(change, requested, Delegate::Repair(why), facts, standing, now, limits)
 }
 
-fn ci_reason(why: Repair) -> bool {
-    match why {
-        Repair::Ci | Repair::Semantic => true,
-        Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => false,
-    }
-}
-
 fn green_head(facts: &Facts) -> Option<[u8; 32]> {
     let head = facts.branch?;
     if facts.ci.head == head && facts.ci.status == Status::Passed { Some(head) } else { None }
@@ -2111,7 +2160,7 @@ fn repair_ended(change: Change, head: [u8; 32], now: Wall) -> Stepped {
 
 fn ci_state(state: &State) -> bool {
     match state {
-        State::Repairing { why, .. } => ci_reason(*why),
+        State::Repairing { why, .. } => why.ci(),
         State::Checking { .. } | State::CancellingGates { .. } => true,
         State::Taking { .. }
         | State::Producing { .. }
@@ -2172,7 +2221,7 @@ fn waiting_producer(
                 resolving_due(change, facts.base_tip, facts, standing, now, limits)
             }
             Some(Delegate::Produce | Delegate::Close | Delegate::Repair(_) | Delegate::Gate { .. }) | None => {
-                conflict_due(change, base, Some(head), facts, standing, now, limits)
+                conflict_due(change, base, head, facts, standing, now, limits)
             }
         },
     }
@@ -2276,7 +2325,7 @@ fn landing(change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now:
         return stepped;
     }
     match standing.effect {
-        EffectResult::Conflict => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
+        EffectResult::Conflict => conflict_due(change, facts.base_tip, head, facts, standing, now, limits),
         EffectResult::Failed => hold(change, Cause::Failed, now),
         EffectResult::None | EffectResult::Stale | EffectResult::Pending | EffectResult::Made => {
             waiting(change, facts, now, limits)
@@ -2490,6 +2539,9 @@ fn ready(
     if facts.branch.is_none() {
         return waiting(change, facts, now, limits);
     }
+    if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
+    }
     let dropped = dropped_ask(head, facts);
     let ask = if dropped.is_some() { None } else { facts.ask.as_ref() };
     // A ready change uses its existing gate-asking path after an amendment; a
@@ -2532,7 +2584,7 @@ fn ready(
             limits,
         ),
         Ask::Resolve { base } => {
-            take_delegate(conflict_due(change, *base, Some(head), facts, standing, now, limits), handed.number)
+            take_delegate(conflict_due(change, *base, head, facts, standing, now, limits), handed.number)
         }
         Ask::Landed { .. } => unreachable!("landed ask returned before the phase"),
     }
@@ -2599,7 +2651,7 @@ fn preparing(
 ) -> Stepped {
     match standing.effect {
         EffectResult::Stale => stale_update(change, facts, now, limits),
-        EffectResult::Conflict => conflict_due(change, main, Some(from), facts, standing, now, limits),
+        EffectResult::Conflict => conflict_due(change, main, from, facts, standing, now, limits),
         EffectResult::Failed => hold(change, Cause::Failed, now),
         EffectResult::Made => prepared(change, from, main, ready_since, facts, now, limits),
         EffectResult::None => {
@@ -2694,7 +2746,7 @@ fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limit
         if standing.delegate_live {
             return waiting(change, facts, now, limits);
         }
-        return take_delegate(conflict_due(change, base, Some(head), facts, standing, now, limits), number);
+        return take_delegate(conflict_due(change, base, head, facts, standing, now, limits), number);
     }
     for failure in &change.gate_failures {
         if failure.count >= 2 {

@@ -4,6 +4,7 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary assertions inspect collected device rows")]
 use super::*;
 use alloc::vec::Vec;
+use jig_domain_contract as contract;
 use jig_domain_people::ApplicationScope;
 const PARTY: u64 = 7;
 const OTHER: u64 = 8;
@@ -153,8 +154,11 @@ fn devices_are_bounded_private_restored_and_not_a_projects() {
     }
     assert_eq!(restored.restore_fit_failure(), None);
     assert_eq!(restored.devices_of(PARTY).collect::<Vec<_>>(), d.devices_of(PARTY).collect::<Vec<_>>());
-    let out = outputs(&mut restored, Event::ReleaseProject { project: 1, request: REQUEST });
-    assert_eq!(out.as_ref(), [Request::ProjectReleased { request: REQUEST }]);
+    let out = outputs(
+        &mut restored,
+        Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 1 })),
+    );
+    assert_eq!(out.as_ref(), [project_released(1)]);
     assert_eq!(restored.devices_of(PARTY).collect::<Vec<_>>(), d.devices_of(PARTY).collect::<Vec<_>>());
     let removed = outputs(&mut d, Event::RemoveDevice { request: REQUEST, token: ANSWER, party: PARTY, number: 2 });
     assert_eq!(removed[0], Request::Erase { key: Key::Device { party: PARTY, number: 2 } });

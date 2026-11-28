@@ -547,8 +547,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::CloseProject { project } => deletion::close(domain, project, out),
         Event::ForgetProject { project } => deletion::forget(domain, project, out),
         Event::Act { reply_to, connector, key, act } => {
-            acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
+            acts::admit(domain, env, acts::ActReply::Root(reply_to), crate::ActKey { connector, key }, *act, out);
         }
+        Event::ConnectorAct { key, act } => acts::admit(domain, env, acts::ActReply::Connector(key), key, *act, out),
         Event::MoveChat { task, project, from, to } => {
             inbox::move_chat(domain, &env.limits, task, project, from, to, out);
         }

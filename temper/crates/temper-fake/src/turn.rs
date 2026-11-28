@@ -18,11 +18,11 @@ pub struct Turn {
     value: api::Turn,
 }
 impl Turn {
-    /// Reads and checks either spelling at its document path.
+    /// Reads and checks either deployment spelling at its document path.
     pub fn read(d: &Document, at: u32, p: &Path) -> Result<Self, Refusal> {
         Self::read_standalone(d, at, p, None)
     }
-    /// The standalone document permits pieces, takes and failures for its accepted credentials.
+    /// The standalone document also permits pieces, takes, credential failures and stretches.
     pub(crate) fn read_standalone(d: &Document, at: u32, p: &Path, credentials: Option<u32>) -> Result<Self, Refusal> {
         let token = d.token(at).ok_or(read::why(p, b"missing"))?;
         if token.kind == Kind::String {
@@ -35,7 +35,7 @@ impl Turn {
         let mut o = read::object(d, at, p)?;
         let lines_at = read::required(&mut o, d, b"lines", p)?;
         let finish = read::field(&mut o, d, b"finish", 32, p)?;
-        let tokens_at = read::required(&mut o, d, b"tokens", p)?;
+        let tokens_at = o.member(d, b"tokens");
         read::finish(o, d, p)?;
         let finish = match finish.as_ref() {
             b"stop" => Finish::Stop,
@@ -44,16 +44,30 @@ impl Turn {
             b"content_filter" => Finish::ContentFilter,
             _ => return Err(read::why(&p.member(b"finish"), b"expected stop, tool_calls, length or content_filter")),
         };
-        let tokens = read::integer(d, tokens_at, u64::MAX, &p.member(b"tokens"))?;
-        if tokens == 0 {
-            return Err(read::why(&p.member(b"tokens"), b"must be at least 1"));
-        }
-        let items = read::list(d, lines_at, 1, &p.member(b"lines"))?;
+        let tokens = match tokens_at {
+            Some(at) => Some(read::integer(d, at, u64::MAX, &p.member(b"tokens"))?),
+            None => None,
+        };
+        let lines_path = p.member(b"lines");
+        let items = read::list(d, lines_at, 1, &lines_path)?;
         let mut lines = List::with_capacity(items.len());
+        let mut drawn = false;
         for (i, at) in items.iter().enumerate() {
-            let line = line(d, *at, &read::index(&p.member(b"lines"), i), credentials)?;
+            let line = line(d, *at, &read::index(&lines_path, i), credentials)?;
+            if let Line::Drawn { .. } = &line {
+                drawn = true;
+            }
             lines.push(line).expect("bounded lines");
         }
+        let tokens = if drawn {
+            tokens.unwrap_or(0)
+        } else {
+            let Some(tokens) = tokens else { return Err(read::why(&p.member(b"tokens"), b"missing")) };
+            if tokens == 0 {
+                return Err(read::why(&p.member(b"tokens"), b"must be at least 1"));
+            }
+            tokens
+        };
         let value = api::Turn { lines: lines.into_boxed(), finish, tokens };
         check_answer(&value, p)?;
         // Let skein own line-position rules; diagnose the individual turn before
@@ -85,7 +99,22 @@ fn line(d: &Document, at: u32, p: &Path, credentials: Option<u32>) -> Result<Lin
     let take_at = if credentials.is_some() { o.member(d, b"take") } else { None };
     let before_at = if credentials.is_some() { o.member(d, b"before") } else { None };
     let after_at = if credentials.is_some() { o.member(d, b"after") } else { None };
+    let drawn_at = if credentials.is_some() { o.member(d, b"drawn") } else { None };
     read::finish(o, d, p)?;
+    if let Some(at) = drawn_at {
+        if text_at.is_some()
+            || call_at.is_some()
+            || args_at.is_some()
+            || pieces_at.is_some()
+            || fail_at.is_some()
+            || take_at.is_some()
+            || before_at.is_some()
+            || after_at.is_some()
+        {
+            return Err(read::why(p, b"expected drawn alone"));
+        }
+        return stretch(d, at, &p.member(b"drawn"));
+    }
     if take_at.is_some() || before_at.is_some() || after_at.is_some() {
         if text_at.is_some() || call_at.is_some() || args_at.is_some() || pieces_at.is_some() || fail_at.is_some() {
             return Err(read::why(p, b"expected take, before and after alone"));
@@ -129,11 +158,31 @@ fn line(d: &Document, at: u32, p: &Path, credentials: Option<u32>) -> Result<Lin
         }
     }
     let at = args_at.ok_or(read::why(&p.member(b"arguments"), b"missing"))?;
-    if d.token(at).ok_or(read::why(p, b"missing"))?.kind != Kind::ObjectStart {
-        return Err(read::why(&p.member(b"arguments"), b"expected a JSON object"));
-    }
-    let arguments = compact(d, at, &p.member(b"arguments"))?;
+    let arguments = object_body(d, at, crate::ANSWER_BYTES, &p.member(b"arguments"))?;
     Ok(Line::Call { name, arguments })
+}
+fn stretch(d: &Document, at: u32, p: &Path) -> Result<Line, Refusal> {
+    let mut o = read::object(d, at, p)?;
+    let rounds_at = read::required(&mut o, d, b"rounds", p)?;
+    let tools_at = read::required(&mut o, d, b"tools", p)?;
+    read::finish(o, d, p)?;
+    let rounds = read::integer(d, rounds_at, 64, &p.member(b"rounds"))?;
+    if rounds == 0 {
+        return Err(read::why(&p.member(b"rounds"), b"must be at least 1"));
+    }
+    let p = p.member(b"tools");
+    let items = read::bounded_list(d, tools_at, 1, 8, &p)?;
+    let mut tools = List::with_capacity(items.len());
+    for (i, at) in items.iter().enumerate() {
+        let p = read::index(&p, i);
+        let name = read::text(d, *at, crate::limits::CALL_NAME_BYTES, &p)?;
+        read::nonempty(&name, &p)?;
+        if tools.as_slice().contains(&name) {
+            return Err(read::why(&p, b"must be unique"));
+        }
+        tools.push(name).expect("eight tools");
+    }
+    Ok(Line::Drawn { rounds: u32::try_from(rounds).expect("rounds bounded to 64"), tools: tools.into_boxed() })
 }
 fn pieces(d: &Document, at: u32, p: &Path) -> Result<Line, Refusal> {
     let items = read::list(d, at, 1, p)?;
@@ -156,11 +205,15 @@ fn pieces(d: &Document, at: u32, p: &Path) -> Result<Line, Refusal> {
     }
     Ok(Line::Pieces { pieces: pieces.into_boxed() })
 }
-fn compact(d: &Document, at: u32, p: &Path) -> Result<Box<[u8]>, Refusal> {
+pub(crate) fn object_body(d: &Document, at: u32, max: u32, p: &Path) -> Result<Box<[u8]>, Refusal> {
+    let Some(token) = d.token(at) else { return Err(read::why(p, b"missing")) };
+    if token.kind != Kind::ObjectStart {
+        return Err(read::why(p, b"expected a JSON object"));
+    }
     let Ok(end) = config::after(d, at) else {
         return Err(read::why(p, b"invalid JSON"));
     };
-    let limits = Limits { depth: 32, length: crate::ANSWER_BYTES };
+    let limits = Limits { depth: 32, length: max };
     let mut measure = Encoder::measure(&limits);
     render(d, at, end, &mut measure);
     let Ok(len) = measure.measured() else {
@@ -194,7 +247,7 @@ fn check_answer(turn: &api::Turn, p: &Path) -> Result<(), Refusal> {
     let mut size = u64::try_from(wrappers).expect("bounded wrappers");
     for line in &turn.lines {
         let bytes = match line {
-            Line::Take { .. } | Line::Cut { .. } => {
+            Line::Take { .. } | Line::Cut { .. } | Line::Drawn { .. } => {
                 size = size
                     .checked_sub(u64::try_from(size_of::<api::Part>()).expect("part wrapper"))
                     .expect("one wrapper per line");
@@ -212,7 +265,7 @@ fn check_answer(turn: &api::Turn, p: &Path) -> Result<(), Refusal> {
                 bytes
             }
             Line::Fail { credentials, .. } => credentials.len().checked_mul(size_of::<u32>()).expect("sixteen indices"),
-            Line::Opaque { .. } => unreachable!("no opaque document lines"),
+            Line::Opaque { .. } | Line::Served { .. } => unreachable!("not a document line"),
         };
         size = size.checked_add(u64::try_from(bytes).expect("bounded line")).expect("sixteen bounded lines");
     }

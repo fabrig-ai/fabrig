@@ -105,6 +105,7 @@ pub(crate) fn config() -> Config {
             efforts: Box::new([Box::new([])]),
             models: Box::new([run::charter::Llm {
                 effort: None,
+                speed: None,
                 prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
                 dialect: 3,
                 account: Some(7),

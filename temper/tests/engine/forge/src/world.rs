@@ -1,3 +1,4 @@
+use jig_domain_contract as contract;
 use skein_world::{
     faults::FaultLedger,
     streams::{Stream, Streams},
@@ -1976,6 +1977,22 @@ impl World {
         panic!("world did not reach horizon");
     }
 
+    /// Give a scripted step its usual tick, then let an in-flight decision
+    /// finish if the forge client's call budget put its reads into the next window.
+    pub(crate) fn run_change_step(&mut self, task: u64) {
+        self.run_for(1);
+        let end = self.env.now.saturating_add(self.env.limits.client.window);
+        for _ in 0..20_000 {
+            if self.seen.iter().any(
+                |request| matches!(request, top::Request::ChangeDecision { task: decided, .. } if *decided == task),
+            ) {
+                return;
+            }
+            assert!(self.iterate(end), "change {task} step made no decision before {end:?}");
+        }
+        panic!("change {task} step did not settle");
+    }
+
     /// The scripted root has woken this procedure in the decision that parks or ends a member.
     pub fn wake_landing(&mut self, task: u64) {
         self.landing_steps.insert(task);
@@ -2317,15 +2334,17 @@ impl World {
                 top::Request::Settled { unfinished } => {
                     self.seen.push(top::Request::Settled { unfinished }).expect("world output capacity");
                 }
-                top::Request::RestartDone { stage } => {
+                restored @ top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                    stage: top::RestartStage::Restored,
+                })) => {
+                    restart = Some(top::Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)));
+                    self.seen.push(restored).expect("world output capacity");
+                }
+                done @ top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage })) => {
                     if stage == top::RestartStage::Settled {
                         self.settled_generation = Some((self.generation, self.env.now));
                     }
-                    restart = match stage {
-                        top::RestartStage::Restored => Some(top::Event::CatchUp),
-                        top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
-                    };
-                    self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
+                    self.seen.push(done).expect("world output capacity");
                 }
                 other @ top::Request::LandingDecision { task, decision, entry, .. } => {
                     use temper_engine_domain_forge_landing::Decision;
@@ -2355,11 +2374,12 @@ impl World {
                     self.owed.insert(task);
                     self.seen.push(other).expect("world output capacity");
                 }
-                other @ (top::Request::ChangeDecision { task, .. } | top::Request::CloseDecision { task, .. }) => {
+                other @ (top::Request::ChangeDecision { task, .. } | top::Request::ReplayJudgement { task, .. }) => {
                     self.owed.insert(task);
                     self.seen.push(other).expect("world output capacity");
                 }
                 other @ (top::Request::Bound { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
                 | top::Request::LinkDisagreed { .. }
@@ -2390,19 +2410,14 @@ impl World {
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
-                | top::Request::ProjectionOutcome { .. }
-                | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
                 | top::Request::ContinueGoalBranch { .. }
-                | top::Request::EffectsSettled { .. }
-                | top::Request::Released { .. }
-                | top::Request::ProjectReleased { .. }
+                | top::Request::Up(_)
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::StepDependents { .. }
                 | top::Request::CloserChecked { .. }
                 | top::Request::ProjectAfter { .. }
-                | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingNews { .. }
@@ -2731,6 +2746,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::DotTemperRevision(row) => top::Key::DotTemperRevision { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },

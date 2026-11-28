@@ -306,7 +306,7 @@ enum Moved by hand
 record RefusalAuthority by hand
 record RefusalMoved by hand
 enum NameRule = p::NameRule
-enum LlmWhy = p::LlmWhy
+enum LlmWhy by hand
 record RefusalLlm by hand
 enum AccountWhy = p::AccountWhy
 record RefusalCircle by hand
@@ -486,10 +486,12 @@ record Needs = p::Needs
 record Template by hand
 record MePrices = crate::Prices
 enum ModelSource = c::settings::ModelSource both ways
+record SettingSpeed = c::Speed both ways { also slice }
 record MeModel by hand
 record MeDefault by hand
 record ProviderOffer = d::ProviderOffer
 enum Readiness = d::Readiness
+record MeCharter = d::FrameCharter
 record Me by hand
 record LiveDelegate = d::LiveDelegate
 enum TaskResult by hand

@@ -158,7 +158,6 @@ mod tests {
         let asking = Asking { channel: Token::new(7), run: Token::new(7), attempt: Token::new(1), number: 1 };
         let tag = 3;
         let workspace = ForgeWorkspace {
-            rerun: None,
             repositories: Box::new([crate::ForgeRepository {
                 prefixes: Box::new([]),
                 delivers: false,
@@ -175,6 +174,7 @@ mod tests {
                 pin: None,
                 identity: 1,
             }]),
+            ..ForgeWorkspace::default()
         };
         keep(&mut domain, 7, 1, &workspace, false);
         let expected = Some([6; 32]);

@@ -111,6 +111,7 @@ pub fn read_indices(names: &[&[u8]], release: &[u8], packages: &[u8]) -> ReadInd
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
             | file::Request::RemoveIn { .. }
+            | file::Request::OpenSiblingFile { .. }
             | file::Request::List { .. } => panic!("index read operation"),
         };
         reader.up(event, &env);

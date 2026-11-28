@@ -1,4 +1,5 @@
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, Kind, Op, Read, State, Summary, Write};
 
 const GOAL: u64 = 7;
@@ -225,9 +226,10 @@ fn a_milestone_lost_to_a_crash_counts_as_posted_and_the_issue_closes() {
     let (find, op) = call(&mut d, &environment);
     assert_eq!(op, Op::Read(Read::Item { number: ISSUE, after: 0, since: Time::ZERO }));
     let recovered = answer(&mut d, &environment, find, missing_comment());
-    assert!(
-        recovered.contains(&Request::ProjectionOutcome { entry: LOST, outcome: skein_forge_client::Outcome::Held })
-    );
+    assert!(recovered.contains(&Request::Up(contract::Up::Projections(contract::projections::Up::Outbox {
+        entry: LOST,
+        outcome: contract::effects::OutboxOutcome::Held { entry: LOST }
+    }))));
     assert!(!d.issue(GOAL).expect("lost milestone counted").failed);
     assert!(!d.entries.contains_key(&LOST), "the consumed loss frees its outbox room");
     // Every subsequent call is checked, so neither the lost comment nor any
@@ -246,7 +248,9 @@ fn a_milestone_lost_to_a_crash_counts_as_posted_and_the_issue_closes() {
     assert_eq!(closing, Write::Close { number: ISSUE });
     answer(&mut d, &environment, token, Answer::Done);
     let settled = requests(&mut d, &environment, Some(Event::ProjectDesired { entry: CLOSE + 1, goal: GOAL }));
-    assert!(settled.contains(&Request::ProjectionSettled { goal: GOAL }));
+    assert!(
+        settled.contains(&Request::Up(contract::Up::Projections(contract::projections::Up::Settled { goal: GOAL })))
+    );
     let issue = d.issue(GOAL).expect("closed issue");
     assert!(issue.state.closed && !issue.failed && issue.pending.is_none());
     assert_eq!(
@@ -294,7 +298,9 @@ fn a_lost_open_stays_failed_without_ever_opening_again() {
     view.phase = issues::Phase::Done;
     view.finished = Some("Goal finished".into());
     let closing = requests(&mut d, &environment, Some(Event::Project { entry: FINISHED, repository: REPO, view }));
-    assert!(closing.contains(&Request::ProjectionSettled { goal: GOAL }));
+    assert!(
+        closing.contains(&Request::Up(contract::Up::Projections(contract::projections::Up::Settled { goal: GOAL })))
+    );
     let issue = d.issue(GOAL).expect("retained failed Open");
     assert!(issue.failed && issue.number.is_none() && issue.pending.is_none());
 }

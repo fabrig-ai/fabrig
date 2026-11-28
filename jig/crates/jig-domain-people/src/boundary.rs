@@ -3,6 +3,12 @@
 //! routed flight ends with `Decided`; the root commits before releasing replies.
 //! These values contain no credential secrets, task internals or protocol bytes.
 
+pub use jig_domain_contract::lifecycle::{Adoption, ResourceName, ResourceRole};
+pub use jig_domain_contract::ops::party::{
+    AccountHostFailure, AccountHostWhy, Act, ActStatus, EntryKind, EscalationChoice, Outcome, OutcomeFamily,
+    ProposalChoice, Proposer, Whom,
+};
+
 use crate::{Refusal, ReplyRef, Seen};
 use alloc::boxed::Box;
 pub use jig_domain_contract::ops::Role;
@@ -11,15 +17,6 @@ use skein_lib::{Duration, List, ReplyTo, Token, Wall};
 /// Maximum address bytes retained in an account sign-in answer.
 pub const ADDRESS: u32 = 2_048;
 
-/// A task-derived recipient, retained only as a bounded inbox reference.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Whom {
-    /// One authenticated deployment person.
-    Person(u64),
-    /// Every current holder of a project role may see the entry.
-    Role { project: u32, role: u32 },
-}
-
 /// The source whose volatile needs a projection replaces (domain/people/README.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum NeedSource {
@@ -27,23 +24,6 @@ pub enum NeedSource {
     Task(u64),
     /// A party's proposal, whatever task it names.
     Proposal { party: u64, number: u64 },
-}
-
-/// The reason a task currently appears in a person's inbox.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum EntryKind {
-    /// A numbered question in a task requested by the person.
-    Question { message: u64 },
-    /// A pending action waiting for a decision.
-    Proposal { proposer: Proposer, number: u64 },
-    /// A held task waiting for a decision at this revision.
-    Escalation { revision: u64 },
-    /// An active person-executed task.
-    PersonTask,
-    /// A reply in a task requested by the person.
-    Reply { message: u64 },
-    /// A committed reply belonging to one conversation's independent read position.
-    ChatReply { message: u64 },
 }
 
 /// One volatile reference derived from a live task; content remains in tasks.
@@ -139,31 +119,6 @@ pub struct Counts {
     pub more_unread: bool,
 }
 
-/// A connector's resource path, opaque to people (domain/connectors.md, section 12).
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct ResourceName {
-    pub connector: u16,
-    pub path: Box<[Box<[u8]>]>,
-}
-
-/// A resource and its connector-specific options, opaque to people. The whole
-/// path and options payload fits `Limits::amendment_bytes` at admission.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Adoption {
-    pub resource: ResourceName,
-    pub role: ResourceRole,
-    /// Bounded connector-specific fields, interpreted by the application's root.
-    pub options: Box<[Box<[u8]>]>,
-}
-
-/// How an adopted resource participates in the project.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ResourceRole {
-    Owned,
-    Fork,
-    Context,
-}
-
 /// Note scope named by a party; the parent translates it to the notes child.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum NoteScope {
@@ -191,12 +146,9 @@ pub enum NoteChange {
 /// Authenticated keyed requests admitted by the people child and routed by
 /// the root after role checks (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::large_enum_variant,
-        reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
-    )
+#[expect(
+    clippy::large_enum_variant,
+    reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
 )]
 pub enum Ask {
     /// Pause, drain or resume a linked worker (domain/engine/workers.md, 5).
@@ -587,37 +539,12 @@ pub enum PersonResult {
     Failure { reason: Box<[u8]> },
 }
 
-/// Immutable proposal maker identity (client/domain/contract/requests.md, section 2).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Proposer {
-    Task(u64),
-    Party(u64),
-}
-
-impl Proposer {
-    pub(crate) fn number(self) -> u64 {
-        match self {
-            Self::Task(number) | Self::Party(number) => number,
-        }
-    }
-}
-
 /// Keyed person's choice for a pending proposal.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ProposalDecision {
     Accept,
     Reject { reason: Box<[u8]> },
     Pass,
-}
-
-/// Committed semantic proposal choice in a keyed person answer.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ProposalChoice {
-    Accepted,
-    Rejected,
-    Passed,
-    Withdrawn,
-    Stale,
 }
 
 /// Authenticated person's held-chat choice. Rejection words are bounded by
@@ -633,270 +560,6 @@ pub enum EscalationDecision {
     },
     /// Move from requester to final policy role; no further pass from that role.
     Pass,
-}
-
-/// Semantic kind of a committed decision, returned to a caller or earlier
-/// loser of a race; carries no second task state (domain/people/acts.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EscalationChoice {
-    /// Hold released.
-    Released,
-    /// Task remains held with rejection reason.
-    Rejected,
-    /// Waiting moved to policy role.
-    Passed,
-}
-
-/// The retry, refusal or retained fact carried by an answer (domain/people/acts.md, 1–3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum OutcomeFamily {
-    Again(crate::Again),
-    SignedOut,
-    Compound,
-    Refused,
-    CompoundRefused,
-    ServiceMade(u64),
-    RolesSet(u32),
-    ProjectMade(u32),
-    Settled,
-    ServiceReissued,
-}
-
-/// Root's answer for one routed flight; people replies to each bounded waiter and saves
-/// final outcomes with the parent's task decision. (domain/people/acts.md, section 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Outcome {
-    WorkerPauseAsked {
-        worker: u32,
-    },
-    /// The gathering keeps its concluding word.
-    Concluded {
-        task: u64,
-    },
-    AccountReading {
-        count: u32,
-    },
-    /// A restore's proposal and omitted settings (jig/docs/design/domain/engine/settings.md, 10).
-    Restored {
-        proposal: u64,
-        to: u32,
-        left_out: Box<[crate::Setting]>,
-    },
-    /// The project is closed and its deletion kept; the rest completes on its own
-    /// (jig/docs/design/domain/people/acts.md, 2).
-    ProjectRemoved {
-        project: u32,
-    },
-    /// The sign-in took the address; its end shows on the accounts watch.
-    AccountFinishing {
-        source: u32,
-    },
-    /// One whole settings change committed at this revision.
-    SettingsChanged {
-        revision: u32,
-    },
-    /// Live agent tasks moved to the newest, and those that finish on their revision (domain/engine/settings.md, 4).
-    MovedToNewest {
-        newest: u32,
-        moved: u32,
-        stayed: u32,
-    },
-    /// All operations were made; their issued messages start here, or at zero for none.
-    Compound {
-        project: u32,
-        operations: u32,
-        first_message: u64,
-    },
-    /// No operation was made; the first failure has this zero-based place.
-    CompoundRefused {
-        at: u32,
-        why: Refusal,
-    },
-    /// The batch was made in order.
-    Created {
-        first: u64,
-        last: u64,
-        given: Option<crate::Given>,
-    },
-    /// The named read position was accepted; it never moves backwards.
-    MarkedSeen {
-        seen: Seen,
-    },
-    /// Connector-owned durable outcome named by token; the root asks its owner for the value.
-    Applied {
-        connector: u16,
-        token: Token,
-    },
-    /// Unsaved retry answer; the request may be sent again.
-    Again(crate::Again),
-    /// Unsaved expired-sign-in answer.
-    SignedOut,
-    /// A note correction or deletion was committed with its keyed answer.
-    NoteEdited {
-        name: u64,
-    },
-    /// A service party and its project role were committed together.
-    ServiceMade {
-        person: u64,
-    },
-    /// Resource adoption and its connector-known party seed committed together.
-    Adopted {
-        project: u32,
-    },
-    /// An explicit proposal awaits the named policy role.
-    Proposed {
-        proposal: u64,
-        to: u32,
-    },
-    /// This party withdrew its pending proposal.
-    Withdrawn {
-        proposal: u64,
-    },
-    /// A person stopped one live task for a later release or decision.
-    Left {
-        task: u64,
-    },
-    Stopped {
-        task: u64,
-    },
-    /// A person cancelled one task and its descendants.
-    Cancelled {
-        task: u64,
-    },
-    /// A person released a held task.
-    Released {
-        task: u64,
-    },
-    Lifted {
-        hold: u64,
-        released: u32,
-    },
-    /// One role-addressed task was durably claimed.
-    PersonTaken {
-        task: u64,
-    },
-    /// The claimant durably returned the task to its role.
-    PersonHandedBack {
-        task: u64,
-    },
-    /// An addressed person's result was durably admitted.
-    PersonAnswered {
-        task: u64,
-    },
-    /// The task now belongs to the requesting person, with its remaining funding transferred.
-    Moved {
-        task: u64,
-    },
-    /// Keyed answer to one current or ended proposal decision.
-    ProposalDecided {
-        proposer: Proposer,
-        proposal: u64,
-        by: u64,
-        at: Wall,
-        choice: ProposalChoice,
-        repeated: bool,
-    },
-    /// Words were durably admitted under the root-issued message number.
-    Said {
-        task: u64,
-        message: u64,
-    },
-    /// A named question was answered with a durable message.
-    QuestionAnswered {
-        task: u64,
-        question: u64,
-        message: u64,
-    },
-    /// The named task accepted this person's amendment.
-    Amended {
-        task: u64,
-        released: bool,
-    },
-    /// Root accepted one roster and all affected `Waiting` recipients atomically; saved keyed
-    /// replay does not apply the roster again.
-    RolesSet {
-        /// Project whose membership changed; no task authority or funding changed.
-        project: u32,
-    },
-    /// The full committed policy now applies to later checks; existing grants remain.
-    PolicyChanged {
-        project: u32,
-    },
-    /// The project now carries its new name.
-    Renamed {
-        project: u32,
-    },
-    /// A configured policy became a new project owned by its maker.
-    ProjectMade {
-        project: u32,
-    },
-    /// One person's finite pool was opened or resized in its original period.
-    PoolSet {
-        project: u32,
-        person: u64,
-    },
-    /// Root's committed current or ended decision for one task revision; first commit decides
-    /// a race.
-    EscalationDecided {
-        /// Named held chat.
-        task: u64,
-        revision: u64,
-        /// Authenticated winning person, including earlier races.
-        by: u64,
-        at: Wall,
-        choice: EscalationChoice,
-    },
-    /// An account's sign-in is under way for this source; its end is the accounts child's fact.
-    AccountSignInStarted {
-        source: u32,
-        address: Box<[u8]>,
-    },
-    /// The source was signed out, and whether its provider confirmed the revocation.
-    AccountSignedOut {
-        confirmed: bool,
-        failed_hosts: Box<[AccountHostFailure]>,
-    },
-    /// The LLM key was kept at this source.
-    AccountKeyKept {
-        source: u32,
-    },
-    /// The holder declared this program source under its durable name.
-    AccountLoginAsked {
-        number: u32,
-    },
-    AccountProgramDeclared {
-        source: u32,
-        name: Box<[u8]>,
-    },
-    /// The holder's account change finished.
-    AccountChanged,
-    /// The move is under way; its record is taken from the source once, outside the answer.
-    AccountMovingOut {
-        account: u32,
-        number: u32,
-        source: u32,
-    },
-    /// A moved record was adopted, making or renewing this account.
-    AccountMovedIn {
-        account: u32,
-        renewed: bool,
-    },
-    /// Every signed-in source answered its sign-out.
-    AccountRemoved {
-        confirmed: bool,
-        failed_hosts: Box<[AccountHostFailure]>,
-    },
-    /// Final refusal, retained under the request key.
-    Refused(/** Final refusal facts, retained for requests that keep an answer. */ Refusal),
-    /// A service’s sign-ins ended; no answer is kept.
-    ServiceReissued {
-        party: u64,
-    },
-    /// The project is public or private from this decision (jig/docs/design/domain/people/public-reading.md, 2).
-    VisibilitySet {
-        project: u32,
-        public: bool,
-    },
 }
 
 /// Child-to-client answer routed by the parent; state-changing answers are withheld externally
@@ -945,41 +608,6 @@ pub struct RequestKey {
 pub struct ActKey {
     pub connector: u16,
     pub key: [u8; 16],
-}
-
-/// One act a connector makes in the deployment's name (domain/people/acts.md, 3).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Act {
-    MakeProject {
-        maker: u64,
-        name: Box<str>,
-        policy: u32,
-    },
-    Close {
-        project: u32,
-        task: u64,
-        grace: Option<Duration>,
-        reason: Box<[u8]>,
-    },
-    /// The value travels beside the act, carried as a client's key is.
-    AddKey {
-        provider: u32,
-        join: Option<u32>,
-        digest: [u8; 32],
-    },
-    RemoveAccount {
-        account: u32,
-    },
-    Adopt {
-        project: u32,
-        adoption: Adoption,
-    },
-    /// Delete a project: closed at once, its tasks ended and erased, then its rows
-    /// (jig/docs/design/domain/people/acts.md, 2). Answered once the project is closed.
-    RemoveProject {
-        project: u32,
-        grace: Option<Duration>,
-    },
 }
 
 /// Which acts the configuration grants a connector (domain/people/acts.md, 3).
@@ -1161,12 +789,9 @@ pub struct KeptDeletion {
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
 /// cross this boundary without protocol secrets. (domain/people/README.md, sections 3–4 and domain/people/acts.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "the people boundary carries the complete request including its later choice"
-    )
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the people boundary carries the complete request including its later choice"
 )]
 pub enum Event {
     /// Keep or erase a deletion row (jig/docs/design/domain/people/acts.md, 2).
@@ -1177,6 +802,8 @@ pub enum Event {
     ForgetProject { project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },
+    /// Admit a deployment act whose answer goes back under the connector’s key.
+    ConnectorAct { key: ActKey, act: Box<Act> },
     /// Move a live conversation and start its new requester with nothing read.
     MoveChat { task: u64, project: u32, from: u64, to: u64 },
     /// Authentic committed chat header; live headers replace their previous contribution.
@@ -1290,6 +917,8 @@ pub enum Request {
     Act { request: Token, connector: u16, act: Box<Act> },
     /// Terminal answer held by the parent until durable.
     Acted { to: ReplyTo, outcome: Outcome },
+    /// Terminal connector answer held by the parent until durable.
+    ConnectorActed { key: ActKey, outcome: Outcome },
     /// Terminal for one service creation after its person and role saves.
     ServiceMade { request: Token, outcome: Outcome },
     /// Terminal for `ApplyRoles`; success `Save` precedes this output, but the root completes the
@@ -1448,174 +1077,11 @@ pub enum AccountChange {
     },
 }
 
-/// A configured worker that did not confirm the original operation.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct AccountHostFailure {
-    pub name: Box<[u8]>,
-    pub why: AccountHostWhy,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AccountHostWhy {
-    NotInContact,
-    Lost,
-    Failed,
-}
-
 /// The live sign-in's party (domain/people/README.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Signer {
     pub identity: Identity,
     pub kind: Kind,
-}
-
-/// Semantic outcome of a deployment act (domain/people/acts.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ActStatus {
-    Closed,
-    Again,
-    NotOffered,
-    NoOwner,
-    Ended,
-    Refused,
-}
-
-impl Outcome {
-    /// The answer's disposition and the identities needed when linking retained facts.
-    #[must_use]
-    pub const fn family(&self) -> OutcomeFamily {
-        match self {
-            Self::Again(why) => OutcomeFamily::Again(*why),
-            Self::SignedOut => OutcomeFamily::SignedOut,
-            Self::Compound { .. } => OutcomeFamily::Compound,
-            Self::Refused(_) => OutcomeFamily::Refused,
-            Self::CompoundRefused { .. } => OutcomeFamily::CompoundRefused,
-            Self::ServiceMade { person } => OutcomeFamily::ServiceMade(*person),
-            Self::ServiceReissued { .. } => OutcomeFamily::ServiceReissued,
-            Self::RolesSet { project } => OutcomeFamily::RolesSet(*project),
-            Self::ProjectMade { project } => OutcomeFamily::ProjectMade(*project),
-            Self::Created { .. }
-            | Self::MarkedSeen { .. }
-            | Self::Applied { .. }
-            | Self::NoteEdited { .. }
-            | Self::Adopted { .. }
-            | Self::Restored { .. }
-            | Self::Proposed { .. }
-            | Self::Withdrawn { .. }
-            | Self::Left { .. }
-            | Self::Stopped { .. }
-            | Self::Concluded { .. }
-            | Self::Cancelled { .. }
-            | Self::Lifted { .. }
-            | Self::Released { .. }
-            | Self::PersonTaken { .. }
-            | Self::PersonHandedBack { .. }
-            | Self::PersonAnswered { .. }
-            | Self::Moved { .. }
-            | Self::ProposalDecided { .. }
-            | Self::Said { .. }
-            | Self::QuestionAnswered { .. }
-            | Self::Amended { .. }
-            | Self::PolicyChanged { .. }
-            | Self::PoolSet { .. }
-            | Self::Renamed { .. }
-            | Self::ProjectRemoved { .. }
-            | Self::VisibilitySet { .. }
-            | Self::SettingsChanged { .. }
-            | Self::MovedToNewest { .. }
-            | Self::EscalationDecided { .. }
-            | Self::AccountSignInStarted { .. }
-            | Self::AccountSignedOut { .. }
-            | Self::AccountKeyKept { .. }
-            | Self::AccountLoginAsked { .. }
-            | Self::AccountProgramDeclared { .. }
-            | Self::AccountReading { .. }
-            | Self::WorkerPauseAsked { .. }
-            | Self::AccountChanged
-            | Self::AccountMovingOut { .. }
-            | Self::AccountFinishing { .. }
-            | Self::AccountMovedIn { .. }
-            | Self::AccountRemoved { .. } => OutcomeFamily::Settled,
-        }
-    }
-
-    /// Refusal facts, including the failed operation of a compound.
-    #[must_use]
-    pub const fn refusal(&self) -> Option<&Refusal> {
-        match self {
-            Self::Refused(why) | Self::CompoundRefused { why, .. } => Some(why),
-            Self::Again(_)
-            | Self::SignedOut
-            | Self::Compound { .. }
-            | Self::ServiceMade { .. }
-            | Self::ServiceReissued { .. }
-            | Self::RolesSet { .. }
-            | Self::ProjectMade { .. }
-            | Self::Created { .. }
-            | Self::MarkedSeen { .. }
-            | Self::Applied { .. }
-            | Self::NoteEdited { .. }
-            | Self::Adopted { .. }
-            | Self::Restored { .. }
-            | Self::Proposed { .. }
-            | Self::Withdrawn { .. }
-            | Self::Left { .. }
-            | Self::Stopped { .. }
-            | Self::Concluded { .. }
-            | Self::Cancelled { .. }
-            | Self::Lifted { .. }
-            | Self::Released { .. }
-            | Self::PersonTaken { .. }
-            | Self::PersonHandedBack { .. }
-            | Self::PersonAnswered { .. }
-            | Self::Moved { .. }
-            | Self::ProposalDecided { .. }
-            | Self::Said { .. }
-            | Self::QuestionAnswered { .. }
-            | Self::Amended { .. }
-            | Self::PolicyChanged { .. }
-            | Self::PoolSet { .. }
-            | Self::Renamed { .. }
-            | Self::ProjectRemoved { .. }
-            | Self::VisibilitySet { .. }
-            | Self::SettingsChanged { .. }
-            | Self::MovedToNewest { .. }
-            | Self::EscalationDecided { .. }
-            | Self::AccountSignInStarted { .. }
-            | Self::AccountSignedOut { .. }
-            | Self::AccountKeyKept { .. }
-            | Self::AccountLoginAsked { .. }
-            | Self::AccountProgramDeclared { .. }
-            | Self::AccountReading { .. }
-            | Self::WorkerPauseAsked { .. }
-            | Self::AccountChanged
-            | Self::AccountMovingOut { .. }
-            | Self::AccountFinishing { .. }
-            | Self::AccountMovedIn { .. }
-            | Self::AccountRemoved { .. } => None,
-        }
-    }
-
-    /// Classify an act's answer without interpreting it in an application's root.
-    #[must_use]
-    pub const fn act_status(&self) -> ActStatus {
-        match self.family() {
-            OutcomeFamily::Compound => ActStatus::Closed,
-            OutcomeFamily::Again(_) => ActStatus::Again,
-            OutcomeFamily::Refused => match self.refusal() {
-                Some(Refusal::NotOffered) => ActStatus::NotOffered,
-                Some(Refusal::Role { held: None }) => ActStatus::NoOwner,
-                Some(Refusal::Ended { .. }) => ActStatus::Ended,
-                Some(_) | None => ActStatus::Refused,
-            },
-            OutcomeFamily::SignedOut
-            | OutcomeFamily::CompoundRefused
-            | OutcomeFamily::ServiceMade(_)
-            | OutcomeFamily::ServiceReissued
-            | OutcomeFamily::RolesSet(_)
-            | OutcomeFamily::ProjectMade(_)
-            | OutcomeFamily::Settled => ActStatus::Refused,
-        }
-    }
 }
 
 /// A program's terminal status (domain/terminal-login.md, 4).

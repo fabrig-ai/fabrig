@@ -30,6 +30,7 @@ pub fn frame_two_projects() -> d::Frame {
             .unwrap();
     }
     d::Frame {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

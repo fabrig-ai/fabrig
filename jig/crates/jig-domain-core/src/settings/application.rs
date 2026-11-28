@@ -1,5 +1,7 @@
 //! Application-owned settings (jig/docs/design/domain/engine/settings-application.md, 1).
 
+use crate::vocabulary::connector_ask;
+use jig_domain_contract as contract;
 pub use jig_domain_core_vocabulary::settings::application::*;
 
 use alloc::boxed::Box;
@@ -243,15 +245,15 @@ pub(crate) fn start(
             .insert(Some(Group { connector, positions: positions.into_boxed(), judged: None }))
             .expect("one group per connector")
             .token();
-        routed.out.push(Request::Ask {
+        routed.out.push(connector_ask(
             connector,
-            ask: crate::Ask::Effect(connector::Ask::JudgeSettings {
+            contract::Ask::Settings(contract::settings::Ask::Judge {
                 owner,
                 revision: u64::from(number),
                 proposal: proposal_number(core, proposal),
                 items: items.into_boxed(),
             }),
-        });
+        ));
     }
     core.settings_judging.decision = Some(Decision { request, person, change, room, proposal });
 }
@@ -474,14 +476,14 @@ pub(crate) fn keep(
                 items.push(accepted.item.clone()).expect("accepted group");
             }
         }
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: crate::Ask::Effect(connector::Ask::KeepSettings {
+            contract::Ask::Settings(contract::settings::Ask::Keep {
                 revision: u64::from(revision),
                 proposal,
                 items: items.into_boxed(),
             }),
-        });
+        ));
     }
     for accepted in kept {
         let setting = setting_of(&accepted.item);
@@ -559,10 +561,10 @@ pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u6
                 items.push(item).expect("connector proposal items");
             }
         }
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: crate::Ask::Effect(connector::Ask::KeepProposalSettings { proposal, items: items.into_boxed() }),
-        });
+            contract::Ask::Settings(contract::settings::Ask::KeepProposal { proposal, items: items.into_boxed() }),
+        ));
     }
     set.items = jig.into_boxed();
     set.applications = applications.into_boxed();
@@ -575,10 +577,7 @@ pub(crate) fn drop_proposal(core: &Core, items: &[Recorded], proposal: u64, out:
         connectors.insert(connector, ()).expect("one connector per item");
     }
     for (&connector, ()) in &connectors {
-        out.push(Request::Ask {
-            connector,
-            ask: crate::Ask::Effect(connector::Ask::DropProposalSettings { proposal }),
-        });
+        out.push(connector_ask(connector, contract::Ask::Settings(contract::settings::Ask::DropProposal { proposal })));
     }
 }
 
@@ -948,15 +947,15 @@ pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue
                 out.push(Request::Write(write));
             }
             for connector in connectors {
-                out.push(Request::Ask {
+                out.push(connector_ask(
                     connector,
-                    ask: crate::Ask::Effect(connector::Ask::SaveSettingsDefaults {
+                    contract::Ask::Settings(contract::settings::Ask::SaveDefaults {
                         revision: match revision {
                             Some(number) => Some(u64::from(number)),
                             None => None,
                         },
                     }),
-                });
+                ));
             }
             let mut records = List::with_capacity(u32::try_from(edits.len()).expect("bounded release items"));
             for item in edits {

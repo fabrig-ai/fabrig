@@ -30,17 +30,7 @@ impl Harness {
 
     fn stored_with(world: &World, core: core::Core, env: Env<core::Limits>) -> Self {
         let mut h = Self { core, env, out: Queue::uncapped() };
-        phase(&h.core.start_begin(false, h.env.wall), Phase::LoadCore);
-        for range in core::RestoreRange::LIVE {
-            for (key, record) in &world.store.rows {
-                if let root::Key::Core(key) = key
-                    && range.admits(key)
-                {
-                    let root::Record::Core(record) = record else { panic!("jig live row") };
-                    h.record(record.clone());
-                }
-            }
-        }
+        restore_rows(&mut h.core, world, &h.env);
         h
     }
 
@@ -50,21 +40,40 @@ impl Harness {
     }
 
     fn link(&mut self) -> Action {
-        phase(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
-        let _census = self.core.census(&self.env.limits);
-        let mut previous = Phase::LoadInbox;
-        for connector in self.core.connectors.clone() {
-            let next = Phase::RestoreConnector { connector };
-            phase(&self.core.start_done(&self.env, previous, &mut self.out), next);
-            previous = next;
-        }
-        phase(&self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
-        self.core.start_done(&self.env, Phase::Link, &mut self.out)
+        link(&mut self.core, &self.env, &mut self.out)
     }
 
     fn open(&mut self, action: Action) {
         crate::first_support::open(&mut self.core, &self.env, &mut self.out, action);
     }
+}
+
+fn restore_rows(core: &mut core::Core, world: &World, env: &Env<core::Limits>) {
+    phase(&core.start_begin(false, env.wall), Phase::LoadCore);
+    for range in core::RestoreRange::LIVE {
+        for (key, record) in &world.store.rows {
+            if let root::Key::Core(key) = key
+                && range.admits(key)
+            {
+                let root::Record::Core(record) = record else { panic!("jig live row") };
+                assert_ne!(core.restore(env, record.clone()), core::Restore::Refused);
+                assert_eq!(core.start_failure(), None);
+            }
+        }
+    }
+}
+
+fn link(core: &mut core::Core, env: &Env<core::Limits>, out: &mut Queue<core::Request>) -> Action {
+    phase(&core.start_done(env, Phase::LoadCore, out), Phase::LoadInbox);
+    let _census = core.census(&env.limits);
+    let mut previous = Phase::LoadInbox;
+    for connector in core.connectors.clone() {
+        let next = Phase::RestoreConnector { connector };
+        phase(&core.start_done(env, previous, out), next);
+        previous = next;
+    }
+    phase(&core.start_done(env, previous, out), Phase::Link);
+    core.start_done(env, Phase::Link, out)
 }
 
 #[test]
@@ -150,17 +159,12 @@ fn recurring_lifetime_count_past_live_capacity_survives_start_link() {
 }
 
 /// Restore the direct core through durable Wires before testing runtime inputs.
-pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Limits>) -> core::Core {
-    let domain = jig_test_profile::new_core(config, &env.limits).expect("configured core");
-    recovered_with_core(world, domain, env)
-}
-
-pub(super) fn recovered_with_core(world: &World, core: core::Core, env: &Env<core::Limits>) -> core::Core {
-    let mut harness = Harness::stored_with(world, core, env.with(env.limits));
-    let action = harness.link();
-    harness.open(action);
-    assert!(harness.core.start_opened());
-    harness.core
+pub(super) fn reopen(core: &mut core::Core, world: &World, env: &Env<core::Limits>) {
+    restore_rows(core, world, env);
+    let mut out = Queue::uncapped();
+    let action = link(core, env, &mut out);
+    crate::first_support::open(core, env, &mut out, action);
+    assert!(core.start_opened());
 }
 
 #[test]

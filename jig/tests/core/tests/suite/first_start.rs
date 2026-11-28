@@ -147,7 +147,12 @@ fn numbered_projects(people_projects: u32, second: u32) -> (root::Config, root::
             core::SeedProject {
                 number,
                 name: if number == 1 { Box::from("Tally") } else { format!("Project {number}").into_boxed_str() },
-                policy: core::ConfiguredPolicy { policy, permissions: Box::new([]), templates: Box::new([]) },
+                policy: core::ConfiguredPolicy {
+                    name: None,
+                    policy,
+                    permissions: Box::new([]),
+                    templates: Box::new([]),
+                },
             }
         })
         .collect();

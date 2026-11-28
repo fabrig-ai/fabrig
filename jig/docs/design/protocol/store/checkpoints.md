@@ -359,8 +359,8 @@ one always among them:
   - a directory a first start would make (no `active`), `OpenRefusal::Unready
     { why: Unready::Empty }`;
   - a store the open must write before serving (`layouts.md`, 5.5:
-    a patch pending, its registry to seed, a layout to register, a job
-    pending), `Unready::Upgrade`.
+    its registry to seed, a layout to register, a job pending),
+    `Unready::Upgrade`.
 
   Their words, as `OpenRefusal::words` gives them:
   - `Empty`: "`<deployment>` holds no deployment to take a checkpoint

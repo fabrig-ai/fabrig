@@ -246,6 +246,27 @@ fn template_and_charter_help_name_the_stock_and_own_number_ranges() {
 }
 
 #[test]
+fn settings_help_explains_names_beside_numbers() {
+    for kind in ["template", "charter", "policy"] {
+        let page = help::answer(&configured(&["help", kind])).expect("settings help");
+        let (_, what) = page.split_once("## What it is\n").expect("What it is");
+        let text = what.split("\n## ").next().expect("section").split_whitespace().collect::<Vec<_>>().join(" ");
+        for words in [
+            format!(
+                "A {kind} can have a name beside its number: 1 to 32 lowercase ASCII letters, digits and `-`, with a letter first."
+            ),
+            format!("A stock {kind}'s name is reserved to it, even if it is removed, and cannot be changed."),
+            format!("Give your own {kind} a name with `name` when you set it, or rename it by setting it again."),
+            format!(
+                "`temper ctl` takes the name wherever it takes the {kind}'s number; references in settings files still use numbers."
+            ),
+        ] {
+            assert!(text.contains(&words), "{kind} help must explain {words}");
+        }
+    }
+}
+
+#[test]
 fn charter_help_explains_documents_and_host_discovery() {
     let page = help::answer(&configured(&["help", "charter"])).expect("charter help");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -358,7 +379,7 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
         messages: Box::new([]),
         saved: Box::new([]),
         workstream: 1,
-        workspace: engine::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+        workspace: engine::ForgeWorkspace::default(),
         transcript: Box::new([]),
         parts: Box::new([]),
         answered: Box::new([]),
@@ -945,6 +966,7 @@ fn box_help_names_delivery_checks_path_and_tools() {
         .collect::<Vec<_>>()
         .join(" ");
     for required in [
+        "`.temper/hooks/`",
         "`.temper/pre-pr`",
         "inherit the box's startup `PATH`",
         "unit's `PATH` in a service",

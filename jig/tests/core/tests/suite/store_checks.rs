@@ -192,9 +192,7 @@ fn a_sweep_checks_a_page_refusal_after_its_first_restart_waits() {
         world.hold_restore_pages = true;
         world.try_restart_with(fixture(SEED, false).0).expect("first restart waits for its page");
         assert!(!world.domain.ready());
-        world.events.push_back(root::Event::StartPageRefused {
-            failure: Failure { cause: Cause::Range(RangeFailure::Cursor), row: None },
-        });
+        world.store.refuse_held_page(Failure { cause: Cause::Range(RangeFailure::Cursor), row: None });
         assert_eq!(
             world.try_drain(),
             Err(format!(

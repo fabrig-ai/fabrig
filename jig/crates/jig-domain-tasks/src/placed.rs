@@ -1,4 +1,6 @@
 //! Placed holds, their owners, subtree stops and lifting (domain/tasks/lifecycle-holds.md, 2).
+pub use jig_domain_contract::ops::{Mode, Scope};
+
 use crate::compound::Staged;
 use crate::domain::{fact, publish, record, task_mut};
 use crate::{
@@ -13,18 +15,6 @@ use skein_lib::{Env, List, Queue, ReplyTo};
 pub enum Owner {
     Party { person: u64 },
     Task { task: u64 },
-}
-/// Stop cancels each live run in scope at once; drain lets them finish their turn (4b).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Mode {
-    Stop,
-    Drain,
-}
-/// A task's subtree, those made later included, or a whole project (4b).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Scope {
-    Subtree { task: u64 },
-    Project,
 }
 /// One placed hold, numbered by the root in the deployment, never reused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

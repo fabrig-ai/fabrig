@@ -94,7 +94,7 @@ fn an_unkept_layout_says_to_restart_the_later_build_or_restore_a_checkpoint() {
             value_type: 0,
             id: 3,
             values: Some(2),
-            why: crate::Unplanned::Unkept(crate::Unkept {
+            why: crate::Unplanned::Unkept(crate::Refusals {
                 refused: 1,
                 why: skein_codec::layout::Refused::Field,
                 declaration: "Growing".into(),
@@ -102,6 +102,26 @@ fn an_unkept_layout_says_to_restart_the_later_build_or_restore_a_checkpoint() {
             }),
         },
         "- `Layout { why: Unkept }` (`layouts.md`, 5.6): \"",
+        "\"",
+    );
+}
+
+#[test]
+fn an_unread_layout_says_to_start_the_previous_build_or_one_with_a_job() {
+    says(
+        OpenRefusal::Layout {
+            family: "fixture".into(),
+            value_type: 0,
+            id: 2,
+            values: Some(1),
+            why: crate::Unplanned::Unread(crate::Refusals {
+                refused: 1,
+                why: skein_codec::layout::Refused::Variant,
+                declaration: "Choice".into(),
+                part: "dropped".into(),
+            }),
+        },
+        "- `Layout { why: Unread }` (`layouts.md`, 5.6): \"",
         "\"",
     );
 }

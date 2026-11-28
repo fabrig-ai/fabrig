@@ -15,6 +15,8 @@ mod members;
 mod room;
 #[path = "landing/round_ends.rs"]
 mod round_ends;
+#[path = "landing/temper_dir.rs"]
+mod temper_dir;
 #[path = "landing/unreported.rs"]
 mod unreported;
 #[path = "landing/wait_reports.rs"]
@@ -840,7 +842,7 @@ fn landing_merge_evidence(single: bool) {
     for (pull_head, pull_size, expected) in
         [(fixtures::HEAD, Some(size), Some(size)), (fixtures::HEAD, None, None), (fixtures::BASE, Some(size), None)]
     {
-        let mut d = landing_fixture();
+        let mut d = scripted_turn_repository();
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);
 
@@ -885,7 +887,9 @@ fn landing_merge_evidence(single: bool) {
         assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
         let mut requests =
             fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
-        if !single {
+        if single {
+            requests = ordinary_turn_paths(&mut d, requests);
+        } else {
             requests = answer_open_round(&mut d);
         }
         assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
@@ -930,9 +934,16 @@ fn landing_merge_evidence(single: bool) {
     }
 }
 
+// These scripts expect only the turn's reads, not the home's revision reader.
+fn scripted_turn_repository() -> Domain {
+    let mut d = landing_fixture();
+    d.repositories.get_mut(&REPO).expect("fixture repository").home = false;
+    d
+}
+
 fn turn_fixture() -> Domain {
     use temper_engine_domain_forge_change as change;
-    let mut d = landing_fixture();
+    let mut d = scripted_turn_repository();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
 
@@ -1041,7 +1052,39 @@ fn answer_open_round(d: &mut Domain) -> Box<[Request]> {
     use skein_forge::api::{Answer, Op, Read};
     let (call, op) = fixtures::next_call(d);
     assert_eq!(op, Op::Read(Read::Pull { number: 2, ci: false }));
-    fixtures::answer(d, call, Ok(Answer::Pull(open_round_pull(fixtures::BASE))))
+    let requests = fixtures::answer(d, call, Ok(Answer::Pull(open_round_pull(fixtures::BASE))));
+    ordinary_turn_paths(d, requests)
+}
+
+// The scripted turn fixtures don't change or hold any `.temper/` paths.
+fn ordinary_turn_paths(d: &mut Domain, requests: Box<[Request]>) -> Box<[Request]> {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    let mut out = Queue::uncapped();
+    for request in requests {
+        out.push(request);
+    }
+    while checking_temper_dir(d) {
+        let (call, op) = fixtures::next_call(d);
+        let answer = if let Op::Read(Read::Compare { before, after }) = op {
+            Ok(Answer::Compare { before, after, ahead: 1, behind: 0, files: Box::new([]), changed: 0 })
+        } else {
+            assert!(matches!(&op, Op::Read(Read::File { path, .. }) if path.as_ref() == b".temper"), "{op:?}");
+            Err(Error::Missing)
+        };
+        for request in fixtures::answer(d, call, answer) {
+            out.push(request);
+        }
+    }
+    collected(out)
+}
+
+fn checking_temper_dir(d: &Domain) -> bool {
+    for (_, pending) in &d.landing.pending {
+        if pending.checking_temper_dir() {
+            return true;
+        }
+    }
+    false
 }
 
 #[test]
@@ -1909,7 +1952,9 @@ fn step_departed_change(d: &mut Domain, head: [u8; 32], cancelled: bool) -> Box<
             }
             Op::Read(_) | Op::Write(_) => panic!("unexpected departed change read {op:?}"),
         };
-        requests = fixtures::answer(d, call, Ok(answer));
+        let clock = env();
+        let out = fixtures::answer_at(d, &clock, call, Ok(answer));
+        requests = collected(fixtures::ordinary_method_probes(d, &clock, out));
     }
     panic!("departed change decides");
 }
@@ -2211,12 +2256,9 @@ fn a_dependency_closure_is_upstream_first_and_stops_at_a_formed_landing() {
 }
 
 #[test]
-fn a_formed_landing_is_sealed_against_joining_and_ordering() {
+fn a_formed_landing_is_sealed_against_ordering() {
     let mut d = across_fixture();
     member_landing(&mut d);
-    let mut member = d.landing(61).expect("formed landing").landing.members[0].clone();
-    member.change = OTHER_CHANGE;
-    member.repository.repository = OTHER_REPOSITORY.repository;
     let key = [7; 32];
     d.landing.rows.get_mut(&61).expect("landing").entries = Box::new([LandingEntry {
         run: None,
@@ -2232,7 +2274,6 @@ fn a_formed_landing_is_sealed_against_joining_and_ordering() {
     d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, None, key)).expect("other landing key room");
     d.landing.results.insert((61, 0, 0, 5), (policy::Status::Passed, false)).expect("merge result room");
     let before = d.landing(61).expect("formed landing").clone();
-    outputs(&mut d, Event::JoinLanding { task: 61, member, after: Box::new([]) });
     outputs(&mut d, Event::OrderLanding { task: 61, changes: Box::new([OTHER_CHANGE, fixtures::CHANGE]) });
     assert_eq!(d.landing(61), Some(&before));
     assert_eq!(d.landing_of(OTHER_CHANGE), None);
@@ -4091,6 +4132,7 @@ fn unknown_merge_outcomes_read_the_open_pull_ask_again_and_land() {
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Pull { number: 2, ci: false }));
         let requests = fixtures::answer(&mut d, call, Ok(Answer::Pull(open_round_pull(fixtures::BASE))));
+        let requests = ordinary_turn_paths(&mut d, requests);
         assert!(
             has_landing_decision(&requests, policy::Decision::Merge { member: 0, candidate: fixtures::HEAD }),
             "{requests:?}"

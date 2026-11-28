@@ -28,6 +28,7 @@ fn configured_component(variables: &[smith_protocol_machine::Variable], rg: &[u8
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"code"[..]),
             root: Token::new(10),
@@ -142,7 +143,11 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
     }
     match terminals.pop().expect("one listing terminal") {
         ToDomain::Done { done, .. } => done,
-        ToDomain::Read { .. } | ToDomain::Probed { .. } | ToDomain::Checked { .. } | ToDomain::Aborted { .. } => {
+        ToDomain::Read { .. }
+        | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
+        | ToDomain::Checked { .. }
+        | ToDomain::Aborted { .. } => {
             panic!("listing terminal")
         }
     }

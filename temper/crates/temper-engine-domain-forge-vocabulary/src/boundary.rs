@@ -1042,7 +1042,7 @@ pub struct EffectAccount {
     pub entry: u64,
     pub words: Box<[u8]>,
 }
-/// A change's terminal account (temper/docs/design/domain/forge/branches.md, 2).
+/// A change's terminal account (temper/docs/design/domain/forge/branches-closer.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ending {
     Landed,
@@ -1091,7 +1091,7 @@ pub struct PreviousLink {
     pub ask: Option<change::Ask>,
 }
 
-/// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
+/// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches-closer.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "the cohort mark is independent of the delegate and base flags")]
 pub struct ChangeRow {
@@ -1171,6 +1171,7 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
     pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
@@ -1289,6 +1290,7 @@ pub struct ChangeHot {
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
     pub producer_failure: Option<Box<[u8]>>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
     pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     pub questions: change::Questions,
@@ -1356,6 +1358,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             report,
@@ -1432,6 +1435,7 @@ impl ChangeRow {
                 queue_repairs,
                 effect_account,
                 producer_failure,
+                temper_dir_fault,
                 runner_ci,
                 close_at,
                 questions,
@@ -1508,6 +1512,7 @@ impl ChangeRow {
             queue_repairs,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             questions,
@@ -1571,6 +1576,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             report,
@@ -1933,6 +1939,14 @@ pub struct BehindWait {
     pub evidence: ReadBehind,
 }
 
+/// The `.temper/` check's evidence for a change at the observed head and base.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TemperDirEvidence {
+    Uncovered,
+    Pending,
+    Passed { tree: skein_forge::api::Commit },
+}
+
 /// Coherent provider facts used by the root to check a change effect before
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1941,6 +1955,7 @@ pub struct ChangeEvidence {
     pub readback_owed: bool,
     pub nearest_write: Option<u64>,
     pub touched: crate::Touched,
+    pub temper_dir: TemperDirEvidence,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
     pub head: Option<skein_forge::api::Commit>,
@@ -1983,6 +1998,33 @@ pub enum CallPayload {
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
     Red(Box<crate::RedReply>),
+}
+
+/// A project's last good repository revision and latest observation
+/// (temper/docs/design/domain/forge/temper-dir.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DotTemperRevision {
+    pub project: u32,
+    pub number: u64,
+    pub home: skein_forge::api::Repository,
+    pub commit: Option<skein_forge::api::Commit>,
+    pub method: bool,
+    pub files: Box<[DotTemperFile]>,
+    pub observed: u64,
+    pub refused: Option<DotTemperRefusal>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DotTemperFile {
+    pub path: Box<[u8]>,
+    pub bytes: Box<[u8]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DotTemperRefusal {
+    pub commit: Option<skein_forge::api::Commit>,
+    pub observed: u64,
+    pub words: Box<[u8]>,
 }
 
 /// The connector's durable records, wrapped by the root store.
@@ -2082,6 +2124,7 @@ pub enum Stored {
         what: crate::PersonFact,
     },
     ProjectFacts(crate::ProjectFacts),
+    DotTemperRevision(DotTemperRevision),
     PersonBrief(crate::PersonBrief),
     Looked(crate::Looked),
     Away(crate::Away),
@@ -2194,22 +2237,15 @@ pub enum Key {
     Milestone(u64),
     PersonBrief { party: u64, project: u32 },
     Writes(Name),
+    // Store family 53 follows Writes in the startup walk.
+    DotTemperRevision { project: u32 },
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
     HistoryLanding { project: u32, landing: u64, number: u64 },
     HistoryLast { project: u32, number: u64, change: u64 },
 }
-/// A completed phase of the connector's restart contract.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum RestartStage {
-    /// Durable connector records and entries are restored.
-    Restored,
-    /// Every live resource has had its first fresh read.
-    ReadAfresh,
-    /// Every uncertain restored entry has been looked for.
-    Settled,
-}
+pub use jig_domain_contract::lifecycle::RestartStage;
 /// Volatile connection information, rebuilt from routing at every start (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Connection {
@@ -2289,6 +2325,10 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// An ask from the engine's connector port.
+    Ask(jig_domain_contract::Ask),
+    /// An output whose commit has released it to the connector.
+    Released(jig_domain_contract::Released),
     /// Take the checked, raised environment's at-once limits in every holder.
     LimitsRaised,
     /// Routing's chosen place, or busy after the bounded attempts (protocol/setup/place.md, 2).
@@ -2446,12 +2486,6 @@ pub enum Event {
         task: u64,
         entry: u64,
     },
-    /// Release adoptions after the project's tasks are erased
-    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
-    ReleaseProject {
-        project: u32,
-        request: Token,
-    },
     /// Removal completions (temper/docs/design/domain/forge/adoption-connection.md, 1).
     SecretsErased {
         forge: u16,
@@ -2462,11 +2496,6 @@ pub enum Event {
     OrderLanding {
         task: u64,
         changes: Box<[u64]>,
-    },
-    JoinLanding {
-        task: u64,
-        member: landing::Member,
-        after: Box<[u64]>,
     },
     Landing {
         row: LandingRow,
@@ -2668,6 +2697,11 @@ pub enum Event {
     Adopt {
         request: Token,
     },
+    /// The root has committed the adoption and its role seed.
+    TakeAdoption {
+        repository: skein_forge::api::Repository,
+        request: Token,
+    },
     /// Withdraw a just-adopted repository when its parent cannot commit the role seed.
     ForgetAdoption {
         repository: skein_forge::api::Repository,
@@ -2805,12 +2839,8 @@ pub enum Event {
         task: u64,
         child: u64,
         kind: change::Delegate,
-    },
-    /// Remember the two measured tips when a close job is admitted.
-    CloseDelegated {
-        task: u64,
-        child: u64,
-        at: change::CloseAt,
+        /// For a close job only, the goal and landing tips read by its decision, if both were read.
+        close_at: Option<change::CloseAt>,
     },
     /// The whole procedure batch was refused before a child number was admitted.
     DelegateAdmissionRefused {
@@ -3080,6 +3110,8 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// An answer or fact for the engine's connector port.
+    Up(jig_domain_contract::Up),
     /// A table report, words after `serve: ` (protocol/service-process.md, 1.3).
     FullTableFact {
         words: Box<[u8]>,
@@ -3166,10 +3198,6 @@ pub enum Request {
         /// Execution facts retained when a terminal decision clears the tier row.
         projection: Option<Box<[u8]>>,
         entry: Option<u64>,
-    },
-    /// The project's adoption erasures precede this post-commit reply.
-    ProjectReleased {
-        request: Token,
     },
     /// Make or refresh the runtime (temper/docs/design/protocol/forge/engine.md, 2).
     ForgeKept(ForgeRecord),
@@ -3413,30 +3441,12 @@ pub enum Request {
         account: Option<Box<[u8]>>,
         outcome: skein_forge_client::Outcome,
     },
-    /// Projection recovery belongs to the connector and settles no task or call.
-    ProjectionOutcome {
-        entry: u64,
-        outcome: skein_forge_client::Outcome,
-    },
-    /// A held entry settled as not made, by a person or its task's close.
-    NotMade {
-        entry: u64,
-        task: u64,
-    },
     /// A prior effect or release write settled; advance the closing task.
     ContinueRelease {
         task: u64,
     },
     /// A missing goal branch needs a fresh outbox number (domain/forge/branches.md, 1).
     ContinueGoalBranch {
-        task: u64,
-    },
-    /// All effects issued before resource cleanup have settled.
-    EffectsSettled {
-        task: u64,
-    },
-    /// All connector resources of a closing task are released.
-    Released {
         task: u64,
     },
     /// A failed task's resource remains held by its tree root until that root closes.
@@ -3462,10 +3472,6 @@ pub enum Request {
         goal: u64,
         when: Option<skein_lib::Wall>,
     },
-    /// The closed projection has no remaining desired write.
-    ProjectionSettled {
-        goal: u64,
-    },
     /// A projection could not continue under current facts or limits.
     ProjectionFailed {
         goal: u64,
@@ -3474,6 +3480,8 @@ pub enum Request {
     Reviewed {
         task: u64,
         evidence: ChangeEvidence,
+        /// The pending step, when it needs the root’s mapped owner reviews.
+        temper_dir: Option<Token>,
     },
     /// A change policy step and its checked effect entry, when any.
     ChangeDecision {
@@ -3481,12 +3489,20 @@ pub enum Request {
         decision: change::Decision,
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
+        /// For a decision to delegate a close job only, the goal and landing tips, if both were read.
+        close_at: Option<change::CloseAt>,
+        /// For a fresh close refusal only, the larger account to send to the goal once.
+        close_refusal: Option<Box<[u8]>>,
     },
-    /// A close job offer or the replay of its failure, with the tips just read.
-    CloseDecision {
+    /// A fresh read confirmed the same judgement. Only rejection needs its previous hold's account.
+    ReplayJudgement {
         task: u64,
-        at: change::CloseAt,
-        replay: bool,
+        replay: change::Replay,
+        prior_rejection: Box<[u8]>,
+    },
+    /// The relay already held the task; the change's row keeps the refusal evidence.
+    RelayRefusal {
+        task: u64,
     },
     /// Task-specific news with a connector classification.
     News {
@@ -3511,10 +3527,6 @@ pub enum Request {
     Read {
         owner: Token,
         result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
-    },
-    /// The requested restart phase finished; the root may request the next.
-    RestartDone {
-        stage: RestartStage,
     },
     /// Run a Replace: Check on a connected Forgejo, Paste with the kept App id on GitHub
     /// (protocol/forge/engine.md, 2).

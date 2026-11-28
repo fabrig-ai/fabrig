@@ -13,7 +13,6 @@ pub fn moved_bytes(limits: &jig_protocol_config::Limits) -> u64 {
 
 /// Translate the core events the clients' component issues. An internal core
 /// event on this boundary aborts the component instead of deciding root work.
-#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the clients' core boundary")]
 pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> {
     let value = match event {
         core::Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
@@ -67,30 +66,22 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         core::Event::StreamDelivered { watcher } => root::PartyInput::StreamDelivered { watcher },
         core::Event::SettingsCommit { .. }
         | core::Event::SubscribeTopic { .. }
-        | core::Event::Fill { .. }
-        | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
-        | core::Event::Parts { .. }
-        | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
-        | core::Event::ApplicationFinished { .. }
         | core::Event::ProjectionSettled { .. }
         | core::Event::SettledCall { .. }
         | core::Event::EffectStart { .. }
-        | core::Event::EffectConnector(..)
         | core::Event::EffectDeadline
         | core::Event::RunCall { .. }
         | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
         | core::Event::Tasks(..)
         | core::Event::StartRecurring { .. }
-        | core::Event::BriefAssembled { .. }
         | core::Event::WorkspacePrepared { .. }
         | core::Event::ClaimPrepared { .. }
         | core::Event::ClaimRefused { .. }
@@ -108,12 +99,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::NamedAnswer { .. }
         | core::Event::NamedAction { .. }
         | core::Event::Delegate { .. }
-        | core::Event::DelegateHoldings { .. }
-        | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }
-        | core::Event::Brief(..)
-        | core::Event::Holdings { .. }
-        | core::Event::ProjectReleased { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
         | core::Event::Notes(..)
@@ -207,6 +193,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::MoveStanding { .. }
         | root::Delivery::FindingsOwned { .. }
         | root::Delivery::ForgeCommitted { .. }
+        | root::Delivery::TakeForgeAdoption { .. }
         | root::Delivery::ForgeCall { .. }
         | root::Delivery::Bound { .. }
         | root::Delivery::Procedure { .. }
@@ -224,7 +211,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Refuse { .. }
         | root::Delivery::PartBusy { .. }
         | root::Delivery::TurnBusy { .. }
-        | root::Delivery::Start(_)
+        | root::Delivery::Resume(_)
         | root::Delivery::Load { .. } => None,
     }
 }

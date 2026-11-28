@@ -53,18 +53,19 @@
   name is never decimal digits alone, and no two projects share one
   (jig's `domain/model.md`, 6.1), so an argument is a number or a name,
   never both, and names one project.
-
-## 2. Reads
-
-Moved to [`tools-reads.md`](tools-reads.md), section 1.
-
-## 3. Acts
-
-Moved to [`tools-acts.md`](tools-acts.md), section 1.
-
-## 4. Waiting
-
-Moved to [`tools-waiting.md`](tools-waiting.md), section 1.
+- **Templates, charters and policies by name or number,** the same
+  way: wherever a call takes a TEMPLATE, a CHARTER or a policy's or
+  such a setting's NUMBER (`--template`, `--charter`, `settings show
+  charter|template|policy|charter-words|template-goal`), it takes the
+  item's name too (jig's `domain/engine/settings.md`, 1, Names), never
+  decimal digits alone. A template's name is resolved through the
+  project's templates in `me`, a charter's through `me`'s `charters`,
+  and, for `settings show`, each through the settings' inventory; the
+  request sends the number. A name nothing has is usage, exit 1,
+  nothing sent, naming it and where names are listed: `temper ctl:
+  no template is named lean-goal; temper ctl settings show lists them`.
+  Where a call prints a template, a charter or a policy by number, in
+  `settings show`'s inventory and `me`, it prints its name beside it.
 
 ## 5. Open questions
 

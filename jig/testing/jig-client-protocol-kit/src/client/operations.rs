@@ -111,11 +111,21 @@ impl Story {
     /// The core fixture admits two roots, optionally with no escalation policy.
     #[must_use]
     pub fn live_batch(seed: u64, holder: bool) -> Self {
+        Self::live_batch_with(seed, holder, |_, _| {})
+    }
+    /// The two-root world with a test's deployment configuration edit.
+    #[must_use]
+    pub fn live_batch_with(
+        seed: u64,
+        holder: bool,
+        edit: impl FnOnce(&mut jig_test_domain::Config, &mut jig_test_domain::Limits),
+    ) -> Self {
         let mut limits = crate::fixtures::owner_limits();
         limits.core.people.sign_ins = 3;
         limits.core.tasks.batch = 2;
         limits.core.authority.batch = 2;
         let mut config = crate::fixtures::batch_config(seed);
+        edit(&mut config, &mut limits);
         if !holder {
             use jig_domain_authority as a;
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
@@ -125,7 +135,12 @@ impl Story {
         }
         let mut story = Self::configured(seed, &limits, config);
         story.sign_in();
-        assert!(story.run_until(|s| s.client.link().state == jig_client::Link::Live, RUNNING_WAIT));
+        assert!(
+            story.run_until(|s| s.client.link().state == jig_client::Link::Live, RUNNING_WAIT),
+            "link {:?}, start {:?}",
+            story.client.link().state,
+            story.engine.driver.world.domain.start_failure(),
+        );
         story
     }
     /// A signed-in member may propose a widening that the owner's larger per-task budget covers.

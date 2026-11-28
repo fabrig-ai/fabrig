@@ -370,7 +370,7 @@ pub(crate) const LOOK_COMPARE: Command = Command {
         Argument { shown: "C", line: "The request's commit hash, 7 to 64 lowercase hexadecimal digits." },
     ],
     variables: &[&BUNDLE, &PATH],
-    notes: "Sets TEMPER_INTERNAL_BUNDLE=none for the print. No browser, terminal or box. Exit 0: landed or left for the account; 1: differs, missing, conflict or stopped; 2: refused or unreadable request; 3: comparison couldn't finish. See temper/docs/design/client/journey-writer.md, 6.1.",
+    notes: "Sets TEMPER_INTERNAL_BUNDLE=none for the print. No browser, terminal or box. Exit 0: landed or left for the account; 1: differs, missing, conflict or stopped; 2: refused or unreadable request; 3: comparison couldn't finish. See temper/docs/design/client/journey-writer-requests.md, 1.1.",
     ..BASE
 };
 
@@ -378,7 +378,7 @@ pub(crate) const LOOK_RENDER: Command = Command {
     reach: Reach::Words(&["look-render"]),
     line: "Render a look request beside this checkout's print and report the differences.",
     variables: &[&CHROMIUM, &PATH],
-    notes: "Uses file pages in scratch copies in the checkout's git directory. No terminal or box. Exit 0: verdict written; 2: refused or unreadable request; 3: render check couldn't finish. See temper/docs/design/client/journey-writer.md, 6.2.",
+    notes: "Uses file pages in scratch copies in the checkout's git directory. No terminal or box. Exit 0: verdict written; 2: refused or unreadable request; 3: render check couldn't finish. See temper/docs/design/client/journey-writer-requests.md, 1.2.",
     ..LOOK_COMPARE
 };
 

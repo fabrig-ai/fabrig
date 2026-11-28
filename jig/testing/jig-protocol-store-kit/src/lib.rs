@@ -225,8 +225,11 @@ pub fn task_llm() -> jig_domain_tasks::LlmChoice {
     jig_domain_tasks::LlmChoice {
         later: None,
         account: Some(u32::MAX),
-        main: ModelEffort { model: 63, effort: Some(u8::MAX) },
-        subagents: Box::new([ModelEffort { model: 0, effort: None }, ModelEffort { model: 7, effort: Some(1) }]),
+        main: ModelEffort { model: 63, effort: Some(u8::MAX), speed: None },
+        subagents: Box::new([
+            ModelEffort { model: 0, effort: None, speed: None },
+            ModelEffort { model: 7, effort: Some(1), speed: None },
+        ]),
     }
 }
 #[must_use]
@@ -704,7 +707,13 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
     authority: core_authority_limits(),
     people: PEOPLE_LIMITS,
     fleet: core_fleet_limits(),
-    brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
+    brief: jig_domain_brief::Limits {
+        briefs: 2,
+        sections: 3,
+        read_bytes: 256,
+        brief_bytes: 384,
+        gather: skein_lib::Duration::from_secs(30),
+    },
     brief_parts: 2,
     brief_core_budgets: core::CoreBriefBudgets {
         tail: 128,

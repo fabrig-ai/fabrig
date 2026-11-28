@@ -3,9 +3,11 @@ pub mod application;
 pub mod catalogue;
 pub mod change;
 pub mod charters;
+pub use charters::Document;
 pub mod check;
 pub mod fleet_needs;
 pub mod models;
+pub mod names;
 pub mod overlays;
 mod overrides;
 pub use overrides::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
@@ -46,6 +48,44 @@ pub enum Value {
     Application(Box<[u8]>),
 }
 impl Value {
+    #[must_use]
+    pub fn name(&self) -> Option<&[u8]> {
+        match self {
+            Self::Charter(value) => value.name.as_deref(),
+            Self::Template(value) => value.name.as_deref(),
+            Self::Policy(value) => value.name.as_deref(),
+            Self::Overlay(_)
+            | Self::Rules(_)
+            | Self::Limits(_)
+            | Self::Model(_)
+            | Self::Worker(_)
+            | Self::Provider(_)
+            | Self::Application(_) => None,
+        }
+    }
+
+    pub fn set_name(&mut self, name: Option<&[u8]>) {
+        if self.name() == name {
+            return;
+        }
+        let name = match name {
+            Some(name) => Some(skein_lib::bytes::copy_of(name)),
+            None => None,
+        };
+        match self {
+            Self::Charter(value) => value.name = name,
+            Self::Template(value) => value.name = name,
+            Self::Policy(value) => value.name = name,
+            Self::Overlay(_)
+            | Self::Rules(_)
+            | Self::Limits(_)
+            | Self::Model(_)
+            | Self::Worker(_)
+            | Self::Provider(_)
+            | Self::Application(_) => {}
+        }
+    }
+
     #[must_use]
     pub fn as_limits(&self) -> Option<&[Override]> {
         match self {
@@ -705,7 +745,7 @@ impl Record {
 #[must_use]
 pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
     let segment = u64::from(limits.authority.segment_bytes).checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
-    let document = u64::try_from(size_of::<crate::Document>())
+    let document = u64::try_from(size_of::<Document>())
         .ok()?
         .checked_add(u64::from(limits.authority.segments).checked_mul(segment)?)?
         .checked_add(u64::from(crate::DOCUMENT_PATH_BYTES))?
@@ -750,7 +790,7 @@ pub fn current_bound(limits: &crate::Limits) -> Option<u64> {
         u64::from(limits.tasks.charters).checked_mul(
             u64::from(limits.run_bytes).checked_add(
                 u64::from(limits.tasks.charter_documents).checked_mul(
-                    u64::try_from(size_of::<crate::Document>())
+                    u64::try_from(size_of::<Document>())
                         .ok()?
                         .checked_add(
                             u64::from(limits.authority.segments).checked_mul(

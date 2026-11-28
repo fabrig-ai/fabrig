@@ -100,7 +100,8 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
             }
         }
         other @ (Delivery::Store(_)
-        | Delivery::Start(_)
+        | Delivery::Resume(_)
+        | Delivery::ConnectorLoad { .. }
         | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
         | Delivery::Message { .. }
@@ -112,6 +113,7 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
         | Delivery::ApplicationRead { .. }
         | Delivery::Application { .. }
         | Delivery::ProjectMade { .. }
+        | Delivery::Connector(..)
         | Delivery::Projection { .. }
         | Delivery::System { .. }
         | Delivery::LostRead { .. }
@@ -208,7 +210,6 @@ pub(super) fn read(domain: &mut Domain, env: &Env<Limits>, payload: Token, end: 
         crate::decide(domain, env, Work::Core(event));
     }
 }
-#[expect(clippy::large_enum_variant, reason = "the bounded route queue owns complete core events")]
 pub(super) enum Work {
     Link {
         channel: Token,
@@ -251,22 +252,14 @@ pub(super) enum Work {
     ConnectorResume {
         number: u16,
     },
-    Start(crate::StartInput),
-    ConnectorRestartDone {
-        number: u16,
-    },
     CallAnswered {
         to: ReplyTo,
         call: core::SettledCall,
     },
-    WriterRead {
-        connector: u16,
-        resource: tasks::Name,
-        event: connector::SystemEvent,
-    },
     Timer(core::Timer),
     Core(core::Event),
-    Store(core::engine::store::In),
+    Engine(core::engine::In),
+    EngineOutputs(Queue<core::engine::Out>),
     ResumeFleet,
     Finish,
     Connector {

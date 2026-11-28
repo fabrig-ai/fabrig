@@ -1,4 +1,4 @@
-//! The train's party draw is independent of its workload (testing/workloads.md, 3.3, 4.2).
+//! The train's party draw is independent of its workload (testing/workloads-kit.md, 1.3, testing/workloads.md, 4.2).
 use skein_world::streams::{Stream, Streams};
 use temper_workload::{
     draw::{Change, Goal, Party, Workload},

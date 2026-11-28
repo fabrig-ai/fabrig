@@ -199,7 +199,7 @@ record LandingRepair
 record LandedBelow = c::Landed
 record LandingBelow by hand
 record LandingRepairAt
-enum Repair = c::Repair { gate tuple, review { commit = head } }
+enum Repair = c::Repair { gate tuple, review { commit = head }, temper_dir { commit = head } }
 record RepairValue stands for why
 record DelegateGate
 record MergeDelegate
@@ -243,7 +243,7 @@ record ChangeCi = c::Ci
 record EffectAccount = d::EffectAccount
 record ResultText = d::ResultText
 record ChangeResult = d::ChangeResult
-record ModelEffort = jig_domain_tasks::ModelEffort
+record ModelEffort by hand # The speed is an inline name in the domain choice.
 record LlmChoice by hand
 enum Route by hand
 record Held
@@ -580,6 +580,7 @@ record ChangeSource = d::ChangeSource
 record ChangeCold = d::ChangeCold
 record Regate = d::Regate
 record CloseRefused = c::CloseRefused
+enum CloseOutdated = c::CloseOutdated
 record CloseAt = c::CloseAt
 enum BehindRead = d::BehindRead
 record ReadBehind = d::ReadBehind
@@ -616,7 +617,8 @@ record AreaTask stands for number
 record AreaParty stands for number
 record AreaRole stands for number
 record AreaCharter stands for number
-enum AreaOwner = d::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple }
+record AreaCharterNamed stands for name
+enum AreaOwner = d::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple, charter_named tuple }
 record Area = d::settings::Area
 record ProjectAreas = d::settings::ProjectAreas { areas slice }
 record ProjectTriager = d::settings::ProjectTriager
@@ -664,5 +666,8 @@ enum WriteSender = wr::Sender
 enum WriteState = wr::WriteState
 record Written = wr::Written
 record Writes = wr::Writes { entries slice }
+record DotTemperFile = d::DotTemperFile
+record DotTemperRefusal = d::DotTemperRefusal
+record DotTemperRevision = d::DotTemperRevision { files slice }
 enum Value by hand
 record Row by hand

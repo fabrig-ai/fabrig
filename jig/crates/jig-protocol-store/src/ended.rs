@@ -27,6 +27,7 @@ pub fn start(owner: Token, range: store::Range) -> Option<(Request, Pending)> {
             (Key::Tasks(tasks::Key::Live(task)), Pending::ProposalOwner { task, proposal })
         }
         store::Range::Read(_) | store::Range::Window { .. } | store::Range::Notes(_) => return None,
+        store::Range::Start { .. } => unreachable!("holders of point loads drive their own start"),
     };
     Some((get(owner, key), pending))
 }

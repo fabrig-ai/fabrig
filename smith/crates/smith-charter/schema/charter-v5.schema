@@ -48,9 +48,10 @@ record Tools {
     host: list 128 HostTool
     contract: u16
 }
-record Conventions { guide: text 1024 checks: text 1024 }
+record Conventions { guide: text 1024 checks: text 1024 droppable hooks: option text 1024 }
 record Prices { input: u64 cached: u64 cache_write: option u64 output: u64 unit: u32 }
-record Llm { endpoint: text 64 account: option u32 model: text 128 effort: option text 32 window: u32 output: u32 prices: Prices }
+record Speed { name: text 32 also: list 2 text 32 prices: Prices }
+record Llm { endpoint: text 64 account: option u32 model: text 128 effort: option text 32 window: u32 output: u32 prices: Prices speed: option Speed = none }
 record Reserve { turns: u32 time: duration }
 record Budget { turns: u32 spend: u64 time: duration reserve: Reserve }
 

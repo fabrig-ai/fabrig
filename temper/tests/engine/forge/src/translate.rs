@@ -781,6 +781,7 @@ fn directory_answer(
             kind: match entry.kind {
                 forge::EntryKind::File => client::EntryKind::File,
                 forge::EntryKind::Directory => client::EntryKind::Directory,
+                forge::EntryKind::Link => client::EntryKind::Link,
             },
         });
         room = left;

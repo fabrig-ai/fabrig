@@ -36,18 +36,43 @@ use crate::{
     *,
 };
 use fixtures::CurrentFixtures;
-use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
+use jig_domain_contract as contract;
+use jig_domain_link::{Form, Hello, Hosting, Phase, Problem, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 fn empty_declarations(config: &Config) -> Box<[Declaration]> {
     let mut declarations = List::with_capacity(u32::try_from(config.connectors.len()).unwrap());
     for connector in &config.connectors {
-        declarations.push(Declaration::empty(*connector)).unwrap();
+        declarations.push(Declaration::empty(jig_domain_contract::Connector(*connector))).unwrap();
     }
     declarations.into_boxed()
 }
 
-pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+fn declared_write() -> jig_domain_contract::effects::EffectKind {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    EffectKind { kind: 1, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false }
+}
+
+fn shared_holds() -> Box<[tasks::ResourceKind]> {
+    Box::new([tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Shared }])
+}
+
+fn fixture_declarations(config: &Config, resources: &[u16], effects: &[u16], projects: &[u16]) -> Box<[Declaration]> {
+    let mut declarations = empty_declarations(config);
+    for declaration in &mut declarations {
+        let connector = declaration.connector.0;
+        if resources.contains(&connector) {
+            declaration.resources = shared_holds();
+        }
+        if effects.contains(&connector) {
+            declaration.effects = Box::new([declared_write()]);
+        }
+        declaration.projects_goals = projects.contains(&connector);
+    }
+    declarations
+}
+
+pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let connectors = empty_declarations(&config);
     Core::new(config, &connectors, limits)
 }
@@ -74,6 +99,18 @@ fn claimed_call_room() -> (Core, Limits) {
 fn assert_retained(core: &Core, key: CallKey, expected: CallPart) {
     let Some(CallReplay::Core(part)) = core.replay_call(key) else { panic!("retained call {key:?}") };
     assert_eq!(part, expected);
+}
+
+#[test]
+fn call_pending_reads_only_the_pending_place() {
+    let (mut core, _) = claimed_call_room();
+    assert!(core.reserve_connector_call(ROOM_CALL));
+    assert!(core.call_pending(ROOM_CALL));
+    assert!(!core.call_pending(ROOM_NEXT), "an unknown name has no pending place");
+
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    assert_retained(&core, ROOM_CALL, CallPart::Controlled);
+    assert!(!core.call_pending(ROOM_CALL), "a retained answer is no longer pending");
 }
 
 #[test]
@@ -167,16 +204,27 @@ fn a_busy_effect_description_gives_back_only_its_own_place() {
             origin: EffectOrigin::Call { to: ReplyTo::new(ROOM_REPLY), key: ROOM_NEXT, deadline: Wall::EPOCH },
         },
     );
-    let [Request::Ask { ask: Ask::Effect(connector::Ask::Describe { owner: asked }), .. }] = out.as_ref() else {
+    let [
+        Request::Ask {
+            ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Describe { owner: asked })),
+            ..
+        },
+    ] = out.as_ref()
+    else {
         panic!("the admitted call asks for a description: {out:?}")
     };
     assert_eq!(*asked, owner);
     assert!(!core.reserve_connector_call(ROOM_FRESH));
 
-    let busy = || Event::EffectConnector(connector::Event::DescribeBusy { owner });
-    let out = watch_outputs(&mut core, &limits, busy());
-    let [Request::Ask { ask: Ask::Effect(connector::Ask::Drop { owner: dropped, .. }), .. }, Request::Now(now)] =
-        out.as_ref()
+    let busy = || contract::Up::Effects(contract::effects::Up::Busy { owner });
+    let out = watch_connector_outputs(&mut core, &limits, 1, busy());
+    let [
+        Request::Ask {
+            ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Drop { owner: dropped, .. })),
+            ..
+        },
+        Request::Now(now),
+    ] = out.as_ref()
     else {
         panic!("busy, without a call row: {out:?}")
     };
@@ -186,7 +234,7 @@ fn a_busy_effect_description_gives_back_only_its_own_place() {
     assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
     assert!(core.replay_call(ROOM_NEXT).is_none());
     assert!(core.reserve_connector_call(ROOM_FRESH));
-    assert!(watch_outputs(&mut core, &limits, busy()).is_empty(), "the late description owns nothing");
+    assert!(watch_connector_outputs(&mut core, &limits, 1, busy()).is_empty(), "the late description owns nothing");
     assert!(!core.call_room(ROOM_NEXT));
     assert_retained(&core, ROOM_CALL, CallPart::Controlled);
 }
@@ -360,10 +408,12 @@ pub(crate) fn limits() -> Limits {
         },
         connectors: 2,
         resume_bytes: 256,
-        run_bytes: 512,
+        // The scripted charter needs 565 bytes with the speed fields. Its load-core
+        // variant needs 8 more for the longer model name, counted twice.
+        run_bytes: 573,
         policy_bytes: 8192,
         escalation_reason_bytes: 128,
-        load_slots: 2,
+        load_slots: STORE_WORK_SLOTS,
         load_bytes: 65_536,
         call_records: 2,
         call_answer_bytes: 256,
@@ -371,7 +421,13 @@ pub(crate) fn limits() -> Limits {
         authority: authority_limits(),
         people,
         fleet,
-        brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
+        brief: jig_domain_brief::Limits {
+            briefs: 2,
+            sections: 3,
+            read_bytes: 256,
+            brief_bytes: 384,
+            gather: Duration::from_secs(30),
+        },
         brief_parts: 2,
         brief_core_budgets: CoreBriefBudgets {
             tail: 128,
@@ -558,7 +614,36 @@ fn scripted_model() -> Model {
         price_unit: 1_000_000,
         efforts: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
+}
+
+/// Set the standard, Fast and Ultrafast prices of the catalogue example.
+pub(crate) fn speed_example(model: &mut Model) {
+    model.input_price = 2_000;
+    model.cached_price = 100;
+    model.cache_write_price = Some(2_500);
+    model.output_price = 10_000;
+    model.speeds = Box::new([
+        Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::new([b"priority".as_slice().into()]),
+            input_price: 4_000,
+            cached_price: 200,
+            cache_write_price: Some(5_000),
+            output_price: 20_000,
+        },
+        Speed {
+            name: b"ultrafast".as_slice().into(),
+            also: Box::default(),
+            input_price: 12_000,
+            cached_price: 600,
+            cache_write_price: Some(15_000),
+            output_price: 60_000,
+        },
+    ]);
+    model.speed = Some(b"ultrafast".as_slice().into());
 }
 
 pub(crate) fn config(seed: u64) -> Config {
@@ -613,6 +698,7 @@ pub(crate) fn config(seed: u64) -> Config {
             number: 1,
             name: Box::from("Project 1"),
             policy: ConfiguredPolicy {
+                name: None,
                 policy,
                 permissions: Box::new([
                     people::PermissionRole { connector: 1, permission: 3, role: 1 },
@@ -672,6 +758,7 @@ pub(crate) fn config(seed: u64) -> Config {
             ]),
             models: Box::default(),
             charters: Box::new([Charter {
+                name: None,
                 parts: Box::new([]),
                 rest: false,
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -740,12 +827,16 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
     core.template_overrides = Map::with_capacity(limits.authority.projects);
 }
 
-fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let declarations = empty_declarations(&config);
     seeded_core_with_declarations(config, &declarations, limits)
 }
 
-fn seeded_core_with_declarations(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core_with_declarations(
+    config: Config,
+    connectors: &[Declaration],
+    limits: &Limits,
+) -> Result<Core, StartProblem> {
     let needs = fleet_needs::configured(&config, limits);
     let mut core = Core::new(config, connectors, limits)?;
     fixtures::restore_needs(&mut core.fleet, limits, needs);
@@ -777,7 +868,12 @@ fn core_with_limits(limits: &Limits) -> Core {
 }
 
 fn core_with_config(config: Config, limits: &Limits) -> Core {
-    let mut core = seeded_core(config, limits).expect("fixture core configuration");
+    let declarations = empty_declarations(&config);
+    core_with_declarations(config, limits, &declarations)
+}
+
+fn core_with_declarations(config: Config, limits: &Limits, declarations: &[Declaration]) -> Core {
+    let mut core = seeded_core_with_declarations(config, declarations, limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     restore_key_account(&mut core, limits, 0, 1, 1);
     let mut out = Queue::uncapped();
@@ -1070,7 +1166,28 @@ fn tree_core_with_kinds(
     effects: Box<[jig_domain_contract::effects::EffectKind]>,
     resources: Box<[tasks::ResourceKind]>,
 ) -> (Core, Limits) {
+    tree_core_with_capabilities(effects, resources, &[], &[])
+}
+
+fn tree_core_with_capabilities(
+    effects: Box<[jig_domain_contract::effects::EffectKind]>,
+    resources: Box<[tasks::ResourceKind]>,
+    more_effects: &[u16],
+    projects: &[u16],
+) -> (Core, Limits) {
+    tree_core_with_declarations(effects, resources, more_effects, projects, &[], limits().brief)
+}
+
+fn tree_core_with_declarations(
+    effects: Box<[jig_domain_contract::effects::EffectKind]>,
+    resources: Box<[tasks::ResourceKind]>,
+    more_effects: &[u16],
+    projects: &[u16],
+    sections: &[u16],
+    brief: jig_domain_brief::Limits,
+) -> (Core, Limits) {
     let (old, mut limits) = core();
+    limits.brief = brief;
     limits.views.watchers = 8;
     limits.views.watchers_per_party = 8;
     limits.tasks.tasks = 16;
@@ -1087,13 +1204,18 @@ fn tree_core_with_kinds(
     given.delegation.tasks = 17;
     given.delegation.depth = 5;
     set_seed_role_authority(&mut config, given);
-    let mut connectors = empty_declarations(&config);
+    let mut connectors = fixture_declarations(&config, &[], more_effects, projects);
     let first = connectors.first_mut().expect("first connector");
-    assert_eq!(first.connector, 1);
-    first.effects = effects;
+    assert_eq!(first.connector, jig_domain_contract::Connector(1));
+    if !effects.is_empty() {
+        first.effects = effects;
+    }
     let Some(declaration) = connectors.get_mut(1) else { panic!("second connector") };
-    assert_eq!(declaration.connector, 2);
+    assert_eq!(declaration.connector, jig_domain_contract::Connector(2));
     declaration.resources = resources;
+    for declaration in &mut connectors {
+        declaration.sections = sections.contains(&declaration.connector.0);
+    }
     let mut core = seeded_core_with_declarations(config, &connectors, &limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     core.people = old.people;
@@ -1159,11 +1281,15 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
 
 /// A live parent with three delegates, one held for budget.
 pub(crate) fn make_tree() -> (Core, Limits) {
-    let (mut core, limits) = tree_core();
+    let (core, limits) = tree_core();
+    (make_tree_in(core, &limits), limits)
+}
+
+fn make_tree_in(mut core: Core, limits: &Limits) -> Core {
     let root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     send_task(
         &mut core,
-        &limits,
+        limits,
         tasks::Event::Make {
             reads_project: false,
             maker: None,
@@ -1180,7 +1306,7 @@ pub(crate) fn make_tree() -> (Core, Limits) {
     ];
     send_task(
         &mut core,
-        &limits,
+        limits,
         tasks::Event::Make {
             reads_project: false,
             maker: None,
@@ -1191,8 +1317,8 @@ pub(crate) fn make_tree() -> (Core, Limits) {
         },
     );
     assert!(core.tasks.task(4).is_some());
-    send_task(&mut core, &limits, tasks::Event::Hold { task: 3, why: tasks::Hold::Budget });
-    (core, limits)
+    send_task(&mut core, limits, tasks::Event::Hold { task: 3, why: tasks::Hold::Budget });
+    core
 }
 
 #[test]
@@ -2151,23 +2277,28 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     );
     let name = tasks::Name { connector: 2, path: Box::new([Box::from(&b"resource"[..])]) };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut work = Queue::uncapped();
-    connector(
+    let connector = jig_domain_contract::Connector(name.connector);
+    let _adopted = crate::routing::step_connector(
         &mut core,
         &env,
-        &mut work,
-        connector::Event::Adopted { project: 1, name: name.clone(), role: connector::AdoptionRole::Owned, home: true },
+        connector,
+        jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Adopted {
+            project: 1,
+            name: name.clone(),
+            role: connector::AdoptionRole::Owned,
+            home: true,
+        }),
     );
-    connector(
+    let _resource = crate::routing::step_connector(
         &mut core,
         &env,
-        &mut work,
-        connector::Event::Resource {
+        connector,
+        jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Resource {
             project: 1,
             name,
             role: connector::ResourceRole::Owned,
             hold: connector::HoldKind::Shared,
-        },
+        }),
     );
     let Document::Project(project) =
         make(&core, &limits, 1, &Subject::Project { project: 1 }, &window(), Wall::EPOCH).unwrap()
@@ -2570,6 +2701,14 @@ fn watch_core() -> (Core, Limits) {
     (core, limits)
 }
 
+pub(crate) fn connector_step(core: &mut Core, env: &Env<Limits>, connector: u16, up: contract::Up) -> Queue<Request> {
+    crate::routing::step_connector(core, env, contract::Connector(connector), up)
+}
+
+fn watch_connector_outputs(core: &mut Core, limits: &Limits, connector: u16, up: contract::Up) -> Box<[Request]> {
+    watch_decision(connector_step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, connector, up))
+}
+
 fn watch_outputs(core: &mut Core, limits: &Limits, event: Event) -> Box<[Request]> {
     watch_decision(step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event))
 }
@@ -2796,7 +2935,14 @@ fn an_application_watch_asks_its_connector_with_the_clamped_window() {
     assert_eq!(out.len(), 1);
     let Request::Ask {
         connector: owner,
-        ask: Ask::Document { watcher: got, scope: got_scope, subject: got_subject, party, window },
+        ask:
+            Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Document {
+                watcher: got,
+                scope: got_scope,
+                subject: got_subject,
+                party,
+                window,
+            })),
     } = &out[0]
     else {
         panic!("connector construction")
@@ -3356,12 +3502,78 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
     );
 }
 
+// Two window loads and two ordinary reads; the core also holds two erasure read slots.
+const STORE_WORK_SLOTS: u32 = 2;
+const STORE_LOAD_CAPACITY: u64 = 6;
+const STORE_READ_CHARGES: u32 = 4;
+const STORE_SIGN_IN: u64 = 10;
+const STORED_TASK: u64 = 100;
+const WINDOWED_TASKS: [u64; 2] = [102, 103];
+const STORE_WINDOW: (u64, u32) = (1, 1);
+const PREPARING_FOR_RESULT: u64 = 1;
+
+fn stored_task_read(core: &mut Core, limits: &Limits) -> Held {
+    read_start(core, limits, STORE_SIGN_IN, crate::reads::Read::Task { task: STORED_TASK })
+}
+
+fn full_load_lanes() -> (Core, Env<Limits>, Token) {
+    use crate::routing::task::erase::{Select, scan};
+
+    let (mut core, limits) = watch_core();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let windows = WINDOWED_TASKS.map(|task| fixture_window(&mut core, task, STORE_WINDOW));
+    let Held::Store(engine_store::Out::Load { load: read, .. }) = stored_task_read(&mut core, &limits) else {
+        panic!("one retained read")
+    };
+    let Held::Store(_) = stored_task_read(&mut core, &limits) else { panic!("second retained read") };
+    let _answer = loaded_answer(&mut core, &limits, read, engine_store::Answer::Failed(engine_store::Failure::Gone));
+
+    let project = core.tasks.task(PREPARING_FOR_RESULT).unwrap().project;
+    let mut out = Queue::uncapped();
+    scan(&mut core, &env, &mut out, Select::Project(project));
+    let Some(Request::Held(held)) = out.pop() else { panic!("erasure's first page") };
+    let Held::Store(engine_store::Out::Load { load: erasure, .. }) = *held else { panic!("held erasure page") };
+    let out = watch_store_outputs(&mut core, &limits, point_answer(erasure, None, true));
+    let [Request::Held(held)] = out.as_ref() else { panic!("erasure's replacement page") };
+    let Held::Store(_) = held.as_ref() else { panic!("held erasure retry") };
+    let [first, _] = windows;
+    (core, env, first)
+}
+
+#[test]
+fn the_store_load_capacity_adds_both_lanes() {
+    let (core, _) = core();
+    assert_eq!(core.loads.capacity(), STORE_LOAD_CAPACITY);
+}
+
+#[test]
+fn a_full_read_lane_counts_terminals_until_reclaim() {
+    let (mut core, env, _) = full_load_lanes();
+    assert_eq!(core.loads.reads(), STORE_READ_CHARGES);
+    let Held::Read { answer, .. } = stored_task_read(&mut core, &env.limits) else { panic!("read refused") };
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Busy));
+}
+
+#[test]
+fn an_ended_result_waits_while_both_lanes_are_full() {
+    let (mut core, env, window) = full_load_lanes();
+    let context = core.tasks.run_context(PREPARING_FOR_RESULT).unwrap();
+    core.contexts.insert(PREPARING_FOR_RESULT, context).unwrap();
+    let mut work = Queue::uncapped();
+    let _out = crate::routing::run::results::begin(&mut core, &mut work, PREPARING_FOR_RESULT, Box::new([STORED_TASK]));
+    let mut out = Queue::uncapped();
+    loads::resume_waiting(&mut core, &env.limits, &mut out);
+    assert!(out.is_empty(), "no store request while both work slots are held");
+    let out = watch_store_outputs(&mut core, &env.limits, point_answer(window, None, true));
+    let _load = runs::result_reads::requested(&out, STORED_TASK);
+}
+
 #[test]
 fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     let (mut core, mut limits) = watch_core();
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
-    core.loads = loads::Loads::new(1, core.flight_tasks_capacity);
+    core.loads = loads::Loads::new(1, 1, core.flight_tasks_capacity);
     fixture_window(&mut core, 102, (1, 1));
     assert!(!core.loads.room(&limits), "the full work lane does not take the read's room");
     let Held::Store(engine_store::Out::Load { load, .. }) =
@@ -3698,6 +3910,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
                 people::Request::Route { request, .. } => routed = Some(request),
                 people::Request::Act { .. }
                 | people::Request::Acted { .. }
+                | people::Request::ConnectorActed { .. }
                 | people::Request::Save { .. }
                 | people::Request::Erase { .. }
                 | people::Request::Reply { .. }
@@ -3974,7 +4187,7 @@ fn startup_refuses_too_many_configured_workers() {
     let mut limits = limits();
     let config = config(41);
     limits.fleet.configured_workers = 1;
-    assert_eq!(new_core(config, &limits).err(), Some(Problem::Workers { limit: 1 }));
+    assert_eq!(new_core(config, &limits).err(), Some(StartProblem::Membership(Problem::Workers { limit: 1 })));
 }
 #[test]
 fn startup_refuses_an_oversized_worker_name() {
@@ -3989,7 +4202,7 @@ fn startup_refuses_an_oversized_worker_name() {
     }]);
     assert_eq!(
         new_core(config, &limits).err(),
-        Some(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes })
+        Some(StartProblem::Membership(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes }))
     );
 }
 
@@ -4145,7 +4358,8 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
 
 #[test]
 fn projection_readiness_shares_generation_restore_and_pending_connector_rules() {
-    let (mut core, limits) = make_tree();
+    let (core, limits) = tree_core_with_capabilities(Box::new([]), Box::new([]), &[], &[1]);
+    let mut core = make_tree_in(core, &limits);
     core.counters.next_commit();
     assert!(core.finish_owed());
     finish_watch_outputs(&mut core, &limits);
@@ -4188,7 +4402,7 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
     assert!(core.tasks.task(1).unwrap().tracked.is_none());
     assert!(core.finish_owed());
     finish_watch_outputs(&mut core, &limits);
-    assert!(!core.projections.get(&1).unwrap().pending.is_empty());
+    assert_eq!(core.projections.get(&1).unwrap().pending.as_ref(), &[1]);
     assert!(!core.finish_owed(), "an untracked goal waits on its closing connectors first");
     core.projections.get_mut(&1).unwrap().changed = true;
     assert!(!core.finish_owed(), "pending connectors take precedence over changed");
@@ -4223,6 +4437,7 @@ fn configured_policies_are_retained_by_the_core() {
         .insert(
             1,
             ConfiguredPolicy {
+                name: None,
                 policy,
                 permissions: Box::new([people::PermissionRole { connector: 1, permission: 1, role: 0 }]),
                 templates: Box::new([]),

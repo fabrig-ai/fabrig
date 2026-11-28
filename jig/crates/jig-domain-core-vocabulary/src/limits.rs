@@ -22,11 +22,7 @@ pub const DOCUMENT_PATH_BYTES: u32 = 256;
 pub const DOCUMENT_HEADING_BYTES: u32 = 80;
 /// The most sections the core plans of its own (domain/engine/briefs.md, section 1, and domain/engine/settings.md, section 9).
 pub const CORE_SECTIONS: u32 = 8;
-/// The connector section kind the core plans a document under; the root may renumber it
-/// (domain/engine/settings.md, 9).
-pub const DOCUMENT_KIND: u16 = 0;
-/// A charter document section's priority (domain/engine/settings.md, 9).
-pub const DOCUMENT_PRIORITY: u16 = 5;
+pub use jig_domain_contract::parts::DOCUMENT_PRIORITY;
 
 /// Whether a brief's sections hold the core's own most and a charter's documents
 /// (domain/engine/settings.md, 9).
@@ -170,7 +166,7 @@ pub fn overlay_policy_bytes(overlay: &crate::settings::Overlay) -> Option<u64> {
     bytes.checked_add(largest)
 }
 
-/// A model's name, its efforts' names and its chosen one's, at most its longest (domain/tasks/README.md, 3).
+/// A model's owned bytes, including its declared speeds and its chosen effort, at most its longest.
 fn model_owned_bytes(model: &crate::Model) -> Option<u64> {
     let mut longest = 0_u64;
     let mut bytes = len_u64(model.name.len())
@@ -185,6 +181,17 @@ fn model_owned_bytes(model: &crate::Model) -> Option<u64> {
     }
     if let Some(program) = &model.program {
         bytes = bytes.checked_add(len_u64(program.len()))?;
+    }
+    bytes = bytes.checked_add(len_u64(model.speeds.len()).checked_mul(sizeof(size_of::<crate::Speed>())?)?)?;
+    for speed in &model.speeds {
+        bytes = bytes.checked_add(len_u64(speed.name.len()))?;
+        bytes = bytes.checked_add(len_u64(speed.also.len()).checked_mul(sizeof(size_of::<Box<[u8]>>())?)?)?;
+        for name in &speed.also {
+            bytes = bytes.checked_add(len_u64(name.len()))?;
+        }
+    }
+    if let Some(speed) = &model.speed {
+        bytes = bytes.checked_add(len_u64(speed.len()))?;
     }
     bytes.checked_add(longest)
 }
@@ -231,7 +238,7 @@ pub fn task_carrier(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(task.hold_bytes))?
         .checked_add(names)?
         .checked_add(authority)?
-        .checked_add(bytes(tasks::MODELS, sizeof(size_of::<tasks::ModelEffort>())?)?)
+        .checked_add(bytes(tasks::MODELS.checked_mul(2)?, sizeof(size_of::<tasks::ModelEffort>())?)?)
 }
 
 fn context_carrier(limits: &Limits) -> Option<u64> {

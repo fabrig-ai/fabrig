@@ -762,12 +762,11 @@ impl Protocol {
                 top::Request::Call { call, repository, op } => {
                     calls.push((call, repository, op)).expect("bounded calls");
                 }
-                top::Request::RestartDone { stage } => {
-                    restart = match stage {
-                        top::RestartStage::Restored => Some(top::Event::CatchUp),
-                        top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
-                    };
-                    self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
+                restored @ top::Request::Up(jig_domain_contract::Up::Lifecycle(
+                    jig_domain_contract::lifecycle::Up::Done { stage: top::RestartStage::Restored },
+                )) => {
+                    restart = Some(top::Event::CatchUp);
+                    self.seen.push(restored).expect("world output capacity");
                 }
                 other @ (top::Request::Settled { .. }
                 | top::Request::LoadHistory { .. }
@@ -805,20 +804,15 @@ impl Protocol {
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
-                | top::Request::ProjectionOutcome { .. }
-                | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
                 | top::Request::ContinueGoalBranch { .. }
-                | top::Request::EffectsSettled { .. }
-                | top::Request::Released { .. }
-                | top::Request::ProjectReleased { .. }
+                | top::Request::Up(_)
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::StepDependents { .. }
                 | top::Request::CloserChecked { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
-                | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingNews { .. }
@@ -835,7 +829,8 @@ impl Protocol {
                 | top::Request::ReturnFinding(_)
                 | top::Request::FailRepair { .. }
                 | top::Request::ChangeDecision { .. }
-                | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
@@ -1021,6 +1016,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::DotTemperRevision(row) => top::Key::DotTemperRevision { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },

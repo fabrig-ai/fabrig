@@ -29,6 +29,8 @@ pub(crate) enum Machine {
     Read { cancelled: bool },
     /// An executable probe; only Probed consumes it.
     Probe { cancelled: bool },
+    /// A hooks directory probe; only `HooksProbed` consumes it.
+    ProbeHooks { cancelled: bool },
     /// A contained check; Checked or Aborted consumes it after optional Abort.
     Check { cancelled: bool },
 }
@@ -76,6 +78,7 @@ pub(crate) fn start(
                         git: directory.git,
                         conflicts: directory.conflicts,
                         results: directory.results,
+                        hooks: directory.hooks,
                     })
                     .expect("checked mount count");
             }
@@ -111,19 +114,25 @@ pub(crate) fn terminal(slot: &mut Slot, terminal: Below) -> Option<smith::Event>
             Machine::Read { .. } => {
                 slot.machine.remove(owner);
             }
-            Machine::Probe { .. } | Machine::Check { .. } => return None,
+            Machine::Probe { .. } | Machine::ProbeHooks { .. } | Machine::Check { .. } => return None,
         },
         Below::Probed { owner, .. } => match slot.machine.get(owner)? {
             Machine::Probe { .. } => {
                 slot.machine.remove(owner);
             }
-            Machine::Read { .. } | Machine::Check { .. } => return None,
+            Machine::Read { .. } | Machine::ProbeHooks { .. } | Machine::Check { .. } => return None,
+        },
+        Below::HooksProbed { owner, .. } => match slot.machine.get(owner)? {
+            Machine::ProbeHooks { .. } => {
+                slot.machine.remove(owner);
+            }
+            Machine::Read { .. } | Machine::Probe { .. } | Machine::Check { .. } => return None,
         },
         Below::Checked { owner, .. } | Below::Aborted { owner } => match slot.machine.get(owner)? {
             Machine::Check { .. } => {
                 slot.machine.remove(owner);
             }
-            Machine::Read { .. } | Machine::Probe { .. } => return None,
+            Machine::Read { .. } | Machine::Probe { .. } | Machine::ProbeHooks { .. } => return None,
         },
         Below::Classified { .. } | Below::Usage { .. } | Below::BuiltinResult { .. } | Below::ReadVersion { .. } => {}
     }
@@ -203,6 +212,24 @@ pub(crate) fn probe(
     out.push(Output::Lower { agent, request: Lower::Probe { owner, at, deadline } });
 }
 
+pub(crate) fn probe_hooks(
+    slot: &mut Slot,
+    agent: Token,
+    owner: Token,
+    at: run::Place,
+    deadline: Time,
+    out: &mut Queue<Output>,
+) {
+    assert!(
+        slot.machine
+            .insert(owner, Machine::ProbeHooks { cancelled: false })
+            .expect("bounded run discovery rights")
+            .is_none(),
+        "root machine requests own one callback right"
+    );
+    out.push(Output::Lower { agent, request: Lower::ProbeHooks { owner, at, deadline } });
+}
+
 #[expect(clippy::too_many_arguments, reason = "relay the check held bound and absolute cap unchanged")]
 pub(crate) fn check(
     slot: &mut Slot,
@@ -231,7 +258,7 @@ pub(crate) fn abort(slot: &mut Slot, agent: Token, owner: Token, out: &mut Queue
                     out.push(Output::Lower { agent, request: Lower::Abort { owner } });
                 }
             }
-            Machine::Read { cancelled } | Machine::Probe { cancelled } => {
+            Machine::Read { cancelled } | Machine::Probe { cancelled } | Machine::ProbeHooks { cancelled } => {
                 if !*cancelled {
                     *cancelled = true;
                     out.push(Output::Lower { agent, request: Lower::CancelIo { owner } });

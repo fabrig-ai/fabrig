@@ -107,7 +107,7 @@ pub(crate) fn checked(
     let mut members = List::with_capacity(env.limits.people.batch);
     for member in batch {
         for symbol in &member.symbols {
-            if !core.connectors.contains(&symbol.connector) {
+            if !core.connector_recipients.resources.contains(&symbol.connector) {
                 return Err(people::Refusal::Limit { which: people::LimitKind::HoldKind });
             }
         }

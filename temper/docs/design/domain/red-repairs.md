@@ -155,7 +155,7 @@ Refused, naming why, in these words, checked in this order:
   goal template's (template 2, as the `goal` tool takes them,
   `route/goal.rs`), ended by its closer, procedure 6 of the forge's
   connector, as template 4's goal is; it holds its own branch as a goal
-  `goal start` makes does (`forge/branches.md`, section 2;
+  `goal start` makes does (`forge/branches-closer.md`, section 1;
   `GOAL_BRANCH_SYMBOL`), so it lands as any goal does, ending at
   landing.
 - **The triager's delegate,** whoever acted: made by the root for the
@@ -365,7 +365,10 @@ BODY
     main: NamedModel, subagents: Box<[NamedModel]>, later:
     Option<NamedLater> }`, `NamedLater { main: NamedModel, subagents:
     Box<[NamedModel]> }` and `NamedModel { model: Box<[u8]>, effort:
-    Option<Box<[u8]>> }`, a template's file form's members, and
+    Option<Box<[u8]>>, speed: Option<Box<[u8]>> }`, its speed by name,
+    `standard` or none (jig's `domain/tasks/README.md`, section 3), its
+    store and wire records' `speed` an added field whose default is
+    none, a template's file form's members, and
     `ProjectLanding`'s `repairs: Option<RepairSettings>`; in the store
     and the client's wire, records of the same members;
   - the setting resolved at a start (section 7): `Repairs { goals: u8,

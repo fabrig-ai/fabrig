@@ -3,21 +3,6 @@
 //! and failure retirement (temper/docs/design/domain/forge/change/repairs-releases.md, 1).
 use super::{Decision, Domain, Env, Limits, Work, forge, forge_change, tasks};
 use alloc::boxed::Box;
-use skein_lib::{Writer, bytes::copy_of};
-use temper_protocol_worker_wire::v1::{self, Record};
-
-pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32) -> Option<Box<[u8]>> {
-    let length = repository.len().checked_add(1)?.checked_add(command.len())?;
-    let mut path = Writer::new(length);
-    path.put(repository).ok()?;
-    path.put(b"/").ok()?;
-    path.put(command).ok()?;
-    let spec = v1::JobSpec { command: path.finish(), request: copy_of(request), refusal: true };
-    if spec.measure(&v1::CEILINGS).ok()? > bound {
-        return None;
-    }
-    spec.encode(&v1::CEILINGS).ok()
-}
 
 pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'static [u8]> {
     let mut request = None;
@@ -41,9 +26,6 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
     if branch || catch_up || !request.starts_with(b"{\"version\":1,\"goal\":") {
         return Some(b"malformed close request parameter 17.");
     }
-    let Some(command) = domain.forge.close_job(context.project) else {
-        return Some(b"change's close: the project names no close_job.");
-    };
     let Some(bound) = domain.config.close_kind else {
         return Some(b"change's close: job kind 4 is not declared.");
     };
@@ -51,7 +33,8 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
         return Some(b"change's close: its authority does not delegate to job kind 4.");
     }
     if let Some(repository) = repository
-        && spec(&repository.name, command, request, bound.spec).is_none()
+        && forge::jobs::close(&repository.name, domain.forge.close_job(repository.project), request, bound.spec)
+            .is_none()
     {
         return Some(b"malformed close request parameter 17.");
     }
@@ -86,24 +69,6 @@ fn failed_delegate(domain: &Domain, task: u64) -> Option<u64> {
         Some(child)
     } else {
         None
-    }
-}
-
-pub(super) fn replay_words(at: forge_change::CloseAt, failure: &[u8]) -> Box<[u8]> {
-    let mut words = skein_lib::List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    super::append(&mut words, b"not measured again: the goal's branch is at ");
-    short_commit(&mut words, &at.branch);
-    super::append(&mut words, b" and main at ");
-    short_commit(&mut words, &at.landing);
-    super::append(&mut words, b", as when its close check refused; it checks again once either moves.\n\n");
-    let room = usize::try_from(words.room()).expect("hold bound fits usize");
-    super::append(&mut words, &forge::text::fit(failure, room, b""));
-    words.into_boxed()
-}
-
-fn short_commit(words: &mut skein_lib::List<u8>, commit: &[u8; 32]) {
-    for byte in commit.get(..6).expect("six bytes of a commit") {
-        super::append(words, &forge::hex(*byte));
     }
 }
 

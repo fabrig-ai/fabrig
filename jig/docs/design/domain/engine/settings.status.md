@@ -1,6 +1,7 @@
 # settings: status
 
-2026-11-19. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-28. Where the tree's code lags or departs from [settings.md](settings.md).
+
 
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `vocabulary.status.md`, 1.2, and `decisions.status.md`, 1.3.

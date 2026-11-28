@@ -291,6 +291,8 @@ pub struct Model {
     pub description: Option<Box<[u8]>>,
     pub shown: Option<Box<[u8]>>,
     pub picker: bool,
+    pub speeds: Box<[core::Speed]>,
+    pub speed: Option<Box<[u8]>>,
 }
 /// Configured amounts per `unit` tokens in the deployment's spend unit; absent cache writes
 /// are priced at input (protocol/configuration-engine.md, 1; domain/authority.md, 1).
@@ -302,11 +304,11 @@ pub struct Prices {
     pub output: u64,
     pub unit: u32,
 }
+/// The version and layout served for one client owner (protocol/client/versions.md, 1).
 #[derive(Clone, Copy, Debug)]
 pub struct Served {
     pub family: Option<u16>,
-    pub first: u32,
-    pub last: u32,
+    pub version: u32,
     pub layout: [u8; 32],
 }
 
@@ -408,8 +410,7 @@ pub struct ProviderAnswer {
 #[derive(Debug, PartialEq)]
 pub struct PublicRead {
     pub owner: u16,
-    /// A decimal version segment names no layout.
-    pub layout: Option<[u8; 32]>,
+    pub layout: [u8; 32],
     pub kind: u16,
     pub ids: Box<[u64]>,
 }

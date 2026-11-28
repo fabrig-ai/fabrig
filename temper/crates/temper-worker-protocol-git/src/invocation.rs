@@ -135,6 +135,9 @@ pub enum Command {
         expected: git::Commit,
         commit: git::Commit,
     },
+    ReadMessage {
+        commit: git::Commit,
+    },
     Push {
         remote: Box<[u8]>,
         commit: git::Commit,
@@ -159,6 +162,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         | git::Op::CheckOut { at, .. }
         | git::Op::Look { at, .. }
         | git::Op::DiffPaths { at, .. }
+        | git::Op::Message { at, .. }
         | git::Op::Brings { at, .. }
         | git::Op::IsAncestor { at, .. }
         | git::Op::Merge { at, .. }
@@ -195,6 +199,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Merge { .. }
+            | git::Op::Message { .. }
             | git::Op::Commit { .. } => unreachable!("ancestry is part of a push"),
         },
         Command::Reds(_)
@@ -222,6 +227,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::MergeBases { .. }
+        | Command::ReadMessage { .. }
         | Command::BringsList { .. }
         | Command::CommitTree { .. } => None,
     };
@@ -323,6 +329,7 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
         Command::CommitTree { .. } => b"commit-tree",
         Command::MergeBases { .. } | Command::IsAncestor { .. } => b"merge-base",
         Command::BringsList { .. } => b"rev-list",
+        Command::ReadMessage { .. } => b"cat-file",
     }
 }
 
@@ -365,6 +372,7 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::DiffPaths { at, .. }
+        | git::Op::Message { at, .. }
         | git::Op::Brings { at, .. }
         | git::Op::IsAncestor { at, .. }
         | git::Op::Merge { at, .. }
@@ -411,6 +419,7 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         | Command::WriteTree
         | Command::CommitTree { .. }
         | Command::MergeBases { .. }
+        | Command::ReadMessage { .. }
         | Command::IsAncestor { .. }
         | Command::Push { .. } => 0,
     };
@@ -569,6 +578,7 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         Command::IsAncestor { expected, commit } => {
             words(&mut out, &[b"merge-base", b"--is-ancestor", &hex(*expected), &hex(*commit)]);
         }
+        Command::ReadMessage { commit } => words(&mut out, &[b"cat-file", b"commit", &hex(*commit)]),
         Command::Push { remote, commit, branch, expected } => {
             words(&mut out, &[b"push", b"--porcelain"]);
             if let Some(expected) = expected {
@@ -614,6 +624,7 @@ pub(crate) fn environment_for(
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
+            | git::Kind::Message
             | git::Kind::Brings
             | git::Kind::IsAncestor
             | git::Kind::Keep
@@ -682,6 +693,7 @@ pub(crate) fn environment_for(
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
+            | git::Kind::Message
             | git::Kind::Brings
             | git::Kind::IsAncestor
             | git::Kind::Keep

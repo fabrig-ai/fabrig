@@ -8,8 +8,11 @@ use temper_worker_domain::{Event, host, tooling, wire};
 
 const REMOTE: &[u8] = b"org/jobs";
 const BRANCH: &[u8] = b"temper/7/l81";
-const MERGE: &[u8] = b"feature\n\nAdds the feature.\n\nChange: 12\nPull-request: 12\nHead: ";
+const MERGE: &[u8] = b"Merge feature\n\nAdds the feature.\n\nChange: 12\nPull-request: 12\nHead: ";
 const SQUASH: &[u8] = b"feature\n\nAdds the feature.\n\nChange: 12\nPull-request: 12\nHead: ";
+const HEAD_MESSAGE: &[u8] = b"Fix the page\n\nLook-request: 12\nLook-landed: 3";
+const TRAILER_SQUASH: &[u8] = b"T\n\nChange: 12\nPull-request: 7\nHead: ";
+const WITH_TRAILERS: &[u8] = b"T\n\nLook-request: 12\nLook-landed: 3\nChange: 12\nPull-request: 7\nHead: ";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Case {
@@ -17,6 +20,9 @@ pub enum Case {
     ContainedMerge,
     Squash,
     EmptySquash,
+    HeadTrailers,
+    NoHeadMessage,
+    MalformedHeadTrailers,
     Upstream,
     NoContribution,
     ConflictMerge,
@@ -51,6 +57,9 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             | Case::ContainedMerge
             | Case::Squash
             | Case::EmptySquash
+            | Case::HeadTrailers
+            | Case::NoHeadMessage
+            | Case::MalformedHeadTrailers
             | Case::Upstream
             | Case::NoContribution
             | Case::ConflictMerge
@@ -92,18 +101,39 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     if matches!(case, Case::EmptySquash | Case::ContainedMerge) {
         head = original;
     }
+    let reads_head = matches!(case, Case::HeadTrailers | Case::NoHeadMessage | Case::NoContribution);
+    if reads_head {
+        let tree = world.forge.tree(head);
+        let earlier = world
+            .forge
+            .store(head, None, true, tree.clone(), b"Earlier work\n\nLook-request: 99")
+            .expect("earlier commit");
+        head = world.forge.store(earlier, None, true, tree, HEAD_MESSAGE).expect("head commit");
+        world.forge.push(REMOTE, b"topic", head, None).expect("publish head for fetching");
+    }
+    world.cut_message = case == Case::NoHeadMessage;
     let squash =
         !matches!(case, Case::Merge | Case::ContainedMerge | Case::ConflictMerge | Case::Existing | Case::Replay);
     let by_squash = squash && case != Case::Upstream;
     let merge_message = [MERGE, temper_fake_id(head).as_slice(), b"\nGoal: 7"].concat();
-    let squash_message = [SQUASH, temper_fake_id(head).as_slice(), b"\nGoal: 7"].concat();
-    world.title = if by_squash { squash_message.clone().into() } else { merge_message.clone().into() };
+    let squash_message = if reads_head {
+        [TRAILER_SQUASH, temper_fake_id(head).as_slice()].concat()
+    } else {
+        [SQUASH, temper_fake_id(head).as_slice(), b"\nGoal: 7"].concat()
+    };
     if case == Case::Existing {
         world.forge.create_branch(REMOTE, BRANCH, base).expect("existing landing");
     }
     let id = |commit| String::from_utf8(temper_fake_id(commit)).expect("hex");
+    let flag = match case {
+        Case::MalformedHeadTrailers => r#", "head_trailers":"true""#,
+        Case::EmptySquash => r#", "head_trailers":false"#,
+        Case::Merge | Case::ContainedMerge | Case::Upstream => r#", "head_trailers":true"#,
+        _ if reads_head => r#", "head_trailers":true"#,
+        _ => "",
+    };
     let member = format!(
-        "{{\"number\":12,\"branch\":\"topic\",\"head\":\"{}\",\"message\":\"{}\",\"squash\":\"{}\"}}",
+        "{{\"number\":12,\"branch\":\"topic\",\"head\":\"{}\",\"message\":\"{}\",\"squash\":\"{}\"{flag}}}",
         id(head),
         escaped(&merge_message),
         escaped(&squash_message)
@@ -130,6 +160,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -149,7 +180,14 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: Box::new([]),
+            request: request.clone().into_bytes().into(),
+            refusal: false,
+            result: 512,
+            outdated: false,
+            fallback: None,
+        }),
     };
     world.event(assignment())?;
     if matches!(case, Case::Replay | Case::ReplaySquash) {
@@ -165,8 +203,20 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
         assert_eq!(world.forge.branch(REMOTE, BRANCH), Some(prior), "reuse the first delivery's commit");
     }
     assert!(world.operations.is_empty(), "temper's prepare runs no file/process tooling operation");
+    assert_eq!(
+        world.message_reads,
+        if reads_head { vec![translate::commit(head)] } else { Vec::new() },
+        "only a flagged squash reads its fetched head"
+    );
     let answer = world.report.answer.as_ref().expect("prepare answer");
-    if case == Case::Existing {
+    if case == Case::MalformedHeadTrailers {
+        let host::JobEnding::Refused(host::JobRefusal::Invalid(host::JobInvalid::Start { why })) = answer else {
+            panic!("invalid prepare request: {answer:?}");
+        };
+        assert_eq!(why.as_ref(), b"prepare request");
+        assert_eq!(world.report.pushes, 0);
+        assert_eq!(world.forge.branch(REMOTE, BRANCH), None);
+    } else if case == Case::Existing {
         let host::JobEnding::Failed { failure: host::JobFailure::Undelivered(_), .. } = answer else {
             panic!("undelivered: {answer:?}")
         };
@@ -194,10 +244,14 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             assert_ne!(candidate, base, "even an empty squash commits");
             assert_eq!(world.forge.parent(candidate), Some(base));
             assert_eq!(world.forge.merge_parent(candidate), if by_squash { None } else { Some(head) });
-            assert_eq!(
-                world.forge.message(candidate),
-                if by_squash { squash_message.as_slice() } else { merge_message.as_slice() }
-            );
+            let message = if !by_squash {
+                merge_message
+            } else if reads_head && !world.cut_message {
+                [WITH_TRAILERS, temper_fake_id(head).as_slice()].concat()
+            } else {
+                squash_message
+            };
+            assert_eq!(world.forge.message(candidate), message, "the pushed prefix's message");
             let mut expected = world.forge.tree(base);
             if !matches!(case, Case::EmptySquash | Case::ContainedMerge) {
                 expected.insert(b"feature".to_vec(), b"head\n".to_vec());
@@ -366,6 +420,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -379,7 +434,14 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: Box::new([]),
+            request: request.clone().into_bytes().into(),
+            refusal: false,
+            result: 512,
+            outdated: false,
+            fallback: None,
+        }),
     };
     world.event(assignment())?;
     if matches!(case, Case::ReplayStackMerge | Case::ReplayStackSquash) {
@@ -394,6 +456,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
         );
     }
     assert!(world.operations.is_empty(), "own prepare runs no tooling process");
+    assert!(world.message_reads.is_empty(), "no stack member asks for its head message");
     let answer = world.report.answer.as_ref().expect("prepare answer");
     let invalid = matches!(
         case,

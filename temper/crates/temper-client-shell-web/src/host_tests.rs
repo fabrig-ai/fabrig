@@ -27,7 +27,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
     host.event(Event::Start { address: Address::Accounts, kept: List::with_capacity(0), with: None });
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
     host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
-    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
     let me = Token::new(0);
     let link =
         jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).expect("link bounds");
@@ -150,7 +150,7 @@ fn batch_part(exchange: u32, place: usize, reply: Box<[u8]>) -> Heard {
 #[test]
 fn the_reload_press_asks_the_browser_to_reload_once() {
     let mut host = fixture();
-    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } });
+    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: false } });
     build(&mut host);
     let reload = node(&host, Role::Button, b"Reload");
     let idle = host.report(Report::Start);
@@ -795,7 +795,7 @@ fn root_and_missing_starts_wait_for_me_and_replace_even_the_provisional_home() {
             host.start(path, Vec::new(), None);
             host.client(jig_client::Event::StartUnlinked { kept: List::uncapped() });
             host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
-            host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+            host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
             assert_eq!(host.report(Report::Start).show, None);
             build(&mut host);
             assert_eq!(host.root.pages().address(), &Address::AllHome);
@@ -841,8 +841,9 @@ fn playground_me(client: &jig_client::DomainLimits) -> w::Me {
     for (offset, name) in (0..client.rows).zip(std::iter::repeat(template_name.as_slice())) {
         let number = jig_client::shapes::CHAT + offset;
         let template = w::Template {
+            name: None,
             number,
-            name: jig_client_test_records::wire_text(name),
+            shown: jig_client_test_records::wire_text(name),
             executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: number }),
             contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: client.text }),
             shallower: 1,

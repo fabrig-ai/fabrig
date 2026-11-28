@@ -5,7 +5,8 @@ use skein_lib::List;
 
 pub(crate) fn kind(text: &[u8]) -> Option<EntryKind> {
     match text {
-        b"file" | b"symlink" => Some(EntryKind::File),
+        b"file" => Some(EntryKind::File),
+        b"symlink" => Some(EntryKind::Link),
         b"dir" => Some(EntryKind::Directory),
         b"submodule" => Some(EntryKind::Submodule),
         _ => None,
@@ -57,6 +58,7 @@ pub(crate) fn write(json: &mut skein_json::writer::Encoder, entries: &[Entry]) {
         json.key(b"type");
         json.string(match entry.kind {
             EntryKind::File => b"file",
+            EntryKind::Link => b"symlink",
             EntryKind::Directory => b"dir",
             EntryKind::Submodule => b"submodule",
         });

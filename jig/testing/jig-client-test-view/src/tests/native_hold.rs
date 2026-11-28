@@ -25,21 +25,10 @@ pub(super) fn ready() -> Domain {
         },
     ));
     let watch = Token::new(0);
+    drive(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } });
     drive(
         &mut root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-    );
-    drive(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed {
-                    family: 1,
-                    versions: Some(VersionRange { first: 2, last: 2 }),
-                    served: true,
-                },
-            },
-        },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family: 1, served: true } } },
     );
     drive(
         &mut root,
@@ -48,6 +37,7 @@ pub(super) fn ready() -> Domain {
                 up: jig_client::Up::Watched {
                     watch,
                     event: WatchEvent::Delivered(Delivery::Me(Box::new(Me {
+                        charters: List::with_capacity(0),
                         providers: List::with_capacity(0),
                         providers_cut: false,
                         key_bytes: 256,

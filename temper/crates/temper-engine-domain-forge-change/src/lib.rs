@@ -26,11 +26,11 @@ mod tests;
 
 pub use boundary::{
     AMENDMENTS_KEPT, ANSWERS_KEPT, Amended, Answered, Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Below,
-    Blocked, Cause, Change, Ci, CloseAt, CloseRefused, Decision, Delegate, DelegateSpend, Early, Effect, EffectResult,
-    FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Handed, Heard, Hold, Judged,
-    Judgement, Kind, Landed, Limits, Open, Pending, PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready,
-    Recheck, Repair, Reply, Route, Stands, StartedFrom, State, Status, Stepped, Took, Verification, WORDS_WAITING,
-    Wait, Waiting, Way,
+    Blocked, Cause, Change, Ci, CloseAt, CloseOutdated, CloseRefused, Decision, Delegate, DelegateSpend, Early, Effect,
+    EffectResult, FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Handed, Heard,
+    Hold, Judged, Judgement, Kind, Landed, Limits, Open, Pending, PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN,
+    Questions, Ready, Recheck, Repair, Replay, Reply, Route, Stands, StartedFrom, State, Status, Stepped, TemperDir,
+    Took, Verification, WORDS_WAITING, Wait, Waiting, Way,
 };
 pub use clock::{Clock, Execution, Reading};
 pub use domain::{

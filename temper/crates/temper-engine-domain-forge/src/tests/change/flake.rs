@@ -52,7 +52,9 @@ pub(super) fn change_step_at(d: &mut Domain, head: api::Commit) -> change::Decis
             }
             Op::Read(_) | Op::Write(_) => panic!("unexpected change read {op:?}"),
         };
-        requests = fixtures::answer(d, call, Ok(answer));
+        let clock = env();
+        let out = fixtures::answer_at(d, &clock, call, Ok(answer));
+        requests = collected(fixtures::ordinary_method_probes(d, &clock, out));
     }
     panic!("change decides")
 }
@@ -75,6 +77,7 @@ pub(super) fn restart(d: &Domain, key: &ReceiptKey) -> Domain {
     fixtures::connect(&mut restored);
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut restored, Event::CatchUp);
+    fixtures::settle_home_reads(&mut restored, &env(), fixtures::BASE);
 
     restored.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, key.key)).unwrap();
     restored

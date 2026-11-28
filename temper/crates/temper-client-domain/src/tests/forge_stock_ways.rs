@@ -88,14 +88,7 @@ fn fixture() -> Fixture {
 fn fixture_me(identity: c::Me) -> Fixture {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let me = f::start(&mut root, List::with_capacity(0));
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     let out =
         up(&mut root, Up::Watched { watch: me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(identity))) });
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).expect("session settings watch");
@@ -111,8 +104,9 @@ fn document(f: &mut Fixture, newest: u32, configured: bool) {
     if configured {
         settings
             .push(c::SettingLine {
-                setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
                 name: None,
+                setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
+                shown: None,
                 last: Some(newest),
                 follows: c::SettingFollows::Change,
                 application: None,
@@ -582,7 +576,7 @@ fn policy_read_failure_keeps_refusal_and_sends_nothing() {
         (Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)), FAILED),
         (Readout::Jig(c::ReadResult::None(c::ReadNone::TooLarge { bytes: 4096 })), FAILED),
         (Readout::Limit, FAILED),
-        (Readout::NotServed { family: None, served: None }, FAILED),
+        (Readout::NotServed { family: None }, FAILED),
         (policy_document(OTHER, NEXT, Some(c::SettingValue::Policy(policy(OLD, OLD)))), FAILED),
         (policy_document(f::PROJECT, NEWEST, Some(c::SettingValue::Policy(policy(OLD, OLD)))), FAILED),
         (policy_document(f::PROJECT, NEXT, None), FAILED),

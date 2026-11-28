@@ -62,6 +62,8 @@ fn model_new_until_survives_the_independent_frame_encoding() {
             shown: None,
             accounts: list(vec![42]),
             picker: true,
+            speeds: list(vec![]),
+            speed: None,
         }]);
         let decoded = crate::codec::read(&ReadValue::Me(Box::new(value.clone())), &Bounds::default()).unwrap();
         assert_eq!(decoded, ReadValue::Me(Box::new(value)));

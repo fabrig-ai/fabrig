@@ -13,7 +13,7 @@ fn each_settled_answer_gives_its_last_line() {
             None,
             Some(smith_protocol_events::failure_record(failed, now)),
         ),
-        (run::Answer::Refused(refusal), None, Some(smith_protocol_events::refusal_record(refusal))),
+        (run::Answer::Refused(refusal.clone()), None, Some(smith_protocol_events::refusal_record(&refusal))),
         (run::Answer::Parked { spent: run::Spend::ZERO, turns: 0 }, Some(Failure::Send), None),
     ];
     for (answer, unsent, expected) in rows {
@@ -128,6 +128,7 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
         decoded_start(Box::new([
             smith_protocol_translate::Mount {
                 results: None,
+                hooks: None,
                 name: Box::from(b"first".as_slice()),
                 path: Box::from(b"/first".as_slice()),
                 writable: true,
@@ -136,6 +137,7 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
             },
             smith_protocol_translate::Mount {
                 results: None,
+                hooks: None,
                 name: Box::from(b"second".as_slice()),
                 path: Box::from(b"/second".as_slice()),
                 writable: false,
@@ -230,6 +232,7 @@ fn start_stubborn_command(stages: &mut Stages) -> (Token, Token, [Token; 2]) {
             git: false,
             conflicts: Box::new([]),
             results: None,
+            hooks: None,
         }]),
     });
     stages.machine.from_domain(

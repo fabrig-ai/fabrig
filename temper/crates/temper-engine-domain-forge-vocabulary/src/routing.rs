@@ -502,7 +502,8 @@ pub fn repair_verdict(kind: forge_change::Delegate, code: u32) -> bool {
             | forge_change::Repair::Gate(_)
             | forge_change::Repair::Review { .. },
         ) => code == forge::REPAIR_FLAKE,
-        forge_change::Delegate::Produce
+        forge_change::Delegate::Repair(forge_change::Repair::TemperDir { .. })
+        | forge_change::Delegate::Produce
         | forge_change::Delegate::Close
         | forge_change::Delegate::Gate { .. }
         | forge_change::Delegate::Resolve { .. }

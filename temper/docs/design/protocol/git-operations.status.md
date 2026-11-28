@@ -1,6 +1,6 @@
 # git-operations: status
 
-2026-11-24. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
+2026-11-27. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
 
 Section 1.7's delivery snapshot has no known implementation gap: it reads
 HEAD and MERGE_HEAD, checks a second parent against freshly fetched remote

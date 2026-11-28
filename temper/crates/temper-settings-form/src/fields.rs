@@ -1,9 +1,10 @@
 //! The settings file's form, a row per shape and member (client/ctl/tools-acts.md, 1).
+pub(crate) mod formats;
 mod jig;
 use temper_client_protocol_wire::v1 as kinds;
 pub mod render;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 /// Each object the decoder reads, by the name the page gives it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,6 +17,7 @@ pub enum Shape {
     CharterPart,
     Document,
     Model,
+    SettingSpeed,
     Catalogue,
     Provider,
     ProviderSources,
@@ -145,6 +147,7 @@ pub struct Field {
 #[derive(Debug)]
 pub enum Value {
     Integer(Width),
+    CharterOwner,
     Nanoseconds,
     Time,
     Boolean,
@@ -185,6 +188,11 @@ pub enum Limit {
     SettingModelEffortsItem,
     SettingModelEfforts,
     SettingModelEffortSome,
+    SettingModelSpeeds,
+    SettingModelSpeedSome,
+    SettingSpeedName,
+    SettingSpeedAlso,
+    SettingSpeedAlsoItem,
     DocumentTextBytes,
     TaskContractDocumentApprovalState,
     PartKeyPathValueItem,
@@ -197,6 +205,7 @@ pub enum Limit {
     LlmChoiceSubagents,
     ModelEffortModel,
     ModelEffortEffortSome,
+    ModelEffortSpeedSome,
     SettingPolicyProjections,
     SettingPolicyRoles,
     SettingPolicyRequirements,
@@ -259,6 +268,11 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::SettingModelEffortsItem => limits.settings.setting_model_efforts_item,
             Limit::SettingModelEfforts => limits.settings.setting_model_efforts,
             Limit::SettingModelEffortSome => limits.settings.setting_model_effort_some,
+            Limit::SettingModelSpeeds => limits.settings.setting_model_speeds,
+            Limit::SettingModelSpeedSome => limits.settings.setting_model_speed_some,
+            Limit::SettingSpeedName => limits.settings.setting_speed_name,
+            Limit::SettingSpeedAlso => limits.settings.setting_speed_also,
+            Limit::SettingSpeedAlsoItem => limits.settings.setting_speed_also_item,
             Limit::DocumentTextBytes => limits.settings.document_text_bytes,
             Limit::TaskContractDocumentApprovalState => limits.settings.task_contract_document_approval_state,
             Limit::PartKeyPathValueItem => limits.settings.part_key_path_value_item,
@@ -270,6 +284,7 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::LlmChoiceSubagents => limits.settings.llm_choice_subagents,
             Limit::ModelEffortModel => limits.settings.model_effort_model,
             Limit::ModelEffortEffortSome => limits.settings.model_effort_effort_some,
+            Limit::ModelEffortSpeedSome => limits.settings.model_effort_speed_some,
             Limit::SettingPolicyProjections => limits.settings.setting_policy_projections,
             Limit::SettingPolicyRoles => limits.settings.setting_policy_roles,
             Limit::SettingPolicyRequirements => limits.settings.setting_policy_requirements,
@@ -398,8 +413,24 @@ pub fn members(shape: Shape) -> &'static [Field] {
     FIELDS.get(start..end).expect("grouped fields")
 }
 // client/ctl/overlays.md, 1: replaced members share the charter's rows.
-fn overlay_replaces(field: &Field) -> bool {
-    field.shape == Shape::Charter && ![b"number".as_slice(), b"instructions", b"parts", b"wake"].contains(&field.name)
+pub(crate) fn overlay_replaces(field: &Field) -> bool {
+    field.shape == Shape::Charter
+        && ![b"number".as_slice(), b"name", b"instructions", b"parts", b"wake"].contains(&field.name)
+}
+
+pub(crate) fn member(shape: Shape, name: &[u8]) -> Option<&'static Field> {
+    for field in members(shape) {
+        if field.name == name {
+            return Some(field);
+        }
+    }
+    if shape == Shape::Overlay {
+        let field = member(Shape::Charter, name)?;
+        if overlay_replaces(field) {
+            return Some(field);
+        }
+    }
+    None
 }
 
 /// `charter.model.name`, or from any shape, `model.name`: each word after
@@ -428,20 +459,15 @@ pub fn resolve(path: &[u8]) -> Option<&'static Field> {
                 Some(name) => (name, true),
                 None => (word, false),
             };
-            let mut found = None;
-            let current = shape?;
-            for member in &FIELDS {
-                let belongs = member.shape == current || (current == Shape::Overlay && overlay_replaces(member));
-                if belongs && member.name == name && (!listed || member.list.is_some()) {
-                    found = Some(member);
-                    break;
-                }
+            let member = member(shape?, name)?;
+            if listed && member.list.is_none() {
+                return None;
             }
-            let member = found?;
             row = Some(member);
             shape = match member.value {
                 Value::Shape(s) => Some(s),
                 Value::Integer(_)
+                | Value::CharterOwner
                 | Value::Nanoseconds
                 | Value::Time
                 | Value::Boolean

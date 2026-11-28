@@ -1,8 +1,14 @@
 //! Seeded words, admissions and losses checked against the channel's last word.
+use core::convert::Infallible;
+
 use super::super::restarting::{limits, passed, sources, word};
 use jig_protocol_worker_link::Event;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::{Duration, Rng, Time};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
 
 #[derive(Default)]
 struct Clock {
@@ -38,7 +44,7 @@ impl Clock {
 #[test]
 fn fuzzy_restart_words_bound_the_clock_from_the_loss_that_armed_it() {
     let mut coverage = [0; 6];
-    for seed in 0..32 {
+    cases(this_test!("fuzzy_restart_words_bound_the_clock_from_the_loss_that_armed_it"), 0..32, |seed| {
         let mut bounds = limits();
         bounds.silence = Duration::from_secs(100_000);
         bounds.ping = Duration::from_secs(30_000);
@@ -101,6 +107,10 @@ fn fuzzy_restart_words_bound_the_clock_from_the_loss_that_armed_it() {
         world.advance(Duration::from_secs(1201));
         clock.check(&world, seed, 64);
         world.down(Event::Stop);
+        Ok::<(), Infallible>(())
+    })
+    .expect("clock checks assert");
+    if gate() {
+        assert!(coverage.iter().all(|count| *count > 0), "every action occurred: {coverage:?}");
     }
-    assert!(coverage.iter().all(|count| *count > 0), "every action occurred: {coverage:?}");
 }

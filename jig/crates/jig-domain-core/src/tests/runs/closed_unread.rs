@@ -26,7 +26,8 @@ fn answer_unread(core: &mut Core, limits: &Limits, work: &mut Queue<Work>) -> Qu
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         work,
-        engine_store::In::Loaded { load, result: engine_store::Answer::Failed(engine_store::Failure::Unread) },
+        load,
+        engine_store::Answer::Failed(engine_store::Failure::Unread),
     )
 }
 
@@ -52,7 +53,7 @@ fn an_unread_closed_tail_continues_the_brief_without_counting() {
 
 #[test]
 fn an_unread_closed_tail_discards_a_loaded_prefix_and_ends_the_load() {
-    use engine_store::{Answer, Failure, In, Rows};
+    use engine_store::{Answer, Failure, Rows};
     let (mut core, limits) = unread_window(0, true);
     let load = fixture_window(&mut core, 1, (1, 1));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -69,13 +70,13 @@ fn an_unread_closed_tail_discards_a_loaded_prefix_and_ends_the_load() {
     };
     let page =
         Answer::Rows(Rows::Turns { turns: Box::new([(turn, Some(b"first turn".as_slice().into()))]), more: true });
-    assert!(loads::loaded(&mut core, &env, &mut work, In::Loaded { load, result: page }).is_empty());
+    assert!(loads::loaded(&mut core, &env, &mut work, load, page).is_empty());
     assert!(work.is_empty());
     assert!(loads::awaited(&core, load));
     assert_eq!(core.transcripts.get(&1).unwrap().last, Some((1, 1)));
 
-    let terminal = In::Loaded { load, result: Answer::Failed(Failure::Unread) };
-    assert!(loads::loaded(&mut core, &env, &mut work, terminal).is_empty());
+    let terminal = Answer::Failed(Failure::Unread);
+    assert!(loads::loaded(&mut core, &env, &mut work, load, terminal).is_empty());
     assert_fresh(&core, &mut work);
     assert!(!loads::awaited(&core, load));
 }

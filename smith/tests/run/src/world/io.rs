@@ -40,7 +40,9 @@ impl Io {
 
     pub(super) fn complete(&mut self, event: &run::Event) -> bool {
         match event {
-            run::Event::Read { owner, .. } | run::Event::Probed { owner, .. } => self.looks.remove(owner),
+            run::Event::Read { owner, .. }
+            | run::Event::Probed { owner, .. }
+            | run::Event::HooksProbed { owner, .. } => self.looks.remove(owner),
             run::Event::Checked { owner, ran } => {
                 self.checks.remove(owner);
                 let root = self.checking.remove(owner);
@@ -148,6 +150,15 @@ impl World {
                 };
                 self.stats.probes += 1;
                 self.schedule(at_time, Delivery::Io(run::Event::Probed { owner, executable }));
+            }
+            run::Request::ProbeHooks { owner, deadline, .. } => {
+                let (at_time, hooks) =
+                    match self.io.result(self.now, self.settings.checkout, &mut self.rng, owner, deadline) {
+                        Some(at_time) => (at_time, None), // This fixture has no hooks directories.
+                        None => (deadline, Some(run::Hooks::UNREADABLE)),
+                    };
+                self.stats.probes += 1;
+                self.schedule(at_time, Delivery::Io(run::Event::HooksProbed { owner, hooks }));
             }
             run::Request::Abort { owner } => {
                 self.stats.aborts += 1;

@@ -6,7 +6,7 @@ use super::{
     append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
 };
 use forge::LandingHeadTrailers as HeadTrailers;
-use temper_engine_domain_translate::prepare::{self, PrepareMember, PrepareRequest};
+use temper_engine_domain_translate::prepare;
 
 fn changes(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u64]> {
     let Some(change) = domain.forge.change(task) else { return Box::new([task]) };
@@ -211,7 +211,9 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
-    if !domain.forge.settling_changes(repository, branch, 1).is_empty() {
+    if !domain.forge.settling_changes(repository, branch, 1).is_empty()
+        || domain.forge.probing_train(repository, branch)
+    {
         return false;
     }
     if let Some((refusal, _)) = domain.forge.forming_refusal(repository, branch) {
@@ -814,80 +816,6 @@ fn kept_prepare(domain: &Domain, task: u64) -> bool {
     }
     false
 }
-fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[HeadTrailers]) -> Option<PrepareRequest> {
-    let row = domain.forge.landing(task)?;
-    let first = row.landing.members.first()?;
-    let provider =
-        skein_forge::api::Repository { forge: first.repository.forge, repository: first.repository.repository };
-    let repository = domain.forge.repository(provider)?;
-    let mut base = None;
-    for member in &row.landing.members {
-        if member.left.is_none() && member.landed.is_none() {
-            base = member.base;
-            break;
-        }
-    }
-    let base = base?;
-    let main = row.landing.branch == repository.landing;
-    let mut from = base;
-    let mut members = List::with_capacity(limit);
-    for (index, member) in row.landing.members.iter().enumerate() {
-        if member.left.is_some() || member.landed.is_some() {
-            continue;
-        }
-        if let Some(prefix) = member.candidate {
-            from = prefix;
-            continue;
-        }
-        let change = domain.forge.change(member.change)?;
-        let head = member.head?;
-        let position = u16::try_from(index).expect("bounded members");
-        let mut trailers = b"".as_slice();
-        for read in head_trailers {
-            if read.member == position {
-                trailers = &read.block;
-                break;
-            }
-        }
-        let text = forge::member_message::Member {
-            title: &change.title,
-            words: &change.report,
-            change: member.change,
-            pull: member.pull,
-            head,
-            goal: change.goal,
-            head_trailers: trailers,
-        };
-        let message =
-            forge::member_message::commit_message(&text, forge::member_message::Kind::Merge { into_main: main });
-        let squash = forge::member_message::commit_message(&text, forge::member_message::Kind::Squash);
-        members
-            .push(PrepareMember {
-                number: u64::try_from(index).ok()?.checked_add(1)?,
-                branch: change.branch.clone(),
-                prefix: member.branch.clone(),
-                head,
-                message,
-                squash,
-            })
-            .ok()?;
-    }
-    if members.is_empty() {
-        return None;
-    }
-    let (combine_main, combine_other) = match domain.forge.landing_settings(row.landing.project) {
-        Some(config) => (config.combine_main, config.combine_other),
-        None => (landing::Combine::Merge, landing::Combine::Squash),
-    };
-    Some(PrepareRequest {
-        repository: repository.name.clone(),
-        main: base,
-        from,
-        combine: if main { combine_main } else { combine_other },
-        train_upstream: row.landing.round.upstream,
-        members: members.into_boxed(),
-    })
-}
 fn prepare_delegate(
     domain: &Domain,
     env: &Env<Limits>,
@@ -895,7 +823,7 @@ fn prepare_delegate(
     head_trailers: &[HeadTrailers],
 ) -> Result<super::super::Delegate, &'static [u8]> {
     let bound = domain.config.prepare_kind.ok_or(b"prepare job kind 1 is not declared".as_slice())?;
-    let request = prepare_request(domain, task, env.limits.forge.landing_members, head_trailers)
+    let request = prepare::request(&domain.forge, task, env.limits.forge.landing_members, head_trailers)
         .ok_or(b"landing round or repository cannot form its prepare request".as_slice())?;
     let context =
         domain.engine.core().tasks.delegation(task).ok_or(b"landing task has no delegation context".as_slice())?;
@@ -935,7 +863,7 @@ pub(super) fn prepare_workspace(
     task: u64,
     project: u32,
 ) -> Option<super::RunWorkspace> {
-    let request = prepare_request(domain, task, env.limits.forge.landing_members, &[])?;
+    let request = prepare::request(&domain.forge, task, env.limits.forge.landing_members, &[])?;
     let row = domain.forge.landing(task)?;
     let member = row.landing.members.first()?;
     let provider =
@@ -954,8 +882,11 @@ pub(super) fn prepare_workspace(
     let mut checkout = super::workspace_repository(item, None, Box::new([]))?;
     checkout.prefixes = branches.into_boxed();
     checkout.save = None;
-    let workspace =
-        super::ForgeWorkspace { rerun: super::rerun_bound(domain, project), repositories: Box::new([checkout]) };
+    let workspace = super::ForgeWorkspace {
+        rerun: super::rerun_bound(domain, project),
+        hook_timeout_max_seconds: super::hook_timeout_max_seconds(domain, project),
+        repositories: Box::new([checkout]),
+    };
     let mut writes = List::with_capacity(env.limits.forge.landing_members);
     let mut names = List::with_capacity(env.limits.forge.landing_members);
     for member in &request.members {

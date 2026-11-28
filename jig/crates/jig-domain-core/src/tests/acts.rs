@@ -1532,7 +1532,10 @@ fn assert_point_reply(out: &mut Queue<crate::engine::Out>, expected: people::Rep
                     replies.push(reply).unwrap();
                 }
             }
-            Out::Core(Request::Write(_) | Request::Now(_) | Request::Ask { .. } | Request::ProjectMade { .. }) => {}
+            Out::Write(_)
+            | Out::Core(Request::Now(_) | Request::Ask { .. } | Request::ProjectMade { .. })
+            | Out::Ask(..) => {}
+            Out::Now(_) | Out::Core(Request::Write(_)) => panic!("only port writes and no start are driven"),
         }
     }
     assert_eq!(replies.as_slice(), [expected]);

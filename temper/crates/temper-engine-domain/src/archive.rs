@@ -2,7 +2,7 @@
 
 use crate::boundary::{Read, Request, Work};
 use crate::domain::Domain;
-use crate::restart::request_load;
+use crate::store_route::request_load;
 use crate::{Key, Range, Record, loads};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

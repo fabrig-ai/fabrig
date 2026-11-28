@@ -18,7 +18,11 @@
   application passes none (`../domain/engine/settings-store.md`, 1), so they
   take 1 to 32 too.
 - **What each carries,** every field required (`configuration.md`, section 9):
-  - a name, for showing;
+  - its name, or none (`../domain/engine/settings.md`, 1, Names), which
+    a person names it by in a client, and its shown name,
+    `shown`, its words for a person. A document or a settings file in
+    the earlier form, a template with no `shown` member, reads its
+    `name` member as its shown name and gives it no name;
   - the executor: an agent under a charter the template names, by its
     number among the charters member's; or *chosen*, a charter or
     procedure the creator's role may create with, the creator's choice;
@@ -41,8 +45,8 @@
   - the grace its helpers give a close or a deletion, or none;
   - the LLM choice: none, for the first of the charter's models each run
     can use (`../domain/accounts-uses.md`, 1.3); or a main model
-    with its effort, and the models its run's sub-agents may use, each
-    with an effort (`../domain/tasks/README.md`, section 3), and optionally
+    with its effort and its speed, and the models its run's sub-agents may use, each
+    with an effort and a speed (`../domain/tasks/README.md`, section 3), and optionally
     `later`, the same again for every run after its first activation's
     (`{"main": ..., "sub_agents": [...], "later": {"main": ...,
     "sub_agents": [...]}}`). It names no account.
@@ -70,7 +74,8 @@
 
 | Field | chat (template 1) | goal (template 2) |
 |---|---|---|
-| name | chat | goal |
+| name | `chat` | `goal` |
+| shown name | chat | goal |
 | executor | an agent under a charter the template names: the application's charter for chats | chosen: a charter or procedure the role may create with |
 | contract | a report | a report |
 | authority | the role's, one level shallower in delegation | the role's, one level shallower in delegation |
@@ -98,7 +103,8 @@
   A template's retained LLM choice must fit that executor: its main and
   every sub-agent model, its `later`'s among them, must be allowed by a
   named charter, each with an effort the model declares, or none only when
-  it declares none, and a `later` only under a charter whose runs don't
+  it declares none, and a speed the model declares in that charter's
+  resolution, `standard` or none, and a `later` only under a charter whose runs don't
   resume (`../domain/tasks/README.md`, section 3). An
   override that invalidates the retained choice is refused atomically
   at configuration, policy change and restore, before `me` is served.
@@ -144,7 +150,8 @@
   (`../domain/tasks/README.md`, section 6); each model an LLM choice names,
   its `later`'s too, configured and one its template's charter allows,
   and each effort one its model takes, `null` only for a model that takes
-  none; no `later` under a charter whose runs resume; each seeded
+  none; each speed one its model declares, by its own name, or
+  `standard`, or left out; no `later` under a charter whose runs resume; each seeded
   policy's overrides naming configured templates, each at most once,
   and no more of them than the limit on templates.
 

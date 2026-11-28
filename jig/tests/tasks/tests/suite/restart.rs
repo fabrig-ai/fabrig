@@ -826,10 +826,10 @@ fn retained_llm_choices_must_fit_the_configured_executor_models() {
     let mut source = World::new(49, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[])]);
     for main in [
-        ModelEffort { model: 0, effort: Some(1) },
-        ModelEffort { model: 3, effort: None },
-        ModelEffort { model: 0, effort: Some(2) },
-        ModelEffort { model: u8::MAX, effort: None },
+        ModelEffort { model: 0, effort: Some(1), speed: None },
+        ModelEffort { model: 3, effort: None, speed: None },
+        ModelEffort { model: 0, effort: Some(2), speed: None },
+        ModelEffort { model: u8::MAX, effort: None, speed: None },
     ] {
         let mut rows = source.records.values().filter(|row| row.key().live()).cloned().collect::<Vec<_>>();
         for row in &mut rows {
@@ -844,13 +844,13 @@ fn retained_llm_choices_must_fit_the_configured_executor_models() {
         }
         assert!(out.is_empty());
         step(&mut domain, &source.env, Event::Check, &mut out);
-        let fits = main == (ModelEffort { model: 0, effort: Some(1) });
+        let fits = main == (ModelEffort { model: 0, effort: Some(1), speed: None });
         assert_eq!(domain.checked(), fits);
         let refusals =
             std::iter::from_fn(|| out.pop()).filter(|row| matches!(row, Request::RestoreRefused { .. })).count();
         assert_eq!(refusals, usize::from(!fits));
         let why = match main {
-            ModelEffort { model: 0, effort: Some(1) } => None,
+            ModelEffort { model: 0, effort: Some(1), speed: None } => None,
             ModelEffort { model: 3, .. } => Some(jig_domain_tasks::RestoreLlmWhy::Charter),
             ModelEffort { model: 0, .. } => Some(jig_domain_tasks::RestoreLlmWhy::Effort),
             _ => Some(jig_domain_tasks::RestoreLlmWhy::Unconfigured),

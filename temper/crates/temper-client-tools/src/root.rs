@@ -191,6 +191,13 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             }
             step_client(root, env, event, &mut client);
         }
+        Event::Call { number, call, .. } if call.tool == jig::rows::UPGRADE_SETTINGS_AT => {
+            let printed = match jig::call::value(&call, 0) {
+                Some(jig::call::Value::Text(bytes)) => jig::settings_file::upgrade(bytes, &env.limits.tools),
+                _ => jig::render::failure(b"settings file: FILE: input not loaded", false, 1),
+            };
+            out.push(Request::Printed { number, printed });
+        }
         Event::Call { number, call, json, value } => {
             let active = root
                 .runner
@@ -628,6 +635,9 @@ impl jig::render::Parts for Parts {
     }
     fn setting_selector(&self, call: &jig::call::Call) -> Option<jig_client::contract::Setting> {
         crate::settings::selector(call)
+    }
+    fn setting_name_kind(&self, call: &jig::call::Call) -> Option<jig::names::Kind> {
+        crate::settings::name_kind(call)
     }
     fn application_read(&self, query: runner::application::Query) -> jig_client::Readable {
         crate::settings::read(query)

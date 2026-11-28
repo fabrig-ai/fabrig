@@ -1,4 +1,4 @@
-//! Source-line alignment using git's zero-context hunks (temper/docs/design/client/journey-writer.md, 6.2).
+//! Source-line alignment using git's zero-context hunks (temper/docs/design/client/journey-writer-requests.md, 1.2).
 
 use std::path::Path;
 
@@ -12,15 +12,19 @@ use crate::{
 
 use super::html::Tag;
 
-pub(super) fn between(host: &mut Host, directory: &Path, from: &str, to: &str) -> Result<Vec<Hunk>, String> {
-    if from == to {
+pub(super) fn between(
+    host: &mut Host,
+    directory: &Path,
+    from: (&str, &str),
+    to: (&str, &str),
+) -> Result<Vec<Hunk>, String> {
+    if from.1 == to.1 {
         return Ok(Vec::new());
     }
-    // The shared comparison diff keeps its baseline in `landed`.
-    for (name, value) in [("landed", from), ("requested", to)] {
+    for (name, value) in [from, to] {
         done(host, Ask::Write(directory.join(name), value.as_bytes().into()))?;
     }
-    pages::diff(host, directory, "requested", from, to)
+    pages::diff(host, directory, from, to)
 }
 
 pub(super) fn edited(tags: &[Tag<'_>], edits: &[Hunk], touched: &mut [bool]) {

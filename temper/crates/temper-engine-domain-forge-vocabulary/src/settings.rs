@@ -143,12 +143,22 @@ pub struct ProjectWords {
 }
 
 /// Project ownership (temper/docs/design/domain/areas.md, 2 and 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum AreaOwner {
     Task(u64),
     Party(u64),
     Role(u32),
     Charter(u32),
+    CharterNamed(Box<[u8]>),
+}
+
+impl AreaOwner {
+    pub(crate) fn owned_bytes(&self) -> usize {
+        match self {
+            Self::CharterNamed(name) => name.len(),
+            Self::Task(_) | Self::Party(_) | Self::Role(_) | Self::Charter(_) => 0,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -163,7 +173,7 @@ pub struct ProjectAreas {
     pub areas: Box<[Area]>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectTriager {
     pub owner: AreaOwner,
 }
@@ -463,6 +473,16 @@ pub enum Refusal {
     },
 }
 
+fn owner_refusal_words(name: &[u8], kind: &[u8], owner: &[u8]) -> Box<[u8]> {
+    let mut words = skein_lib::List::uncapped();
+    for part in [name, b": owner ", kind, b" ", owner, b" is not of the project"] {
+        for &byte in part {
+            words.push(byte).expect("bounded owner refusal");
+        }
+    }
+    words.into_boxed()
+}
+
 impl Refusal {
     #[must_use]
     pub fn words(&self) -> Box<[u8]> {
@@ -493,15 +513,9 @@ impl Refusal {
                 AreaOwner::Party(n) => (b"party".as_slice(), *n),
                 AreaOwner::Role(n) => (b"role".as_slice(), u64::from(*n)),
                 AreaOwner::Charter(n) => (b"charter".as_slice(), u64::from(*n)),
+                AreaOwner::CharterNamed(charter) => return owner_refusal_words(name, b"charter", charter),
             };
-            let number = skein_lib::Decimal::of(number);
-            let mut words = skein_lib::List::uncapped();
-            for part in [name.as_ref(), b": owner ", kind, b" ", number.as_bytes(), b" is not of the project"] {
-                for &byte in part {
-                    words.push(byte).expect("bounded owner refusal");
-                }
-            }
-            return words.into_boxed();
+            return owner_refusal_words(name, kind, skein_lib::Decimal::of(number).as_bytes());
         }
         if let Self::Area { name, rule } | Self::Agent { name, rule } = self {
             let mut words = skein_lib::List::uncapped();
@@ -1238,8 +1252,8 @@ pub mod agents;
 pub(crate) mod landing;
 mod repairs;
 pub use landing::{
-    CARRIER, Flakes, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,
-    landing_record,
+    CARRIER, Flakes, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, job_path,
+    landing_from, landing_record,
 };
 pub use repairs::{
     NamedLater, NamedLlm, NamedModel, RepairGoal, RepairGoalSettings, RepairSettings, Repairs, repairs_heap,

@@ -19,62 +19,6 @@ pub struct RoomWait {
     pub order: u64,
 }
 
-impl Problem {
-    /// Only a batch's deployment or project live-task count frees when tasks end.
-    #[must_use]
-    pub fn freeing_count(&self) -> Option<LiveRoom> {
-        let capacity = self.capacity?;
-        match capacity.action {
-            CapacityAction::Batch { .. } => match capacity.cause {
-                CapacityCause::Tasks { .. } => {
-                    if self.why == Refusal::Live {
-                        Some(LiveRoom::Deployment)
-                    } else {
-                        None
-                    }
-                }
-                CapacityCause::ProjectTasks { .. } => {
-                    if self.why == Refusal::Project {
-                        match capacity.project {
-                            Some(project) => Some(LiveRoom::Project(project)),
-                            None => None,
-                        }
-                    } else {
-                        None
-                    }
-                }
-                CapacityCause::PlacedHolds { .. }
-                | CapacityCause::ProjectPlacedHolds { .. }
-                | CapacityCause::PartyPlacedHolds { .. }
-                | CapacityCause::Exemptions { .. }
-                | CapacityCause::CreationFlights { .. }
-                | CapacityCause::ResourceReports { .. }
-                | CapacityCause::Tree { .. }
-                | CapacityCause::Delegates { .. }
-                | CapacityCause::Inbox { .. }
-                | CapacityCause::Holdings { .. }
-                | CapacityCause::HoldWaiters { .. }
-                | CapacityCause::Proposals { .. }
-                | CapacityCause::References { .. }
-                | CapacityCause::Subscriptions { .. }
-                | CapacityCause::Funders { .. }
-                | CapacityCause::Writers { .. } => None,
-            },
-            CapacityAction::Proposal { .. }
-            | CapacityAction::PersonProposal { .. }
-            | CapacityAction::Message { .. }
-            | CapacityAction::Source { .. }
-            | CapacityAction::Introduce { .. }
-            | CapacityAction::Subscription { .. }
-            | CapacityAction::Effect { .. }
-            | CapacityAction::Claim { .. }
-            | CapacityAction::Release
-            | CapacityAction::Place { .. }
-            | CapacityAction::Move => None,
-        }
-    }
-}
-
 pub(crate) fn wait(domain: &mut Domain, env: &Env<Limits>, number: u64, room: LiveRoom, out: &mut Queue<Request>) {
     let mut last = 0;
     for (other, _) in &domain.names {
@@ -141,4 +85,58 @@ pub(crate) fn valid(domain: &Domain, task: &TaskRecord) -> bool {
         }
     }
     true
+}
+
+/// Only a batch's deployment or project live-task count frees when tasks end.
+#[must_use]
+pub fn freeing_count(problem: &Problem) -> Option<LiveRoom> {
+    let capacity = problem.capacity?;
+    match capacity.action {
+        CapacityAction::Batch { .. } => match capacity.cause {
+            CapacityCause::Tasks { .. } => {
+                if problem.why == Refusal::Live {
+                    Some(LiveRoom::Deployment)
+                } else {
+                    None
+                }
+            }
+            CapacityCause::ProjectTasks { .. } => {
+                if problem.why == Refusal::Project {
+                    match capacity.project {
+                        Some(project) => Some(LiveRoom::Project(project)),
+                        None => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            CapacityCause::PlacedHolds { .. }
+            | CapacityCause::ProjectPlacedHolds { .. }
+            | CapacityCause::PartyPlacedHolds { .. }
+            | CapacityCause::Exemptions { .. }
+            | CapacityCause::CreationFlights { .. }
+            | CapacityCause::ResourceReports { .. }
+            | CapacityCause::Tree { .. }
+            | CapacityCause::Delegates { .. }
+            | CapacityCause::Inbox { .. }
+            | CapacityCause::Holdings { .. }
+            | CapacityCause::HoldWaiters { .. }
+            | CapacityCause::Proposals { .. }
+            | CapacityCause::References { .. }
+            | CapacityCause::Subscriptions { .. }
+            | CapacityCause::Funders { .. }
+            | CapacityCause::Writers { .. } => None,
+        },
+        CapacityAction::Proposal { .. }
+        | CapacityAction::PersonProposal { .. }
+        | CapacityAction::Message { .. }
+        | CapacityAction::Source { .. }
+        | CapacityAction::Introduce { .. }
+        | CapacityAction::Subscription { .. }
+        | CapacityAction::Effect { .. }
+        | CapacityAction::Claim { .. }
+        | CapacityAction::Release
+        | CapacityAction::Place { .. }
+        | CapacityAction::Move => None,
+    }
 }

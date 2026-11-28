@@ -236,10 +236,11 @@ pub(crate) fn chat_templates() -> skein_lib::List<jig_client::contract::Template
     let mut values = crate::tests::kit::list_in(
         2,
         [c::Template {
+            name: None,
             resources: skein_lib::List::with_capacity(0),
             llm: None,
             number: jig_client::shapes::CHAT,
-            name: c::DocumentText::complete(Text::new(b"Chat".as_slice().into(), 32).unwrap()),
+            shown: c::DocumentText::complete(Text::new(b"Chat".as_slice().into(), 32).unwrap()),
             executor: c::TemplateExecutor::Charter(1),
             contract: c::TaskContractDocument::Report { words: 32 },
             shallower: 1,

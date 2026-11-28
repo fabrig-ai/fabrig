@@ -127,6 +127,14 @@ time.
   same decision, so a restart sees no writer without its live task and hold
   owner.
 - **A claim that finds the slot taken waits,** which is no failure.
+- **A claim that finds the writers' room full is refused whole,** before
+  it takes any slot: the room is the configured live tasks times each
+  task's holdings, and a claim whose slots, all free, don't all fit takes
+  none. Its problem is a capacity one, naming the writers and their
+  limit, and its task claims again after a pause, spending no try
+  (`lifecycle-holds.md`, 1; `../engine/briefs.md`, 1.1, `claim:
+  refused`). A connector's effect that finds the room full is refused
+  the same way, naming its entry.
 - **A connector's own effects** on a held resource take the slot too,
   while they are in flight, and wait for it like a claim.
 - **Each use checks its writer** (skein/docs/foundation/programming-model.md,

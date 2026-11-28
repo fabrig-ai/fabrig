@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 jig-client-protocol-wire.workspace = true
 jig-domain-brief.workspace = true
+jig-domain-contract.workspace = true
 jig-domain-core.workspace = true
 jig-domain-fleet.workspace = true
 jig-domain-host.workspace = true
@@ -61,7 +62,6 @@ temper-protocol-worker-wire.workspace = true
 temper-service-core.workspace = true
 
 [dev-dependencies]
-jig-domain-contract.workspace = true
 smith-domain-session.workspace = true
 temper-worker-service-fixtures.workspace = true
 temper-limits-fixtures.workspace = true

@@ -80,8 +80,8 @@ with context h::ended_value_to_domain
 
 record Family stands for number
 enum Owner = c::Owner { family tuple }
-record Served = c::Served
-record NotServed = c::NotServed
+record Served by hand
+record NotServed by hand
 enum SignInAnswer by hand
 enum SignOutAnswer by hand
 enum ApprovalAskAnswer by hand
@@ -586,10 +586,12 @@ record Needs = c::Needs
 record Template = c::Template
 record MePrices = c::ModelPrices
 enum ModelSource = c::ModelSource both ways
+record SettingSpeed by hand
 record MeModel by hand
 record MeDefault = c::MeDefault
 record ProviderOffer by hand
 enum Readiness = c::Readiness
+record MeCharter = c::MeCharter
 record Me by hand
 record LiveDelegate = c::LiveDelegate
 record TaskContext by hand

@@ -6,6 +6,7 @@ use jig_core_world::{
     fixtures,
     world::{Setup, World, fixture},
 };
+use jig_domain_contract as jig;
 use jig_domain_core::{self as core, documents as d, reads};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -108,7 +109,7 @@ pub(super) fn ack(world: &mut World, watcher: u64) {
 
 fn answer(world: &mut World, connector: u16, ask: &core::PartsAsk) {
     let parts = root::parts::make(ask);
-    world.send(root::Event::Core(core::Event::Parts { connector, token: ask.token, parts }));
+    world.send(root::Event::connector_up(connector, jig::Up::Parts(jig::parts::Up::Lines { token: ask.token, parts })));
 }
 
 pub(super) fn close(world: &mut World, watcher: u64) {
@@ -213,7 +214,10 @@ fn unknown_oversized_wrong_count_and_busy_parts_leave_every_row_whole() {
     assert_eq!(ask.kinds.len(), 2);
     let mut wrong = List::with_capacity(1);
     wrong.push(core::MadePart::Made(Box::new([]))).expect("configured fixture");
-    w.send(root::Event::Core(core::Event::Parts { connector, token: ask.token, parts: wrong }));
+    w.send(root::Event::connector_up(
+        connector,
+        jig::Up::Parts(jig::parts::Up::Lines { token: ask.token, parts: wrong }),
+    ));
     for row in all_rows(page(&w, 502)) {
         assert_eq!(
             row.parts.as_slice(),
@@ -335,9 +339,9 @@ fn notes_and_connector_records_mark_only_the_queries_naming_their_inputs_without
     ack(&mut w, 600);
     let mut numbers = List::with_capacity(1);
     numbers.push(task).expect("configured fixture");
-    w.send(root::Event::Core(core::Event::PartsMarked { connector: 2, tasks: numbers.clone() }));
+    w.send(root::Event::connector_up(2, jig::Up::Parts(jig::parts::Up::Marked { tasks: numbers.clone() })));
     assert_eq!(count(&w, 600), 4, "another connector cannot mark this kind's records");
-    w.send(root::Event::Core(core::Event::PartsMarked { connector: 1, tasks: numbers }));
+    w.send(root::Event::connector_up(1, jig::Up::Parts(jig::parts::Up::Marked { tasks: numbers })));
     assert_eq!(count(&w, 600), 5);
     assert_eq!(count(&w, 601), 1);
     assert_eq!(fixtures::live_row(&w, task).last_activity, activity, "notes never move task activity");
@@ -473,7 +477,10 @@ fn ended_marks_cover_endings_between_deliveries_ended_inputs_and_restart() {
     let input_mark = lines(&w, 600).ended_mark;
     assert!(input_mark > ended_mark, "an ended row's notes move its group mark");
     ack(&mut w, 600);
-    w.send(root::Event::Core(core::Event::PartsMarked { connector: 1, tasks: List::from_boxed(Box::new([ended])) }));
+    w.send(root::Event::connector_up(
+        1,
+        jig::Up::Parts(jig::parts::Up::Marked { tasks: List::from_boxed(Box::new([ended])) }),
+    ));
     let records_mark = lines(&w, 600).ended_mark;
     assert!(records_mark > input_mark, "an ended row's records move its group mark");
     close(&mut w, 600);

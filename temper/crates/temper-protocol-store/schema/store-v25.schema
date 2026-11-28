@@ -104,7 +104,7 @@ record Pull { reviewers: list 65536 u64 number: u64 state: ItemState head: bytes
 record Step { number: u32 name: bytes 1048576 }
 record JobAnswer { attempt: JobAttempt step: option Step log: bytes 1048576 truncated: bool }
 record FileAnswer { head: fixed 32 path: bytes 1048576 bytes: bytes 1048576 truncated: bool }
-enum DirectoryKind { file, directory, submodule }
+enum DirectoryKind { file, directory, submodule, link }
 record DirectoryEntry { name: bytes 1048576 kind: DirectoryKind }
 record DirectoryAnswer { head: fixed 32 path: bytes 1048576 entries: bytes 2097152 pieces DirectoryEntry truncated: bool }
 record BranchesAnswer { branches: bytes 2097152 pieces AnswerName }
@@ -173,7 +173,7 @@ record LandingRepair { gate: u16 }
 record LandedBelow { change: u64 pull: u64 }
 record LandingBelow { green: fixed 32 changes: list 4 LandedBelow by_test: bool = false top: bool = false }
 record LandingRepairAt { gate: u16 candidate: fixed 32 below: option LandingBelow }
-enum Repair { ci, gate: Number, semantic, landing: LandingRepair, review: Commit, landing_at: LandingRepairAt }
+enum Repair { ci, gate: Number, semantic, landing: LandingRepair, review: Commit, landing_at: LandingRepairAt, temper_dir: Commit }
 record RepairValue { why: Repair }
 record DelegateGate { number: u64 head: fixed 32 }
 record MergeDelegate { base: Commit from: option fixed 32 }
@@ -218,7 +218,7 @@ record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }
 record ChangeResult { head: option fixed 32 checks: ResultText failed: ResultText repairs: ResultText repair_count: u64 reviews: ResultText }
-record ModelEffort { model: u8 effort: option u8 }
+record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }
 record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort account: option u32 }
 enum Route { none, retired, up }
 record Held { answer: bytes 262144 question: u64 = 0 dependency: option u64 = none since: option u64 = none }
@@ -424,12 +424,12 @@ enum SettingsLandingWait { cleared, landed }
 record SettingsFlakeRerun { processes: u32 }
 enum SettingsFlakes { never, rerun: SettingsFlakeRerun }
 enum SettingsCombine { merge, squash }
-record NamedModel { model: bytes 4096 effort: option bytes 32 }
+record NamedModel { model: bytes 4096 effort: option bytes 32 speed: option bytes 32 = none }
 record NamedLater { main: NamedModel subagents: list 64 NamedModel }
 record NamedLlm { account: option u32 main: NamedModel subagents: list 64 NamedModel later: option NamedLater }
 record RepairGoalSettings { charter: u32 llm: option NamedLlm priority: u32 budget: u64 }
 record RepairSettings { goals: u8 attempts: u8 deadline_ms: u64 goal: RepairGoalSettings }
-record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait = cleared repairs: option RepairSettings = none flakes: option SettingsFlakes = none }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait = cleared repairs: option RepairSettings = none flakes: option SettingsFlakes = none hook_timeout_max_seconds: u32 = 3600 temper_dir_sign_off: bool = false }
 enum SettingsReportFormat { junit, lines }
 record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
 record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }
@@ -492,7 +492,7 @@ record Looked { party: u64 project: u32 previous: option u64 latest: u64 seen: u
 record Away { party: u64 project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
 record Decided { project: u32 number: u32 party: u64 task: u64 at: u64 question: bytes 400 options: list 6 bytes 120 took: option u8 why: bytes 400 overturned: bool reach: Reach }
 
-enum ClosingStep { close, land }
+enum ClosingStep { close, land, catch_up }
 record ClosingRun { step: ClosingStep change: u64 }
 record ClosingTasks { tasks: list 1024 u64 }
 record ClosingJobs { attempts: list 8 JobAttempt next: u32 }
@@ -507,7 +507,7 @@ enum ClosingForm { words, question, answer: Number }
 record ClosingMessage { target: u64 form: ClosingForm words: bytes 1048576 }
 record ClosingRelay { open: option ClosingQuestion replies: list 1024 ClosingMessage waiting: list 1024 ClosingQuestion = [] }
 enum ClosingReportCheck { unread, held, released }
-record Closer { report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay superseded: list 1024 u64 = [] }
+record Closer { report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none goal_asked: option bytes 1048576 = none task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay superseded: list 1024 u64 = [] caught_up: option ClosingTasks = none catch_up_changes: list 1024 u64 = [] }
 
 record LandedDraft { repository: Repository path: bytes 1024 project: u32 branch: bytes 1024 commit: fixed 32 title: bytes 200 writer: u64 at: u64 chat: option u64 goal: option u64 ready: bool }
 
@@ -586,7 +586,8 @@ record ChangeSource { branch: bytes 4096 at: option fixed 32 }
 record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none milestone: option u64 = none source: option ChangeSource = none goal: option u64 task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 base_repair: bool producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice report: bytes 1048576 repairs: option fixed 32 follows: option ChangeFollows catch_up: option fixed 32 close: option bytes 16384 }
 record Regate { receipt: ReceiptKey run: u64 taken: option u64 = none }
 record CloseRefused { counts: option fixed 32 }
-record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none }
+enum CloseOutdated { window ancestry }
+record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none outdated: option CloseOutdated = none }
 enum BehindRead { branch, base, pull_head, pull_base, pull_state }
 record ReadBehind { read: BehindRead expected: option fixed 32 found: option fixed 32 }
 record BehindWait { since: u64 until: u64 evidence: ReadBehind }
@@ -595,7 +596,7 @@ record RunnerHold { words: bytes 512 }
 record RunnerBaseline { attempts: list 1024 JobAttempt }
 enum RunnerCi { held: RunnerHold, released, counting: RunnerBaseline }
 record CiRecheck { job: JobAttempt taken: option u32 = none semantic: bool = false }
-record ChangeHot { behind_wait: option BehindWait = none runner_ci: option RunnerCi = none settling: bool = false close_at: option CloseAt = none room: option u64 = none delegate_head: option fixed 32 = none delegate_flake: bool = false delegate_no_test: bool = false delegate_words: option ResultText = none regate: option Regate = none kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus spec_revision: u64 = 0 gate_revision: u64 = 0 verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory asks: list 16 LandingHanded = [] handed: u32 = 0 ci_recheck: option CiRecheck = none }
+record ChangeHot { behind_wait: option BehindWait = none runner_ci: option RunnerCi = none settling: bool = false close_at: option CloseAt = none room: option u64 = none delegate_head: option fixed 32 = none delegate_flake: bool = false delegate_no_test: bool = false delegate_words: option ResultText = none regate: option Regate = none kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus spec_revision: u64 = 0 gate_revision: u64 = 0 verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory asks: list 16 LandingHanded = [] handed: u32 = 0 ci_recheck: option CiRecheck = none temper_dir_fault: option bytes 65536 = none }
 
 record Subscriber { task: u64 number: u64 topic: Topic own_change: option u64 goal_tasks: option list 65536 u64 paths: list 1024 bytes 4096 }
 
@@ -639,7 +640,8 @@ record AreaRole { number: u32 }
 
 record AreaCharter { number: u32 }
 
-enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter }
+record AreaCharterNamed { name: text 32 }
+enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter, charter_named: AreaCharterNamed }
 
 record Area { name: text 32 words: text 480 owner: AreaOwner }
 
@@ -703,6 +705,12 @@ enum WriteState { admitted, sent, confirmed, refused, uncertain }
 record Written { order: u64 operation: WrittenOperation sender: WriteSender state: WriteState }
 record Writes { name: Name head: option fixed 32 next: u64 entries: list 32 Written }
 
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow, person_brief: PersonBrief, limit_hold: LimitHold, writes: Writes }
+# The repository revision (temper/docs/design/domain/forge/temper-dir.md, 3).
+# The longest method path is .temper/charters/NAME.md, with NAME at most 32 bytes.
+record DotTemperFile was TemperFile { path: bytes 52 bytes: bytes 65536 }
+record DotTemperRefusal was TemperRefusal { commit: option fixed 32 observed: u64 words: bytes 1024 }
+record DotTemperRevision was TemperRevision { project: u32 number: u64 home: Repository commit: option fixed 32 method: bool files: list 64 DotTemperFile observed: u64 refused: option DotTemperRefusal }
+
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow, person_brief: PersonBrief, limit_hold: LimitHold, writes: Writes, dot_temper_revision was temper_revision: DotTemperRevision }
 
 versioned record Row { value: Value }

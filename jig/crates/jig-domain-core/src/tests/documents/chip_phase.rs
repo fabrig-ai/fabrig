@@ -1,5 +1,6 @@
 //! Chip facts through public row constructors and the fleet owner entry point.
 use crate::tests::*;
+use jig_domain_contract as contract;
 use jig_domain_link::Operation;
 
 #[test]
@@ -198,7 +199,8 @@ fn chip_changes_refresh_inline_inbox_and_named_documents() {
 
 #[test]
 fn chip_closing_names_the_connectors_waited_on_without_counting_their_effects() {
-    let (mut core, limits) = make_tree();
+    let (core, limits) = tree_core_with_capabilities(Box::new([]), Box::new([]), &[1, 2], &[]);
+    let mut core = make_tree_in(core, &limits);
     watch_outputs(
         &mut core,
         &limits,
@@ -215,7 +217,12 @@ fn chip_closing_names_the_connectors_waited_on_without_counting_their_effects() 
     assert_eq!(waiting.as_slice(), core.connectors.as_ref());
     assert_eq!(chip.details.live_delegates, 0);
     let first = core.connectors[0];
-    watch_outputs(&mut core, &limits, Event::EffectConnector(connector::Event::Closed { task: 4, connector: first }));
+    watch_connector_outputs(
+        &mut core,
+        &limits,
+        first,
+        contract::Up::Effects(contract::effects::Up::Closed { task: 4 }),
+    );
     let row = core.tasks.task(4).unwrap();
     let waiting = chip_from_row_with_core(&core, &limits, row).unwrap().details.closing_connectors.unwrap();
     assert_eq!(waiting.len(), 1);

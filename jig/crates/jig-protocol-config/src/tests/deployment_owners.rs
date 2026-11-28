@@ -127,8 +127,13 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
     let mut first_saves = Vec::new();
     for row in rows() {
         let config = core_config(&row.document);
-        let declarations: Box<[_]> =
-            config.connectors.iter().copied().map(jig_domain_contract::Declaration::empty).collect();
+        let declarations: Box<[_]> = config
+            .connectors
+            .iter()
+            .copied()
+            .map(jig_domain_contract::Connector)
+            .map(jig_domain_contract::Declaration::empty)
+            .collect();
         let mut core = Core::new(config, &declarations, &env.limits).expect("real Small core");
         let mut action = core.start_begin(false, env.wall);
         if row.restart {

@@ -1,6 +1,6 @@
 # A check's judgement
 
-How temper judges what a check ended with, at a change's CI, a landing's gate and a goal's close: one function reads what the check showed of a verdict and its run's facts, and gives one of four classes. Only a refusal is the change's: the runner's fault and a check that broke never ask a repair. A delivery's check is smith's to judge, by the same rule (3). Whether a project's checks can flake at all is the project's to say (4). Written from `../../draft/whose-red.md`, 3, and 8's receipts bullet.
+How temper judges what a check ended with, at a change's CI, a landing's gate and a goal's close: one function reads what the check showed of a verdict and its run's facts, and gives one of four classes. Only a refusal is the change's: the runner's fault and a check that broke never ask a repair. A delivery's check is smith's to judge, by the same rule (3). Whether a project's checks can flake at all is the project's to say (4). Written from `../../draft/archive/whose-red.md`, 3, and 8's receipts bullet.
 
 ## 1. What a check shows
 
@@ -42,13 +42,13 @@ What follows:
 - **The project says,** in kind 4's `flakes` (`../landing-settings.md`, 1.1): `none`, or `rerun N`, N at most the deployment's `checkout.rerun_processes`. Unset, it is `rerun` at that figure, as before.
 - **With `none`:** every checkout a worker prepares for the project's runs and jobs has `temper-rerun 1 0` (`reds.md`, 5.2); the landing gate runs no known-flake rerun (`../landing-regate.md`, 2); and no flake of a delivery's check is filed or counted (`reds.md`, 5.8). A test that fails is the change's red, or a repair shows it isn't. A test that passes alone after failing beside others is still red, its log naming the tests before it.
 - **With `rerun N`:** a worker's marker is N, at most its own `checkout.rerun_processes`; the rest is as before.
-- **A CI runner's checkout is the project's own:** temper prepares none, so the project's command writes the marker its setting states where it finds none, as fabrig's goal check does (`tools/pre-pr/design.md`, 2, *Delivery and CI entry points*).
+- **A CI runner's checkout is the project's own:** temper prepares none, so the project's command writes the marker its setting states where it finds none.
 - **fabrig's is `none`** (the user, 2026-11-25): its checks run only tests that replay, which own their clock, seeds and kernel (`tools/tiers/layers.md`, 6.1), so a test that fails and then passes is a determinism bug, fixed where it lies. The reference's settings carry it (`../../protocol/configuration/reference.md`, 2).
 
 ## 5. Across builds
 
 - **A retained failed receipt that names nothing,** its report read with no failed test or not read at all, is judged again by 2 before it's reused: it is no verdict, so it is dropped and its key dispatched as a key with no receipt (`../landing-proof.md`, 1.2). A previous build made such receipts.
-- **A previous build's worker** keeps no bound the engine sends, so a project stating `flakes` runs only on workers of this build (`reds.md`, 5.2). The reference deployment's hand-set figure of 0 covers its workers until then (`../../draft/whose-red.execution.md`, 3).
+- **A previous build's worker** keeps no bound the engine sends, so a project stating `flakes` runs only on workers of this build (`reds.md`, 5.2). The reference deployment's hand-set figure of 0 covers its workers until then (`../../draft/archive/whose-red.execution.md`, 3).
 
 ## 6. Tests
 

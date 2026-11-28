@@ -137,7 +137,7 @@ fn deleted_repository_job_at_open_keeps_missing_call_tasks_strict_before_startup
         key: Key::Call(CALL),
         need: Need::Task { task: CALL.task, retired: None },
     };
-    let phase = Some(jig_domain_core::start::Phase::Link);
+    let phase = Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 });
     assert_eq!(service.end(), Some(&End::Stopped(Stop::ForgeLink { phase, link: link.clone() })));
     let engine = service.engine.as_ref().expect("linking engine");
     assert_eq!(engine.domain.forge_missing_link(), Some(link.clone()));

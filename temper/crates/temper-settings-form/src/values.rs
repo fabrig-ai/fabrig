@@ -13,96 +13,192 @@ pub fn encode_document_text(value: &c::DocumentText, out: &mut Encoder) {
     out.object_end();
 }
 pub fn encode_overlay(value: &c::Overlay, out: &mut Encoder) {
+    // The read document keeps its published JSON order.
+    let order: &[&[u8]] = &[
+        b"rest",
+        b"model",
+        b"alternatives",
+        b"inspect",
+        b"modify",
+        b"shell",
+        b"agents",
+        b"tools",
+        b"hosts",
+        b"waiting",
+        b"resume",
+        b"turns",
+        b"time",
+        b"reserve_turns",
+        b"reserve_time",
+        b"call_timeout",
+        b"spend",
+        b"documents",
+        b"instructions",
+        b"parts",
+    ];
     out.object_start();
-    if let Some(value) = &value.rest {
-        out.key(b"rest");
-        out.boolean(*value);
-    }
-    if let Some(value) = &value.model {
-        out.key(b"model");
-        encode_setting_model(value, out);
-    }
-    if let Some(value) = &value.alternatives {
-        out.key(b"alternatives");
-        out.array_start();
-        for value in value {
-            encode_setting_model(value, out);
-        }
-        out.array_end();
-    }
-    if let Some(value) = &value.inspect {
-        out.key(b"inspect");
-        out.boolean(*value);
-    }
-    if let Some(value) = &value.modify {
-        out.key(b"modify");
-        out.boolean(*value);
-    }
-    if let Some(value) = &value.shell {
-        out.key(b"shell");
-        out.boolean(*value);
-    }
-    if let Some(value) = &value.agents {
-        out.key(b"agents");
-        out.boolean(*value);
-    }
-    if let Some(value) = &value.tools {
-        out.key(b"tools");
-        out.unsigned(*value);
-    }
-    if let Some(value) = &value.hosts {
-        out.key(b"hosts");
-        encode_setting_hosts(value, out);
-    }
-    if let Some(value) = &value.waiting {
-        out.key(b"waiting");
-        out.unsigned(value.as_nanos());
-    }
-    if let Some(value) = &value.resume {
-        out.key(b"resume");
-        out.boolean(*value);
-    }
-    if let Some(value) = &value.turns {
-        out.key(b"turns");
-        out.unsigned(u64::from(*value));
-    }
-    if let Some(value) = &value.time {
-        out.key(b"time");
-        out.unsigned(value.as_nanos());
-    }
-    if let Some(value) = &value.reserve_turns {
-        out.key(b"reserve_turns");
-        out.unsigned(u64::from(*value));
-    }
-    if let Some(value) = &value.reserve_time {
-        out.key(b"reserve_time");
-        out.unsigned(value.as_nanos());
-    }
-    if let Some(value) = &value.call_timeout {
-        out.key(b"call_timeout");
-        out.unsigned(value.as_nanos());
-    }
-    if let Some(value) = &value.spend {
-        out.key(b"spend");
-        out.unsigned(*value);
-    }
-    if let Some(value) = &value.documents {
-        out.key(b"documents");
-        out.array_start();
-        for value in value {
-            encode_document(value, out);
-        }
-        out.array_end();
-    }
-    if !value.instructions.bytes().is_empty() {
-        out.key(b"instructions");
-        encode_text(&value.instructions, out);
-    }
-    if !value.parts.is_empty() {
-        out.key(b"parts");
-        encode_parts(&value.parts, out);
+    for name in order {
+        encode_overlay_member(name, value, out);
     }
     out.object_end();
+}
+
+pub(crate) fn encode_file_overlay(value: &c::Overlay, out: &mut Encoder) {
+    use crate::fields::{Shape, members, overlay_replaces};
+    out.object_start();
+    for field in members(Shape::Charter) {
+        if overlay_replaces(field) {
+            encode_overlay_member(field.name, value, out);
+        }
+    }
+    for field in members(Shape::Overlay) {
+        encode_overlay_member(field.name, value, out);
+    }
+    out.object_end();
+}
+#[expect(clippy::too_many_lines, reason = "one projection of overlay members serves both file and read JSON")]
+fn encode_overlay_member(name: &[u8], overlay: &c::Overlay, out: &mut Encoder) {
+    match name {
+        b"rest" => {
+            if let Some(value) = &overlay.rest {
+                out.key(name);
+                out.boolean(*value);
+            }
+        }
+        b"model" => {
+            if let Some(value) = &overlay.model {
+                out.key(name);
+                encode_setting_model(value, out);
+            }
+        }
+        b"alternatives" => {
+            if let Some(value) = &overlay.alternatives {
+                out.key(name);
+                out.array_start();
+                for value in value {
+                    encode_setting_model(value, out);
+                }
+                out.array_end();
+            }
+        }
+        b"inspect" => {
+            if let Some(value) = &overlay.inspect {
+                out.key(name);
+                out.boolean(*value);
+            }
+        }
+        b"modify" => {
+            if let Some(value) = &overlay.modify {
+                out.key(name);
+                out.boolean(*value);
+            }
+        }
+        b"shell" => {
+            if let Some(value) = &overlay.shell {
+                out.key(name);
+                out.boolean(*value);
+            }
+        }
+        b"agents" => {
+            if let Some(value) = &overlay.agents {
+                out.key(name);
+                out.boolean(*value);
+            }
+        }
+        b"tools" => {
+            if let Some(value) = &overlay.tools {
+                out.key(name);
+                out.unsigned(*value);
+            }
+        }
+        b"hosts" => {
+            if let Some(value) = &overlay.hosts {
+                out.key(name);
+                encode_setting_hosts(value, out);
+            }
+        }
+        b"waiting" => {
+            if let Some(value) = &overlay.waiting {
+                out.key(name);
+                out.unsigned(value.as_nanos());
+            }
+        }
+        b"resume" => {
+            if let Some(value) = &overlay.resume {
+                out.key(name);
+                out.boolean(*value);
+            }
+        }
+        b"turns" => {
+            if let Some(value) = &overlay.turns {
+                out.key(name);
+                out.unsigned(u64::from(*value));
+            }
+        }
+        b"time" => {
+            if let Some(value) = &overlay.time {
+                out.key(name);
+                out.unsigned(value.as_nanos());
+            }
+        }
+        b"reserve_turns" => {
+            if let Some(value) = &overlay.reserve_turns {
+                out.key(name);
+                out.unsigned(u64::from(*value));
+            }
+        }
+        b"reserve_time" => {
+            if let Some(value) = &overlay.reserve_time {
+                out.key(name);
+                out.unsigned(value.as_nanos());
+            }
+        }
+        b"call_timeout" => {
+            if let Some(value) = &overlay.call_timeout {
+                out.key(name);
+                out.unsigned(value.as_nanos());
+            }
+        }
+        b"spend" => {
+            if let Some(value) = &overlay.spend {
+                out.key(name);
+                out.unsigned(*value);
+            }
+        }
+        b"documents" => {
+            if let Some(value) = &overlay.documents {
+                out.key(name);
+                out.array_start();
+                for value in value {
+                    encode_document(value, out);
+                }
+                out.array_end();
+            }
+        }
+        b"instructions" => {
+            if !overlay.instructions.bytes().is_empty() {
+                out.key(b"instructions");
+                encode_text(&overlay.instructions, out);
+            }
+        }
+        b"parts" => {
+            if !overlay.parts.is_empty() {
+                out.key(b"parts");
+                encode_parts(&overlay.parts, out);
+            }
+        }
+        b"charters" => {
+            if !overlay.charters.is_empty() {
+                out.key(b"charters");
+                out.array_start();
+                for path in &overlay.charters {
+                    out.string(path);
+                }
+                out.array_end();
+            }
+        }
+        _ => unreachable!("overlay row's named field"),
+    }
 }
 fn encode_parts(parts: &skein_lib::List<c::CharterPart>, out: &mut Encoder) {
     out.array_start();
@@ -123,8 +219,16 @@ fn encode_parts(parts: &skein_lib::List<c::CharterPart>, out: &mut Encoder) {
     }
     out.array_end();
 }
+pub(super) fn encode_setting_name(name: Option<&[u8]>, out: &mut Encoder) {
+    if let Some(name) = name {
+        out.key(b"name");
+        out.string(name);
+    }
+}
+
 pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     out.object_start();
+    encode_setting_name(value.name.as_deref(), out);
     out.key(b"rest");
     out.boolean(value.rest);
     out.key(b"number");
@@ -270,8 +374,14 @@ pub fn encode_template(value: &c::Template, out: &mut Encoder) {
     out.array_end();
     out.key(b"number");
     out.unsigned(u64::from(value.number));
-    out.key(b"name");
-    encode_document_text(&value.name, out);
+    encode_setting_name(value.name.as_deref(), out);
+    out.key(b"shown");
+    // A cut preview keeps its flag; whole display text prints in the settings file form.
+    if value.shown.cut {
+        encode_document_text(&value.shown, out);
+    } else {
+        out.string(value.shown.bytes());
+    }
     out.key(b"executor");
     encode_template_executor(value.executor, out);
     out.key(b"contract");
@@ -311,6 +421,7 @@ pub fn encode_template(value: &c::Template, out: &mut Encoder) {
 }
 pub fn encode_setting_policy(value: &c::SettingPolicy, out: &mut Encoder) {
     out.object_start();
+    encode_setting_name(value.name.as_deref(), out);
     out.key(b"escalation_role");
     match &value.escalation_role {
         Some(value) => {
@@ -427,6 +538,41 @@ pub fn encode_setting_model(value: &c::SettingModel, out: &mut Encoder) {
         }
         None => out.null(),
     }
+    if !value.speeds.is_empty() {
+        out.key(b"speeds");
+        out.array_start();
+        for speed in &value.speeds {
+            encode_setting_speed(speed, out);
+        }
+        out.array_end();
+    }
+    if let Some(name) = &value.speed {
+        out.key(b"speed");
+        encode_text(name, out);
+    }
+    out.object_end();
+}
+fn encode_setting_speed(value: &c::SettingSpeed, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"name");
+    encode_text(&value.name, out);
+    out.key(b"also");
+    out.array_start();
+    for name in &value.also {
+        encode_text(name, out);
+    }
+    out.array_end();
+    out.key(b"input_price");
+    out.unsigned(value.input_price);
+    out.key(b"cached_price");
+    out.unsigned(value.cached_price);
+    out.key(b"cache_write_price");
+    match value.cache_write_price {
+        Some(price) => out.unsigned(price),
+        None => out.null(),
+    }
+    out.key(b"output_price");
+    out.unsigned(value.output_price);
     out.object_end();
 }
 pub fn encode_setting_hosts(value: &c::SettingHosts, out: &mut Encoder) {
@@ -787,6 +933,10 @@ pub fn encode_model_effort(value: &c::ModelEffort, out: &mut Encoder) {
             encode_text(value, out);
         }
         None => out.null(),
+    }
+    if let Some(speed) = &value.speed {
+        out.key(b"speed");
+        encode_text(speed, out);
     }
     out.object_end();
 }

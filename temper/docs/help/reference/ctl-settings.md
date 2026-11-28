@@ -17,9 +17,9 @@ Key: none.
 settings show KIND NUMBER --json prints one value to edit.
 settings apply and settings propose take the newest revision this
 prints as `--against`.
-settings show charter|template|policy|model|worker|provider NUMBER [--revision REVISION]
-  charter|template|policy|model|worker|provider (kind): one of charter, template, policy, model, worker or provider; required. The setting's kind
-  NUMBER (number): a number from 0 to 4294967295; required. The setting's number
+settings show charter|template|policy NUMBER [--revision REVISION]
+  charter|template|policy (kind): one of charter, template or policy; required. The setting's kind
+  NUMBER (number): a name or number from 0 to 4294967295; required. The setting's name or number
   --revision REVISION: a number from 0 to 4294967295; optional. Its value at this revision; the newest when absent
 settings show rules
   rules (kind): one of rules; required. The deployment's rules
@@ -38,11 +38,11 @@ settings show project-ways|project-questions|project-classes|project-words|proje
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show charter-words NUMBER [--revision REVISION]
   charter-words (kind): one of charter-words; required. A charter's words
-  NUMBER (number): a number from 1 to 4294967295; required. The charter's number
+  NUMBER (number): a name or number from 1 to 4294967295; required. The charter's name or number
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show template-goal NUMBER [--revision REVISION]
   template-goal (kind): one of template-goal; required. A goal template's work
-  NUMBER (number): a number from 1 to 4294967295; required. The template's number
+  NUMBER (number): a name or number from 1 to 4294967295; required. The template's name or number
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show follow NUMBER --project PROJECT [--revision REVISION]
   follow (kind): one of follow; required. A project's follow
@@ -65,6 +65,10 @@ settings show limits
 settings show temper-limits [--revision REVISION]
   temper-limits (kind): one of temper-limits; required. Overrides of temper's limits
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
+settings show model|worker|provider NUMBER [--revision REVISION]
+  model|worker|provider (kind): one of model, worker or provider; required. The setting's kind
+  NUMBER (number): a number from 0 to 4294967295; required. The setting's number
+  --revision REVISION: a number from 0 to 4294967295; optional. Its value at this revision; the newest when absent
 Read one setting's value whole
 Prints: `KIND N, revision R`, or `rules, revision R`, then the whole value; project classes in words; temper's settings also show their state
 --json: the record setting.
@@ -107,4 +111,17 @@ Prints: `proposed: PROPOSAL, to RECIPIENT`
 Key: --key KEY, required.
 The file is settings apply's. Read the proposal with proposal show
 PROPOSAL.
+```
+
+## settings upgrade
+
+```
+settings upgrade FILE
+  FILE (items): a file, at most 1048576 bytes; required. The settings file, JSON, or -
+Print a settings file at the newest format
+Prints: The settings file as JSON on stdout and any format notices on stderr
+--json: the record settings_file.
+Key: none.
+Reads no charter directory named in the file, writes no file, and
+needs no sign-in. A refused file names what it could not read (exit 1).
 ```

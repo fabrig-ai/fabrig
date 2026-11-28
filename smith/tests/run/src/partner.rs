@@ -131,6 +131,8 @@ pub enum Out {
 
     /// An event for the run.
     Event(Event),
+    /// The fake session's opaque answer part, following the completion's usage.
+    AnswerPart(Token),
     /// Wake the partner at `at` for `peer`'s wake numbered `wake`.
     Wake {
         /// Injected monotonic time at which this wake becomes due.
@@ -213,6 +215,17 @@ enum Choice {
     Answering,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum ParkTurn {
+    Wait,
+    HostSingle,
+    HostPair,
+    Delegate,
+    Child,
+    Spent,
+    Cut,
+}
+
 struct Talk {
     /// The run's name for it.
     conversation: Token,
@@ -232,6 +245,7 @@ struct Talk {
     /// The wake that counts; earlier ones are stale.
     wake: u64,
     told: u32,
+    park: Option<ParkTurn>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -256,6 +270,9 @@ enum Phase {
 }
 
 impl Partner {
+    /// The opaque turn body with a wait call and no result for it.
+    pub(crate) const WITHHELD_WAIT_RECORD: Token = Token::new(0);
+
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     #[must_use]
     pub fn new(script: Script, seed: u64) -> Partner {
@@ -342,11 +359,23 @@ impl Partner {
             phase: Phase::Requesting,
             wake: 0,
             told: 0,
+            park: None,
         };
         self.talks.insert(peer, talk);
         out.push(Out::Event(Event::Started { conversation, peer }));
         self.tally.opened += 1;
         self.carry_on(peer, out);
+    }
+
+    pub(crate) fn arm_park(&mut self, out: &[Out], park: ParkTurn) {
+        if let Some(Out::Event(Event::Started { peer, .. })) = out.first() {
+            self.talks.get_mut(peer).expect("a started conversation").park = Some(park);
+        }
+    }
+
+    pub(crate) fn cut_return(&mut self, call: Token) {
+        let peer = self.calls[&call];
+        self.talks.get_mut(&peer).expect("a cut call retains its conversation").park = Some(ParkTurn::Cut);
     }
 
     /// Schedules another seeded turn for a live conversation.
@@ -428,7 +457,7 @@ impl Partner {
         let expires = talk.expires;
         let phase = talk.phase;
         if matches!(phase, Phase::Calling { pending: 1, .. } | Phase::Withdrawn { pending: 1 }) {
-            self.tell(peer, out);
+            self.tell(peer, *result == Returned::Withheld, out);
         }
         match phase {
             Phase::Calling { pending, over } if pending > 1 => {
@@ -509,9 +538,13 @@ impl Partner {
             !talk.host_tools.is_empty() && talk.choice == Choice::Auto,
         );
         let roll = u32::try_from(self.rng.below(1000)).expect("below 1000");
+        if let Some(park) = talk.park.filter(|park| *park != ParkTurn::Spent) {
+            self.park_turn(peer, park, out);
+            return;
+        }
         if talk.choice == Choice::Answering && roll >= self.script.faults {
             let conversation = talk.conversation;
-            self.tell(peer, out);
+            self.tell(peer, false, out);
             self.talks.get_mut(&peer).expect("final answer is still live").phase = Phase::Yielded;
             out.push(Out::Event(Event::Yielded {
                 conversation,
@@ -569,7 +602,7 @@ impl Partner {
             } else {
                 Stop::EndTurn
             };
-            self.tell(peer, out);
+            self.tell(peer, false, out);
             let talk = self.talks.get_mut(&peer).expect("a turn is of a live conversation");
             talk.phase = Phase::Yielded;
             let (conversation, expires) = (talk.conversation, talk.expires);
@@ -578,6 +611,39 @@ impl Partner {
             self.wake(expires, peer, out);
         } else {
             self.carry_on(peer, out);
+        }
+    }
+
+    fn park_turn(&mut self, peer: Token, park: ParkTurn, out: &mut Vec<Out>) {
+        let talk = self.talks.get_mut(&peer).expect("a live park conversation");
+        talk.park = Some(ParkTurn::Spent);
+        out.push(Out::AnswerPart(talk.conversation));
+        match park {
+            ParkTurn::Wait => self.call(peer, None, [Ask::Wait], out),
+            ParkTurn::HostSingle | ParkTurn::HostPair => {
+                let (tool, effect) = &talk.host_tools[0];
+                let ask = || Ask::Host {
+                    tool: tool.clone(),
+                    effect: *effect,
+                    input: HostInput::attested(b"{}".as_slice().into()).expect("bounded object"),
+                };
+                let first = ask();
+                let pair = (park == ParkTurn::HostPair).then(ask);
+                self.call(peer, None, std::iter::once(first).chain(pair), out);
+            }
+            ParkTurn::Delegate => {
+                let ask = Ask::SubAgent {
+                    brief: b"Look into the parser.".as_slice().into(),
+                    families: Families { agents: false, ..talk.families },
+                    llm: None,
+                    share: smith_domain_run::Share::UNASKED,
+                };
+                // The scripted answer has a text block before its call.
+                self.call_at(peer, None, 1, [ask], out);
+            }
+            // Its next completion must be held across the drain.
+            ParkTurn::Child => self.carry_on(peer, out),
+            ParkTurn::Spent | ParkTurn::Cut => unreachable!("a cut conversation takes no further turn"),
         }
     }
 
@@ -653,6 +719,17 @@ impl Partner {
     /// share if it went past it. Each call is due by the conversation's
     /// expiry.
     fn call(&mut self, peer: Token, over: Option<Exhausted>, asks: impl IntoIterator<Item = Ask>, out: &mut Vec<Out>) {
+        self.call_at(peer, over, 0, asks, out);
+    }
+
+    fn call_at(
+        &mut self,
+        peer: Token,
+        over: Option<Exhausted>,
+        first_position: u32,
+        asks: impl IntoIterator<Item = Ask>,
+        out: &mut Vec<Out>,
+    ) {
         let mut pending = 0;
         for ask in asks {
             let call = self.mint();
@@ -667,7 +744,11 @@ impl Partner {
                 call,
                 ask,
                 deadline,
-                name: smith_domain_run::CallName { activation: 1, completion: talk.spent.turns, position: pending },
+                name: smith_domain_run::CallName {
+                    activation: 1,
+                    completion: talk.spent.turns,
+                    position: first_position + pending,
+                },
             }));
             pending += 1;
         }
@@ -822,18 +903,20 @@ impl Partner {
         out.push(Out::Event(Event::Used { conversation: talk.conversation, spend }));
     }
 
-    fn tell(&mut self, peer: Token, out: &mut Vec<Out>) {
-        if !self.tell_turns {
-            return;
-        }
+    fn tell(&mut self, peer: Token, withheld: bool, out: &mut Vec<Out>) {
         let talk = self.talks.get_mut(&peer).expect("a settled live talk");
-        if talk.told >= talk.spent.turns {
+        if talk.park == Some(ParkTurn::Cut)
+            || (!self.tell_turns && talk.park.is_none())
+            || talk.told >= talk.spent.turns
+        {
             return;
         }
         talk.told += 1;
+        let record =
+            if talk.park.is_some() && withheld { Self::WITHHELD_WAIT_RECORD } else { Token::new(u64::from(talk.told)) };
         out.push(Out::Event(Event::Turn {
             conversation: talk.conversation,
-            record: Token::new(u64::from(talk.told)),
+            record,
             sequence: talk.told,
             opens_window: talk.told == 1,
         }));

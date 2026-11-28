@@ -303,10 +303,6 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
 }
 
 fn store(engine: &mut Engine, request: root::StoreRequest) {
-    if request == root::StoreRequest::Switch && !engine.store.pending_generation {
-        engine.events.push(root::Event::Store(root::StoreInput::Switched));
-        return;
-    }
     if let root::StoreRequest::Commit { number, writes } = &request {
         engine.clients.commit(*number, writes);
     }
@@ -423,6 +419,7 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
         | root::Delivery::MoveStanding { .. }
         | root::Delivery::FindingsOwned { .. }
         | root::Delivery::ForgeCommitted { .. }
+        | root::Delivery::TakeForgeAdoption { .. }
         | root::Delivery::ForgeCall { .. }
         | root::Delivery::Bound { .. }
         | root::Delivery::Relay { .. }
@@ -430,7 +427,7 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
         | root::Delivery::PartLoad { .. }
         | root::Delivery::EngineStore(_)
         | root::Delivery::PublicWait { .. }
-        | root::Delivery::Start(_)
+        | root::Delivery::Resume(_)
         | root::Delivery::Load { .. }
         | root::Delivery::Restarting { .. }
         | root::Delivery::Drained => stop::unavailable(engine, b"workers"),

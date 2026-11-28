@@ -161,7 +161,7 @@ pub fn items(names: &[&[u8]]) -> wire::Workspace {
         };
         repositories.push(repository).expect("room for each name");
     }
-    wire::Workspace { rerun: None, repositories: repositories.into_boxed() }
+    wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories: repositories.into_boxed() }
 }
 
 /// The root's refusal of the run as an invalid start, for `why`.
@@ -238,6 +238,7 @@ pub fn charter() -> agent::Charter {
         reserve: Reserve { turns: 0, time: Duration::ZERO },
         llm: Llm {
             effort: None,
+            speed: None,
             prices: smith_domain_run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
             dialect: 0,
             account: Some(0),

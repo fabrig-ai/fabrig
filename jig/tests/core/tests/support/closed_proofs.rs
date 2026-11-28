@@ -13,7 +13,7 @@ const TURN: KeptFamily = KeptFamily {
     name: "fixture-turn",
     map: KeptMap::Store,
     keys: &[],
-    frames: Some(jig_protocol_store::Frames { root: TURN_ROOT, texts: &[FRAME_TURN_KEPT], number: 0 }),
+    frames: Some(jig_protocol_store::Frames { root: TURN_ROOT, number: 0 }),
 };
 const FIXTURE: OwnerSet =
     OwnerSet { jobs: &[], owner: Owner::Smith, name: FIXTURE_SMITH_OWNER, families: &[TURN], level: Some(0) };

@@ -238,6 +238,11 @@ directory stays until the next session. At a deployment the TUI and the
 browser end the same way, first; then the deployment's processes stop
 in their order (`../testing/qa/deployment.md`, 7).
 
+A session that ends otherwise, killed outright among them, takes them
+with it on Linux: it starts the box, and at a deployment each of its
+processes, dying with it (`../testing/fixture-lifetime.md`, 1 and 2), so the
+box stops as at a `SIGTERM` and a deployment's processes are killed.
+
 ### 2.5 Its exit
 
 | Status | When | Its last lines on stdout |
@@ -248,9 +253,12 @@ in their order (`../testing/qa/deployment.md`, 7).
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
-(`../draft/archive/landed-qa.md`, 5): status 3 is that signal. Status 4 on a
-fresh box, or on a copy past its closing check, is a finding against
-temper (`../draft/archive/landed-qa.md`, 7).
+(`../draft/archive/landed-qa.md`, 5): status 3 is that signal, and so is
+status 4 where a walk from a copy the place unpacked answered no line,
+its box failing at its start on what the copy holds
+(`../testing/qa/places.md`, 4). Status 4 on a fresh box, or once a
+walk has answered a line, is a finding against temper
+(`../draft/archive/landed-qa.md`, 7).
 
 ### 2.6 A ctl session
 

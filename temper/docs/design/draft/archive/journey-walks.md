@@ -252,7 +252,7 @@ Focused, and native: no box, browser or terminal.
 - **A journey after a recipe,** so that a start QA already keeps is not walked again through the client.
 - **The gallery's states as walks,** once a world reaches them, their answers then the engine's own.
 - **The playground's `story-a.log`** (`temper/tests/playground/tests/fixtures/`), another recording on main that the merge job makes again (`tools/merge/README.md`): the same rule would have a test make it and no file keep it.
-- **A recorded file printed across layouts,** by the plans of `../layouts-both-ways.md`, 4, so that 4.3 needs no build of the deployment's commit.
+- **A recorded file printed across layouts,** by the plans of `layouts-both-ways.md`, 4, so that 4.3 needs no build of the deployment's commit.
 - **The box's `mark` compared with the world's page,** by their accessible text, as a check that a world draws what a box does.
 
 ## 12. Open questions

@@ -29,9 +29,24 @@ POPEN = subprocess.Popen
 
 
 def setUpModule():
+    # Close tests opt in with their own settings and result files, not the caller's.
+    close_variables = ('TEMPER_JOB', 'TEMPER_CLOSE_REFUSAL', 'TEMPER_CLOSE_OUTDATED')
+    env = {key: value for key, value in os.environ.items() if key not in close_variables}
+    unittest.enterModuleContext(mock.patch.dict(os.environ, env, clear=True))
     guard = mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('unexpected real subprocess'))
     guard.start()
     unittest.addModuleCleanup(guard.stop)
+
+
+def deny_result_replace(result):
+    replace = os.replace
+
+    def denied(source, path):
+        if path == result:
+            raise PermissionError('result directory is not writable')
+        replace(source, path)
+
+    return mock.patch.object(os, 'replace', side_effect=denied)
 
 
 class Packages(unittest.TestCase):
@@ -58,7 +73,7 @@ class Packages(unittest.TestCase):
         groups = self.plan('skein/leaf/tests/suite.rs')
         directory = self.root / 'target/close'
         self.assertEqual(list(PLAN.rust_commands(groups, {}, directory)),
-                         [['tools/tiers/one-process', '--out', str(directory / str(step)), '--fail-fast', profile,
+                         [['tools/tiers/one-process', '--out', str(directory / str(step)), profile,
                            '--offline', '--locked', '--no-tests=warn', '-p', 'leaf',
                            '-E', 'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))']
                           for step, profile in enumerate(('default', 'fuzzy'))])
@@ -69,9 +84,8 @@ class Packages(unittest.TestCase):
         commands = list(PLAN.rust_commands(groups, {}, self.root / 'target/close'))
         self.assertEqual(commands[0], ['cargo', 'check', '--offline', '--locked', '-p', 'quiet'])
         run, fuzzy = commands[1:]
-        same = lambda command: [arg for i, arg in enumerate(command) if i not in (2, 4)]
-        self.assertEqual(same(fuzzy), same(run))
-        self.assertEqual((run[4], fuzzy[4], fuzzy[2]), ('default', 'fuzzy', str(self.root / 'target/close/1')))
+        self.assertEqual(fuzzy[4:], run[4:])
+        self.assertEqual((run[3], fuzzy[3], fuzzy[2]), ('default', 'fuzzy', str(self.root / 'target/close/1')))
         self.assertEqual(run[run.index('--no-tests=warn') + 1:run.index('-E')],
                          ['-p', 'fabrig-boundary', '-p', 'leaf', '-p', 'middle', '-p', 'top'])
         expression = run[-1]
@@ -87,6 +101,8 @@ class Packages(unittest.TestCase):
         self.assertEqual(flag, '-E')
         self.assertIn('default() & not (package(=fabrig-boundary)', expression)
         self.assertIn('test(=client_versions_are_frozen)', expression)
+        self.assertIn('test(=released_format_fixtures_are_frozen)', expression)
+        self.assertNotIn('changing_one_byte_of_a_released_fixture_is_refused', expression)
         self.assertNotIn('a_field_added_at_the_same_version_passes', expression)
         self.assertNotIn('generated_patch_modules_are_current', expression)
         self.assertEqual(PLAN.workspace_filter(['leaf']), [])
@@ -144,13 +160,19 @@ class Delivery(unittest.TestCase):
 
     def test_modes_share_the_tree_only_checker(self):
         with mock.patch.object(PRE, 'check', return_value=0) as check:
-            for args, mode in [([], 'delivery'), (['--child'], 'child'), (['--goal'], 'goal'),
-                               (['--child', 'dest'], 'child'), (['--close'], 'close'),
-                               (['--close', 'dest'], 'close'), (['--goal', 'head', 'dest'], 'goal')]:
-                self.assertEqual(PRE.main(args), 0)
-                self.assertEqual(check.call_args.args[0], mode)
-        with self.assertRaises(ValueError):
-            PRE.main(['--goal', 'head'])
+            for args, mode, commits in [([], 'delivery', ()), (['--close'], 'close', []),
+                                        (['--close', 'a' * 40], 'close', ['a' * 40])]:
+                with self.subTest(args=args):
+                    self.assertEqual(PRE.main(args), 0)
+                    self.assertEqual(check.call_args.args, (mode, commits))
+
+    def test_removed_modes_are_rejected_before_checking(self):
+        with mock.patch.object(PRE, 'check') as check:
+            for args in (['--goal'], ['--goal', 'head', 'dest'], ['--child'], ['--child', 'dest']):
+                with self.subTest(args=args):
+                    with self.assertRaisesRegex(ValueError, r'^expected no arguments or --close \[DESTINATION\]$'):
+                        PRE.main(args)
+                    check.assert_not_called()
 
     def test_checker_changes_run_only_python_and_write_local_receipt(self):
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
@@ -185,10 +207,7 @@ class Delivery(unittest.TestCase):
             self.assertTrue(err.getvalue().endswith(f'smith-check: not judged\npre-pr: broke: {detail}\n'))
 
     def test_candidate_tool_diagnostics_refuse(self):
-        lint = {'reason': 'compiler-message', 'package_id': 'api', 'message': {
-            'level': 'error', 'code': {'code': 'clippy::rule'}, 'spans': [], 'message': 'lint failed'}}
-        steps = iter([(b'flavor: count 9, baseline 8\n', 1), (b'broken citation\n', 1),
-                      (b'outward path\n', 1), (json.dumps(lint).encode() + b'\n', 101)])
+        steps = iter([(b'flavor: count 9, baseline 8\n', 1), (b'broken citation\n', 1), (b'outward path\n', 1)])
 
         def tool(args, root, env, output=None, stdout=False):
             raw, status = next(steps)
@@ -203,8 +222,6 @@ class Delivery(unittest.TestCase):
                 (lambda: PRE.baselines('skein', self.root, {}), 'old-forms skein flavor'),
                 (lambda: PRE.citations('tree', self.root, {}), 'citations'),
                 (lambda: PRE.outward(self.root, {}), 'test fabrig-boundary::outward no_file_names_the_lab'),
-                (lambda: PRE.clippy(['api'], {'packages': [{'id': 'api', 'name': 'api'}]}, self.root, {}),
-                 'clippy api clippy::rule '),
             ]:
                 with self.subTest(expected=expected):
                     _, errors = run()
@@ -419,29 +436,25 @@ class Delivery(unittest.TestCase):
                 errors.append(PRE.failure('format', 'an earlier failure'))
             return []
 
-        def goal(*args):
-            print('goal checks finished')
-            return [], [], []
-
-        for args in ([], ['--child'], ['--goal'], ['--close']):
+        for args in ([], ['--close']):
             for failed in (False, True):
                 with self.subTest(args=args, failed=failed), contextlib.ExitStack() as stack:
                     out = stack.enter_context(redirect_stdout(io.StringIO()))
                     stack.enter_context(redirect_stderr(io.StringIO()))
+                    # This fixture has no goal head and checks the standalone exit status.
+                    stack.enter_context(mock.patch.dict(os.environ, self.env, clear=True))
                     stack.enter_context(mock.patch.object(Path, 'cwd', return_value=self.root))
                     stack.enter_context(mock.patch.object(PRE, 'checked_git', return_value=b''))
                     stack.enter_context(mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']))
                     stack.enter_context(mock.patch.object(PRE, 'scope_base', return_value=('b' * 40, 'base', None)))
                     stack.enter_context(mock.patch.object(PRE, 'changed_paths', return_value=[]))
                     stack.enter_context(mock.patch.object(PRE, 'workspace_checks', side_effect=workspace))
-                    stack.enter_context(mock.patch.object(PRE, 'goal_checks', side_effect=goal))
                     errors = [PRE.failure('journeys', 'mixture')] if failed else []
                     stack.enter_context(mock.patch.object(PRE, 'journeys', return_value=errors))
                     self.assertEqual(PRE.main(args), int(failed))
                     log = out.getvalue()
-                    previous = 'goal checks' if args == ['--goal'] and not failed else 'workspace checks'
                     result = 'failed' if failed else 'passed'
-                    self.assertRegex(log, rf'{previous} finished\npre-pr: journeys …\n'
+                    self.assertRegex(log, rf'workspace checks finished\npre-pr: journeys …\n'
                                           rf'pre-pr: journeys: {result}, \d+\.\d{{3}} s\n')
 
     def test_a_checker_exception_breaks_with_a_bounded_stderr_reason(self):
@@ -517,53 +530,32 @@ class Delivery(unittest.TestCase):
         self.assertIn('pre-pr: broke: no base: this is no git checkout', err.getvalue())
 
     def test_shell_entry_points_forward_to_the_expected_mode(self):
-        for hook, suffix in [('pre-pr', ''), ('goal-child-pre-pr', ' --child "$@"'), ('goal-pre-pr', ' --goal "$@"'),
-                             ('checked-close', ' --close')]:
-            script = HERE.parents[1] / '.temper' / hook
-            commands = [line for line in script.read_text().splitlines() if line.startswith('exec ')]
-            self.assertEqual(commands, ['exec python3 -I -B tools/pre-pr/pre_pr.py' + suffix])
-            self.assertTrue(script.stat().st_mode & 0o111)
-
-    def test_goal_hook_installs_only_a_missing_rerun_marker_before_goal_mode(self):
-        from shutil import copy2
-        checkout = self.root / 'checkout'
-        git_dir = self.root / 'metadata'
-        hooks = checkout / '.temper'
-        hooks.mkdir(parents=True)
-        hook = copy2(HERE.parents[1] / '.temper/goal-pre-pr', hooks)
-        stand_in = checkout / 'tools/pre-pr/pre_pr.py'
-        stand_in.parent.mkdir(parents=True)
-        stand_in.write_text(
-            'import sys\n'
-            'from pathlib import Path\n'
-            'import subprocess\n'
-            'assert sys.argv[1:] == ["--goal", "head", "dest"]\n'
-            'marker = Path(subprocess.check_output(\n'
-            '    ["git", "rev-parse", "--git-path", "temper/rerun"], text=True).strip())\n'
-            'print(marker.read_text(), end="")\n'
-        )
-        with mock.patch.object(subprocess, 'Popen', side_effect=POPEN):
-            subprocess.run(['git', 'init', '-q', '--separate-git-dir', git_dir], cwd=checkout, check=True)
-            marker = checkout / subprocess.check_output(
-                ['git', 'rev-parse', '--git-path', 'temper/rerun'], cwd=checkout, text=True).strip()
-            marker.parent.mkdir()
-            temporary = marker.with_suffix('.tmp')
-            temporary.write_bytes(b'unfinished\n')
-            staged_inode = temporary.stat().st_ino
-            call = [hook, 'head', 'dest']
-            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 0\n')
-            self.assertEqual(marker.stat().st_ino, staged_inode, 'the staged marker was renamed')
-            self.assertFalse(temporary.exists())
-
-            marker.write_bytes(b'temper-rerun 1 4\n')
-            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 4\n')
-            self.assertEqual(marker.stat().st_ino, staged_inode, 'the worker marker was not replaced')
+        temper = HERE.parents[1] / '.temper'
+        self.assertEqual(os.readlink(temper / 'hooks/finish'), 'deliver')
+        for entry, command in [
+            ('hooks/deliver', 'tools/pre-pr/pre_pr.py'),
+            ('hooks/merge', '"$(dirname "$0")/../../tools/merge/merge.py" "$@"'),
+            ('hooks/close', 'tools/pre-pr/pre_pr.py --close'),
+        ]:
+            with self.subTest(entry=entry):
+                script = temper / entry
+                self.assertFalse(script.is_symlink())
+                self.assertTrue(script.stat().st_mode & 0o111)
+                commands = [line for line in script.read_text().splitlines() if line.startswith('exec ')]
+                self.assertEqual(commands, ['exec python3 -I -B ' + command])
+        for wrapper, hook in [('pre-pr', 'deliver'), ('merge', 'merge'),
+                              ('close', 'close'), ('checked-close', 'close')]:
+            with self.subTest(wrapper=wrapper):
+                script = temper / wrapper
+                self.assertTrue(script.stat().st_mode & 0o111)
+                self.assertEqual(script.read_text(), f'#!/bin/sh\nexec "$(dirname "$0")/hooks/{hook}" "$@"\n')
 
     def test_changed_python_module_runs_its_sibling_suite_once(self):
         directory = self.root / 'tools/example'
         directory.mkdir(parents=True)
         (directory / 'test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+             mock.patch.object(PRE, 'metadata', return_value={'packages': [], 'workspace_members': []}), \
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])):
             args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
@@ -601,7 +593,7 @@ class Delivery(unittest.TestCase):
                  mock.patch.object(PRE, 'citations', return_value=(0, [])), \
                  mock.patch.object(PRE, 'outward', return_value=(0, [])), \
                  mock.patch.object(PRE, 'baselines', return_value=(0, [])):
-                PRE.workspace_checks(self.root, paths, 'tree', {}, self.errors, {}, whole=False)
+                PRE.workspace_checks(self.root, paths, 'tree', {}, self.errors, {})
                 self.assertEqual([call.args[0] for call in run.call_args_list if call.args[0][0] == 'cargo'], expected)
         self.assertEqual(self.errors, [])
 
@@ -612,7 +604,7 @@ class Delivery(unittest.TestCase):
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])):
             self.assertEqual(PRE.workspace_checks(self.root, ['docs/guide.md', 'temper/docs/design/a.md'], 'tree',
-                                                  {}, self.errors, {}, completed_goal=True, whole=False), [])
+                                                  {}, self.errors, {}, completed_goal=True), [])
         run.assert_not_called()
 
     def test_a_path_without_cargo_gains_the_users_cargo_tools(self):
@@ -635,7 +627,7 @@ class Delivery(unittest.TestCase):
         errors = [PRE.broken('helper', 'not executable'),
                   PRE.failure('test api::suite inherited', 'known', ('api::suite', 'inherited')),
                   PRE.failure('test api::suite new', 'assertion failed', ('api::suite', 'new'))]
-        PRE.inherited({('test', 'api::suite', 'inherited')}, errors)
+        errors[1]['inherited'] = True
         self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'delivery', (), None), 1)
         self.assertIn('pre-pr: refused', self.log.getvalue())
         receipt = self.receipt('pre-pr-light-failures.json')
@@ -652,7 +644,7 @@ class Delivery(unittest.TestCase):
         cases = [('close', None, [red], 1), ('close', '', [red], 1), ('close', '1', [red], 1),
                  ('close', None, [broke], 1), ('close', '', [broke], 1), ('close', '1', [broke], 1),
                  ('close', '3', [broke], 2), ('close', '3', [], 0)]
-        cases += [(scope, '3', errors, 1) for scope in ('delivery', 'child', 'goal') for errors in ([red], [broke])]
+        cases += [('delivery', '3', errors, 1) for errors in ([red], [broke])]
         for scope, value, errors, status in cases:
             with self.subTest(scope=scope, value=value, errors=errors), redirect_stderr(io.StringIO()) as err:
                 result.write_bytes(settlement)
@@ -666,19 +658,23 @@ class Delivery(unittest.TestCase):
                     self.assertNotIn('smith-check: not judged', err.getvalue())
                 self.assertEqual(result.read_bytes(), settlement)
 
+    def test_outdated_opt_in_does_not_enable_typed_refusal(self):
+        result = self.root / 'result.json'
+        settlement = b'{"settled":[]}\n'
+        env = {'TEMPER_JOB': str(self.root), 'TEMPER_CLOSE_OUTDATED': '3'}
+        red = PRE.failure('format', 'diff')
+        for scope in ('delivery', 'close'):
+            with self.subTest(scope=scope), redirect_stderr(io.StringIO()):
+                result.write_bytes(settlement)
+                self.assertEqual(PRE.finish('tree', 'base', [red], self.root, env, scope, (), ['head']), 1)
+                self.assertEqual(result.read_bytes(), settlement)
+
     def test_a_refusal_the_checker_cannot_write_exits_two(self):
         result = self.root / 'result.json'
         settlement = b'{"settled":[]}\n'
         result.write_bytes(settlement)
-        replace = os.replace
-
-        def denied(source, path):
-            if path == result:
-                raise PermissionError('result directory is not writable')
-            replace(source, path)
-
         for job_set in (False, True):
-            with self.subTest(job_set=job_set), mock.patch.object(os, 'replace', side_effect=denied), \
+            with self.subTest(job_set=job_set), deny_result_replace(result), \
                  redirect_stderr(io.StringIO()) as err:
                 env = {'TEMPER_CLOSE_REFUSAL': '3'}
                 if job_set:
@@ -698,16 +694,16 @@ class Delivery(unittest.TestCase):
         first = 'test A::rules rule_é'
         encoded = b'"test A::rules rule_\\u00e9"'
         suffix = b']}}\n'
-        size = 512 - len(stem + encoded + b',""' + suffix)
-        names = [first, 'x' * size]
-        exact = stem + encoded + b',"' + b'x' * size + b'"' + suffix
-        self.assertEqual(len(exact), 512)
-        self.assertEqual(PRE.refusal_bytes(head, tree, base, counts, names), exact)
+        for bound in (512, 8192):
+            with self.subTest(bound=bound):
+                size = bound - len(stem + encoded + b',""' + suffix)
+                names = [first, 'x' * size]
+                exact = stem + encoded + b',"' + b'x' * size + b'"' + suffix
+                self.assertEqual(len(exact), bound)
+                self.assertEqual(PRE.refusal_bytes(head, tree, base, counts, names, bound), exact)
         errors = [PRE.failure(first, 'test failed'), PRE.failure('format', 'diff'),
-                  PRE.failure('flakes are omitted', 'flake', ('A::rules', 'flake')),
-                  PRE.failure('inherited are omitted', 'known'), PRE.broken('helper', 'also broke')]
-        errors[2]['flake'] = (1, 0.0)
-        errors[3]['inherited'] = True
+                  PRE.failure('inherited failures are omitted', 'known'), PRE.broken('helper', 'also broke')]
+        errors[2]['inherited'] = True
         errors += [PRE.failure('ñ' * 100, 'too many bytes')] + [PRE.failure(f'test later {i}', 'failed') for i in range(6)]
         env = {'TEMPER_CLOSE_REFUSAL': '3', 'TEMPER_JOB': str(self.root)}
         with redirect_stderr(io.StringIO()) as err:
@@ -785,7 +781,7 @@ class Delivery(unittest.TestCase):
                 ]}))
                 log = PRE.tail('other output\n' * 500 + 'error: test run failed\n')
                 self.assertNotIn(case, log)
-                errors = PRE.close_test_errors(self.root, 'focused tests', 100, log, '')
+                errors = PRE.close_test_errors(self.root, 'focused tests', 100, log)
                 with redirect_stderr(io.StringIO()):
                     self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'close', ['main'], ['head']), 1)
                 expected = f'{case} {site}: jig-store-core: 9 != 8\n'.encode()
@@ -797,49 +793,19 @@ class Delivery(unittest.TestCase):
             dict(binary_id='api::suite', test_name='tests::second', outcome='failed',
                  output="thread 'tests::second' panicked at second.rs:8:1:\nother panic"),
         ]}))
-        first, _ = PRE.close_test_errors(self.root, 'focused tests', 100, '', '')
+        first, _ = PRE.close_test_errors(self.root, 'focused tests', 100, '')
         self.assertEqual(first['diagnostic'], 'failed test tests::first\n')
 
     def test_large_receipt_preserves_every_key_and_bounds_summary(self):
         errors = [PRE.failure(f'test api::suite case_{i}', 'x' * 9000, ('api::suite', f'case_{i}'))
                   for i in range(450)]
-        PRE.inherited({('test', 'api::suite', 'case_0')}, errors)
-        errors[1]['flake'] = (1, 0.1)
-        self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'goal', ['head', 'dest'], ['head']), 1)
-        receipt = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
-        self.assertEqual(receipt['counts'], {'new': 448, 'flake': 1, 'inherited': 1, 'broke': 0})
+        errors[0]['inherited'] = True
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'close', ['dest'], ['head']), 1)
+        receipt = self.receipt()
+        self.assertEqual(receipt['counts'], {'new': 449, 'flake': 0, 'inherited': 1, 'broke': 0})
         self.assertEqual({entry['key']['test'] for entry in receipt['failures']}, {f'case_{i}' for i in range(450)})
         self.assertLessEqual(len(self.log.getvalue().encode()), 8192)
-
-    def test_diagnostic_cpu_measurements_do_not_enable_budget_refusals(self):
-        for profile in ('default', 'fuzzy'):
-            with mock.patch.object(PRE, 'run', return_value=(2, 'one-process: nextest listing exited with 101')) as run:
-                result, errors, _ = PRE.one_process(['api'], self.root, {}, profile=profile)
-            self.assertEqual(result, 2)
-            self.assertTrue(errors[0]['name'].startswith('build'))
-            cmd = run.call_args.args[0]
-            self.assertNotIn('--ledger', cmd)
-            self.assertNotIn('--gate', cmd)
-
-    def test_diagnostic_preserves_the_failing_case(self):
-        def failing(command, cwd, env, stdout=False):
-            directory = Path(command[command.index('--out') + 1])
-            directory.mkdir()
-            (directory / 'run.json').write_text('{"starved": false}')
-            (directory / 'results.json').write_text(json.dumps({'tests': [
-                {'binary_id': 'api::suite', 'test_name': 'example', 'outcome': 'failed'}], 'unobserved': []}))
-            (directory / 'junit.xml').write_text('<testsuites><testsuite name="api::suite"><testcase name="example">'
-                                                 '<failure>broken</failure></testcase></testsuite></testsuites>')
-            return 100, 'failed'
-        with mock.patch.object(PRE, 'run', side_effect=failing):
-            _, errors, _ = PRE.one_process(['api'], self.root, {})
-        self.assertEqual(errors[0]['key'], ('api::suite', 'example'))
-
-    def test_child_destination_is_only_a_request_label(self):
-        PRE.finish('tree', None, [], self.root, {}, 'child', ['dest'], ['head'])
-        record = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())
-        self.assertEqual((record['scope'], record['delivery_head'], record['requested_destination'],
-                          record['destination']), ('child', 'head', 'dest', None))
 
 
 class Changes(unittest.TestCase):
@@ -852,7 +818,6 @@ class Changes(unittest.TestCase):
                     'GIT_AUTHOR_NAME': 'Fixture', 'GIT_AUTHOR_EMAIL': 'fixture@example.test',
                     'GIT_COMMITTER_NAME': 'Fixture', 'GIT_COMMITTER_EMAIL': 'fixture@example.test'}
         self.enterContext(mock.patch.object(subprocess, 'Popen', side_effect=self.git_only))
-        self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
         self.git('init', '-q')
         for name in ('kept.rs', 'edited.rs', 'unstaged.md', 'gone.md'):
             (self.root / name).write_text(name + '\n')
@@ -883,7 +848,7 @@ class Changes(unittest.TestCase):
     def test_delivery_checks_only_what_changed_since_the_pin(self):
         self.git('update-ref', 'refs/temper/landing', self.main)
         self.change()
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery'),
+        self.assertEqual(PRE.change_base(self.root, self.env),
                          (self.main, 'merge base of refs/temper/landing and HEAD'))
         self.assertEqual(PRE.changed_paths(self.root, self.env, self.main),
                          ['edited.rs', 'gone.md', 'new.md', 'staged.rs', 'unstaged.md'])
@@ -903,33 +868,9 @@ class Changes(unittest.TestCase):
     def check_journeys(self, args):
         with mock.patch.object(Path, 'cwd', return_value=self.root), mock.patch.dict(os.environ, self.env), \
              mock.patch.object(PRE, 'workspace_checks', return_value=[]) as checks, \
-             mock.patch.object(PRE, 'goal_checks', return_value=([], [], [])), redirect_stdout(io.StringIO()) as output:
+             redirect_stdout(io.StringIO()) as output:
             status = PRE.main(args)
         return status, output.getvalue(), checks.call_args.args[1]
-
-    def test_no_base_refuses_unstaged_page_with_untracked_notes(self):
-        page = self.commit_journeys()
-        page.write_text('edited page\n')
-        (self.root / 'notes.txt').write_text('notes\n')
-        status, output, _ = self.check_journeys(['--goal'])
-        self.assertEqual(status, 1)
-        self.assertIn(str(page.relative_to(self.root)), output)
-        self.assertIn('other path: notes.txt', output)
-        self.assertIn('git checkout HEAD -- PATH...', output)
-
-    def test_no_base_passes_a_staged_page_alone(self):
-        page = self.commit_journeys()
-        page.write_text('edited page\n')
-        self.git('add', str(page.relative_to(self.root)))
-        status, output, _ = self.check_journeys(['--goal'])
-        self.assertEqual(status, 0)
-        self.assertIn('pre-pr: journeys: passed,', output)
-
-    def test_no_base_passes_a_clean_tree(self):
-        self.commit_journeys()
-        status, output, _ = self.check_journeys(['--goal'])
-        self.assertEqual(status, 0)
-        self.assertIn('pre-pr: journeys: passed,', output)
 
     def merge_journey_edit(self, *, pending):
         page = self.commit_journeys(recording=True)
@@ -978,8 +919,8 @@ class Changes(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn(f'written files:\n{name}\nother path: skein/a.rs', output)
 
-    def publish(self, commits, **extra):
-        data = json.dumps(dict(version=1, commits=commits, profiles={}, **extra))
+    def publish(self, commits, *, version=1, **extra):
+        data = json.dumps(dict(version=version, commits=commits, profiles={}, **extra))
         blob = subprocess.run(['git', 'hash-object', '-w', '--stdin'], cwd=self.root, env=self.env, input=data,
                               capture_output=True, text=True, check=True).stdout.strip()
         tree = subprocess.run(['git', 'mktree'], cwd=self.root, env=self.env, input=f'100644 blob {blob}\tcounts.json\n',
@@ -996,84 +937,221 @@ class Changes(unittest.TestCase):
         self.assertEqual(PRE.scope_base(self.root, self.env, 'close', True, published),
                          (self.main, "main's newest published commit in HEAD", None))
 
-    def close_checkout(self):
-        self.git('update-ref', 'refs/remotes/origin/main', self.main)
+    def merge_goal(self, goal):
+        side = self.git('commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'goal change')
+        self.git('merge', '-q', '--no-ff', '-m', 'Land goal', '-m', f'Goal: {goal}', side)
+        return self.git('rev-parse', 'HEAD')
+
+    def close_job(self):
+        job = self.root.parent / 'job'
+        job.mkdir()
+        (job / 'request.json').write_text('{"version":1,"goal":9,"changes":[]}')
+        return job
+
+    def close_checkout(self, *, origin_main=True):
+        if origin_main:
+            self.git('update-ref', 'refs/remotes/origin/main', self.main)
         (self.root / 'unstaged.md').write_text('goal edit\n')
         self.git('commit', '-qam', 'goal edit')
         (self.root / 'unstaged.md').write_text('settlement edit\n')
         self.git('add', 'unstaged.md')
         return self.git('rev-parse', 'HEAD'), self.git('write-tree')
 
-    def assert_close_breaks_before_checks(self, why):
-        job = self.root.parent / 'job'
-        job.mkdir()
-        result = job / 'result.json'
-        settlement = b'{"settled":["unstaged.md"]}\n'
-        result.write_bytes(settlement)
-        env = {**self.env, 'TEMPER_JOB': str(job)}
-        env.pop('TEMPER_CLOSE_REFUSAL', None)
-        for opt_in, status in (({}, 1), ({'TEMPER_CLOSE_REFUSAL': '3'}, 2)):
-            with self.subTest(opt_in=opt_in), mock.patch.object(Path, 'cwd', return_value=self.root), \
-                 mock.patch.dict(os.environ, {**env, **opt_in}, clear=True), \
-                 mock.patch.object(PRE, 'workspace_checks') as checks, mock.patch.object(PRE, 'run') as run, \
-                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
-                self.assertEqual(PRE.main(['--close']), status)
-                checks.assert_not_called()
-                run.assert_not_called()
-                self.assertTrue(err.getvalue().startswith('smith-check: not judged\npre-pr: broke: '), err.getvalue())
-                self.assertIn(why, err.getvalue())
-                self.assertEqual(result.read_bytes(), settlement)
-                receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
-                self.assertEqual(receipt['verdict'], 'broke')
-                self.assertEqual(receipt['counts']['new'], 0)
-                self.assertEqual(receipt['counts']['broke'], 1)
-                entry, = receipt['failures']
-                self.assertEqual(entry['class'], 'broke')
-                self.assertIn(why, entry['detail'])
+    SETTLEMENT = b'{"settled":["unstaged.md"]}\n'
 
-    def test_close_breaks_when_public_counts_fetch_fails_even_with_origin_main(self):
-        self.close_checkout()
-        run = subprocess.run
+    def close_without_checks(self, **variables):
+        with mock.patch.object(Path, 'cwd', return_value=self.root), \
+             mock.patch.dict(os.environ, {**self.env, **variables}, clear=True), \
+             mock.patch.object(PRE, 'workspace_checks') as checks, mock.patch.object(PRE, 'run') as run, \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
+            status = PRE.main(['--close'])
+            checks.assert_not_called()
+            run.assert_not_called()
+        receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
+        return status, err.getvalue(), receipt
 
-        def fail_fetch(args, **kwargs):
-            if args[:2] == ['git', 'fetch']:
-                raise subprocess.CalledProcessError(128, args)
-            return run(args, **kwargs)
+    def assert_broken_close_receipt(self, receipt, why):
+        self.assertEqual(receipt['form'], 'goal-close-pre-pr 1')
+        self.assertEqual(receipt['verdict'], 'broke')
+        self.assertEqual(receipt['counts'], {'new': 0, 'flake': 0, 'inherited': 0, 'broke': 1})
+        entry, = receipt['failures']
+        self.assertEqual(entry['class'], 'broke')
+        self.assertIn(why, entry['detail'])
 
-        with mock.patch.object(PRE, 'PUBLIC_SOURCE', 'fixture'), \
-             mock.patch.object(subprocess, 'run', side_effect=fail_fetch) as commands:
-            self.assert_close_breaks_before_checks('public fetch failed')
-        fetches = [call for call in commands.call_args_list if call.args[0][:2] == ['git', 'fetch']]
-        self.assertEqual(len(fetches), 2)  # One for each close attempt, including the retry.
+    def assert_close_breaks_before_checks(self, why, *, outdated=(None,)):
+        result = self.close_job() / 'result.json'
+        result.write_bytes(self.SETTLEMENT)
+        for value in outdated:
+            for opt_in, status in (({}, 1), ({'TEMPER_CLOSE_REFUSAL': '3'}, 2)):
+                with self.subTest(outdated=value, opt_in=opt_in):
+                    env = {**opt_in, 'TEMPER_JOB': str(result.parent)}
+                    if value is not None:
+                        env['TEMPER_CLOSE_OUTDATED'] = value
+                    actual, err, receipt = self.close_without_checks(**env)
+                    self.assertEqual(actual, status)
+                    self.assertTrue(err.startswith('smith-check: not judged\npre-pr: broke: '), err)
+                    self.assertIn(why, err)
+                    self.assertEqual(result.read_bytes(), self.SETTLEMENT)
+                    self.assert_broken_close_receipt(receipt, why)
+
+    def assert_local_command(self, args):
+        if args[0] == 'git':
+            self.assertNotIn(args[1], ('fetch', 'clone', 'ls-remote'), args)
+            self.assertFalse(args[1] == 'init' and '--bare' in args, args)
+        self.assertFalse(any('://' in arg for arg in args), args)
+
+    @contextlib.contextmanager
+    def record_local_commands(self):
+        def local_git(args, **kwargs):
+            self.assert_local_command(args)
+            return self.git_only(args, **kwargs)
+
+        with mock.patch.object(subprocess, 'run', wraps=subprocess.run) as commands, \
+             mock.patch.object(subprocess, 'Popen', side_effect=local_git) as processes:
+            yield
+        for recorder in (commands, processes):
+            self.assertTrue(recorder.call_args_list)
+            for call in recorder.call_args_list:
+                self.assert_local_command(call.args[0])
+
+    def test_close_without_counts_checks_from_mains_goal_landing_and_fetches_nothing(self):
+        self.merge_goal(6)
+        landing = self.merge_goal(7)
+        self.merge_goal(9)
+        head, tree = self.close_checkout(origin_main=False)
+        job = self.close_job()
+        env = {**self.env, 'TEMPER_JOB': str(job), 'TEMPER_CLOSE_REFUSAL': '3'}
+        warning = ("pre-pr: WARNING: budgets not judged at close: main's counts (refs/temper/counts) "
+                   'are not in this checkout; the landing gate judges them')
+
+        def refuse(root, paths, tree_id, env, errors, outcomes, **options):
+            self.assertEqual((root, paths, tree_id, options['base_id'], options['published']),
+                             (self.root, ['unstaged.md'], tree, landing, None))
+            self.assertIn(warning, out.getvalue().splitlines())
+            errors.append(PRE.failure('test A::rules rule_00', 'failure', ('A::rules', 'rule_00')))
+            return ['A']
+
+        for bad_version in (False, True):
+            with self.subTest(bad_version=bad_version):
+                if bad_version:
+                    self.publish([head], version=2)
+                with mock.patch.object(Path, 'cwd', return_value=self.root), \
+                     mock.patch.dict(os.environ, env, clear=True), \
+                     mock.patch.object(PRE, 'workspace_checks', side_effect=refuse) as checks, \
+                     self.record_local_commands(), redirect_stdout(io.StringIO()) as out, \
+                     redirect_stderr(io.StringIO()) as err:
+                    self.assertEqual(PRE.main(['--close']), 3, err.getvalue())
+                    checks.assert_called_once()
+                lines = out.getvalue().splitlines()
+                self.assertIn(f"pre-pr: base {landing}, main's newest goal landing in HEAD: 1 changed paths", lines)
+                self.assertEqual(lines.count(warning), 1)
+                refusal = json.loads((job / 'result.json').read_bytes())['refused']
+                self.assertEqual((refusal['head'], refusal['base'], refusal['counts']), (head, landing, None))
+
+    def test_close_without_counts_breaks_when_head_holds_only_its_own_goal_merge(self):
+        self.merge_goal(9)
+        self.close_checkout(origin_main=False)
+        self.assert_close_breaks_before_checks("no base: main's counts are not in this checkout, "
+                                              "and HEAD holds no other goal's landing into main")
 
     def test_close_breaks_when_published_counts_are_marked_unavailable(self):
         self.close_checkout()
-        self.publish([self.main], unavailable='the ledger has not been published yet')
-        self.assert_close_breaks_before_checks('the ledger has not been published yet')
+        self.publish([self.main], unavailable='the ledger has not been published yet', outdated='window')
+        self.assert_close_breaks_before_checks('the ledger has not been published yet', outdated=(None, '3'))
 
-    def test_close_breaks_when_head_is_outside_the_published_window(self):
+    def test_invalid_window_does_not_write_an_outdated_finding(self):
         self.close_checkout()
+        self.publish(['not a commit'])
+        self.assert_close_breaks_before_checks('invalid published commit window', outdated=('3',))
+
+    def test_missing_source_commit_does_not_write_an_outdated_finding(self):
+        self.close_checkout()
+        self.publish([self.main])
+        self.git('symbolic-ref', 'HEAD', 'refs/heads/unborn')
+        self.assert_close_breaks_before_checks('source checkout has no commit', outdated=('3',))
+
+    def close_outside_published_window(self):
+        head, tree = self.close_checkout()
         later = self.git('commit-tree', 'HEAD^{tree}', '-p', self.main, '-m', 'main moved on')
         self.git('update-ref', 'refs/remotes/origin/main', later)
         self.publish([later])
-        self.assert_close_breaks_before_checks('update from main and close again')
+        return head, tree
+
+    def shallow_close(self):
+        head, tree = self.close_checkout()
+        (self.root / '.git/shallow').write_text(head + '\n')
+        self.publish([self.main])
+        return head, tree
+
+    def test_close_breaks_when_head_is_outside_the_published_window(self):
+        self.close_outside_published_window()
+        self.assert_close_breaks_before_checks('update from main and close again', outdated=(None, '', '1'))
+
+    def test_shallow_close_breaks_without_the_exact_outdated_opt_in(self):
+        self.shallow_close()
+        self.assert_close_breaks_before_checks('source ancestry is incomplete', outdated=(None, '', '1'))
+
+    def assert_outdated_close(self, head, tree, why, detail):
+        result = self.close_job() / 'result.json'
+        expected = f'{{"outdated":{{"head":"{head}","why":"{why}"}}}}\n'.encode('ascii')
+        for refusal in ({}, {'TEMPER_CLOSE_REFUSAL': '3'}):
+            with self.subTest(refusal=refusal):
+                result.write_bytes(self.SETTLEMENT)
+                status, err, receipt = self.close_without_checks(TEMPER_JOB=str(result.parent),
+                                                                 TEMPER_CLOSE_OUTDATED='3', **refusal)
+                self.assertEqual(status, 3)
+                self.assertEqual(err, f'smith-check: not judged\npre-pr: broke: {detail}\n')
+                self.assertEqual(result.read_bytes(), expected)
+                self.assert_broken_close_receipt(receipt, detail)
+                self.assertEqual((receipt['goal_head'], receipt['tree'], receipt['base']), (head, tree, None))
+
+    def test_outdated_close_names_head_outside_the_published_window(self):
+        head, tree = self.close_outside_published_window()
+        self.assert_outdated_close(head, tree, 'window', "no base: the goal is older than main's last twenty "
+                                   'landings; update from main and close again')
+
+    def test_outdated_close_names_head_with_incomplete_ancestry(self):
+        head, tree = self.shallow_close()
+        self.assert_outdated_close(head, tree, 'ancestry', "no base: main's published counts unavailable: "
+                                   'source ancestry is incomplete; update from main and close again')
+
+    def test_unwritable_outdated_finding_preserves_settlement(self):
+        self.close_outside_published_window()
+        result = self.close_job() / 'result.json'
+        result.write_bytes(self.SETTLEMENT)
+        with deny_result_replace(result):
+            status, err, _ = self.close_without_checks(TEMPER_JOB=str(result.parent), TEMPER_CLOSE_OUTDATED='3')
+        self.assertEqual(status, 2)
+        self.assertTrue(err.endswith(
+            'pre-pr: broke: cannot write close outdated finding: result directory is not writable\n'), err)
+        self.assertEqual(result.read_bytes(), self.SETTLEMENT)
+        self.assertEqual(set(result.parent.iterdir()), {result, result.parent / 'request.json'})
+
+    def test_outdated_finding_without_job_exits_two(self):
+        self.close_outside_published_window()
+        status, err, _ = self.close_without_checks(TEMPER_CLOSE_OUTDATED='3')
+        self.assertEqual(status, 2)
+        self.assertTrue(err.endswith('pre-pr: broke: cannot write close outdated finding: TEMPER_JOB is missing\n'), err)
 
     def test_typed_close_binds_the_refusal_to_the_checked_tree_and_local_counts(self):
+        self.main = self.merge_goal(7)
         head, tree = self.close_checkout()
         self.assertNotEqual(tree, self.git('rev-parse', 'HEAD^{tree}'))
-        job = self.root.parent / 'job'
-        job.mkdir()
+        job = self.close_job()
         result = job / 'result.json'
         check_file = self.root / 'target/temper/goal-close-pre-pr.json'
         replace = PRE.replace_file
         output = io.StringIO()
 
         def refuse(root, paths, tree_id, env, errors, outcomes, **options):
-            self.assertEqual((root, paths, tree_id, options['base_id'], options['published']['base']),
-                             (self.root, ['unstaged.md'], tree, self.main, self.main))
+            self.assertEqual((root, paths, tree_id, options['base_id']),
+                             (self.root, ['unstaged.md'], tree, self.main))
             if publish:
+                self.assertEqual(options['published']['base'], self.main)
                 # The refusal names the counts read, not the ref's tip after the check.
                 self.git('update-ref', 'refs/temper/counts', head)
+            else:
+                self.assertIsNone(options['published'])
             errors.append(PRE.failure('test A::rules rule_00', 'failure', ('A::rules', 'rule_00')))
             return ['A']
 
@@ -1094,13 +1172,10 @@ class Changes(unittest.TestCase):
                 output.truncate()
                 with mock.patch.object(Path, 'cwd', return_value=self.root), \
                      mock.patch.dict(os.environ, {**self.env, 'TEMPER_CLOSE_REFUSAL': '3', 'TEMPER_JOB': str(job)}), \
-                     mock.patch.object(PRE, 'PUBLIC_SOURCE', 'fixture'), \
-                     mock.patch.object(PRE, 'fetched_counts', return_value=dict(commits=[self.main], profiles={})) as fetch, \
-                     mock.patch.object(PRE, 'workspace_checks', side_effect=refuse), \
+                     self.record_local_commands(), mock.patch.object(PRE, 'workspace_checks', side_effect=refuse), \
                      mock.patch.object(PRE, 'replace_file', side_effect=after_report), \
                      redirect_stdout(output), redirect_stderr(io.StringIO()):
                     self.assertEqual(PRE.main(['--close']), 3)
-                self.assertEqual(fetch.call_count, int(not publish))
                 receipt = json.loads(check_file.read_bytes())
                 self.assertEqual((receipt['goal_head'], receipt['tree'], receipt['base']), (head, tree, self.main))
                 expected = (f'{{"refused":{{"head":"{head}","tree":"{tree}","base":"{self.main}",'
@@ -1165,7 +1240,7 @@ class Changes(unittest.TestCase):
         (self.root / 'edited.rs').write_text('saved\n')
         self.git('commit', '-qam', PRE.UNCHECKED_SAVE)
         self.git('update-ref', 'refs/temper/landing', 'HEAD')
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], self.main)
+        self.assertEqual(PRE.change_base(self.root, self.env)[0], self.main)
         self.git('checkout', '-q', '-b', 'side', self.main)
         (self.root / 'side.rs').write_text('side\n')
         self.git('add', 'side.rs')
@@ -1173,17 +1248,16 @@ class Changes(unittest.TestCase):
         side = self.git('rev-parse', 'HEAD')
         self.git('checkout', '-q', '-')
         self.git('update-ref', 'refs/temper/landing', side)
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], self.main)
+        self.assertEqual(PRE.change_base(self.root, self.env)[0], self.main)
         # Merging the moved landing branch in: its own changes aren't the delivery's.
         (self.root / '.git/MERGE_HEAD').write_text(side + '\n')
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], side)
+        self.assertEqual(PRE.change_base(self.root, self.env)[0], side)
 
     def test_without_a_usable_base_the_check_breaks_loudly(self):
-        for scope in ('delivery', 'child'):
-            base, name, why = PRE.scope_base(self.root, self.env, scope, True)
-            self.assertEqual((base, name), (None, None))
-            self.assertIn('sharing history with HEAD', why)
-            self.assertIn('no base', PRE.scope_base(self.root, self.env, scope, False)[2])
+        base, name, why = PRE.scope_base(self.root, self.env, 'delivery', True)
+        self.assertEqual((base, name), (None, None))
+        self.assertIn('sharing history with HEAD', why)
+        self.assertIn('no base', PRE.scope_base(self.root, self.env, 'delivery', False)[2])
         self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
         self.assertEqual(PRE.scope_base(self.root, self.env, 'delivery', True)[:2],
                          (self.main, 'merge base of refs/remotes/origin/main and HEAD'))
@@ -1243,8 +1317,7 @@ class Changes(unittest.TestCase):
         self.assertTrue(PRE.seed(self.root, work, self.env, work / '.git/index'))
 
     def test_without_a_base_reference_there_is_no_base(self):
-        for scope in ('delivery', 'child', 'goal'):
-            self.assertEqual(PRE.change_base(self.root, self.env, scope), (None, None))
+        self.assertEqual(PRE.change_base(self.root, self.env), (None, None))
 
     def test_the_seeded_snapshot_is_the_fresh_one(self):
         self.change()
@@ -1290,8 +1363,6 @@ class CloseBudgets(unittest.TestCase):
             'future::suite': self.binary(110 * self.G, 80, commit=self.main),
         }}
         self.profile['binaries'][self.BINARY]['counts'][self.main] = 50 * self.G
-        self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', self.root / 'no-worker-counts.json'))
-        self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
         # The allowance's own rules; the close's margin has a test of its own.
         self.enterContext(mock.patch.object(PRE, 'CLOSE_MARGIN', 0))
         self.budget_table()
@@ -1334,9 +1405,8 @@ class CloseBudgets(unittest.TestCase):
     def verdict(self, *runs):
         return PRE.close_budgets(self.root, self.repository, self.env, runs)
 
-    def test_no_counts_breaks_budget_evaluation(self):
-        error, = self.verdict(self.result(self.process(50 * self.G)))
-        self.assertIn('cannot read refs/temper/counts', error['broke'])
+    def test_no_counts_give_no_budget_verdict(self):
+        self.assertEqual(self.verdict(self.result(self.process(50 * self.G))), [])
         self.assertEqual(self.log.getvalue(), '')
 
     def test_a_budget_refusal_names_its_figures_in_the_hold_and_the_receipt(self):
@@ -1383,33 +1453,13 @@ class CloseBudgets(unittest.TestCase):
         error, = self.verdict(self.result(self.process(31 * self.G)))
         self.assertIn('instruction growth over allowance', error['log'])
 
-    def test_counts_missing_here_are_fetched_from_main(self):
+    def test_selected_absence_of_counts_is_not_read_again(self):
+        data, _ = PRE.close_counts(self.repository, self.env)
+        self.assertIsNone(data)
         self.publish()
-        public = self.root.parent / 'public.git'
-        self.git('init', '-q', '--bare', str(public))
-        self.git('push', '-q', str(public), 'refs/temper/counts:refs/temper/counts')
-        self.git('update-ref', '-d', 'refs/temper/counts')
-        self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', 'file://' + str(public)))
-        self.enterContext(mock.patch.object(PRE, 'PUBLIC_PROTOCOLS', 'file'))
-        self.enterContext(mock.patch.object(subprocess, 'Popen', side_effect=POPEN))
-        data, source = PRE.close_counts(self.repository, self.env)
-        self.assertEqual(data['base'], self.base)
-        self.assertIsNone(source)
-        self.assertIsNone(module(HERE.parent / 'tiers/counts.py').read(self.repository, self.env))
-        with mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('counts were selected again')):
-            runs = [self.result(self.process(30 * self.G))]
-            error, = PRE.close_budgets(self.root, self.repository, self.env, runs, published=data)
-        self.assertIn('instruction growth over allowance', error['log'])
-
-    def test_selected_baseline_can_be_used_without_git(self):
-        self.publish()
-        packet, _ = PRE.close_counts(self.repository, self.env)
-        path = self.root / 'worker-counts.json'
-        path.write_text(json.dumps(packet))
-        self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', path))
-        with mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('sandbox accessed Git history')):
-            error, = self.verdict(self.result(self.process(30 * self.G)))
-            self.assertIn('instruction growth over allowance', error['log'])
+        runs = [self.result(self.process(30 * self.G))]
+        self.assertEqual(PRE.close_budgets(self.root, self.repository, self.env, runs, published=data), [])
+        self.assertEqual(self.log.getvalue(), '')
 
     def test_tree_without_head_has_no_budget_baseline(self):
         self.publish()
@@ -1500,36 +1550,240 @@ class CloseBudgets(unittest.TestCase):
                 error, = self.verdict(run)
                 self.assertIn('growth 3.00%, allowance 2000000000 instructions', error['log'])
 
-    def close(self, fake_run, *, completed_goal=True):
-        source = self.root / 'skein/leaf/tests/suite.rs'
-        package = dict(name='leaf', id='leaf', manifest_path=str(source.parents[1] / 'Cargo.toml'),
-                       dependencies=[], targets=[dict(name='suite', kind=['test'], test=True, src_path=str(source))])
+    @staticmethod
+    def selected_packages(command):
+        return [command[i + 1] for i, arg in enumerate(command) if arg == '-p']
+
+    def run_close(self, fake_run, *, dependencies=None, selected=('leaf',), quiet=(), formatted=(), completed_goal=True):
+        dependencies = {'leaf': ()} if dependencies is None else dependencies
+        packages, paths = [], []
+        for name, deps in dependencies.items():
+            directory = self.root / 'skein' / name
+            source = directory / 'tests/suite.rs'
+            targets = [] if name in quiet else [dict(name='suite', kind=['test'], test=True, src_path=str(source))]
+            packages.append(dict(name=name, id=name, manifest_path=str(directory / 'Cargo.toml'), targets=targets,
+                                 dependencies=[{'path': str(directory.parent / dep)} for dep in deps]))
+            if name in selected:
+                path = directory / 'src/lib.rs' if name in quiet else source
+                paths.append(str(path.relative_to(self.root)))
         target = self.repository / 'target'
-        metadata = dict(packages=[package], workspace_members=['leaf'], target_directory=str(target))
+        metadata = dict(packages=packages, workspace_members=list(dependencies), target_directory=str(target))
         errors = []
         with mock.patch.object(PRE, 'run', side_effect=fake_run) as run, \
-             mock.patch.object(PRE, 'format_workspace', return_value=[]), \
+             mock.patch.object(PRE, 'format_changes', return_value=list(formatted)), \
              mock.patch.object(PRE, 'baselines', return_value=(0, [])), \
              mock.patch.object(PRE, 'metadata', return_value=metadata), \
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])):
-            PRE.workspace_checks(self.root, [str(source.relative_to(self.root))], 'tree', self.env, errors, {},
+            PRE.workspace_checks(self.root, paths, 'tree', self.env, errors, {},
                                  completed_goal=completed_goal, counts_source=(self.repository, self.env))
+        commands = [call.args[0] for call in run.call_args_list]
+        return errors, commands
+
+    def close(self, fake_run, *, completed_goal=True):
+        errors, commands = self.run_close(fake_run, completed_goal=completed_goal)
         if completed_goal:
-            # The focused run, then the fuzzy one unless the focused run failed.
-            commands = [call.args[0] for call in run.call_args_list]
-            self.assertIn(len(commands), (1, 2))
-            for step, (command, profile) in enumerate(zip(commands, ('default', 'fuzzy'))):
+            self.assertEqual(len(commands), 2)
+            for command, profile in zip(commands, ('default', 'fuzzy')):
                 self.assertEqual(command[:2], [str(PRE.TIERS / 'one-process'), '--out'])
-                self.assertEqual(Path(command[2]).name, str(step))
-                self.assertEqual(Path(command[2]).parent.parent, target)
+                self.assertEqual(Path(command[2]).parent.parent, self.repository / 'target')
                 self.assertFalse(Path(command[2]).parent.exists())
-                self.assertEqual(command[3:], ['--fail-fast', profile, '--offline', '--locked', '--no-tests=warn',
+                self.assertEqual(command[3:], [profile, '--offline', '--locked', '--no-tests=warn',
                                                '-p', 'leaf', '-E',
                                                'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))'])
         else:
-            run.assert_not_called()
+            self.assertEqual(commands, [])
         return errors
+
+    def failed_profiles(self, focused, fuzzy, *, result_bound=None, expected_bound=512):
+        def fake(command, *_args, **_kwargs):
+            cases = focused if 'default' in command else fuzzy
+            tests = [dict(binary_id=binary, test_name=name, outcome='failed') for binary, name in cases]
+            self.result(tests=tests, directory=Path(command[2]))
+            return 100, 'test failure\n'
+
+        packages = tuple(dict.fromkeys(binary.split('::')[0] for binary, _ in focused + fuzzy))
+        with mock.patch.object(PRE, 'close_budgets') as budgets:
+            errors, commands = self.run_close(fake, dependencies=dict.fromkeys(packages, ()), selected=packages)
+        self.assertEqual([[arg for arg in command if arg in ('default', 'fuzzy')] for command in commands],
+                         [['default'], ['fuzzy']])
+        for command in commands:
+            self.assertNotIn('--fail-fast', command)
+            self.assertEqual(self.selected_packages(command), list(packages))
+        budgets.assert_not_called()
+        wanted = [f'test {binary} {name}' for binary, name in focused + fuzzy]
+        self.assertEqual([error['name'] for error in errors], wanted)
+        env = {'TEMPER_CLOSE_REFUSAL': '3', 'TEMPER_JOB': str(self.root)}
+        if result_bound is not None:
+            env['TEMPER_CLOSE_RESULT_BYTES'] = result_bound
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(PRE.finish('b' * 40, 'c' * 40, errors, self.root, env, 'close', (), ['a' * 40]), 3)
+        record = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
+        self.assertEqual(record['failures'], [{'name': label, 'class': 'new',
+                                              'key': {'kind': 'test', 'binary': binary, 'test': name}}
+                                             for label, (binary, name) in zip(wanted, focused + fuzzy)])
+        refusal = (self.root / 'result.json').read_bytes()
+        self.assertLessEqual(len(refusal), expected_bound)
+        if expected_bound > 512:
+            self.assertGreater(len(refusal), 512)
+        return wanted, json.loads(refusal)['refused']
+
+    def test_close_fits_nine_failing_tests_to_the_negotiated_bound(self):
+        packages = ('temper-engine-domain-world', 'temper-worker-domain-world')
+        cases = [(f'{packages[i % 2]}::suite', f'forge_routes::goal_closes::rule_{i:02d}') for i in range(9)]
+        for limit in ('8192', None, 'abc', '100', '1_000', ' 8192'):
+            with self.subTest(limit=limit):
+                large = limit == '8192'
+                wanted, refusal = self.failed_profiles(cases[:5], cases[5:], result_bound=limit,
+                                                       expected_bound=8192 if large else 512)
+                if large:
+                    self.assertEqual(refusal['failures'], wanted)
+                    self.assertNotIn('more', refusal)
+                else:
+                    self.assertEqual(refusal['failures'], wanted[:4])
+                    self.assertEqual(refusal['more'], 5)
+
+    def test_close_refuses_with_both_packages_and_the_fuzzy_failure(self):
+        wanted, refusal = self.failed_profiles([('leaf::suite', 'a'), ('other::suite', 'b')], [('leaf::suite', 'fuzzy::c')])
+        self.assertEqual(refusal['failures'], wanted)
+        self.assertNotIn('more', refusal)
+
+    def test_close_keeps_all_failures_in_the_record_past_the_refusal_bound(self):
+        focused = [(f'{package}::suite', f'case_{i:02d}') for i in range(15) for package in ('leaf', 'other')]
+        wanted, refusal = self.failed_profiles(focused, [('leaf::suite', 'fuzzy::c')])
+        self.assertEqual(refusal['failures'], wanted[:11])
+        self.assertEqual(refusal['more'], len(wanted) - 11)
+
+    def test_close_record_keeps_a_broken_focused_run_before_a_fuzzy_failure(self):
+        def fake(command, *_args, **_kwargs):
+            if 'default' in command:
+                return 1, 'unexpected exit\n'
+            self.result(tests=[dict(binary_id=self.BINARY, test_name='fuzzy::c', outcome='failed')],
+                        directory=Path(command[2]))
+            return 100, ''
+
+        errors = self.close(fake)
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(PRE.finish('tree', None, errors, self.root, {}, 'close', (), ['head']), 1)
+        record = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
+        self.assertEqual(record['verdict'], 'refused')
+        self.assertEqual([(entry['class'], entry['name']) for entry in record['failures']],
+                         [('broke', 'check focused tests'), ('new', 'test leaf::suite fuzzy::c')])
+
+    def listing_failure(self, packages, output, *, code='E0308', long=False):
+        text = f'error[{code}]: fixture compiler error\n  --> {packages[0]}.rs:8:2\n'
+        text += ''.join(f'error: could not compile `{name}` (lib) due to 1 previous error\n' for name in packages)
+        if long:
+            text += 'other build output\n' * 100
+        text += 'one-process: nextest listing exited with 101\n'
+        log = PRE.Tail()
+        with redirect_stdout(io.TextIOWrapper(io.BytesIO())):
+            for line in text.splitlines(keepends=True):
+                output(line.encode(), log)
+        return 2, log.text()
+
+    def test_close_retries_a_build_without_the_failed_package_and_its_consumer(self):
+        def fake(command, *_args, output, **_kwargs):
+            if 'leaf' in self.selected_packages(command):
+                return self.listing_failure(('leaf',), output)
+            self.result(directory=Path(command[2]))
+            return 0, ''
+
+        errors, commands = self.run_close(fake, dependencies=dict(leaf=(), middle=('leaf',), other=()),
+                                         selected=('leaf', 'middle', 'other'))
+        self.assertEqual([arg for command in commands for arg in command if arg in ('default', 'fuzzy')],
+                         ['default', 'default', 'fuzzy'])
+        first, again, fuzzy = commands
+        self.assertEqual(len({command[2] for command in commands}), 3)
+        self.assertEqual(self.selected_packages(first), ['leaf', 'middle', 'other'])
+        for command in (again, fuzzy):
+            self.assertEqual(self.selected_packages(command), ['other'])
+            self.assertEqual(command[-1], 'default() & (((package(=other)) & ((kind(test) & binary(=suite)))))')
+        error, = errors
+        self.assertEqual(error['name'], 'build')
+        self.assertIn('error: could not compile `leaf` (lib) due to 1 previous error\n', error['log'])
+        self.assertTrue(error['log'].endswith('left out, unbuilt: leaf, middle\n'))
+
+    def test_close_retries_listings_over_the_remaining_targets(self):
+        # Dependency traversal also crosses bridges whose tests were not selected.
+        deps = dict(leaf=(), middle=('leaf',), bridge=('middle',), top=('bridge',), spare=(), other=(), late=())
+        attempts = iter([('leaf', 'E0004'), ('spare', 'E0308'), None, ('late', 'E0502'), None])
+
+        def fake(command, *_args, output, **_kwargs):
+            out = Path(command[2])
+            self.assertFalse(out.exists())
+            out.mkdir()
+            if attempt := next(attempts):
+                package, code = attempt
+                return self.listing_failure((package,), output, code=code, long=package == 'leaf')
+            self.result(directory=out)
+            return 0, ''
+
+        with mock.patch.object(PRE, 'close_budgets') as budgets:
+            errors, commands = self.run_close(fake, dependencies=deps,
+                                             selected=('leaf', 'middle', 'top', 'spare', 'other', 'late'))
+        budgets.assert_not_called()
+        self.assertEqual([(command[3], self.selected_packages(command)) for command in commands],
+                         [('default', ['late', 'leaf', 'middle', 'other', 'spare', 'top']),
+                          ('default', ['late', 'other', 'spare']),
+                          ('default', ['late', 'other']), ('fuzzy', ['late', 'other']), ('fuzzy', ['other'])])
+        self.assertEqual(len({command[2] for command in commands}), 5)
+        for command in commands:
+            for name in deps:
+                self.assertEqual(f'package(={name})' in command[-1], name in self.selected_packages(command))
+        self.assertEqual([error['name'] for error in errors], ['build', 'build fuzzy'])
+        self.assertIn('left out, unbuilt: leaf, middle, spare, top', errors[0]['log'])
+        self.assertIn('left out, unbuilt: late', errors[1]['log'])
+        with redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(PRE.finish('tree', None, errors, self.root, {}, 'close', (), ['head']), 1)
+        self.assertEqual(err.getvalue(), 'rustc E0004 leaf.rs:8:2: fixture compiler error\n')
+
+    def test_close_listing_stops_without_a_new_workspace_package(self):
+        for packages in (('leaf',), ('registry-only', 'other')):
+            with self.subTest(packages=packages):
+                attempts = iter([('leaf',), packages])
+
+                def fake(command, *_args, output, **_kwargs):
+                    if 'default' in command:
+                        return self.listing_failure(next(attempts), output)
+                    self.result(directory=Path(command[2]))
+                    return 0, ''
+
+                errors, commands = self.run_close(fake, dependencies=dict(leaf=(), other=()), selected=('leaf', 'other'))
+                self.assertEqual([self.selected_packages(command) for command in commands],
+                                 [['leaf', 'other'], ['other'], ['other']])
+                self.assertEqual([error['name'] for error in errors], ['build'])
+                log = errors[0]['log']
+                self.assertEqual(log.count('one-process: nextest listing exited with 101'), 2)
+                for name in packages:
+                    self.assertIn(f'error: could not compile `{name}`', log)
+                self.assertTrue(log.endswith('left out, unbuilt: leaf\n'))
+                self.assertIn('fuzzy', commands[-1])
+
+    def test_close_continues_after_format_helper_and_check_failures(self):
+        (self.tiers / 'packages.toml').write_text('''[test-binaries]
+leaf = [{package = "fixture", bin = "bad"}]
+middle = [{package = "fixture", bin = "bad"}]
+other = [{package = "fixture", bin = "good"}]
+''')
+
+        def fake(command, *_args, **_kwargs):
+            if command[:2] == ['cargo', 'build']:
+                return (101, 'bad helper\n') if command[-1] == 'bad' else (0, '')
+            if command[:2] == ['cargo', 'check']:
+                return 101, 'bad check\n'
+            self.result(directory=Path(command[2]))
+            return 0, ''
+
+        with mock.patch.object(PRE, 'close_budgets') as budgets:
+            errors, commands = self.run_close(fake, dependencies=dict(leaf=(), middle=(), other=(), quiet=()),
+                                             selected=('leaf', 'middle', 'other', 'quiet'), quiet=('quiet',),
+                                             formatted=[PRE.failure('format', 'diff')])
+        budgets.assert_not_called()
+        self.assertEqual([command[-1] for command in commands[:3]], ['bad', 'good', 'quiet'])
+        self.assertEqual([self.selected_packages(command) for command in commands[3:]], [['other'], ['other']])
+        self.assertEqual([(error['name'], error['log']) for error in errors],
+                         [('format', 'diff\n'), ('build check', 'bad helper\n'), ('build check', 'bad check\n')])
 
     def test_empty_selection_passes_even_without_a_counting_decision(self):
         self.publish()
@@ -1556,6 +1810,9 @@ class CloseBudgets(unittest.TestCase):
         for code, log, results, verdict, detail in cases:
             def fake(command, *_args, **_kwargs):
                 directory = Path(command[2])
+                if 'fuzzy' in command:
+                    self.result(directory=directory)
+                    return 0, ''
                 if results is not None:
                     directory.mkdir()
                     (directory / 'results.json').write_text(results)
@@ -1571,9 +1828,10 @@ class CloseBudgets(unittest.TestCase):
         self.publish()
 
         def fake(command, *_args, **_kwargs):
-            tests = [dict(binary_id=self.BINARY, test_name='example', outcome='failed')] if status == 100 else []
+            failed = status == 100 and 'default' in command
+            tests = [dict(binary_id=self.BINARY, test_name='example', outcome='failed')] if failed else []
             self.result(self.process(30 * self.G), tests=tests, directory=Path(command[2]))
-            return status, 'fixture\n'
+            return 100 if failed else 0, 'fixture\n'
 
         self.assertEqual(self.close(fake, completed_goal=False), [])
         status = 100
@@ -1616,6 +1874,38 @@ class Gate(unittest.TestCase):
                     with mock.patch.object(subprocess, 'check_output', return_value=paths), redirect_stdout(io.StringIO()):
                         self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), status)
                     self.assertEqual([call.args[0] for call in execute.call_args_list], commands)
+
+    def test_delivery_hooks_are_code_inputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = ['.temper/hooks/deliver', '.temper/hooks/finish']
+            self.assertEqual(PRE.code_inputs(paths, {'packages': [], 'workspace_members': []}, root), paths)
+
+    def test_finish_hook_selects_checker_tests(self):
+        self.assertEqual(GATE.route({'.temper/hooks/finish'}), 'checker')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            execute = mock.Mock(return_value=subprocess.CompletedProcess([], 0))
+            with mock.patch.object(subprocess, 'check_output', return_value=b'.temper/hooks/finish\0'), \
+                 redirect_stdout(io.StringIO()):
+                self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), 0)
+            execute.assert_called_once_with(['python3', '-I', '-B', 'tools/pre-pr/test_pre_pr.py'], cwd=root, timeout=600)
+
+    def test_hook_config_selects_checker_tests(self):
+        path = '.temper/hooks/config.toml'
+        with tempfile.TemporaryDirectory() as tmp, redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            self.assertEqual(PRE.code_inputs([path], {'packages': [], 'workspace_members': []}, root), [path])
+            with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+                 mock.patch.object(PRE, 'outward', return_value=(0, [])):
+                PRE.workspace_checks(root, [path], 'tree', {}, [], {})
+            self.assertEqual([call.args[0][3] for call in run.call_args_list],
+                             ['tools/pre-pr/test_pre_pr.py', 'tools/citations/citations.py'])
+            self.assertEqual(GATE.route({path}), 'checker')
+            execute = mock.Mock(return_value=subprocess.CompletedProcess([], 0))
+            with mock.patch.object(subprocess, 'check_output', return_value=os.fsencode(path) + b'\0'):
+                self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), 0)
+            execute.assert_called_once_with(['python3', '-I', '-B', 'tools/pre-pr/test_pre_pr.py'], cwd=root, timeout=600)
 
     def test_preflight_runs_tests_and_writes_real_outcome(self):
         for paths, status, expected in [(b'tools/pre-pr/pre_pr.py\0', 0, 0),

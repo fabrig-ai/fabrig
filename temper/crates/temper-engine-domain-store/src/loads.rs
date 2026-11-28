@@ -15,6 +15,8 @@
 //! (temper/docs/design/domain/root-restart.md, 1.1).
 //! Byte cuts carry exact omitted rows/bytes and a potentially nonprogressing
 //! continuation; the walking root stops rather than restoring a cut page.
+pub mod start;
+
 use crate::{Key, Range, Record};
 use alloc::boxed::Box;
 use core::mem::size_of;

@@ -1,6 +1,8 @@
 //! Admission while the engine drains (domain/engine/restart.md, 5).
-use crate::{CallKey, Core, Event, Held, Limits, Now, PendingCall, Request, effects::projections, routing};
+use crate::vocabulary::connector_ask;
+use crate::{CallHolder, CallKey, Core, Event, Held, Limits, Now, Request, effects::projections, routing};
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -78,6 +80,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         out.push(Request::Held(Box::new(Held::Restarting { wait })));
     }
     core.stopping = true;
+    crate::start::port::stop(core);
     crate::loads::discard_waiting_points(core);
     core.loads.cancel_notes_retry();
     core.draining = Some(true);
@@ -125,7 +128,7 @@ fn call(to: ReplyTo) -> Queue<Request> {
 }
 
 fn continued_call(core: &mut Core, to: ReplyTo, key: CallKey) -> Queue<Request> {
-    if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+    if core.pending_calls.get(&key) == Some(&CallHolder::Application) {
         core.release_pending_call(key);
     }
     call(to)
@@ -140,12 +143,11 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::ChangeSettings { reply_to, .. }
         | Event::ProposeSettings { reply_to, .. }
         | Event::SignIn { reply_to, .. } => Err(party(reply_to)),
-        Event::Act { reply_to, carried, .. } => Err(routing::application_routes::first(
-            routing::application_routes::number(carried),
-            answer(Some(Request::Held(Box::new(Held::Acted {
-                to: reply_to,
-                outcome: people::Outcome::Again(people::Again::NotReady),
-            })))),
+        Event::Act { reply_to, connector, key, carried, .. } => Err(super::party::deployment_acts::answer(
+            Some(reply_to),
+            people::ActKey { connector, key },
+            carried,
+            people::Outcome::Again(people::Again::NotReady),
         )),
         Event::Key { reply_to, carried, .. } => {
             Err(routing::application_routes::first(Some(carried.number), party(reply_to)))
@@ -154,7 +156,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
             let unused = routing::application_routes::number(carried);
             let mut out = routing::application_routes::first(unused, party(reply_to));
             if core.connectors.contains(&connector) {
-                out.push(Request::Ask { connector, ask: crate::Ask::DropApplication { owner } });
+                out.push(connector_ask(connector, contract::Ask::Requests(contract::requests::Ask::Drop { owner })));
             }
             Err(out)
         }
@@ -168,31 +170,22 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         Event::Fleet(event) => Ok(Event::Fleet(event)),
         Event::Stopping
         | Event::Activate { .. }
-        | Event::BriefAssembled { .. }
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
         | Event::ProcedureStep { .. }
-        | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
         | Event::Period { .. } => Err(empty()),
         event @ (Event::Settling
-        | Event::Fill { .. }
-        | Event::Census(..)
-        | Event::Parts { .. }
-        | Event::PartsMarked { .. }
         | Event::Waits { .. }
         | Event::Marked { .. }
         | Event::Read { .. }
         | Event::PublicRead { .. }
-        | Event::PublicAnswered { .. }
         | Event::PublicDurable { .. }
         | Event::ApplicationPart { .. }
-        | Event::ApplicationFinished { .. }
         | Event::ProjectionSettled { .. }
         | Event::EffectStart { .. }
         | Event::SubscribeTopic { .. }
-        | Event::EffectConnector(_)
         | Event::EffectDeadline
         | Event::Unwatch { .. }
         | Event::Delivered { .. }
@@ -208,10 +201,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
         | Event::RefusedPayload { .. }
-        | Event::DelegateHoldings { .. }
-        | Event::Brief(_)
-        | Event::Holdings { .. }
-        | Event::ProjectReleased { .. }
         | Event::Account(_)
         | Event::View(_)
         | Event::Notes(_)
@@ -220,6 +209,9 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
 }
 fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
     match event {
+        people::Event::ConnectorAct { key, .. } => {
+            Err(super::party::deployment_acts::answer(None, key, None, people::Outcome::Again(people::Again::NotReady)))
+        }
         people::Event::Act { reply_to, .. } => Err(answer(Some(Request::Held(Box::new(Held::Acted {
             to: reply_to,
             outcome: people::Outcome::Again(people::Again::NotReady),

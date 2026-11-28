@@ -295,10 +295,33 @@ fn an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing
     assert_eq!(story.made(fixtures::FIRST_OWNER), 0);
     assert_eq!(story.client.pending(STOP).expect("kept stop").progress, jig_client::Progress::Parked);
     assert_eq!(story.client.next_deadline(), None);
-    assert_eq!(
-        story.pages(PROJECT_PAGE),
-        vec![Readout::NotServed { family: None, served: Some(contract::VersionRange { first: 8, last: 8 }) }]
-    );
+    assert_eq!(story.pages(PROJECT_PAGE), vec![Readout::NotServed { family: None }]);
+}
+
+#[test]
+fn the_previous_jig_layout_leaves_the_client_out_of_date_naming_jig() {
+    const PREVIOUS_LAYOUT: [u8; 32] = [
+        0x30, 0x3f, 0x04, 0x4e, 0x18, 0x6a, 0x7c, 0xd3, 0xe3, 0x6b, 0x0d, 0x27, 0xf3, 0xa1, 0x38, 0x2d, 0xf9, 0x06,
+        0x20, 0xeb, 0x4f, 0x27, 0x2f, 0xcb, 0xdb, 0x62, 0xa1, 0x5d, 0xdb, 0x3e, 0x4f, 0xc2,
+    ];
+    let mut story = Story::live(fixtures::SEED);
+    story.restart_serving(jig_client_kit::test::list([jig_protocol_engine_clients::Served {
+        family: None,
+        version: jig_client_protocol_wire::VERSION,
+        layout: PREVIOUS_LAYOUT,
+    }]));
+    assert!(story.run_until(|s| s.client.link().state == Link::OutOfDate, Duration::from_secs(1)));
+    assert!(!story.client.link().unreadable);
+    let exchanges = story.exchanges();
+    story.send(STOP, stop(STOP_TASK));
+    story.read(PROJECT_PAGE, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
+    story.watch(INBOX, Watchable::Jig(contract::Subject::Inbox { window: 2 }));
+    assert!(story.run_until(|_| true, Duration::from_secs(1)));
+    assert_eq!(story.exchanges(), exchanges);
+    assert_eq!(story.made(fixtures::FIRST_OWNER), 0);
+    assert_eq!(story.client.pending(STOP).expect("kept stop").progress, jig_client::Progress::Parked);
+    assert_eq!(story.client.next_deadline(), None);
+    assert_eq!(story.pages(PROJECT_PAGE), vec![Readout::NotServed { family: None }]);
 }
 
 const FAMILY_REQUEST: Key = Key { asker: Asker(1), number: 77 };
@@ -329,11 +352,10 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
     story.restart_serving(jig_client_kit::test::list([
         jig_protocol_engine_clients::Served {
             family: None,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
+            version: jig_client_protocol_wire::VERSION,
             layout: jig_client_protocol_wire::LAYOUT,
         },
-        jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3, layout: [3; 32] },
+        jig_protocol_engine_clients::Served { family: Some(1), version: 3, layout: [3; 32] },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));
     assert_eq!(story.client.pending(FAMILY_REQUEST).expect("kept request").progress, jig_client::Progress::NotServed);
@@ -696,9 +718,6 @@ fn assert_unserved_parts(rows: &skein_lib::List<contract::TaskLine>, count: u32)
             panic!("one not-served part: {:?}", row.parts)
         };
         assert_eq!(why.owner, contract::Owner::Family(65500));
-        assert!(why.served.iter().any(|range| range.owner == contract::Owner::Jig
-            && range.first == jig_client_protocol_wire::VERSION
-            && range.last == jig_client_protocol_wire::VERSION));
     }
 }
 

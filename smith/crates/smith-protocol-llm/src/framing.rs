@@ -31,6 +31,7 @@ pub fn prompt_allowance(provider: skein_llm::Provider, client: &client::Limits, 
             content: Box::new([skein_llm::Block::Text { text: Box::new([]), replay: None }]),
         }]),
         reasoning_effort,
+        speed: Some(Box::new([b'a'; 32])),
         affinity: Some(skein_llm::Affinity { key: [0; 16], thread: u32::MAX }),
         max_output_tokens: None,
     };

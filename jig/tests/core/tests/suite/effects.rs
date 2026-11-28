@@ -1,8 +1,11 @@
 use crate::first_support::{effect_kind, with_effects};
+use jig_core_world::test_support::answer_connector;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_authority as authority;
-use jig_domain_core as core;
+use jig_domain_contract as jig;
+use jig_domain_contract::{Connector, Up, effects};
+use jig_domain_core::{self as core, engine::In};
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -198,27 +201,33 @@ fn effects_scenarios() {
 
 // Reuse an actual world's durable claim and public configuration, restoring
 // through the core's public entry points rather than injecting waiting rights.
-fn retained_effect_core(seed: u64) -> (core::Core, core::Limits, core::CallKey) {
+fn retained_effect_core(seed: u64) -> (core::engine::Engine, core::Limits, core::CallKey) {
     use skein_lib::{Env, Time, Wall};
     let world = World::new(Setup { seed, ..Setup::default() });
     let key = world.call_key(1);
     let (configuration, limits) = jig_core_world::world::fixture(seed, false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
-    let core = with_effects(configuration.core, &env.limits, &[effect_kind(5, false)]);
-    let domain = super::start_links::recovered_with_core(&world, core, &env);
-    assert!(domain.current_proof(key.task, key.attempt));
-    assert!(matches!(domain.tasks.task(key.task).expect("restored caller").phase,
+    let mut domain = with_effects(configuration.core, &env.limits, &[effect_kind(5, false)]);
+    super::start_links::reopen(domain.core_mut(), &world, &env);
+    assert!(domain.core().current_proof(key.task, key.attempt));
+    assert!(matches!(domain.core().tasks.task(key.task).expect("restored caller").phase,
         tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) if attempt == key.attempt));
     (domain, limits.core, key)
 }
 
 fn effect_outputs(
-    domain: &mut core::Core,
+    domain: &mut core::engine::Engine,
     limits: &core::Limits,
     wall: skein_lib::Wall,
-    event: core::Event,
+    input: In,
 ) -> Vec<core::Request> {
-    let mut out = core::step(domain, &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits }, event);
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits };
+    let mut out = match input {
+        In::Core(event) => core::step(domain.core_mut(), &env, event),
+        In::Connector(Connector(connector), up) => answer_connector(domain, &env, connector, up),
+        In::Store(_) => unreachable!("effect fixtures take no store inputs"),
+        In::Resume(_) => unreachable!("the effect world drives its own start"),
+    };
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);
@@ -227,48 +236,51 @@ fn effect_outputs(
 }
 
 fn kept_effect(
-    domain: &mut core::Core,
+    domain: &mut core::engine::Engine,
     limits: &core::Limits,
     key: core::CallKey,
     deadline: skein_lib::Wall,
     right: u64,
 ) -> core::CallPart {
     use skein_lib::{ReplyTo, Token, Wall};
-    let owner = domain.effect_owner();
+    let owner = domain.core_mut().effect_owner();
     let started = effect_outputs(
         domain,
         limits,
         Wall::EPOCH,
-        core::Event::EffectStart {
+        In::Core(core::Event::EffectStart {
             owner,
             connector: 1,
             origin: core::EffectOrigin::Call { to: ReplyTo::new(Token::new(right)), key, deadline },
-        },
+        }),
     );
-    assert!(started.iter().any(|row| matches!(row, core::Request::Ask { connector: 1, ask: core::Ask::Effect(core::effects::connector::Ask::Describe { owner: actual }) } if *actual == owner)));
+    assert!(started.iter().any(|row| matches!(row, core::Request::Ask { connector: 1, ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Describe { owner: actual })) } if *actual == owner)));
     let kept = effect_outputs(
         domain,
         limits,
         Wall::EPOCH,
-        core::Event::EffectConnector(core::effects::connector::Event::Described {
-            owner,
-            description: Box::new(core::effects::connector::EffectDescription {
-                connector: 1,
-                purpose: 19,
-                effect: authority::Effect {
+        In::Connector(
+            Connector(1),
+            Up::Effects(effects::Up::Described {
+                owner,
+                description: Box::new(core::effects::connector::EffectDescription {
                     connector: 1,
-                    kind: 5,
-                    name: authority::Name {
-                        segments: jig_test_connector_kit::path(1, 1).segments().to_vec().into_boxed_slice(),
+                    purpose: 19,
+                    effect: authority::Effect {
+                        connector: 1,
+                        kind: 5,
+                        name: authority::Name {
+                            segments: jig_test_connector_kit::path(1, 1).segments().to_vec().into_boxed_slice(),
+                        },
+                        state: [13; 32],
+                        price: Some(1),
+                        access: authority::EffectAccess::Owned,
+                        additional: Box::new([]),
+                        guards: Box::new([]),
                     },
-                    state: [13; 32],
-                    price: Some(1),
-                    access: authority::EffectAccess::Owned,
-                    additional: Box::new([]),
-                    guards: Box::new([]),
-                },
+                }),
             }),
-        }),
+        ),
     );
     assert!(
         !kept.iter().any(
@@ -316,19 +328,19 @@ fn retained_effect_deadline_is_a_pure_minimum_including_equal_walls_and_epoch() 
     use skein_lib::Wall;
     for (first, second) in [(20, 10), (10, 10), (30, 0)] {
         let (mut domain, limits, first_key) = retained_effect_core(104);
-        assert_eq!(domain.effect_deadline(), None);
-        assert_eq!(domain.effect_deadline(), None);
+        assert_eq!(domain.core().effect_deadline(), None);
+        assert_eq!(domain.core().effect_deadline(), None);
         let second_key = core::CallKey { completion: 2, ..first_key };
         let first_part = kept_effect(&mut domain, &limits, first_key, Wall::from_nanos(first), 301);
-        assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(first)));
+        assert_eq!(domain.core().effect_deadline(), Some(Wall::from_nanos(first)));
         let second_part = kept_effect(&mut domain, &limits, second_key, Wall::from_nanos(second), 302);
         let earliest = first.min(second);
-        let caller = domain.tasks.task(first_key.task).expect("caller").clone();
-        let quiescence = [domain.quiescent(false), domain.quiescent(true)];
+        let caller = domain.core().tasks.task(first_key.task).expect("caller").clone();
+        let quiescence = [domain.core().quiescent(false), domain.core().quiescent(true)];
         for _ in 0..3 {
-            assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(earliest)));
-            assert_eq!(domain.tasks.task(first_key.task), Some(&caller), "a query changes no owner fact");
-            assert_eq!([domain.quiescent(false), domain.quiescent(true)], quiescence);
+            assert_eq!(domain.core().effect_deadline(), Some(Wall::from_nanos(earliest)));
+            assert_eq!(domain.core().tasks.task(first_key.task), Some(&caller), "a query changes no owner fact");
+            assert_eq!([domain.core().quiescent(false), domain.core().quiescent(true)], quiescence);
         }
         if earliest != 0 {
             assert_eq!(
@@ -336,18 +348,18 @@ fn retained_effect_deadline_is_a_pure_minimum_including_equal_walls_and_epoch() 
                     &mut domain,
                     &limits,
                     Wall::from_nanos(earliest - 1),
-                    core::Event::EffectDeadline
+                    In::Core(core::Event::EffectDeadline)
                 ))
                 .len(),
                 0
             );
-            assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(earliest)));
+            assert_eq!(domain.core().effect_deadline(), Some(Wall::from_nanos(earliest)));
         }
         let answers = deadline_answers(effect_outputs(
             &mut domain,
             &limits,
             Wall::from_nanos(earliest),
-            core::Event::EffectDeadline,
+            In::Core(core::Event::EffectDeadline),
         ));
         let mut expected = Vec::new();
         if first == earliest {
@@ -358,26 +370,26 @@ fn retained_effect_deadline_is_a_pure_minimum_including_equal_walls_and_epoch() 
         }
         assert_eq!(answers, expected, "exactly due rights retain their previous committed evidence");
         let remaining = if first == second { None } else { Some(Wall::from_nanos(first.max(second))) };
-        assert_eq!(domain.effect_deadline(), remaining);
+        assert_eq!(domain.core().effect_deadline(), remaining);
         assert_eq!(
             deadline_answers(effect_outputs(
                 &mut domain,
                 &limits,
                 Wall::from_nanos(earliest),
-                core::Event::EffectDeadline
+                In::Core(core::Event::EffectDeadline)
             ))
             .len(),
             0
         );
         if let Some(last) = remaining {
             let final_answers =
-                deadline_answers(effect_outputs(&mut domain, &limits, last, core::Event::EffectDeadline));
+                deadline_answers(effect_outputs(&mut domain, &limits, last, In::Core(core::Event::EffectDeadline)));
             assert_eq!(
                 final_answers,
                 if first > second { vec![(301, first_key, first_part)] } else { vec![(302, second_key, second_part)] }
             );
         }
-        assert_eq!(domain.effect_deadline(), None);
+        assert_eq!(domain.core().effect_deadline(), None);
     }
 }
 
@@ -388,12 +400,12 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
     let second_key = core::CallKey { completion: 2, ..first_key };
     let first = kept_effect(&mut domain, &limits, first_key, Wall::from_nanos(20), 311);
     let second = kept_effect(&mut domain, &limits, second_key, Wall::from_nanos(10), 312);
-    let duplicate_owner = domain.effect_owner();
+    let duplicate_owner = domain.core_mut().effect_owner();
     let duplicate = effect_outputs(
         &mut domain,
         &limits,
         Wall::EPOCH,
-        core::Event::EffectStart {
+        In::Core(core::Event::EffectStart {
             owner: duplicate_owner,
             connector: 1,
             origin: core::EffectOrigin::Call {
@@ -401,21 +413,23 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
                 key: first_key,
                 deadline: Wall::from_nanos(999),
             },
-        },
+        }),
     );
     assert!(!duplicate.iter().any(|row| matches!(row, core::Request::Write(_) | core::Request::Held(_))));
-    assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(10)));
+    assert_eq!(domain.core().effect_deadline(), Some(Wall::from_nanos(10)));
     let core::CallPart::Effect { entry, .. } = second else { panic!("kept second effect") };
     let made = effect_outputs(
         &mut domain,
         &limits,
         Wall::from_nanos(1),
-        core::Event::EffectConnector(core::effects::connector::Event::Outbox {
-            connector: 1,
-            entry,
-            task: second_key.task,
-            outcome: core::effects::connector::OutboxOutcome::Made,
-        }),
+        In::Connector(
+            Connector(1),
+            Up::Effects(effects::Up::Outbox {
+                entry,
+                task: second_key.task,
+                outcome: core::effects::connector::OutboxOutcome::Made,
+            }),
+        ),
     );
     let made_answers: Vec<_> = made
         .into_iter()
@@ -444,16 +458,27 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
             }
         )]
     );
-    assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(20)));
+    assert_eq!(domain.core().effect_deadline(), Some(Wall::from_nanos(20)));
     assert_eq!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(19), core::Event::EffectDeadline)).len(),
+        deadline_answers(effect_outputs(
+            &mut domain,
+            &limits,
+            Wall::from_nanos(19),
+            In::Core(core::Event::EffectDeadline)
+        ))
+        .len(),
         0
     );
     assert_eq!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline)),
+        deadline_answers(effect_outputs(
+            &mut domain,
+            &limits,
+            Wall::from_nanos(20),
+            In::Core(core::Event::EffectDeadline)
+        )),
         vec![(313, first_key, first)]
     );
-    assert_eq!(domain.effect_deadline(), None);
+    assert_eq!(domain.core().effect_deadline(), None);
 }
 
 #[test]
@@ -465,29 +490,47 @@ fn a_stale_claim_keeps_its_effect_deadline_until_the_due_right_is_consumed_witho
         &mut domain,
         &limits,
         Wall::from_nanos(1),
-        core::Event::Tasks(tasks::Event::Cancel {
+        In::Core(core::Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(322)),
             by: tasks::Party::Person(1),
             operation: tasks::Cancel { task: key.task, reason: Box::new([]), grace: None, message: None },
-        }),
+        })),
     );
     assert!(!matches!(
-        domain.tasks.task(key.task).map(|row| &row.phase),
+        domain.core().tasks.task(key.task).map(|row| &row.phase),
         Some(tasks::Phase::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. }))
     ));
-    assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(20)), "stale rights stay queryable for cleanup");
+    assert_eq!(domain.core().effect_deadline(), Some(Wall::from_nanos(20)), "stale rights stay queryable for cleanup");
     assert_eq!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(19), core::Event::EffectDeadline)).len(),
+        deadline_answers(effect_outputs(
+            &mut domain,
+            &limits,
+            Wall::from_nanos(19),
+            In::Core(core::Event::EffectDeadline)
+        ))
+        .len(),
         0
     );
-    assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(20)));
+    assert_eq!(domain.core().effect_deadline(), Some(Wall::from_nanos(20)));
     assert_eq!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline)).len(),
+        deadline_answers(effect_outputs(
+            &mut domain,
+            &limits,
+            Wall::from_nanos(20),
+            In::Core(core::Event::EffectDeadline)
+        ))
+        .len(),
         0
     );
-    assert_eq!(domain.effect_deadline(), None);
+    assert_eq!(domain.core().effect_deadline(), None);
     assert_eq!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline)).len(),
+        deadline_answers(effect_outputs(
+            &mut domain,
+            &limits,
+            Wall::from_nanos(20),
+            In::Core(core::Event::EffectDeadline)
+        ))
+        .len(),
         0
     );
 }

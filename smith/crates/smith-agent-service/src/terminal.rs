@@ -34,7 +34,7 @@ pub(crate) fn remember(service: &mut crate::service::Stages, answer: &run::Answe
             Last::Failed { failure: Box::new(smith_protocol_events::failure_record(failure.clone(), now)), detail }
         }
         run::Answer::Refused(refusal) => {
-            Last::Failed { failure: Box::new(smith_protocol_events::refusal_record(*refusal)), detail }
+            Last::Failed { failure: Box::new(smith_protocol_events::refusal_record(refusal)), detail }
         }
         run::Answer::Accepted { .. } | run::Answer::Parked { .. } => Last::Quiet,
     };

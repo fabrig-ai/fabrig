@@ -2333,11 +2333,12 @@ fn a_directory_reads_as_its_immediate_entries() {
         &mut h.domain,
         &h.env.limits,
         FIRST,
-        files(&[(b"src/z.rs", b"z"), (b"src/lib/a.rs", b"a"), (b"src/a.rs", b"a"), (b"README", b"hello")]),
+        files(&[(b"src/z.rs", b"lib/a.rs"), (b"src/lib/a.rs", b"a"), (b"src/a.rs", b"a"), (b"README", b"hello")]),
         b"directory",
     )
     .expect("tree fits")
     .expect("changed tree");
+    crate::directory_link(&mut h.domain, head, b"src/z.rs").expect("link path in fixture");
     h.push(ENGINE, b"work", head).expect("push makes the tree visible");
     let rows: [(&[u8], Box<[Entry]>); 3] = [
         (
@@ -2352,7 +2353,7 @@ fn a_directory_reads_as_its_immediate_entries() {
             Box::new([
                 Entry { name: copy_of(b"a.rs"), kind: EntryKind::File },
                 Entry { name: copy_of(b"lib"), kind: EntryKind::Directory },
-                Entry { name: copy_of(b"z.rs"), kind: EntryKind::File },
+                Entry { name: copy_of(b"z.rs"), kind: EntryKind::Link },
             ]),
         ),
         (b"src/lib", Box::new([Entry { name: copy_of(b"a.rs"), kind: EntryKind::File }])),

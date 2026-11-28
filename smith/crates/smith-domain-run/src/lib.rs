@@ -68,13 +68,14 @@ mod workspace;
 
 pub use boundary::{
     Answer, Ask, AskRefusal, Cap, CompletionEvidence, CompletionFailure, CompletionPhase, End, Event, Exit, Fault,
-    FinalTurn, Invalid, Limit, Message, MessageRefusal, Opening, Place, Policy, Ran, Read, Refusal, Report, Request,
-    Returned, RunFailure, Stop, TranscriptRefusal, Window,
+    FinalTurn, Hook, HookProblem, Hooks, Invalid, Limit, Message, MessageRefusal, Opening, Place, Policy, Ran, Read,
+    Refusal, Report, Request, Returned, RunFailure, Stop, TranscriptRefusal, Window,
 };
 pub use budget::{
     Budget, BudgetRefusal, Ceiling, CompletionPermit, Exhausted, Granted, Overflow, Part, Prices, Rate, ReceivingLimit,
     Set, Share, Spend, Stage, admit, most_costly, reserve_spend,
 };
+pub use call::Call as InspectionCall;
 pub use charter::{Brief, Charter, Conventions, Mode, Section};
 pub use charter::{brief_room, charter_room};
 pub use domain::{
@@ -85,11 +86,12 @@ pub use identity::Identity;
 pub use inbox::rendered_bytes;
 pub use limits::{Derivation, Field, Limits, derive, valid};
 pub use prompt::{brief_bytes, fixed_prompt, fixed_prompt_bytes, role_host_bytes, summary_bytes};
+pub use run::Run as InspectionRun;
 pub use run::{
     Most, call_turn, completion_waits_for_host, offer_messages, recover_delivery, resume_answer, resume_position,
 };
 pub use schema_costs::SchemaCosts;
-pub use workspace::{Directory, Workspace};
+pub use workspace::{Directory, HOOK_FAULT_BYTES, HookTime, HookTimes, Workspace};
 
 pub use delivery::{
     CallName, Delivered, Delivery, DeliveryFailure, DeliveryReason, DeliveryRefusal, DeliveryStatus, Diagnostic,

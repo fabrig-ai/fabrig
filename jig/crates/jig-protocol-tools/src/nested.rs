@@ -466,6 +466,7 @@ fn model_effort(value: Node<'_>) -> Result<tasks::ModelEffort, Problem> {
             Some(value) => Some(model_index(value, b"effort")?),
             None => None,
         },
+        speed: None,
     })
 }
 fn model_index(value: Node<'_>, field: &'static [u8]) -> Result<u8, Problem> {

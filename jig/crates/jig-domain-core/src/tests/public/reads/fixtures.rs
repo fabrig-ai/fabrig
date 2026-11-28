@@ -1,6 +1,7 @@
 //! Small core steps with public bounds enabled (jig/docs/design/domain/people/public-reading.md, 6).
 use super::*;
 use crate::tests::new_core;
+use jig_domain_contract as contract;
 
 pub(super) fn fixture() -> (Core, Limits) {
     let (old, mut limits) = crate::tests::core();
@@ -50,10 +51,13 @@ pub(super) fn reply() -> ReplyTo {
 }
 
 pub(super) fn send(core: &mut Core, limits: &Limits, event: tasks::Event) {
-    let _out = crate::step(core, &environment(limits), Event::Tasks(event));
-    let _header = core.counters.commit_header();
-    settle(core, limits);
+    send_in_decision(core, limits, event);
+    finish_changes(core, limits);
     core.reclaim();
+}
+
+pub(super) fn send_in_decision(core: &mut Core, limits: &Limits, event: tasks::Event) {
+    let _out = crate::step(core, &environment(limits), Event::Tasks(event));
 }
 
 pub(super) fn make(
@@ -68,6 +72,20 @@ pub(super) fn make(
 }
 
 pub(super) fn make_in_project(
+    core: &mut Core,
+    limits: &Limits,
+    project: u32,
+    number: u64,
+    parent: Option<u64>,
+    tracked: Option<u32>,
+    conversation: bool,
+) {
+    make_in_decision(core, limits, project, number, parent, tracked, conversation);
+    finish_changes(core, limits);
+    core.reclaim();
+}
+
+pub(super) fn make_in_decision(
     core: &mut Core,
     limits: &Limits,
     project: u32,
@@ -118,7 +136,7 @@ pub(super) fn make_in_project(
         recurring: None,
         tracked,
     };
-    send(
+    send_in_decision(
         core,
         limits,
         tasks::Event::Make {
@@ -134,6 +152,11 @@ pub(super) fn make_in_project(
 }
 
 pub(super) fn visibility(core: &mut Core, limits: &Limits, public: bool) {
+    visibility_in_decision(core, limits, public);
+    finish_changes(core, limits);
+}
+
+pub(super) fn visibility_in_decision(core: &mut Core, limits: &Limits, public: bool) {
     let mut child = Queue::uncapped();
     child.push(people::Request::Route {
         request: Token::new(901),
@@ -149,25 +172,26 @@ pub(super) fn visibility(core: &mut Core, limits: &Limits, public: bool) {
         panic!("visibility decision");
     };
     assert_eq!(outcome, people::Outcome::VisibilitySet { project: 1, public });
-    let _header = core.counters.commit_header();
-    settle(core, limits);
 }
 
 pub(super) fn zero() -> PublicCounts {
     PublicCounts { working: 0, waiting: 0, held: 0, closing: 0, ended: 0 }
 }
 
-pub(super) fn amend(
+pub(super) fn amend_at(
     core: &mut Core,
     limits: &Limits,
     task: u64,
     tracking: Option<tasks::Tracking>,
     spec: Option<tasks::Spec>,
+    wall: Wall,
 ) {
-    amend_at(core, limits, task, tracking, spec, Wall::from_nanos(10_000_000_000));
+    amend_in_decision(core, limits, task, tracking, spec, wall);
+    finish_changes(core, limits);
+    core.reclaim();
 }
 
-pub(super) fn amend_at(
+pub(super) fn amend_in_decision(
     core: &mut Core,
     limits: &Limits,
     task: u64,
@@ -203,9 +227,6 @@ pub(super) fn amend_at(
     let mut env = environment(limits);
     env.wall = wall;
     let _out = crate::step(core, &env, Event::Tasks(event));
-    let _header = core.counters.commit_header();
-    settle(core, limits);
-    core.reclaim();
 }
 
 pub(super) fn end(core: &mut Core, limits: &Limits, task: u64) {
@@ -224,6 +245,11 @@ pub(super) fn end(core: &mut Core, limits: &Limits, task: u64) {
 }
 
 pub(super) fn deleting(core: &mut Core, limits: &Limits) {
+    deleting_in_decision(core, limits);
+    finish_changes(core, limits);
+}
+
+pub(super) fn deleting_in_decision(core: &mut Core, limits: &Limits) {
     crate::admission::deletion::begin(
         core,
         &environment(limits),
@@ -234,8 +260,6 @@ pub(super) fn deleting(core: &mut Core, limits: &Limits) {
         None,
     )
     .unwrap();
-    let _header = core.counters.commit_header();
-    settle(core, limits);
 }
 
 pub(super) fn another_project(core: &mut Core, limits: &Limits, project: u32, name: &str, public: bool) {
@@ -247,7 +271,8 @@ pub(super) fn another_project(core: &mut Core, limits: &Limits, project: u32, na
     }
 }
 
-fn settle(core: &mut Core, limits: &Limits) {
+pub(super) fn finish_changes(core: &mut Core, limits: &Limits) {
+    let _header = core.counters.commit_header();
     for _ in 0_u8..4 {
         let mut out = crate::finish_decision(core, &environment(limits));
         if out.is_empty() {
@@ -257,13 +282,17 @@ fn settle(core: &mut Core, limits: &Limits) {
             return;
         }
         for _ in 0..out.len() {
-            if let Some(Request::Ask { connector, ask: Ask::ProjectGoal { feed } }) = out.pop()
+            if let Some(Request::Ask {
+                connector,
+                ask: crate::Ask::Connector(contract::Ask::Projections(contract::projections::Ask::Project { feed })),
+            }) = out.pop()
                 && feed.closing
             {
-                let _settled = crate::step(
+                let _settled = crate::tests::connector_step(
                     core,
                     &environment(limits),
-                    Event::ProjectionSettled { goal: feed.goal.number, connector },
+                    connector,
+                    contract::Up::Projections(contract::projections::Up::Settled { goal: feed.goal.number }),
                 );
             }
         }

@@ -125,7 +125,9 @@ impl World {
             | root::Delivery::Application { .. }
             | root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
-            | root::Delivery::Start(_)
+            | root::Delivery::Connector(..)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::Core(_)
             | root::Delivery::CallAnswer { .. }
             | root::Delivery::Assigned { .. }

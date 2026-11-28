@@ -1,5 +1,6 @@
 //! Report retention and whole-batch admission (domain/tasks/holds.md, 2).
 use super::{fill::signed_in, *};
+use jig_domain_contract as contract;
 
 fn delegate_core() -> (Core, Env<Limits>) {
     with_live_names(0)
@@ -30,7 +31,8 @@ fn with_live_names(live: u8) -> (Core, Env<Limits>) {
     given.delegation.tasks = 16;
     given.delegation.depth = 5;
     set_seed_role_authority(&mut config, given);
-    let mut core = seeded_core(config, &limits).expect("fixture core");
+    let declarations = fixture_declarations(&config, &[1], &[], &[]);
+    let mut core = seeded_core_with_declarations(config, &declarations, &limits).expect("fixture core");
     core.counters.deployment.projects = 1;
     core.people = old.people;
     core.accounts = old.accounts;
@@ -57,10 +59,11 @@ fn name(prefix: u8, number: u8) -> tasks::Name {
 }
 
 fn report(core: &mut Core, env: &Env<Limits>, prefix: u8, number: u8) -> Queue<Request> {
-    step(
+    connector_step(
         core,
         env,
-        Event::EffectConnector(connector::Event::Resource {
+        name(prefix, number).connector,
+        contract::Up::Resources(contract::resources::Up::Resource {
             project: 1,
             name: name(prefix, number),
             role: connector::ResourceRole::Owned,
@@ -110,28 +113,23 @@ fn begin_at(core: &mut Core, env: &Env<Limits>, count: usize, position: u32) -> 
         },
     );
     let mut request = None;
-    let mut asks = 0_u32;
     while let Some(next) = out.pop() {
         if let Request::Held(ref held) = next {
             panic!("early answer: {held:?}");
         }
-        if let Request::Ask { ask: Ask::DelegateHoldings { request: token, .. }, .. } = next {
-            request = Some(token);
-            asks = asks.checked_add(1).unwrap();
+        if let Request::Ask {
+            connector,
+            ask:
+                Ask::Connector(contract::Ask::Resources(contract::resources::Ask::DelegateHoldings {
+                    request: token, ..
+                })),
+        } = next
+        {
+            assert_eq!(connector, 1);
+            assert!(request.replace(token).is_none());
         }
     }
-    assert_eq!(asks, 2);
-    let request = request.expect("delegation asks holdings");
-    let mut holdings = List::with_capacity(env.limits.tasks.batch);
-    for _ in 0..count {
-        holdings.push(Box::from([])).unwrap();
-    }
-    drop(step(
-        core,
-        env,
-        Event::DelegateHoldings { request, connector: 2, holdings: Some(holdings.into_boxed()), refused: None },
-    ));
-    request
+    request.expect("delegation asks holdings")
 }
 
 fn answer(core: &mut Core, env: &Env<Limits>, request: Token, count: u8) -> Queue<Request> {
@@ -144,7 +142,16 @@ fn answer_names(core: &mut Core, env: &Env<Limits>, request: Token, prefix: u8, 
         holdings.push(Box::from([tasks::Holding::Write { resource: name(prefix, number), kind: 1 }])).unwrap();
     }
     let holdings = holdings.into_boxed();
-    step(core, env, Event::DelegateHoldings { request, connector: 1, holdings: Some(holdings), refused: None })
+    connector_step(
+        core,
+        env,
+        1,
+        contract::Up::Resources(contract::resources::Up::DelegateHoldings {
+            request,
+            holdings: Some(holdings),
+            refused: None,
+        }),
+    )
 }
 
 fn call_answer(mut out: Queue<Request>) -> Option<CallPart> {
@@ -320,10 +327,11 @@ fn one_report_decides_every_waiting_batch_even_when_the_first_is_refused() {
     let second = begin_at(&mut core, &env, 1, 1);
     assert_eq!(call_answer(answer(&mut core, &env, second, 1)), None);
     assert_eq!(core.awaiting_resources_flights(), 2);
-    let mut out = step(
+    let mut out = connector_step(
         &mut core,
         &env,
-        Event::EffectConnector(connector::Event::Resource {
+        name(b'c', 1).connector,
+        contract::Up::Resources(contract::resources::Up::Resource {
             project: 1,
             name: name(b'c', 1),
             role: connector::ResourceRole::Unavailable,

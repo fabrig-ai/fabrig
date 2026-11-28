@@ -4,41 +4,15 @@ use skein_lib::{Env, Queue, Wall};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_issues as issues;
 
-fn adopted(repository: skein_forge::api::Repository) -> forge::Repository {
-    forge::Repository {
-        contexts: Box::new([]),
-        landing: b"main".as_slice().into(),
-        refusals: Box::default(),
-        workflows: Box::default(),
-        project: 1,
-        home: true,
-        provider: repository,
-        host: b"forge.example".as_slice().into(),
-        owner: b"org".as_slice().into(),
-        name: b"repo".as_slice().into(),
-        prefix: Box::new([]),
-        role: forge::Role::Owned,
-        ci: false,
-        checks: Box::new([]),
-        kinds: forge::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        },
-        protection: forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: b"main".as_slice().into(),
-            merge: true,
-            squash: false,
-            rebase: false,
-        },
-    }
+fn adopted(provider: skein_forge::api::Repository) -> forge::Repository {
+    let mut repository = super::owned_repository(provider.forge);
+    repository.project = 1;
+    repository.home = true;
+    repository.provider = provider;
+    repository.prefix = Box::new([]);
+    repository.ci = false;
+    repository.settings.squash = false;
+    repository
 }
 
 fn full_outbox() -> (crate::Domain, Env<crate::Limits>, u64, u64) {
@@ -130,7 +104,7 @@ fn after_interval(env: &Env<crate::Limits>) -> Wall {
 
 #[test]
 fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
-    use jig_domain_core::effects::connector::{Ask, EffectRefusal};
+    use jig_domain_core::effects::connector::EffectRefusal;
     for translate in [true, false] {
         let (mut domain, mut env, goal, first) = full_outbox();
         let mut out = Queue::uncapped();
@@ -158,7 +132,7 @@ fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
                 &env,
                 &mut decision,
                 connector,
-                Ask::Drop {
+                jig_domain_contract::effects::Ask::Drop {
                     owner,
                     answer: jig_domain_authority::Answer::Refuse,
                     findings: Box::new([]),

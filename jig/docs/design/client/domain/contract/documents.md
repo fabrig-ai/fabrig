@@ -23,11 +23,15 @@
     a limit; their read position over results; each project's merged
     templates (`requests.md`, 6), and for each with one a `resolved_default: LlmChoice`
     beside them (`defaults`, by the template's number), separate from its
-    configured LLM intent. The preview is what a run's check of a task
+    configured LLM intent, each template with its name, where it has
+    one, and its shown name (`../../../domain/engine/settings.md`, 1,
+    Names); the charters the settings offer that have a name, each its
+    number and name, `charters`, so that a client takes a charter's name
+    from any party, as a template's, and sends its number. The preview is what a run's check of a task
     given none and keeping no account would take now
     (`../../../domain/accounts-uses.md`, 1.3): the first model in charter order with
     an account usable now, at its default
-    effort, under the effective creating authority and the current receiving
+    effort and naming no speed, under the effective creating authority and the current receiving
     party as payer (`../../../domain/engine/views.md`, 1), so that it is one of
     the project's offer (below) where that authority's models are. An
     explicit choice previews itself; an omitted choice with no usable model
@@ -49,7 +53,12 @@
     provider, window and output, the efforts it takes, low to high, the
     default among them that a task given none takes (`effort`), its prices
     (amounts per `unit` tokens in the deployment's spend unit; cache writes
-    are priced at input when no separate price is given), its optional
+    are priced at input when no separate price is given), the faster
+    speeds it is served at, in the model's order, each its name, its
+    `also` names and its prices in the same unit (`speeds`), and its
+    default speed (`speed`, none for the provider's standard;
+    `../../../domain/engine/settings-catalogue.md`, 1), so that a picker
+    can offer a speed and a client can word a refused one, its optional
     description and shown name, its setting's `number`
     (`../../../domain/engine/settings-catalogue.md`, 1), where it came from (`source`: the
     binary's, a provider's list or a person's), whether its prices are
@@ -276,7 +285,9 @@
     (`../../../domain/accounts.md`, sections 3 and 5). It holds no value,
     and the words and screens are the application's.
   - *the settings:* the newest revision's number; each setting, by kind,
-    scope and number, with its name where it has one, whether it
+    scope and number, with its name where it has one (a charter's,
+    template's or policy's, `../../../domain/engine/settings.md`, 1,
+    Names) and a template's shown name, whether it
     follows its default or a change, and the revision that last changed
     it, a reset included, which leaves it following its default from
     that revision; each revision held, with who decided it, when, the proposal it

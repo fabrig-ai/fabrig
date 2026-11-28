@@ -59,18 +59,28 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   - `role N`: a role of the project's people, whoever holds it, role 0
     its owners (jig's `domain/people/README.md`);
   - `charter N`: the project's standing role run by charter N, so that a
-    way can name its triager before the role is started (section 6).
+    way can name its triager before the role is started (section 6); or
+    `charter NAME`, its kind by name (`../draft/ways.md`, 7.2), the
+    charter named NAME (jig's `domain/engine/settings.md`, 1, Names).
+    An owner keeps the name as written, never its number: a kind is a
+    named charter, and a project's own charter, which has a name and no
+    number (`../draft/ways-charters.md`), is named the same way.
 - **Where it stands,** each owner gives a holder, a task, a party or a
   role: `task N` while task N is live; `party N` while the party holds a
   role in the project; `role N` always; `charter N` while a live task of
   the project labelled 3 (`agent/standing.md`, section 2) runs under
-  charter N, the one with the lowest number. An owner that does not
+  charter N, the one with the lowest number; `charter NAME` as `charter
+  N` of the number the newest settings give that name, and none while
+  no charter has it, as after a rename. An owner that does not
   stand gives none.
 - **Judged when saved** (`../protocol/configuration/settings-kinds.md`, 1):
   `task N` must be a live task of the project, `party N` a party with a
-  role in it, `role N` within jig's `authority.roles`, and `charter N`
+  role in it, `role N` within jig's `authority.roles`, `charter N`
   within 1 to 64, a charter's numbers (jig's `domain/engine/settings.md`,
-  1), read by the root from the core as a way's template is. What stands later is `areas.md`, section 4's to read.
+  1), read by the root from the core as a way's template is, and
+  `charter NAME` a name in its form alone, as `charter N` is judged by
+  its range alone, so that an area may name a kind before its charter
+  is set. What stands later is `areas.md`, section 4's to read.
 
 ## 4. Who owns a finding
 

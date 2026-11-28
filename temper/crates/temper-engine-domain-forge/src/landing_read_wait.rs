@@ -89,7 +89,7 @@ impl Failure {
             | Stage::CleanupBranch(member)
             | Stage::Round {
                 member,
-                stage: RoundRead::Branch | RoundRead::Prefix(_) | RoundRead::Head | RoundRead::Contained(_),
+                stage: RoundRead::Branch | RoundRead::Prefix(_) | RoundRead::Head | RoundRead::Contained,
                 ..
             }
             | Stage::Tree { member, main: false, .. } => Some(member),
@@ -108,6 +108,7 @@ impl Failure {
             | Stage::CleanupPull
             | Stage::StallRun
             | Stage::StallJobs
+            | Stage::TemperDir
             | Stage::Round { stage: RoundRead::Pull | RoundRead::Upstream, .. }
             | Stage::Tree { main: true, .. } => None,
         };

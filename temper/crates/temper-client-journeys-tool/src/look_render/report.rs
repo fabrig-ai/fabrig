@@ -1,6 +1,6 @@
-//! Tab-separated render verdicts (temper/docs/design/client/journey-writer.md, 6.2, step 8).
+//! Tab-separated render verdicts (temper/docs/design/client/journey-writer-requests.md, 1.2, step 8).
 
-use super::copies::Page;
+use super::{Why, copies::Page};
 
 const LISTED: usize = 50;
 
@@ -12,8 +12,8 @@ pub(super) struct Report {
 }
 
 impl Report {
-    pub(super) fn uncompared(&mut self, page: &Page, why: &str) {
-        line(&mut self.output, &[b"uncompared", page.item().as_bytes(), why.as_bytes()]);
+    pub(super) fn uncompared(&mut self, page: &Page, why: Why) {
+        line(&mut self.output, &[b"uncompared", page.item().as_bytes(), why.words().as_bytes()]);
     }
 
     pub(super) fn compared(&mut self, page: &Page, report: PageReport) {
@@ -71,7 +71,7 @@ impl PageReport {
     }
 }
 
-fn line(out: &mut Vec<u8>, fields: &[&[u8]]) {
+pub(crate) fn line(out: &mut Vec<u8>, fields: &[&[u8]]) {
     for (at, field) in fields.iter().enumerate() {
         if at != 0 {
             out.push(b'\t');

@@ -1182,6 +1182,7 @@ pub fn directory_kind_to_record(value: &skein_forge::api::EntryKind) -> crate::v
         skein_forge::api::EntryKind::File => crate::v25::DirectoryKind::File,
         skein_forge::api::EntryKind::Directory => crate::v25::DirectoryKind::Directory,
         skein_forge::api::EntryKind::Submodule => crate::v25::DirectoryKind::Submodule,
+        skein_forge::api::EntryKind::Link => crate::v25::DirectoryKind::Link,
     }
 }
 
@@ -1191,6 +1192,7 @@ pub fn directory_kind_to_domain(record: crate::v25::DirectoryKind) -> skein_forg
         crate::v25::DirectoryKind::File => skein_forge::api::EntryKind::File,
         crate::v25::DirectoryKind::Directory => skein_forge::api::EntryKind::Directory,
         crate::v25::DirectoryKind::Submodule => skein_forge::api::EntryKind::Submodule,
+        crate::v25::DirectoryKind::Link => skein_forge::api::EntryKind::Link,
     }
 }
 
@@ -2008,6 +2010,9 @@ pub fn repair_to_record(value: &temper_engine_domain_forge_change::Repair) -> cr
                 None => None,
             }
         }),
+        temper_engine_domain_forge_change::Repair::TemperDir { head: field_000000 } => crate::v25::Repair::TemperDir(crate::v25::Commit {
+            commit: *field_000000
+        }),
     }
 }
 
@@ -2044,6 +2049,12 @@ pub fn repair_to_domain(record: crate::v25::Repair) -> temper_engine_domain_forg
                     }
                     None => None,
                 }
+            }
+        },
+        crate::v25::Repair::TemperDir(held) => {
+            let crate::v25::Commit { commit: field_000000 } = held;
+            temper_engine_domain_forge_change::Repair::TemperDir {
+                head: field_000000
             }
         },
     }
@@ -2489,36 +2500,6 @@ pub fn change_result_to_domain(record: crate::v25::ChangeResult) -> temper_engin
         repairs: result_text_to_domain(field_000003),
         repair_count: field_000004,
         reviews: result_text_to_domain(field_000005)
-    }
-}
-
-#[must_use]
-pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::v25::ModelEffort {
-    let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001 } = value;
-    crate::v25::ModelEffort {
-        model: *field_000000,
-        effort: match field_000001 {
-            Some(item) => {
-                let converted = *item;
-                Some(converted)
-            }
-            None => None,
-        }
-    }
-}
-
-#[must_use]
-pub fn model_effort_to_domain(record: crate::v25::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    let crate::v25::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    jig_domain_tasks::ModelEffort {
-        model: field_000000,
-        effort: match field_000001 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        }
     }
 }
 
@@ -6020,10 +6001,17 @@ pub fn settings_combine_to_domain(record: crate::v25::SettingsCombine) -> temper
 
 #[must_use]
 pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedModel) -> crate::v25::NamedModel {
-    let temper_engine_domain_forge_vocabulary::settings::NamedModel { model: field_000000, effort: field_000001 } = value;
+    let temper_engine_domain_forge_vocabulary::settings::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     crate::v25::NamedModel {
         model: field_000000.clone(),
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
@@ -6035,10 +6023,17 @@ pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::sett
 
 #[must_use]
 pub fn named_model_to_domain(record: crate::v25::NamedModel) -> temper_engine_domain_forge_vocabulary::settings::NamedModel {
-    let crate::v25::NamedModel { model: field_000000, effort: field_000001 } = record;
+    let crate::v25::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = record;
     temper_engine_domain_forge_vocabulary::settings::NamedModel {
         model: field_000000,
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
@@ -6201,7 +6196,7 @@ pub fn repair_settings_to_domain(record: crate::v25::RepairSettings) -> temper_e
 }
 
 pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectLanding) -> Result<crate::v25::ProjectLanding, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014 } = value;
+    let temper_engine_domain_forge_vocabulary::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015, temper_dir_sign_off: field_000016 } = value;
     Ok(crate::v25::ProjectLanding {
         by: settings_landing_way_to_record(field_000000),
         batch: *field_000001,
@@ -6247,13 +6242,15 @@ pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::
                 Some(converted)
             }
             None => None,
-        }
+        },
+        hook_timeout_max_seconds: *field_000015,
+        temper_dir_sign_off: *field_000016
     })
 }
 
 #[must_use]
 pub fn project_landing_to_domain(record: crate::v25::ProjectLanding) -> temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
-    let crate::v25::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014 } = record;
+    let crate::v25::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015, temper_dir_sign_off: field_000016 } = record;
     temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
         by: settings_landing_way_to_domain(field_000000),
         batch: field_000001,
@@ -6299,7 +6296,9 @@ pub fn project_landing_to_domain(record: crate::v25::ProjectLanding) -> temper_e
                 Some(converted)
             }
             None => None,
-        }
+        },
+        hook_timeout_max_seconds: field_000015,
+        temper_dir_sign_off: field_000016
     }
 }
 
@@ -7362,6 +7361,7 @@ pub fn closing_step_to_record(value: &temper_engine_domain_forge_closer::Step) -
     match value {
         temper_engine_domain_forge_closer::Step::Close => crate::v25::ClosingStep::Close,
         temper_engine_domain_forge_closer::Step::Land => crate::v25::ClosingStep::Land,
+        temper_engine_domain_forge_closer::Step::CatchUp => crate::v25::ClosingStep::CatchUp,
     }
 }
 
@@ -7370,6 +7370,7 @@ pub fn closing_step_to_domain(record: crate::v25::ClosingStep) -> temper_engine_
     match record {
         crate::v25::ClosingStep::Close => temper_engine_domain_forge_closer::Step::Close,
         crate::v25::ClosingStep::Land => temper_engine_domain_forge_closer::Step::Land,
+        crate::v25::ClosingStep::CatchUp => temper_engine_domain_forge_closer::Step::CatchUp,
     }
 }
 
@@ -9744,8 +9745,24 @@ pub fn close_refused_to_domain(record: crate::v25::CloseRefused) -> temper_engin
 }
 
 #[must_use]
+pub fn close_outdated_to_record(value: &temper_engine_domain_forge_change::CloseOutdated) -> crate::v25::CloseOutdated {
+    match value {
+        temper_engine_domain_forge_change::CloseOutdated::Window => crate::v25::CloseOutdated::Window,
+        temper_engine_domain_forge_change::CloseOutdated::Ancestry => crate::v25::CloseOutdated::Ancestry,
+    }
+}
+
+#[must_use]
+pub fn close_outdated_to_domain(record: crate::v25::CloseOutdated) -> temper_engine_domain_forge_change::CloseOutdated {
+    match record {
+        crate::v25::CloseOutdated::Window => temper_engine_domain_forge_change::CloseOutdated::Window,
+        crate::v25::CloseOutdated::Ancestry => temper_engine_domain_forge_change::CloseOutdated::Ancestry,
+    }
+}
+
+#[must_use]
 pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) -> crate::v25::CloseAt {
-    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = value;
+    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003, outdated: field_000004 } = value;
     crate::v25::CloseAt {
         branch: *field_000000,
         landing: *field_000001,
@@ -9756,13 +9773,20 @@ pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) ->
                 Some(converted)
             }
             None => None,
+        },
+        outdated: match field_000004 {
+            Some(item) => {
+                let converted = close_outdated_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
 #[must_use]
 pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_forge_change::CloseAt {
-    let crate::v25::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = record;
+    let crate::v25::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003, outdated: field_000004 } = record;
     temper_engine_domain_forge_change::CloseAt {
         branch: field_000000,
         landing: field_000001,
@@ -9770,6 +9794,13 @@ pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_f
         refused: match field_000003 {
             Some(item) => {
                 let converted = close_refused_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        outdated: match field_000004 {
+            Some(item) => {
+                let converted = close_outdated_to_domain(item);
                 Some(converted)
             }
             None => None,
@@ -10317,6 +10348,7 @@ pub fn area_owner_to_record(value: &temper_engine_domain_forge_vocabulary::setti
         temper_engine_domain_forge_vocabulary::settings::AreaOwner::Party(held) => crate::v25::AreaOwner::Party(crate::v25::AreaParty { number: *held }),
         temper_engine_domain_forge_vocabulary::settings::AreaOwner::Role(held) => crate::v25::AreaOwner::Role(crate::v25::AreaRole { number: *held }),
         temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter(held) => crate::v25::AreaOwner::Charter(crate::v25::AreaCharter { number: *held }),
+        temper_engine_domain_forge_vocabulary::settings::AreaOwner::CharterNamed(held) => crate::v25::AreaOwner::CharterNamed(crate::v25::AreaCharterNamed { name: held.clone() }),
     }
 }
 
@@ -10337,6 +10369,10 @@ pub fn area_owner_to_domain(record: crate::v25::AreaOwner) -> temper_engine_doma
         }),
         crate::v25::AreaOwner::Charter(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter({
             let crate::v25::AreaCharter { number: held } = held;
+            held
+        }),
+        crate::v25::AreaOwner::CharterNamed(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::CharterNamed({
+            let crate::v25::AreaCharterNamed { name: held } = held;
             held
         }),
     }
@@ -11288,5 +11324,126 @@ pub fn writes_to_domain(record: crate::v25::Writes, context: &crate::records::Co
             Box::from(translated)
         }
     })
+}
+
+#[must_use]
+pub fn dot_temper_file_to_record(value: &temper_engine_domain_forge_vocabulary::DotTemperFile) -> crate::v25::DotTemperFile {
+    let temper_engine_domain_forge_vocabulary::DotTemperFile { path: field_000000, bytes: field_000001 } = value;
+    crate::v25::DotTemperFile {
+        path: field_000000.clone(),
+        bytes: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn dot_temper_file_to_domain(record: crate::v25::DotTemperFile) -> temper_engine_domain_forge_vocabulary::DotTemperFile {
+    let crate::v25::DotTemperFile { path: field_000000, bytes: field_000001 } = record;
+    temper_engine_domain_forge_vocabulary::DotTemperFile {
+        path: field_000000,
+        bytes: field_000001
+    }
+}
+
+#[must_use]
+pub fn dot_temper_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::DotTemperRefusal) -> crate::v25::DotTemperRefusal {
+    let temper_engine_domain_forge_vocabulary::DotTemperRefusal { commit: field_000000, observed: field_000001, words: field_000002 } = value;
+    crate::v25::DotTemperRefusal {
+        commit: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        observed: *field_000001,
+        words: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn dot_temper_refusal_to_domain(record: crate::v25::DotTemperRefusal) -> temper_engine_domain_forge_vocabulary::DotTemperRefusal {
+    let crate::v25::DotTemperRefusal { commit: field_000000, observed: field_000001, words: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::DotTemperRefusal {
+        commit: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        observed: field_000001,
+        words: field_000002
+    }
+}
+
+pub fn dot_temper_revision_to_record(value: &temper_engine_domain_forge_vocabulary::DotTemperRevision) -> Result<crate::v25::DotTemperRevision, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::DotTemperRevision { project: field_000000, number: field_000001, home: field_000002, commit: field_000003, method: field_000004, files: field_000005, observed: field_000006, refused: field_000007 } = value;
+    Ok(crate::v25::DotTemperRevision {
+        project: *field_000000,
+        number: *field_000001,
+        home: repository_to_record(field_000002),
+        commit: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        method: *field_000004,
+        files: {
+            let source = field_000005;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::DOT_TEMPER_REVISION_FILES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = dot_temper_file_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        observed: *field_000006,
+        refused: match field_000007 {
+            Some(item) => {
+                let converted = dot_temper_refusal_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn dot_temper_revision_to_domain(record: crate::v25::DotTemperRevision) -> temper_engine_domain_forge_vocabulary::DotTemperRevision {
+    let crate::v25::DotTemperRevision { project: field_000000, number: field_000001, home: field_000002, commit: field_000003, method: field_000004, files: field_000005, observed: field_000006, refused: field_000007 } = record;
+    temper_engine_domain_forge_vocabulary::DotTemperRevision {
+        project: field_000000,
+        number: field_000001,
+        home: repository_to_domain(field_000002),
+        commit: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        method: field_000004,
+        files: {
+            let source = field_000005;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = dot_temper_file_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        observed: field_000006,
+        refused: match field_000007 {
+            Some(item) => {
+                let converted = dot_temper_refusal_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
 }
 

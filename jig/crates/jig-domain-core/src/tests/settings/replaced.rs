@@ -17,8 +17,9 @@ fn fixture() -> (Core, Limits) {
         charters: 0,
     }]);
     configured.defaults.templates = Box::new([Template {
+        name: None,
         number: 2,
-        name: b"work".as_slice().into(),
+        shown: b"work".as_slice().into(),
         resources: Box::default(),
         executor: people::TemplateExecutor::Chosen,
         contract: tasks::Contract::Report { words: 32 },
@@ -108,6 +109,27 @@ fn a_revision_records_what_each_item_replaced() {
     assert_eq!(second.items.len(), 2);
     assert_eq!(second.items[0].replaced, s::Replaced::Value(first_value));
     assert_eq!(second.items[1].replaced, s::Replaced::Removed);
+}
+
+#[test]
+fn changing_only_a_charters_speed_makes_its_next_version() {
+    let (config, limits) = super::charters::with_model_speeds();
+    let mut core = seeded_core(config, &limits).unwrap();
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    make_task(&mut core, &limits, 1);
+    assert_eq!(core.charter_at(1, 1).unwrap().policy.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
+
+    let setting = s::Setting::Charter(1);
+    let mut value = core.current.value(setting).unwrap().as_charter().unwrap().clone();
+    value.policy.model.speed = Some(tasks::STANDARD_SPEED.into());
+    let value = s::Value::Charter(Box::new(value));
+    let revision =
+        commit(&mut core, &limits, Box::new([s::Item { setting, edit: s::Edit::Set(value.clone()) }]), Box::default());
+    assert_eq!(revision.head.number, 2);
+    assert_eq!(core.current.lookup(setting), (Some(&value), Some((true, 2))));
+    assert_eq!(core.charter_at(1, 2).unwrap().policy.model.speed, None);
+    assert_eq!(core.charter_at(1, 1).unwrap().policy.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
 }
 
 #[test]

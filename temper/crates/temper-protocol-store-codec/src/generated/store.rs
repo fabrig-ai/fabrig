@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x09, 0x18, 0x92, 0xf4, 0x88, 0xbd, 0x4d, 0x9b, 0x99, 0x46, 0x43, 0x33, 0xa4, 0x19, 0xc2, 0xd2, 0xf7, 0x18, 0x50,
-    0xaa, 0x07, 0x7c, 0xb6, 0x48, 0xf0, 0xc6, 0xd1, 0x39, 0xba, 0x9b, 0xb2, 0xa9,
+    0xe3, 0x2d, 0xcb, 0x18, 0x7a, 0x8e, 0x7d, 0xb8, 0xbb, 0x23, 0xb7, 0x98, 0x8d, 0x24, 0xba, 0x8e, 0x00, 0x5b, 0x5a,
+    0xfc, 0xd3, 0x8f, 0xf5, 0x91, 0x5c, 0x4e, 0x4c, 0xc4, 0x28, 0xf8, 0x76, 0xd5,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -125,6 +125,7 @@ pub struct Limits {
     pub change_gate_failures: u32,
     pub effect_account_words: u32,
     pub result_text_bytes: u32,
+    pub model_effort_speed_some: u32,
     pub llm_choice_subagents: u32,
     pub held_answer: u32,
     pub open_line: u32,
@@ -241,6 +242,7 @@ pub struct Limits {
     pub landing_rule_sets: u32,
     pub named_model_model: u32,
     pub named_model_effort_some: u32,
+    pub named_model_speed_some: u32,
     pub named_later_subagents: u32,
     pub named_llm_subagents: u32,
     pub project_landing_merge_job_some: u32,
@@ -304,10 +306,12 @@ pub struct Limits {
     pub closing_relay_replies: u32,
     pub closing_relay_waiting: u32,
     pub closer_goal_left_some: u32,
+    pub closer_goal_asked_some: u32,
     pub closer_close_changes: u32,
     pub closer_landing_changes: u32,
     pub closer_selections: u32,
     pub closer_superseded: u32,
+    pub closer_catch_up_changes: u32,
     pub landed_draft_path: u32,
     pub landed_draft_branch: u32,
     pub landed_draft_title: u32,
@@ -349,6 +353,7 @@ pub struct Limits {
     pub change_hot_producer_failure_some: u32,
     pub change_hot_merge_result_some: u32,
     pub change_hot_asks: u32,
+    pub change_hot_temper_dir_fault_some: u32,
     pub subscriber_goal_tasks_some: u32,
     pub subscriber_paths: u32,
     pub subscriber_paths_item: u32,
@@ -364,6 +369,7 @@ pub struct Limits {
     pub red_pass_key: u32,
     pub red_recorded_head: u32,
     pub red_reply_key: u32,
+    pub area_charter_named_name: u32,
     pub area_name: u32,
     pub area_words: u32,
     pub project_areas_areas: u32,
@@ -401,6 +407,10 @@ pub struct Limits {
     pub written_retarget_from: u32,
     pub written_retarget_to: u32,
     pub writes_entries: u32,
+    pub dot_temper_file_path: u32,
+    pub dot_temper_file_bytes: u32,
+    pub dot_temper_refusal_words: u32,
+    pub dot_temper_revision_files: u32,
 }
 
 pub const CEILINGS: Limits = Limits {
@@ -512,6 +522,7 @@ pub const CEILINGS: Limits = Limits {
     change_gate_failures: 1_024,
     effect_account_words: 512,
     result_text_bytes: 1_048_576,
+    model_effort_speed_some: 32,
     llm_choice_subagents: 64,
     held_answer: 262_144,
     open_line: 256,
@@ -628,6 +639,7 @@ pub const CEILINGS: Limits = Limits {
     landing_rule_sets: 6,
     named_model_model: 4_096,
     named_model_effort_some: 32,
+    named_model_speed_some: 32,
     named_later_subagents: 64,
     named_llm_subagents: 64,
     project_landing_merge_job_some: 4_096,
@@ -691,10 +703,12 @@ pub const CEILINGS: Limits = Limits {
     closing_relay_replies: 1_024,
     closing_relay_waiting: 1_024,
     closer_goal_left_some: 1_048_576,
+    closer_goal_asked_some: 1_048_576,
     closer_close_changes: 1_024,
     closer_landing_changes: 1_024,
     closer_selections: 1_024,
     closer_superseded: 1_024,
+    closer_catch_up_changes: 1_024,
     landed_draft_path: 1_024,
     landed_draft_branch: 1_024,
     landed_draft_title: 200,
@@ -736,6 +750,7 @@ pub const CEILINGS: Limits = Limits {
     change_hot_producer_failure_some: 512,
     change_hot_merge_result_some: 512,
     change_hot_asks: 16,
+    change_hot_temper_dir_fault_some: 65_536,
     subscriber_goal_tasks_some: 65_536,
     subscriber_paths: 1_024,
     subscriber_paths_item: 4_096,
@@ -751,6 +766,7 @@ pub const CEILINGS: Limits = Limits {
     red_pass_key: 1_024,
     red_recorded_head: 32,
     red_reply_key: 1_024,
+    area_charter_named_name: 32,
     area_name: 32,
     area_words: 480,
     project_areas_areas: 16,
@@ -788,6 +804,10 @@ pub const CEILINGS: Limits = Limits {
     written_retarget_from: 1_048_576,
     written_retarget_to: 1_048_576,
     writes_entries: 32,
+    dot_temper_file_path: 52,
+    dot_temper_file_bytes: 65_536,
+    dot_temper_refusal_words: 1_024,
+    dot_temper_revision_files: 64,
 };
 
 pub const LIMIT_NAMES: &[&str] = &[
@@ -899,6 +919,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "change_gate_failures",
     "effect_account_words",
     "result_text_bytes",
+    "model_effort_speed_some",
     "llm_choice_subagents",
     "held_answer",
     "open_line",
@@ -1015,6 +1036,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_rule_sets",
     "named_model_model",
     "named_model_effort_some",
+    "named_model_speed_some",
     "named_later_subagents",
     "named_llm_subagents",
     "project_landing_merge_job_some",
@@ -1078,10 +1100,12 @@ pub const LIMIT_NAMES: &[&str] = &[
     "closing_relay_replies",
     "closing_relay_waiting",
     "closer_goal_left_some",
+    "closer_goal_asked_some",
     "closer_close_changes",
     "closer_landing_changes",
     "closer_selections",
     "closer_superseded",
+    "closer_catch_up_changes",
     "landed_draft_path",
     "landed_draft_branch",
     "landed_draft_title",
@@ -1123,6 +1147,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "change_hot_producer_failure_some",
     "change_hot_merge_result_some",
     "change_hot_asks",
+    "change_hot_temper_dir_fault_some",
     "subscriber_goal_tasks_some",
     "subscriber_paths",
     "subscriber_paths_item",
@@ -1138,6 +1163,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "red_pass_key",
     "red_recorded_head",
     "red_reply_key",
+    "area_charter_named_name",
     "area_name",
     "area_words",
     "project_areas_areas",
@@ -1175,6 +1201,10 @@ pub const LIMIT_NAMES: &[&str] = &[
     "written_retarget_from",
     "written_retarget_to",
     "writes_entries",
+    "dot_temper_file_path",
+    "dot_temper_file_bytes",
+    "dot_temper_refusal_words",
+    "dot_temper_revision_files",
 ];
 
 impl Limits {
@@ -1290,6 +1320,7 @@ impl Limits {
             self.change_gate_failures,
             self.effect_account_words,
             self.result_text_bytes,
+            self.model_effort_speed_some,
             self.llm_choice_subagents,
             self.held_answer,
             self.open_line,
@@ -1406,6 +1437,7 @@ impl Limits {
             self.landing_rule_sets,
             self.named_model_model,
             self.named_model_effort_some,
+            self.named_model_speed_some,
             self.named_later_subagents,
             self.named_llm_subagents,
             self.project_landing_merge_job_some,
@@ -1469,10 +1501,12 @@ impl Limits {
             self.closing_relay_replies,
             self.closing_relay_waiting,
             self.closer_goal_left_some,
+            self.closer_goal_asked_some,
             self.closer_close_changes,
             self.closer_landing_changes,
             self.closer_selections,
             self.closer_superseded,
+            self.closer_catch_up_changes,
             self.landed_draft_path,
             self.landed_draft_branch,
             self.landed_draft_title,
@@ -1514,6 +1548,7 @@ impl Limits {
             self.change_hot_producer_failure_some,
             self.change_hot_merge_result_some,
             self.change_hot_asks,
+            self.change_hot_temper_dir_fault_some,
             self.subscriber_goal_tasks_some,
             self.subscriber_paths,
             self.subscriber_paths_item,
@@ -1529,6 +1564,7 @@ impl Limits {
             self.red_pass_key,
             self.red_recorded_head,
             self.red_reply_key,
+            self.area_charter_named_name,
             self.area_name,
             self.area_words,
             self.project_areas_areas,
@@ -1566,6 +1602,10 @@ impl Limits {
             self.written_retarget_from,
             self.written_retarget_to,
             self.writes_entries,
+            self.dot_temper_file_path,
+            self.dot_temper_file_bytes,
+            self.dot_temper_refusal_words,
+            self.dot_temper_revision_files,
         ].into())
     }
 
@@ -1682,6 +1722,7 @@ impl Limits {
             change_gate_failures: self.change_gate_failures.min(most),
             effect_account_words: self.effect_account_words.min(most),
             result_text_bytes: self.result_text_bytes.min(most),
+            model_effort_speed_some: self.model_effort_speed_some.min(most),
             llm_choice_subagents: self.llm_choice_subagents.min(most),
             held_answer: self.held_answer.min(most),
             open_line: self.open_line.min(most),
@@ -1798,6 +1839,7 @@ impl Limits {
             landing_rule_sets: self.landing_rule_sets.min(most),
             named_model_model: self.named_model_model.min(most),
             named_model_effort_some: self.named_model_effort_some.min(most),
+            named_model_speed_some: self.named_model_speed_some.min(most),
             named_later_subagents: self.named_later_subagents.min(most),
             named_llm_subagents: self.named_llm_subagents.min(most),
             project_landing_merge_job_some: self.project_landing_merge_job_some.min(most),
@@ -1861,10 +1903,12 @@ impl Limits {
             closing_relay_replies: self.closing_relay_replies.min(most),
             closing_relay_waiting: self.closing_relay_waiting.min(most),
             closer_goal_left_some: self.closer_goal_left_some.min(most),
+            closer_goal_asked_some: self.closer_goal_asked_some.min(most),
             closer_close_changes: self.closer_close_changes.min(most),
             closer_landing_changes: self.closer_landing_changes.min(most),
             closer_selections: self.closer_selections.min(most),
             closer_superseded: self.closer_superseded.min(most),
+            closer_catch_up_changes: self.closer_catch_up_changes.min(most),
             landed_draft_path: self.landed_draft_path.min(most),
             landed_draft_branch: self.landed_draft_branch.min(most),
             landed_draft_title: self.landed_draft_title.min(most),
@@ -1906,6 +1950,7 @@ impl Limits {
             change_hot_producer_failure_some: self.change_hot_producer_failure_some.min(most),
             change_hot_merge_result_some: self.change_hot_merge_result_some.min(most),
             change_hot_asks: self.change_hot_asks.min(most),
+            change_hot_temper_dir_fault_some: self.change_hot_temper_dir_fault_some.min(most),
             subscriber_goal_tasks_some: self.subscriber_goal_tasks_some.min(most),
             subscriber_paths: self.subscriber_paths.min(most),
             subscriber_paths_item: self.subscriber_paths_item.min(most),
@@ -1921,6 +1966,7 @@ impl Limits {
             red_pass_key: self.red_pass_key.min(most),
             red_recorded_head: self.red_recorded_head.min(most),
             red_reply_key: self.red_reply_key.min(most),
+            area_charter_named_name: self.area_charter_named_name.min(most),
             area_name: self.area_name.min(most),
             area_words: self.area_words.min(most),
             project_areas_areas: self.project_areas_areas.min(most),
@@ -1958,6 +2004,10 @@ impl Limits {
             written_retarget_from: self.written_retarget_from.min(most),
             written_retarget_to: self.written_retarget_to.min(most),
             writes_entries: self.writes_entries.min(most),
+            dot_temper_file_path: self.dot_temper_file_path.min(most),
+            dot_temper_file_bytes: self.dot_temper_file_bytes.min(most),
+            dot_temper_refusal_words: self.dot_temper_refusal_words.min(most),
+            dot_temper_revision_files: self.dot_temper_revision_files.min(most),
         }
     }
 }
@@ -2071,6 +2121,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHANGE_GATE_FAILURES,
     paths::EFFECT_ACCOUNT_WORDS,
     paths::RESULT_TEXT_BYTES,
+    paths::MODEL_EFFORT_SPEED,
     paths::LLM_CHOICE_SUBAGENTS,
     paths::HELD_ANSWER,
     paths::OPEN_LINE,
@@ -2187,6 +2238,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_RULE_SETS,
     paths::NAMED_MODEL_MODEL,
     paths::NAMED_MODEL_EFFORT,
+    paths::NAMED_MODEL_SPEED,
     paths::NAMED_LATER_SUBAGENTS,
     paths::NAMED_LLM_SUBAGENTS,
     paths::PROJECT_LANDING_MERGE_JOB,
@@ -2250,10 +2302,12 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CLOSING_RELAY_REPLIES,
     paths::CLOSING_RELAY_WAITING,
     paths::CLOSER_GOAL_LEFT,
+    paths::CLOSER_GOAL_ASKED,
     paths::CLOSER_CLOSE_CHANGES,
     paths::CLOSER_LANDING_CHANGES,
     paths::CLOSER_SELECTIONS,
     paths::CLOSER_SUPERSEDED,
+    paths::CLOSER_CATCH_UP_CHANGES,
     paths::LANDED_DRAFT_PATH,
     paths::LANDED_DRAFT_BRANCH,
     paths::LANDED_DRAFT_TITLE,
@@ -2295,6 +2349,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHANGE_HOT_PRODUCER_FAILURE,
     paths::CHANGE_HOT_MERGE_RESULT,
     paths::CHANGE_HOT_ASKS,
+    paths::CHANGE_HOT_TEMPER_DIR_FAULT,
     paths::SUBSCRIBER_GOAL_TASKS,
     paths::SUBSCRIBER_PATHS,
     paths::SUBSCRIBER_PATHS,
@@ -2310,6 +2365,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::RED_PASS_KEY,
     paths::RED_RECORDED_HEAD,
     paths::RED_REPLY_KEY,
+    paths::AREA_CHARTER_NAMED_NAME,
     paths::AREA_NAME,
     paths::AREA_WORDS,
     paths::PROJECT_AREAS_AREAS,
@@ -2347,6 +2403,10 @@ const LIMIT_PATHS: &[Path] = &[
     paths::WRITTEN_RETARGET_FROM,
     paths::WRITTEN_RETARGET_TO,
     paths::WRITES_ENTRIES,
+    paths::DOT_TEMPER_FILE_PATH,
+    paths::DOT_TEMPER_FILE_BYTES,
+    paths::DOT_TEMPER_REFUSAL_WORDS,
+    paths::DOT_TEMPER_REVISION_FILES,
 ];
 
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
@@ -3035,6 +3095,7 @@ pub mod paths {
     pub const CHANGE_RESULT_TAIL: Path = Path::new("ChangeResult (tail)");
     pub const MODEL_EFFORT_MODEL: Path = Path::new("ModelEffort.model");
     pub const MODEL_EFFORT_EFFORT: Path = Path::new("ModelEffort.effort");
+    pub const MODEL_EFFORT_SPEED: Path = Path::new("ModelEffort.speed");
     pub const MODEL_EFFORT_TAIL: Path = Path::new("ModelEffort (tail)");
     pub const LLM_CHOICE_MAIN: Path = Path::new("LlmChoice.main");
     pub const LLM_CHOICE_SUBAGENTS: Path = Path::new("LlmChoice.subagents");
@@ -3670,6 +3731,7 @@ pub mod paths {
     pub const SETTINGS_COMBINE_TAG: Path = Path::new("SettingsCombine (tag)");
     pub const NAMED_MODEL_MODEL: Path = Path::new("NamedModel.model");
     pub const NAMED_MODEL_EFFORT: Path = Path::new("NamedModel.effort");
+    pub const NAMED_MODEL_SPEED: Path = Path::new("NamedModel.speed");
     pub const NAMED_MODEL_TAIL: Path = Path::new("NamedModel (tail)");
     pub const NAMED_LATER_MAIN: Path = Path::new("NamedLater.main");
     pub const NAMED_LATER_SUBAGENTS: Path = Path::new("NamedLater.subagents");
@@ -3704,6 +3766,8 @@ pub mod paths {
     pub const PROJECT_LANDING_WAIT: Path = Path::new("ProjectLanding.wait");
     pub const PROJECT_LANDING_REPAIRS: Path = Path::new("ProjectLanding.repairs");
     pub const PROJECT_LANDING_FLAKES: Path = Path::new("ProjectLanding.flakes");
+    pub const PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS: Path = Path::new("ProjectLanding.hook_timeout_max_seconds");
+    pub const PROJECT_LANDING_TEMPER_DIR_SIGN_OFF: Path = Path::new("ProjectLanding.temper_dir_sign_off");
     pub const PROJECT_LANDING_TAIL: Path = Path::new("ProjectLanding (tail)");
     pub const SETTINGS_REPORT_FORMAT_TAG: Path = Path::new("SettingsReportFormat (tag)");
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
@@ -3947,6 +4011,7 @@ pub mod paths {
     pub const CLOSING_REPORT_CHECK_TAG: Path = Path::new("ClosingReportCheck (tag)");
     pub const CLOSER_REPORT_CHECK: Path = Path::new("Closer.report_check");
     pub const CLOSER_GOAL_LEFT: Path = Path::new("Closer.goal_left");
+    pub const CLOSER_GOAL_ASKED: Path = Path::new("Closer.goal_asked");
     pub const CLOSER_TASK: Path = Path::new("Closer.task");
     pub const CLOSER_GOAL: Path = Path::new("Closer.goal");
     pub const CLOSER_CLOSED: Path = Path::new("Closer.closed");
@@ -3961,6 +4026,8 @@ pub mod paths {
     pub const CLOSER_DONE: Path = Path::new("Closer.done");
     pub const CLOSER_RELAY: Path = Path::new("Closer.relay");
     pub const CLOSER_SUPERSEDED: Path = Path::new("Closer.superseded");
+    pub const CLOSER_CAUGHT_UP: Path = Path::new("Closer.caught_up");
+    pub const CLOSER_CATCH_UP_CHANGES: Path = Path::new("Closer.catch_up_changes");
     pub const CLOSER_TAIL: Path = Path::new("Closer (tail)");
     pub const LANDED_DRAFT_REPOSITORY: Path = Path::new("LandedDraft.repository");
     pub const LANDED_DRAFT_PATH: Path = Path::new("LandedDraft.path");
@@ -4220,10 +4287,12 @@ pub mod paths {
     pub const REGATE_TAIL: Path = Path::new("Regate (tail)");
     pub const CLOSE_REFUSED_COUNTS: Path = Path::new("CloseRefused.counts");
     pub const CLOSE_REFUSED_TAIL: Path = Path::new("CloseRefused (tail)");
+    pub const CLOSE_OUTDATED_TAG: Path = Path::new("CloseOutdated (tag)");
     pub const CLOSE_AT_BRANCH: Path = Path::new("CloseAt.branch");
     pub const CLOSE_AT_LANDING: Path = Path::new("CloseAt.landing");
     pub const CLOSE_AT_ASKED: Path = Path::new("CloseAt.asked");
     pub const CLOSE_AT_REFUSED: Path = Path::new("CloseAt.refused");
+    pub const CLOSE_AT_OUTDATED: Path = Path::new("CloseAt.outdated");
     pub const CLOSE_AT_TAIL: Path = Path::new("CloseAt (tail)");
     pub const BEHIND_READ_TAG: Path = Path::new("BehindRead (tag)");
     pub const READ_BEHIND_READ: Path = Path::new("ReadBehind.read");
@@ -4286,6 +4355,7 @@ pub mod paths {
     pub const CHANGE_HOT_ASKS: Path = Path::new("ChangeHot.asks");
     pub const CHANGE_HOT_HANDED: Path = Path::new("ChangeHot.handed");
     pub const CHANGE_HOT_CI_RECHECK: Path = Path::new("ChangeHot.ci_recheck");
+    pub const CHANGE_HOT_TEMPER_DIR_FAULT: Path = Path::new("ChangeHot.temper_dir_fault");
     pub const CHANGE_HOT_TAIL: Path = Path::new("ChangeHot (tail)");
     pub const SUBSCRIBER_TASK: Path = Path::new("Subscriber.task");
     pub const SUBSCRIBER_NUMBER: Path = Path::new("Subscriber.number");
@@ -4358,6 +4428,8 @@ pub mod paths {
     pub const AREA_ROLE_TAIL: Path = Path::new("AreaRole (tail)");
     pub const AREA_CHARTER_NUMBER: Path = Path::new("AreaCharter.number");
     pub const AREA_CHARTER_TAIL: Path = Path::new("AreaCharter (tail)");
+    pub const AREA_CHARTER_NAMED_NAME: Path = Path::new("AreaCharterNamed.name");
+    pub const AREA_CHARTER_NAMED_TAIL: Path = Path::new("AreaCharterNamed (tail)");
     pub const AREA_OWNER_TAG: Path = Path::new("AreaOwner (tag)");
     pub const AREA_NAME: Path = Path::new("Area.name");
     pub const AREA_WORDS: Path = Path::new("Area.words");
@@ -4558,6 +4630,22 @@ pub mod paths {
     pub const WRITES_NEXT: Path = Path::new("Writes.next");
     pub const WRITES_ENTRIES: Path = Path::new("Writes.entries");
     pub const WRITES_TAIL: Path = Path::new("Writes (tail)");
+    pub const DOT_TEMPER_FILE_PATH: Path = Path::new("DotTemperFile.path");
+    pub const DOT_TEMPER_FILE_BYTES: Path = Path::new("DotTemperFile.bytes");
+    pub const DOT_TEMPER_FILE_TAIL: Path = Path::new("DotTemperFile (tail)");
+    pub const DOT_TEMPER_REFUSAL_COMMIT: Path = Path::new("DotTemperRefusal.commit");
+    pub const DOT_TEMPER_REFUSAL_OBSERVED: Path = Path::new("DotTemperRefusal.observed");
+    pub const DOT_TEMPER_REFUSAL_WORDS: Path = Path::new("DotTemperRefusal.words");
+    pub const DOT_TEMPER_REFUSAL_TAIL: Path = Path::new("DotTemperRefusal (tail)");
+    pub const DOT_TEMPER_REVISION_PROJECT: Path = Path::new("DotTemperRevision.project");
+    pub const DOT_TEMPER_REVISION_NUMBER: Path = Path::new("DotTemperRevision.number");
+    pub const DOT_TEMPER_REVISION_HOME: Path = Path::new("DotTemperRevision.home");
+    pub const DOT_TEMPER_REVISION_COMMIT: Path = Path::new("DotTemperRevision.commit");
+    pub const DOT_TEMPER_REVISION_METHOD: Path = Path::new("DotTemperRevision.method");
+    pub const DOT_TEMPER_REVISION_FILES: Path = Path::new("DotTemperRevision.files");
+    pub const DOT_TEMPER_REVISION_OBSERVED: Path = Path::new("DotTemperRevision.observed");
+    pub const DOT_TEMPER_REVISION_REFUSED: Path = Path::new("DotTemperRevision.refused");
+    pub const DOT_TEMPER_REVISION_TAIL: Path = Path::new("DotTemperRevision (tail)");
     pub const VALUE_TAG: Path = Path::new("Value (tag)");
     pub const ROW_VALUE: Path = Path::new("Row.value");
     pub const ROW_VERSION: Path = Path::new("Row (version)");
@@ -9998,6 +10086,7 @@ pub enum DirectoryKind {
     File,
     Directory,
     Submodule,
+    Link,
 }
 
 // Record: DirectoryKind.
@@ -10006,7 +10095,8 @@ impl DirectoryKind {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -10039,6 +10129,7 @@ impl Record for DirectoryKind {
             Self::File => field::put(out, &[0], paths::DIRECTORY_KIND_TAG),
             Self::Directory => field::put(out, &[1], paths::DIRECTORY_KIND_TAG),
             Self::Submodule => field::put(out, &[2], paths::DIRECTORY_KIND_TAG),
+            Self::Link => field::put(out, &[3], paths::DIRECTORY_KIND_TAG),
         }
     }
 
@@ -10048,7 +10139,8 @@ impl Record for DirectoryKind {
             0 => Ok(Self::File),
             1 => Ok(Self::Directory),
             2 => Ok(Self::Submodule),
-            3..=u8::MAX => Err(Problem { path: paths::DIRECTORY_KIND_TAG, reason: skein_codec::Reason::Tag }),
+            3 => Ok(Self::Link),
+            4..=u8::MAX => Err(Problem { path: paths::DIRECTORY_KIND_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -13816,6 +13908,7 @@ pub enum Repair {
     Landing(LandingRepair),
     Review(Commit),
     LandingAt(LandingRepairAt),
+    TemperDir(Commit),
 }
 
 // Record: Repair.
@@ -13827,7 +13920,8 @@ impl Repair {
         skein_codec::bounds::Node::Named("LandingRepair"),
         skein_codec::bounds::Node::Named("Commit"),
         skein_codec::bounds::Node::Named("LandingRepairAt"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+        skein_codec::bounds::Node::Named("Commit"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -13863,6 +13957,7 @@ impl Record for Repair {
             Self::Landing(value) => { field::put(out, &[3], paths::REPAIR_TAG)?; value.write(limits, out) },
             Self::Review(value) => { field::put(out, &[4], paths::REPAIR_TAG)?; value.write(limits, out) },
             Self::LandingAt(value) => { field::put(out, &[5], paths::REPAIR_TAG)?; value.write(limits, out) },
+            Self::TemperDir(value) => { field::put(out, &[6], paths::REPAIR_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -13875,7 +13970,8 @@ impl Record for Repair {
             3 => Ok(Self::Landing(LandingRepair::read(limits, reader)?)),
             4 => Ok(Self::Review(Commit::read(limits, reader)?)),
             5 => Ok(Self::LandingAt(LandingRepairAt::read(limits, reader)?)),
-            6..=u8::MAX => Err(Problem { path: paths::REPAIR_TAG, reason: skein_codec::Reason::Tag }),
+            6 => Ok(Self::TemperDir(Commit::read(limits, reader)?)),
+            7..=u8::MAX => Err(Problem { path: paths::REPAIR_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -16593,6 +16689,7 @@ impl Record for ChangeResult {
 pub struct ModelEffort {
     pub model: u8,
     pub effort: Option<u8>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: ModelEffort.
@@ -16601,11 +16698,13 @@ impl ModelEffort {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, model_effort_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 3;
+    pub const ENCODED_AT_ZERO: u64 = 8;
 }
 
 impl Record for ModelEffort {
@@ -16632,6 +16731,7 @@ impl Record for ModelEffort {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U8, &self.model, limits, out, paths::MODEL_EFFORT_MODEL)?;
         field::write(field::Optional { item: field::U8 }, &self.effort, limits, out, paths::MODEL_EFFORT_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, &self.speed, limits, out, paths::MODEL_EFFORT_SPEED)?;
         Ok(())
     }
 
@@ -16639,6 +16739,7 @@ impl Record for ModelEffort {
         Ok(Self {
             model: field::read(field::U8, limits, reader, paths::MODEL_EFFORT_MODEL)?,
             effort: field::read(field::Optional { item: field::U8 }, limits, reader, paths::MODEL_EFFORT_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, limits, reader, paths::MODEL_EFFORT_SPEED)?,
         })
     }
 }
@@ -16663,7 +16764,7 @@ impl LlmChoice {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 12;
+    pub const ENCODED_AT_ZERO: u64 = 17;
 }
 
 impl Record for LlmChoice {
@@ -16689,7 +16790,7 @@ impl Record for LlmChoice {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::LLM_CHOICE_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::LLM_CHOICE_ACCOUNT)?;
         Ok(())
     }
@@ -16697,7 +16798,7 @@ impl Record for LlmChoice {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::LLM_CHOICE_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::LLM_CHOICE_ACCOUNT)?,
         })
     }
@@ -28307,6 +28408,7 @@ impl Record for SettingsCombine {
 pub struct NamedModel {
     pub model: Box<[u8]>,
     pub effort: Option<Box<[u8]>>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: NamedModel.
@@ -28315,11 +28417,13 @@ impl NamedModel {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_model) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_effort_some) },
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 9;
+    pub const ENCODED_AT_ZERO: u64 = 14;
 }
 
 impl Record for NamedModel {
@@ -28346,6 +28450,7 @@ impl Record for NamedModel {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.named_model_model.min(CEILINGS.named_model_model) }, &self.model, limits, out, paths::NAMED_MODEL_MODEL)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.named_model_effort_some.min(CEILINGS.named_model_effort_some) } }, &self.effort, limits, out, paths::NAMED_MODEL_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.named_model_speed_some.min(CEILINGS.named_model_speed_some) } }, &self.speed, limits, out, paths::NAMED_MODEL_SPEED)?;
         Ok(())
     }
 
@@ -28353,6 +28458,7 @@ impl Record for NamedModel {
         Ok(Self {
             model: field::read(field::Bytes { limit: limits.named_model_model.min(CEILINGS.named_model_model) }, limits, reader, paths::NAMED_MODEL_MODEL)?,
             effort: field::read(field::Optional { item: field::Bytes { limit: limits.named_model_effort_some.min(CEILINGS.named_model_effort_some) } }, limits, reader, paths::NAMED_MODEL_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.named_model_speed_some.min(CEILINGS.named_model_speed_some) } }, limits, reader, paths::NAMED_MODEL_SPEED)?,
         })
     }
 }
@@ -28374,7 +28480,7 @@ impl NamedLater {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 13;
+    pub const ENCODED_AT_ZERO: u64 = 18;
 }
 
 impl Record for NamedLater {
@@ -28400,14 +28506,14 @@ impl Record for NamedLater {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::NAMED_LATER_MAIN)?;
-        field::write(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 5, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LATER_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 6, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LATER_SUBAGENTS)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::NAMED_LATER_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 5, item: field::Nested }, limits, reader, paths::NAMED_LATER_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 6, item: field::Nested }, limits, reader, paths::NAMED_LATER_SUBAGENTS)?,
         })
     }
 }
@@ -28435,7 +28541,7 @@ impl NamedLlm {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 32;
+    pub const ENCODED_AT_ZERO: u64 = 42;
 }
 
 impl Record for NamedLlm {
@@ -28462,7 +28568,7 @@ impl Record for NamedLlm {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::NAMED_LLM_ACCOUNT)?;
         field::write(field::Nested, &self.main, limits, out, paths::NAMED_LLM_MAIN)?;
-        field::write(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 5, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LLM_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 6, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LLM_SUBAGENTS)?;
         field::write(field::Optional { item: field::Nested }, &self.later, limits, out, paths::NAMED_LLM_LATER)?;
         Ok(())
     }
@@ -28471,7 +28577,7 @@ impl Record for NamedLlm {
         Ok(Self {
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::NAMED_LLM_ACCOUNT)?,
             main: field::read(field::Nested, limits, reader, paths::NAMED_LLM_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 5, item: field::Nested }, limits, reader, paths::NAMED_LLM_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 6, item: field::Nested }, limits, reader, paths::NAMED_LLM_SUBAGENTS)?,
             later: field::read(field::Optional { item: field::Nested }, limits, reader, paths::NAMED_LLM_LATER)?,
         })
     }
@@ -28498,7 +28604,7 @@ impl RepairGoalSettings {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 49;
+    pub const ENCODED_AT_ZERO: u64 = 59;
 }
 
 impl Record for RepairGoalSettings {
@@ -28560,7 +28666,7 @@ impl RepairSettings {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 59;
+    pub const ENCODED_AT_ZERO: u64 = 69;
 }
 
 impl Record for RepairSettings {
@@ -28620,6 +28726,8 @@ pub struct ProjectLanding {
     pub wait: SettingsLandingWait,
     pub repairs: Option<RepairSettings>,
     pub flakes: Option<SettingsFlakes>,
+    pub hook_timeout_max_seconds: u32,
+    pub temper_dir_sign_off: bool,
 }
 
 // Record: ProjectLanding.
@@ -28645,11 +28753,13 @@ impl ProjectLanding {
         skein_codec::bounds::Node::Option { item: 16 },
         skein_codec::bounds::Node::Named("SettingsFlakes"),
         skein_codec::bounds::Node::Option { item: 18 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 20, 21] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 110;
+    pub const ENCODED_AT_ZERO: u64 = 125;
 }
 
 impl Record for ProjectLanding {
@@ -28689,6 +28799,8 @@ impl Record for ProjectLanding {
         field::write(field::Nested, &self.wait, limits, out, paths::PROJECT_LANDING_WAIT)?;
         field::write(field::Optional { item: field::Nested }, &self.repairs, limits, out, paths::PROJECT_LANDING_REPAIRS)?;
         field::write(field::Optional { item: field::Nested }, &self.flakes, limits, out, paths::PROJECT_LANDING_FLAKES)?;
+        field::write(field::U32, &self.hook_timeout_max_seconds, limits, out, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?;
+        field::write(field::Boolean, &self.temper_dir_sign_off, limits, out, paths::PROJECT_LANDING_TEMPER_DIR_SIGN_OFF)?;
         Ok(())
     }
 
@@ -28709,6 +28821,8 @@ impl Record for ProjectLanding {
             wait: field::read(field::Nested, limits, reader, paths::PROJECT_LANDING_WAIT)?,
             repairs: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_REPAIRS)?,
             flakes: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_FLAKES)?,
+            hook_timeout_max_seconds: field::read(field::U32, limits, reader, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?,
+            temper_dir_sign_off: field::read(field::Boolean, limits, reader, paths::PROJECT_LANDING_TEMPER_DIR_SIGN_OFF)?,
         })
     }
 }
@@ -31872,6 +31986,7 @@ impl Record for Decided {
 pub enum ClosingStep {
     Close,
     Land,
+    CatchUp,
 }
 
 // Record: ClosingStep.
@@ -31879,7 +31994,8 @@ impl ClosingStep {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -31911,6 +32027,7 @@ impl Record for ClosingStep {
         match self {
             Self::Close => field::put(out, &[0], paths::CLOSING_STEP_TAG),
             Self::Land => field::put(out, &[1], paths::CLOSING_STEP_TAG),
+            Self::CatchUp => field::put(out, &[2], paths::CLOSING_STEP_TAG),
         }
     }
 
@@ -31919,7 +32036,8 @@ impl Record for ClosingStep {
         match tag {
             0 => Ok(Self::Close),
             1 => Ok(Self::Land),
-            2..=u8::MAX => Err(Problem { path: paths::CLOSING_STEP_TAG, reason: skein_codec::Reason::Tag }),
+            2 => Ok(Self::CatchUp),
+            3..=u8::MAX => Err(Problem { path: paths::CLOSING_STEP_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -32742,6 +32860,7 @@ impl Record for ClosingReportCheck {
 pub struct Closer {
     pub report_check: ClosingReportCheck,
     pub goal_left: Option<Box<[u8]>>,
+    pub goal_asked: Option<Box<[u8]>>,
     pub task: u64,
     pub goal: u64,
     pub closed: Option<ClosingTasks>,
@@ -32756,6 +32875,8 @@ pub struct Closer {
     pub done: bool,
     pub relay: Option<ClosingRelay>,
     pub superseded: List<u64>,
+    pub caught_up: Option<ClosingTasks>,
+    pub catch_up_changes: List<u64>,
 }
 
 // Record: Closer.
@@ -32764,36 +32885,42 @@ impl Closer {
         skein_codec::bounds::Node::Named("ClosingReportCheck"),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, closer_goal_left_some) },
         skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, closer_goal_asked_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("ClosingTasks"),
-        skein_codec::bounds::Node::Option { item: 5 },
-        skein_codec::bounds::Node::Named("ClosingRun"),
         skein_codec::bounds::Node::Option { item: 7 },
-        skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 9 },
         skein_codec::bounds::Node::Named("ClosingRun"),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 11 },
-        skein_codec::bounds::Node::Named("ClosingStep"),
+        skein_codec::bounds::Node::Named("ClosingRun"),
         skein_codec::bounds::Node::Option { item: 13 },
         skein_codec::bounds::Node::Named("ClosingStep"),
         skein_codec::bounds::Node::Option { item: 15 },
+        skein_codec::bounds::Node::Named("ClosingStep"),
+        skein_codec::bounds::Node::Option { item: 17 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_close_changes), item: 17, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_close_changes), item: 19, size: size_of::<u64>() },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_landing_changes), item: 19, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_landing_changes), item: 21, size: size_of::<u64>() },
         skein_codec::bounds::Node::Named("ClosingSelection"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_selections), item: 21, size: size_of::<ClosingSelection>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_selections), item: 23, size: size_of::<ClosingSelection>() },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("ClosingRelay"),
-        skein_codec::bounds::Node::Option { item: 24 },
+        skein_codec::bounds::Node::Option { item: 26 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_superseded), item: 26, size: size_of::<u64>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 23, 25, 27] },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_superseded), item: 28, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Named("ClosingTasks"),
+        skein_codec::bounds::Node::Option { item: 30 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_catch_up_changes), item: 32, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25, 27, 29, 31, 33] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 132;
+    pub const ENCODED_AT_ZERO: u64 = 146;
 }
 
 impl Record for Closer {
@@ -32820,6 +32947,7 @@ impl Record for Closer {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.report_check, limits, out, paths::CLOSER_REPORT_CHECK)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.closer_goal_left_some.min(CEILINGS.closer_goal_left_some) } }, &self.goal_left, limits, out, paths::CLOSER_GOAL_LEFT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.closer_goal_asked_some.min(CEILINGS.closer_goal_asked_some) } }, &self.goal_asked, limits, out, paths::CLOSER_GOAL_ASKED)?;
         field::write(field::U64, &self.task, limits, out, paths::CLOSER_TASK)?;
         field::write(field::U64, &self.goal, limits, out, paths::CLOSER_GOAL)?;
         field::write(field::Optional { item: field::Nested }, &self.closed, limits, out, paths::CLOSER_CLOSED)?;
@@ -32834,6 +32962,8 @@ impl Record for Closer {
         field::write(field::Boolean, &self.done, limits, out, paths::CLOSER_DONE)?;
         field::write(field::Optional { item: field::Nested }, &self.relay, limits, out, paths::CLOSER_RELAY)?;
         field::write(field::Sequence { limit: limits.closer_superseded.min(CEILINGS.closer_superseded), minimum: 8, item: field::U64 }, &self.superseded, limits, out, paths::CLOSER_SUPERSEDED)?;
+        field::write(field::Optional { item: field::Nested }, &self.caught_up, limits, out, paths::CLOSER_CAUGHT_UP)?;
+        field::write(field::Sequence { limit: limits.closer_catch_up_changes.min(CEILINGS.closer_catch_up_changes), minimum: 8, item: field::U64 }, &self.catch_up_changes, limits, out, paths::CLOSER_CATCH_UP_CHANGES)?;
         Ok(())
     }
 
@@ -32841,6 +32971,7 @@ impl Record for Closer {
         Ok(Self {
             report_check: field::read(field::Nested, limits, reader, paths::CLOSER_REPORT_CHECK)?,
             goal_left: field::read(field::Optional { item: field::Bytes { limit: limits.closer_goal_left_some.min(CEILINGS.closer_goal_left_some) } }, limits, reader, paths::CLOSER_GOAL_LEFT)?,
+            goal_asked: field::read(field::Optional { item: field::Bytes { limit: limits.closer_goal_asked_some.min(CEILINGS.closer_goal_asked_some) } }, limits, reader, paths::CLOSER_GOAL_ASKED)?,
             task: field::read(field::U64, limits, reader, paths::CLOSER_TASK)?,
             goal: field::read(field::U64, limits, reader, paths::CLOSER_GOAL)?,
             closed: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSER_CLOSED)?,
@@ -32855,6 +32986,8 @@ impl Record for Closer {
             done: field::read(field::Boolean, limits, reader, paths::CLOSER_DONE)?,
             relay: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSER_RELAY)?,
             superseded: field::read(field::Sequence { limit: limits.closer_superseded.min(CEILINGS.closer_superseded), minimum: 8, item: field::U64 }, limits, reader, paths::CLOSER_SUPERSEDED)?,
+            caught_up: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSER_CAUGHT_UP)?,
+            catch_up_changes: field::read(field::Sequence { limit: limits.closer_catch_up_changes.min(CEILINGS.closer_catch_up_changes), minimum: 8, item: field::U64 }, limits, reader, paths::CLOSER_CATCH_UP_CHANGES)?,
         })
     }
 }
@@ -37308,7 +37441,7 @@ impl ChangeCold {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 224;
+    pub const ENCODED_AT_ZERO: u64 = 234;
 }
 
 impl Record for ChangeCold {
@@ -37496,6 +37629,63 @@ impl Record for CloseRefused {
     }
 }
 
+// Type: CloseOutdated.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum CloseOutdated {
+    Window,
+    Ancestry,
+}
+
+// Record: CloseOutdated.
+impl CloseOutdated {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for CloseOutdated {
+    type Limits = Limits;
+    const TAIL: Path = paths::CLOSE_OUTDATED_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CloseOutdated")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CloseOutdated")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Window => field::put(out, &[0], paths::CLOSE_OUTDATED_TAG),
+            Self::Ancestry => field::put(out, &[1], paths::CLOSE_OUTDATED_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::CLOSE_OUTDATED_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Window),
+            1 => Ok(Self::Ancestry),
+            2..=u8::MAX => Err(Problem { path: paths::CLOSE_OUTDATED_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: CloseAt.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CloseAt {
@@ -37503,6 +37693,7 @@ pub struct CloseAt {
     pub landing: [u8; 32],
     pub asked: bool,
     pub refused: Option<CloseRefused>,
+    pub outdated: Option<CloseOutdated>,
 }
 
 // Record: CloseAt.
@@ -37513,11 +37704,13 @@ impl CloseAt {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("CloseRefused"),
         skein_codec::bounds::Node::Option { item: 3 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4] },
+        skein_codec::bounds::Node::Named("CloseOutdated"),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 99;
+    pub const ENCODED_AT_ZERO: u64 = 101;
 }
 
 impl Record for CloseAt {
@@ -37546,6 +37739,7 @@ impl Record for CloseAt {
         field::write(field::Fixed::<32>, &self.landing, limits, out, paths::CLOSE_AT_LANDING)?;
         field::write(field::Boolean, &self.asked, limits, out, paths::CLOSE_AT_ASKED)?;
         field::write(field::Optional { item: field::Nested }, &self.refused, limits, out, paths::CLOSE_AT_REFUSED)?;
+        field::write(field::Optional { item: field::Nested }, &self.outdated, limits, out, paths::CLOSE_AT_OUTDATED)?;
         Ok(())
     }
 
@@ -37555,6 +37749,7 @@ impl Record for CloseAt {
             landing: field::read(field::Fixed::<32>, limits, reader, paths::CLOSE_AT_LANDING)?,
             asked: field::read(field::Boolean, limits, reader, paths::CLOSE_AT_ASKED)?,
             refused: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSE_AT_REFUSED)?,
+            outdated: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSE_AT_OUTDATED)?,
         })
     }
 }
@@ -38013,6 +38208,7 @@ pub struct ChangeHot {
     pub asks: List<LandingHanded>,
     pub handed: u32,
     pub ci_recheck: Option<CiRecheck>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
 }
 
 // Record: ChangeHot.
@@ -38090,11 +38286,13 @@ impl ChangeHot {
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("CiRecheck"),
         skein_codec::bounds::Node::Option { item: 70 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 36, 38, 40, 41, 43, 44, 45, 46, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 68, 69, 71] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_temper_dir_fault_some) },
+        skein_codec::bounds::Node::Option { item: 72 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 36, 38, 40, 41, 43, 44, 45, 46, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 68, 69, 71, 73] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1756;
+    pub const ENCODED_AT_ZERO: u64 = 1763;
 }
 
 impl Record for ChangeHot {
@@ -38162,6 +38360,7 @@ impl Record for ChangeHot {
         field::write(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, &self.asks, limits, out, paths::CHANGE_HOT_ASKS)?;
         field::write(field::U32, &self.handed, limits, out, paths::CHANGE_HOT_HANDED)?;
         field::write(field::Optional { item: field::Nested }, &self.ci_recheck, limits, out, paths::CHANGE_HOT_CI_RECHECK)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.change_hot_temper_dir_fault_some.min(CEILINGS.change_hot_temper_dir_fault_some) } }, &self.temper_dir_fault, limits, out, paths::CHANGE_HOT_TEMPER_DIR_FAULT)?;
         Ok(())
     }
 
@@ -38210,6 +38409,7 @@ impl Record for ChangeHot {
             asks: field::read(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, limits, reader, paths::CHANGE_HOT_ASKS)?,
             handed: field::read(field::U32, limits, reader, paths::CHANGE_HOT_HANDED)?,
             ci_recheck: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_CI_RECHECK)?,
+            temper_dir_fault: field::read(field::Optional { item: field::Bytes { limit: limits.change_hot_temper_dir_fault_some.min(CEILINGS.change_hot_temper_dir_fault_some) } }, limits, reader, paths::CHANGE_HOT_TEMPER_DIR_FAULT)?,
         })
     }
 }
@@ -39797,6 +39997,56 @@ impl Record for AreaCharter {
     }
 }
 
+// Type: AreaCharterNamed.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaCharterNamed {
+    pub name: Box<[u8]>,
+}
+
+// Record: AreaCharterNamed.
+impl AreaCharterNamed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, area_charter_named_name) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for AreaCharterNamed {
+    type Limits = Limits;
+    const TAIL: Path = paths::AREA_CHARTER_NAMED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AreaCharterNamed")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AreaCharterNamed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.area_charter_named_name.min(CEILINGS.area_charter_named_name) }, &self.name, limits, out, paths::AREA_CHARTER_NAMED_NAME)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.area_charter_named_name.min(CEILINGS.area_charter_named_name) }, limits, reader, paths::AREA_CHARTER_NAMED_NAME)?,
+        })
+    }
+}
+
 // Type: AreaOwner.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AreaOwner {
@@ -39804,6 +40054,7 @@ pub enum AreaOwner {
     Party(AreaParty),
     Role(AreaRole),
     Charter(AreaCharter),
+    CharterNamed(AreaCharterNamed),
 }
 
 // Record: AreaOwner.
@@ -39813,7 +40064,8 @@ impl AreaOwner {
         skein_codec::bounds::Node::Named("AreaParty"),
         skein_codec::bounds::Node::Named("AreaRole"),
         skein_codec::bounds::Node::Named("AreaCharter"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Named("AreaCharterNamed"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -39847,6 +40099,7 @@ impl Record for AreaOwner {
             Self::Party(value) => { field::put(out, &[1], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
             Self::Role(value) => { field::put(out, &[2], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
             Self::Charter(value) => { field::put(out, &[3], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
+            Self::CharterNamed(value) => { field::put(out, &[4], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -39857,7 +40110,8 @@ impl Record for AreaOwner {
             1 => Ok(Self::Party(AreaParty::read(limits, reader)?)),
             2 => Ok(Self::Role(AreaRole::read(limits, reader)?)),
             3 => Ok(Self::Charter(AreaCharter::read(limits, reader)?)),
-            4..=u8::MAX => Err(Problem { path: paths::AREA_OWNER_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::CharterNamed(AreaCharterNamed::read(limits, reader)?)),
+            5..=u8::MAX => Err(Problem { path: paths::AREA_OWNER_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -40521,7 +40775,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 111;
+    pub const ENCODED_AT_ZERO: u64 = 126;
 }
 
 impl Record for SettingValue {
@@ -40608,7 +40862,7 @@ impl SizedValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 115;
+    pub const ENCODED_AT_ZERO: u64 = 130;
 }
 
 impl Record for SizedValue {
@@ -40664,7 +40918,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 116;
+    pub const ENCODED_AT_ZERO: u64 = 131;
 }
 
 impl Record for SettingEdit {
@@ -40729,7 +40983,7 @@ impl SettingRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 137;
+    pub const ENCODED_AT_ZERO: u64 = 152;
 }
 
 impl Record for SettingRow {
@@ -43137,6 +43391,200 @@ impl Record for Writes {
     }
 }
 
+// Type: DotTemperFile.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DotTemperFile {
+    pub path: Box<[u8]>,
+    pub bytes: Box<[u8]>,
+}
+
+// Record: DotTemperFile.
+impl DotTemperFile {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, dot_temper_file_path) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, dot_temper_file_bytes) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for DotTemperFile {
+    type Limits = Limits;
+    const TAIL: Path = paths::DOT_TEMPER_FILE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperFile")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperFile")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.dot_temper_file_path.min(CEILINGS.dot_temper_file_path) }, &self.path, limits, out, paths::DOT_TEMPER_FILE_PATH)?;
+        field::write(field::Bytes { limit: limits.dot_temper_file_bytes.min(CEILINGS.dot_temper_file_bytes) }, &self.bytes, limits, out, paths::DOT_TEMPER_FILE_BYTES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            path: field::read(field::Bytes { limit: limits.dot_temper_file_path.min(CEILINGS.dot_temper_file_path) }, limits, reader, paths::DOT_TEMPER_FILE_PATH)?,
+            bytes: field::read(field::Bytes { limit: limits.dot_temper_file_bytes.min(CEILINGS.dot_temper_file_bytes) }, limits, reader, paths::DOT_TEMPER_FILE_BYTES)?,
+        })
+    }
+}
+
+// Type: DotTemperRefusal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DotTemperRefusal {
+    pub commit: Option<[u8; 32]>,
+    pub observed: u64,
+    pub words: Box<[u8]>,
+}
+
+// Record: DotTemperRefusal.
+impl DotTemperRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, dot_temper_refusal_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 45;
+}
+
+impl Record for DotTemperRefusal {
+    type Limits = Limits;
+    const TAIL: Path = paths::DOT_TEMPER_REFUSAL_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRefusal")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::DOT_TEMPER_REFUSAL_COMMIT)?;
+        field::write(field::U64, &self.observed, limits, out, paths::DOT_TEMPER_REFUSAL_OBSERVED)?;
+        field::write(field::Bytes { limit: limits.dot_temper_refusal_words.min(CEILINGS.dot_temper_refusal_words) }, &self.words, limits, out, paths::DOT_TEMPER_REFUSAL_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::DOT_TEMPER_REFUSAL_COMMIT)?,
+            observed: field::read(field::U64, limits, reader, paths::DOT_TEMPER_REFUSAL_OBSERVED)?,
+            words: field::read(field::Bytes { limit: limits.dot_temper_refusal_words.min(CEILINGS.dot_temper_refusal_words) }, limits, reader, paths::DOT_TEMPER_REFUSAL_WORDS)?,
+        })
+    }
+}
+
+// Type: DotTemperRevision.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DotTemperRevision {
+    pub project: u32,
+    pub number: u64,
+    pub home: Repository,
+    pub commit: Option<[u8; 32]>,
+    pub method: bool,
+    pub files: List<DotTemperFile>,
+    pub observed: u64,
+    pub refused: Option<DotTemperRefusal>,
+}
+
+// Record: DotTemperRevision.
+impl DotTemperRevision {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("Repository"),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("DotTemperFile"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, dot_temper_revision_files), item: 6, size: size_of::<DotTemperFile>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("DotTemperRefusal"),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 7, 8, 10] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 110;
+}
+
+impl Record for DotTemperRevision {
+    type Limits = Limits;
+    const TAIL: Path = paths::DOT_TEMPER_REVISION_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRevision")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRevision")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::DOT_TEMPER_REVISION_PROJECT)?;
+        field::write(field::U64, &self.number, limits, out, paths::DOT_TEMPER_REVISION_NUMBER)?;
+        field::write(field::Nested, &self.home, limits, out, paths::DOT_TEMPER_REVISION_HOME)?;
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::DOT_TEMPER_REVISION_COMMIT)?;
+        field::write(field::Boolean, &self.method, limits, out, paths::DOT_TEMPER_REVISION_METHOD)?;
+        field::write(field::Sequence { limit: limits.dot_temper_revision_files.min(CEILINGS.dot_temper_revision_files), minimum: 8, item: field::Nested }, &self.files, limits, out, paths::DOT_TEMPER_REVISION_FILES)?;
+        field::write(field::U64, &self.observed, limits, out, paths::DOT_TEMPER_REVISION_OBSERVED)?;
+        field::write(field::Optional { item: field::Nested }, &self.refused, limits, out, paths::DOT_TEMPER_REVISION_REFUSED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::DOT_TEMPER_REVISION_PROJECT)?,
+            number: field::read(field::U64, limits, reader, paths::DOT_TEMPER_REVISION_NUMBER)?,
+            home: field::read(field::Nested, limits, reader, paths::DOT_TEMPER_REVISION_HOME)?,
+            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::DOT_TEMPER_REVISION_COMMIT)?,
+            method: field::read(field::Boolean, limits, reader, paths::DOT_TEMPER_REVISION_METHOD)?,
+            files: field::read(field::Sequence { limit: limits.dot_temper_revision_files.min(CEILINGS.dot_temper_revision_files), minimum: 8, item: field::Nested }, limits, reader, paths::DOT_TEMPER_REVISION_FILES)?,
+            observed: field::read(field::U64, limits, reader, paths::DOT_TEMPER_REVISION_OBSERVED)?,
+            refused: field::read(field::Optional { item: field::Nested }, limits, reader, paths::DOT_TEMPER_REVISION_REFUSED)?,
+        })
+    }
+}
+
 // Type: Value.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Value {
@@ -43192,6 +43640,7 @@ pub enum Value {
     PersonBrief(PersonBrief),
     LimitHold(LimitHold),
     Writes(Writes),
+    DotTemperRevision(DotTemperRevision),
 }
 
 // Record: Value.
@@ -43255,11 +43704,12 @@ impl Value {
         skein_codec::bounds::Node::Named("PersonBrief"),
         skein_codec::bounds::Node::Named("LimitHold"),
         skein_codec::bounds::Node::Named("Writes"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57] },
+        skein_codec::bounds::Node::Named("DotTemperRevision"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57, 58] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1757;
+    pub const ENCODED_AT_ZERO: u64 = 1764;
 }
 
 impl Record for Value {
@@ -43337,6 +43787,7 @@ impl Record for Value {
             Self::PersonBrief(value) => { field::put(out, &[49], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::LimitHold(value) => { field::put(out, &[50], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::Writes(value) => { field::put(out, &[51], paths::VALUE_TAG)?; value.write(limits, out) },
+            Self::DotTemperRevision(value) => { field::put(out, &[52], paths::VALUE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -43395,7 +43846,8 @@ impl Record for Value {
             49 => Ok(Self::PersonBrief(PersonBrief::read(limits, reader)?)),
             50 => Ok(Self::LimitHold(LimitHold::read(limits, reader)?)),
             51 => Ok(Self::Writes(Writes::read(limits, reader)?)),
-            52..=u8::MAX => Err(Problem { path: paths::VALUE_TAG, reason: skein_codec::Reason::Tag }),
+            52 => Ok(Self::DotTemperRevision(DotTemperRevision::read(limits, reader)?)),
+            53..=u8::MAX => Err(Problem { path: paths::VALUE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -43414,7 +43866,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1759;
+    pub const ENCODED_AT_ZERO: u64 = 1766;
 }
 
 impl Record for Row {
@@ -43470,6 +43922,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ApplicationOutcome", nodes: ApplicationOutcome::SHAPE },
     skein_codec::bounds::Declaration { name: "Area", nodes: Area::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaCharter", nodes: AreaCharter::SHAPE },
+    skein_codec::bounds::Declaration { name: "AreaCharterNamed", nodes: AreaCharterNamed::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaOwner", nodes: AreaOwner::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaParty", nodes: AreaParty::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaRole", nodes: AreaRole::SHAPE },
@@ -43533,6 +43986,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ClientRow", nodes: ClientRow::SHAPE },
     skein_codec::bounds::Declaration { name: "ClientValue", nodes: ClientValue::SHAPE },
     skein_codec::bounds::Declaration { name: "CloseAt", nodes: CloseAt::SHAPE },
+    skein_codec::bounds::Declaration { name: "CloseOutdated", nodes: CloseOutdated::SHAPE },
     skein_codec::bounds::Declaration { name: "CloseRefused", nodes: CloseRefused::SHAPE },
     skein_codec::bounds::Declaration { name: "Closer", nodes: Closer::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingAsked", nodes: ClosingAsked::SHAPE },
@@ -43577,6 +44031,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "DispatchInput", nodes: DispatchInput::SHAPE },
     skein_codec::bounds::Declaration { name: "DispatchWrite", nodes: DispatchWrite::SHAPE },
     skein_codec::bounds::Declaration { name: "DispatchedKey", nodes: DispatchedKey::SHAPE },
+    skein_codec::bounds::Declaration { name: "DotTemperFile", nodes: DotTemperFile::SHAPE },
+    skein_codec::bounds::Declaration { name: "DotTemperRefusal", nodes: DotTemperRefusal::SHAPE },
+    skein_codec::bounds::Declaration { name: "DotTemperRevision", nodes: DotTemperRevision::SHAPE },
     skein_codec::bounds::Declaration { name: "Drift", nodes: Drift::SHAPE },
     skein_codec::bounds::Declaration { name: "DriftChange", nodes: DriftChange::SHAPE },
     skein_codec::bounds::Declaration { name: "Early", nodes: Early::SHAPE },
@@ -44184,6 +44641,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.change_gate_failures,
     CEILINGS.effect_account_words,
     CEILINGS.result_text_bytes,
+    CEILINGS.model_effort_speed_some,
     CEILINGS.llm_choice_subagents,
     CEILINGS.held_answer,
     CEILINGS.open_line,
@@ -44300,6 +44758,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_rule_sets,
     CEILINGS.named_model_model,
     CEILINGS.named_model_effort_some,
+    CEILINGS.named_model_speed_some,
     CEILINGS.named_later_subagents,
     CEILINGS.named_llm_subagents,
     CEILINGS.project_landing_merge_job_some,
@@ -44363,10 +44822,12 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.closing_relay_replies,
     CEILINGS.closing_relay_waiting,
     CEILINGS.closer_goal_left_some,
+    CEILINGS.closer_goal_asked_some,
     CEILINGS.closer_close_changes,
     CEILINGS.closer_landing_changes,
     CEILINGS.closer_selections,
     CEILINGS.closer_superseded,
+    CEILINGS.closer_catch_up_changes,
     CEILINGS.landed_draft_path,
     CEILINGS.landed_draft_branch,
     CEILINGS.landed_draft_title,
@@ -44408,6 +44869,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.change_hot_producer_failure_some,
     CEILINGS.change_hot_merge_result_some,
     CEILINGS.change_hot_asks,
+    CEILINGS.change_hot_temper_dir_fault_some,
     CEILINGS.subscriber_goal_tasks_some,
     CEILINGS.subscriber_paths,
     CEILINGS.subscriber_paths_item,
@@ -44423,6 +44885,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.red_pass_key,
     CEILINGS.red_recorded_head,
     CEILINGS.red_reply_key,
+    CEILINGS.area_charter_named_name,
     CEILINGS.area_name,
     CEILINGS.area_words,
     CEILINGS.project_areas_areas,
@@ -44460,6 +44923,10 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.written_retarget_from,
     CEILINGS.written_retarget_to,
     CEILINGS.writes_entries,
+    CEILINGS.dot_temper_file_path,
+    CEILINGS.dot_temper_file_bytes,
+    CEILINGS.dot_temper_refusal_words,
+    CEILINGS.dot_temper_revision_files,
 ];
 
 #[must_use]

@@ -96,13 +96,22 @@ fn zero_wake_counts_and_durations_are_sent_for_deployment_validation() {
 }
 #[test]
 fn a_shown_charter_with_a_wake_policy_applies_unchanged() {
-    let value = charter(&charter_file(COORDINATOR));
-    let bounds = JsonLimits { depth: 32, length: 8192 };
-    let mut measure = Encoder::measure(&bounds);
-    encode_file(&value, &mut measure);
-    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
-    encode_file(&value, &mut out);
-    assert_eq!(charter(&out.finish()), value);
+    for name in [None, Some(b"coordinator".as_slice())] {
+        let members = match name {
+            Some(_) => joined(&[COORDINATOR, br#", "name":"coordinator""#]),
+            None => COORDINATOR.into(),
+        };
+        let value = charter(&charter_file(&members));
+        assert_eq!(value.name.as_deref(), name);
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        encode_file(&value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        encode_file(&value, &mut out);
+        let printed = out.finish();
+        assert_eq!(skein_lib::bytes::find(&printed, br#""name":"coordinator""#).is_some(), name.is_some());
+        assert_eq!(charter(&printed), value);
+    }
 }
 fn encode_file(value: &c::Charter, out: &mut Encoder) {
     out.object_start();
@@ -155,6 +164,60 @@ const CHARTER_WORDS: &[u8] = br#"{"kind":"charter-words","number":4}"#;
 const PROJECT_WORDS: &[u8] = br#"{"kind":"project-words","project":7}"#;
 const LINE: &[u8] = br#""llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll""#;
 const WORDS: &[u8] = br#"{"headline":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","lede":"llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"}"#;
+#[test]
+fn charter_owners_keep_names_and_numbers_in_the_settings_form() {
+    use temper_client_protocol_wire::v1 as w;
+    use w::Record;
+    for (json, expected) in [
+        (
+            br#""triager""#.as_slice(),
+            w::AreaOwner::CharterNamed(w::AreaCharterNamed { name: b"triager".as_slice().into() }),
+        ),
+        (b"14".as_slice(), w::AreaOwner::Charter(w::AreaCharter { number: 14 })),
+    ] {
+        for (kind, setting, value) in [
+            (
+                14,
+                br#"{"kind":"project-areas","project":3}"#.as_slice(),
+                joined(&[br#"{"areas":[{"name":"tests","words":"C tests","owner":{"charter":"#, json, b"}}]}"]),
+            ),
+            (
+                15,
+                br#"{"kind":"project-triager","project":3}"#.as_slice(),
+                joined(&[br#"{"owner":{"charter":"#, json, b"}}"]),
+            ),
+        ] {
+            let items =
+                file::decode(&kind_file(setting, &value), &Limits::standard()).expect("owner in a settings file");
+            let item = items.get(0).expect("one item");
+            assert_eq!(item.setting, c::Setting::Application { kind, scope: 3, number: 1 });
+            let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+            let c::SettingValue::Application(bytes) = &set.value else { panic!("owner bytes") };
+            let mut reader = skein_lib::Reader::new(bytes);
+            if kind == 14 {
+                let areas = w::ProjectAreas::decode(&w::CEILINGS, &mut reader).unwrap();
+                assert_eq!(areas.areas.get(0).unwrap().owner, expected);
+            } else {
+                let triager = w::ProjectTriager::decode(&w::CEILINGS, &mut reader).unwrap();
+                assert_eq!(triager.owner, expected);
+            }
+            assert!(reader.is_empty());
+            let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
+                setting: item.setting,
+                revision: 1,
+                value: Some(set.value.clone()),
+                application: None,
+                proposed: None,
+            }));
+            assert_eq!(
+                shown(&document),
+                joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, &value, b"}"])
+            );
+        }
+    }
+}
+
 #[test]
 fn temper_kinds_round_trip_from_file_to_shown_json() {
     for (setting, json, expected) in [
@@ -218,6 +281,22 @@ fn landing_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLa
     landing
 }
 #[test]
+fn landing_hook_ceiling_round_trips_and_defaults() {
+    for (json, expected) in [(b"{}".as_slice(), 3_600), (br#"{"hook_timeout_max_seconds":1800}"#, 1_800)] {
+        assert_eq!(landing_round_trip(json).hook_timeout_max_seconds, expected);
+    }
+}
+#[test]
+fn landing_sign_off_round_trips_and_defaults_to_off() {
+    let limits = Limits::standard();
+    assert!(landing_round_trip(br#"{"temper_dir_sign_off":true}"#).temper_dir_sign_off);
+    assert!(!landing_round_trip(b"{}").temper_dir_sign_off);
+    let off = file::decode(&kind_file(LANDING_SETTING, br#"{"temper_dir_sign_off":false}"#), &limits).unwrap();
+    assert_eq!(off, file::decode(&kind_file(LANDING_SETTING, b"{}"), &limits).unwrap());
+    let error = file::decode(&kind_file(LANDING_SETTING, br#"{"temper_dir_sign_off":"true"}"#), &limits).unwrap_err();
+    assert!(skein_lib::bytes::find(&error, b"temper_dir_sign_off: expected boolean").is_some(), "{error:?}");
+}
+#[test]
 fn landing_flakes_round_trip_unset_never_and_rerun() {
     use temper_client_protocol_wire::v1::{SettingsFlakeRerun, SettingsFlakes};
     for (json, expected) in [
@@ -252,10 +331,81 @@ fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
 }
 #[test]
 fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
-    let landing = landing_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
+    use jig_client_protocol_wire as jig;
+    use temper_client_protocol_wire::v1 as w;
+    let landing = landing_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high","speed":"fast"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
     let repairs = landing.repairs.as_ref().unwrap();
     assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
-    assert_eq!(repairs.goal.llm.as_ref().unwrap().main.model.as_ref(), b"main");
+    let named = repairs.goal.llm.as_ref().unwrap();
+    assert_eq!(named.main.model.as_ref(), b"main");
+    assert_eq!(named.main.speed.as_deref(), Some(b"fast".as_slice()));
+    assert_eq!(named.subagents.get(0).unwrap().speed, None);
+
+    // The named repair choice and jig wire choice share a layout, even for a populated speed.
+    let bytes = named.encode(&w::CEILINGS).unwrap();
+    let choice = jig::LlmChoice::decode(&jig::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    assert_eq!(choice.main.speed.as_deref(), Some(b"fast".as_slice()));
+    assert_eq!(choice.encode(&jig::CEILINGS).unwrap(), bytes);
+    let bytes = landing.encode(&w::CEILINGS).unwrap();
+    assert_eq!(w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)), Ok(landing));
+}
+#[test]
+fn a_templates_model_speeds_round_trip_through_jigs_client_wire() {
+    use jig_client_protocol_wire as jig;
+    for (llm, speeds) in [
+        (
+            br#"{"account":null,"main":{"model":"main","effort":"high","speed":"fast"},"subagents":[{"model":"helper","effort":null,"speed":"standard"}],"later":{"main":{"model":"later","effort":"low","speed":"ultrafast"},"subagents":[]}}"#.as_slice(),
+            [Some(b"fast".as_slice()), Some(b"standard".as_slice()), Some(b"ultrafast".as_slice())],
+        ),
+        (
+            br#"{"account":null,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}}"#,
+            [None, None, None],
+        ),
+    ] {
+        let limits = Limits::standard();
+        let value = template(&joined(&[TEMPLATE_PREFIX, llm, SUFFIX]), &limits);
+        let choice = value.llm.as_ref().unwrap();
+        for (model, speed) in [&choice.main, choice.subagents.get(0).unwrap(), &choice.later.as_ref().unwrap().main]
+            .into_iter()
+            .zip(speeds)
+        {
+            let named = match &model.speed {
+                Some(speed) => Some(speed.bytes()),
+                None => None,
+            };
+            assert_eq!(named, speed);
+        }
+        let wire = crate::wire::settings_wire_template(&value, &limits.settings).unwrap();
+        let bytes = wire.encode(&limits.settings).unwrap();
+        let wire = jig::Template::decode(&limits.settings, &mut skein_lib::Reader::new(&bytes)).unwrap();
+        let restored = crate::wire::documents_me_template(&wire, &limits).unwrap();
+        assert_eq!(restored, value);
+
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        let choice = restored.llm.as_ref().unwrap();
+        values::encode_llm_choice(choice, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        values::encode_llm_choice(choice, &mut out);
+        assert_eq!(out.finish().as_ref(), llm);
+    }
+}
+#[test]
+fn a_template_speed_is_text_bounded_at_the_wire_limit() {
+    let prefix = br#"{"account":null,"main":{"model":"main","effort":null,"speed":"#;
+    let suffix = br#"},"subagents":[]}"#;
+    let limits = Limits::standard();
+    let at_bound = br#""0123456789abcdef0123456789abcdef""#;
+    file::decode(&joined(&[TEMPLATE_PREFIX, prefix, at_bound, suffix, SUFFIX]), &limits).expect("a 32-byte speed fits");
+    for (speed, reason) in
+        [(br#""0123456789abcdef0123456789abcdefg""#.as_slice(), b"bound 32".as_slice()), (b"null", b"expected string")]
+    {
+        let file = joined(&[TEMPLATE_PREFIX, prefix, speed, suffix, SUFFIX]);
+        assert_eq!(
+            file::decode(&file, &limits).unwrap_err().as_ref(),
+            joined(&[b"settings file item 1: llm.main.speed: ", reason]).as_ref(),
+        );
+    }
 }
 #[test]
 fn repair_settings_refuse_unknown_and_missing_members_by_path() {
@@ -518,6 +668,28 @@ fn a_project_policy_item_decodes_to_its_setting_and_a_policy_value() {
     assert_eq!(crate::wire::settings_restore_setting(&wire), item.setting);
 }
 #[test]
+fn numbered_policies_read_and_print_optional_names() {
+    let limits = Limits::standard();
+    let setting = br#"{"kind":"policy","number":33}"#;
+    let named = joined(&[br#"{"name":"lean-policy","#, &POLICY[1..]]);
+    for (body, name) in [(POLICY, None), (named.as_ref(), Some(b"lean-policy".as_slice()))] {
+        let items = file::decode(&kind_file(setting, body), &limits).unwrap();
+        let item = items.get(0).unwrap();
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set policy") };
+        let c::SettingValue::Policy(value) = &set.value else { panic!("policy") };
+        assert_eq!(value.name.as_deref(), name);
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        encode_policy_file(item.setting, &set.value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        encode_policy_file(item.setting, &set.value, &mut out);
+        let printed = out.finish();
+        assert_eq!(skein_lib::bytes::find(&printed, br#""name":"lean-policy""#).is_some(), name.is_some());
+        assert_eq!(file::decode(&printed, &limits).unwrap(), items);
+    }
+}
+
+#[test]
 fn a_project_policy_edit_a_second_one_or_a_bad_project_is_refused_naming_the_item() {
     for (bytes, expected) in [
         (
@@ -580,19 +752,9 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
     }
 }
 
-const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null"#;
+const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"shown":"draft","executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":"#;
 fn template_file(resources: &[u8]) -> Box<[u8]> {
-    let length = TEMPLATE_PREFIX
-        .len()
-        .checked_add(resources.len())
-        .expect("fixture resources")
-        .checked_add(SUFFIX.len())
-        .expect("suffix");
-    let mut out = Writer::new(length);
-    out.put(TEMPLATE_PREFIX).unwrap();
-    out.put(resources).unwrap();
-    out.put(SUFFIX).unwrap();
-    out.finish()
+    joined(&[TEMPLATE_PREFIX, b"null", resources, SUFFIX])
 }
 fn template(bytes: &[u8], limits: &Limits) -> c::Template {
     let items = file::decode(bytes, limits).expect("template file");
@@ -600,6 +762,60 @@ fn template(bytes: &[u8], limits: &Limits) -> c::Template {
     let c::SettingValue::Template(value) = &set.value else { panic!("template") };
     *value.clone()
 }
+const TEMPLATE_SETTING: &[u8] = br#"{"kind":"template","number":33}"#;
+const TEMPLATE_VALUE: &[u8] = br#"{"number":33,"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"#;
+
+#[test]
+fn templates_read_both_display_forms_and_print_shown() {
+    let limits = Limits::standard();
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    for member in [
+        br#""shown":"goal for a lean design"}"#.as_slice(),
+        br#""name":"goal for a lean design"}"#,
+        br#""name":{"bytes":"goal for a lean design","cut":false}}"#,
+    ] {
+        let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, member]));
+        let value = template(&file, &limits);
+        assert_eq!(value.shown.bytes(), b"goal for a lean design");
+        assert_eq!(value.name, None);
+        let mut measure = Encoder::measure(&bounds);
+        values::encode_template(&value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        values::encode_template(&value, &mut out);
+        let printed = out.finish();
+        assert!(skein_lib::bytes::find(&printed, br#""shown":"goal for a lean design""#).is_some());
+        assert!(skein_lib::bytes::find(&printed, br#""name""#).is_none());
+        assert_eq!(template(&kind_file(TEMPLATE_SETTING, &printed), &limits), value);
+    }
+}
+
+#[test]
+fn a_template_with_shown_reads_and_prints_its_separate_name() {
+    let limits = Limits::standard();
+    let named = br#""name":"lean-goal","shown":"goal for a lean design"}"#;
+    let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, named]));
+    let value = template(&file, &limits);
+    assert_eq!(value.name.as_deref(), Some(b"lean-goal".as_slice()));
+    assert_eq!(value.shown.bytes(), b"goal for a lean design");
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut measure = Encoder::measure(&bounds);
+    values::encode_template(&value, &mut measure);
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    values::encode_template(&value, &mut out);
+    let printed = out.finish();
+    assert!(skein_lib::bytes::find(&printed, br#""name":"lean-goal","shown":"goal for a lean design""#).is_some());
+    assert_eq!(template(&kind_file(TEMPLATE_SETTING, &printed), &limits), value);
+}
+
+#[test]
+fn a_charter_overlay_refuses_a_name_member() {
+    let file = br#"{"items":[{"setting":{"kind":"charter","number":1},"overlay":{"name":"a-name"}}]}"#;
+    assert_eq!(
+        file::decode(file, &Limits::standard()).unwrap_err().as_ref(),
+        b"settings file item 1: name: unknown member"
+    );
+}
+
 #[test]
 fn a_settings_file_template_names_its_resources() {
     let limits = Limits::standard();
@@ -882,11 +1098,12 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
     }
 }
 
+const MODEL_SETTING: &[u8] = br#"{"kind":"model","number":4}"#;
+const MODEL_VALUE: &[u8] = br#"{"number":4,"model":{"provider":2,"dialect":1,"endpoint":3,"program":null,"name":"gpt-6.1-terra","window":131072,"output":8192,"input_price":3,"cached_price":1,"cache_write_price":null,"output_price":12,"price_unit":1000000,"efforts":["high"],"effort":"high"},"shown":"GPT-6.1 Terra","description":"For careful work","picker":false,"withdrawn":false,"source":"stock","estimated":false}"#;
+
 #[test]
 fn the_settings_form_round_trips_a_model() {
-    const SETTING: &[u8] = br#"{"kind":"model","number":4}"#;
-    const MODEL: &[u8] = br#"{"number":4,"model":{"provider":2,"dialect":1,"endpoint":3,"program":null,"name":"gpt-6.1-terra","window":131072,"output":8192,"input_price":3,"cached_price":1,"cache_write_price":null,"output_price":12,"price_unit":1000000,"efforts":["high"],"effort":"high"},"shown":"GPT-6.1 Terra","description":"For careful work","picker":false,"withdrawn":false,"source":"stock","estimated":false}"#;
-    let bytes = kind_file(SETTING, MODEL);
+    let bytes = kind_file(MODEL_SETTING, MODEL_VALUE);
     let items = file::decode(&bytes, &Limits::standard()).expect("whole model file");
     let item = items.get(0).expect("model item");
     assert_eq!(item.setting, c::Setting::Model(c::SettingNumber { number: 4 }));
@@ -894,6 +1111,8 @@ fn the_settings_form_round_trips_a_model() {
     let c::SettingValue::Model(model) = &set.value else { panic!("model value") };
     assert_eq!(model.shown.as_ref().expect("shown name").bytes(), b"GPT-6.1 Terra");
     assert_eq!(model.model.input_price, 3);
+    assert!(model.model.speeds.is_empty());
+    assert_eq!(model.model.speed, None);
     assert!(!model.picker);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
         overlay: None,
@@ -903,14 +1122,17 @@ fn the_settings_form_round_trips_a_model() {
         application: None,
         proposed: None,
     }));
-    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, SETTING, br#","revision":2,"value":"#, MODEL, b"}"]));
+    assert_eq!(
+        shown(&document),
+        joined(&[br#"{"setting":"#, MODEL_SETTING, br#","revision":2,"value":"#, MODEL_VALUE, b"}"])
+    );
     assert_eq!(
         file::proposal_items(
             &joined(&[
                 br#"{"against":1,"reason":"New prices", "items":[{"setting":"#,
-                SETTING,
+                MODEL_SETTING,
                 br#","set":"#,
-                MODEL,
+                MODEL_VALUE,
                 b"}]}"
             ]),
             &Limits::standard()
@@ -918,6 +1140,58 @@ fn the_settings_form_round_trips_a_model() {
         .expect("inline proposal"),
         items
     );
+}
+
+#[test]
+fn the_settings_form_round_trips_declared_speeds_and_the_default() {
+    const SPEEDS: &[u8] = br#""speeds":[{"name":"fast","also":["priority"],"input_price":4000,"cached_price":200,"cache_write_price":5000,"output_price":20000},{"name":"ultrafast","also":null,"input_price":12000,"cached_price":600,"cache_write_price":15000,"output_price":60000},{"name":"turbo","input_price":20000,"cached_price":900,"output_price":90000}],"speed":"ultrafast""#;
+    let after_model = br#"},"shown":"GPT-6.1 Terra","description":"For careful work","picker":false,"withdrawn":false,"source":"stock","estimated":false}"#;
+    let prefix = MODEL_VALUE.strip_suffix(after_model).unwrap();
+    let value = joined(&[prefix, b",", SPEEDS, after_model]);
+    let limits = Limits::standard();
+    let items = file::decode(&kind_file(MODEL_SETTING, &value), &limits).unwrap();
+    let item = items.get(0).unwrap();
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("model set") };
+    let c::SettingValue::Model(model) = &set.value else { panic!("model value") };
+    let [fast, ultrafast, turbo] = model.model.speeds.as_slice() else { panic!("three speeds") };
+    assert_eq!(fast.name.bytes(), b"fast");
+    assert_eq!(fast.also.get(0).unwrap().bytes(), b"priority");
+    assert_eq!(
+        (fast.input_price, fast.cached_price, fast.cache_write_price, fast.output_price),
+        (4000, 200, Some(5000), 20_000)
+    );
+    assert_eq!(ultrafast.name.bytes(), b"ultrafast");
+    assert!(ultrafast.also.is_empty());
+    assert_eq!(
+        (ultrafast.input_price, ultrafast.cached_price, ultrafast.cache_write_price, ultrafast.output_price),
+        (12_000, 600, Some(15_000), 60_000)
+    );
+    assert_eq!(turbo.name.bytes(), b"turbo");
+    assert!(turbo.also.is_empty());
+    assert_eq!(turbo.cache_write_price, None);
+    assert_eq!(model.model.speed.as_ref().unwrap().bytes(), b"ultrafast");
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 2,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    let printed = shown(&document);
+    let prefix = joined(&[br#"{"setting":"#, MODEL_SETTING, br#","revision":2,"value":"#]);
+    let value = printed.strip_prefix(prefix.as_ref()).unwrap().strip_suffix(b"}").unwrap();
+    assert_eq!(file::decode(&kind_file(MODEL_SETTING, value), &limits).unwrap(), items);
+    let proposal = joined(&[
+        br#"{"against":1,"reason":"New speeds","items":[{"setting":"#,
+        MODEL_SETTING,
+        br#","set":"#,
+        value,
+        b"}]}",
+    ]);
+    assert_eq!(file::proposal_items(&proposal, &limits).unwrap(), items);
+    let wire = crate::wire::settings_wire_setting_model(&model.model);
+    assert_eq!(crate::wire::settings_restore_setting_model(&wire).unwrap(), model.model);
 }
 
 #[test]
@@ -978,6 +1252,7 @@ fn a_templates_closer_reads_and_writes() {
     let original = joined(&[
         br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"resources":[],"#,
         TEMPLATE_PREFIX.strip_prefix(br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"#).unwrap(),
+        b"null",
         SUFFIX,
     ]);
     let at = skein_lib::bytes::find(&original, br#""ended_by":"result""#).unwrap();

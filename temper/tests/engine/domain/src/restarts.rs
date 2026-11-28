@@ -305,12 +305,28 @@ impl World {
     }
 
     pub fn open_after_fault(&mut self) {
-        for _ in 0..200 {
+        // Use the opening referee's step bound for the paged restore and sweep.
+        for _ in 0..crate::ends::OPENING.steps {
             assert_eq!(self.root.start_stop(), None, "restart refused");
             if self.root.ready() {
                 return;
             }
             self.tick();
+        }
+        // Judge the opening after the last tick's release pass. The service
+        // routes held start outputs at once; they need no extra store or clock tick.
+        while !self.root.start_runtime()
+            && let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event))
+            && matches!(self.events[index], engine::Event::Released(_))
+        {
+            let event = self.events.remove(index).expect("eligible start release");
+            self.send(event);
+        }
+        if self.root.ready() {
+            if self.ends.awaiting_open() {
+                self.ends.opened(self.env.now);
+            }
+            return;
         }
         panic!(
             "restart did not open: {:?}; events={:?}; pending={:?}; deferred={}; store={:?}",

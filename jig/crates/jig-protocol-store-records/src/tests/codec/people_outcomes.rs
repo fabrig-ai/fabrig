@@ -311,6 +311,7 @@ fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
             domain::SettingFault::Owner,
             domain::SettingFault::Judged,
             domain::SettingFault::Range,
+            domain::SettingFault::Name,
         ] {
             people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::NotWellFormed {
                 at: 0,

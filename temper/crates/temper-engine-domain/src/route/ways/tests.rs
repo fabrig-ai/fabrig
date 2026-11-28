@@ -71,8 +71,9 @@ fn roster_fixture(service: bool) -> (Domain, Env<crate::Limits>) {
 
 fn goal_template() -> core::Template {
     core::Template {
+        name: None,
         number: 4,
-        name: b"goal".as_slice().into(),
+        shown: b"goal".as_slice().into(),
         executor: TemplateExecutor::Charter(COORDINATOR),
         contract: jig_domain_tasks::Contract::Report { words: 32 },
         shallower: 0,
@@ -116,40 +117,18 @@ fn start_skips_requester_ended_templates_even_when_lowest_or_configured() {
 }
 
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
-    forge::Repository {
-        contexts: Box::new([]),
-        landing: b"trunk".as_slice().into(),
-        refusals: Box::default(),
-        workflows: [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into(),
-        project: PROJECT,
-        home,
-        provider: skein_forge::api::Repository { forge: 1, repository: number },
-        host: b"forge.example".as_slice().into(),
-        owner: b"org".as_slice().into(),
-        name: name.into(),
-        prefix: Box::new([]),
-        role: forge::Role::Owned,
-        ci: true,
-        checks: Box::new([3]),
-        kinds: forge::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        },
-        protection: forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: b"trunk".as_slice().into(),
-            merge: true,
-            squash: false,
-            rebase: false,
-        },
-    }
+    let mut repository = crate::tests::owned_repository(1);
+    repository.project = PROJECT;
+    repository.home = home;
+    repository.provider.repository = number;
+    repository.name = name.into();
+    repository.prefix = Box::new([]);
+    repository.landing = b"trunk".as_slice().into();
+    repository.settings.default_branch = repository.landing.clone();
+    repository.settings.squash = false;
+    repository.workflows = [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into();
+    repository.checks = Box::new([3]);
+    repository
 }
 
 fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
@@ -571,7 +550,6 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
 
 #[test]
 fn committed_rules_and_item_overlays_feed_the_same_inputs() {
-    use jig_domain_core::effects::connector;
     use jig_domain_core::settings::application;
     const RULE_BYTES: u32 = 32;
     let (mut domain, env) = fixture();
@@ -600,8 +578,7 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
         &mut domain,
         &env,
         &mut decision,
-        0,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([application::Item {

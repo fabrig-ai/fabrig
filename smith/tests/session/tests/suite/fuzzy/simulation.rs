@@ -8,6 +8,7 @@ use smith_session_world::bytes;
 use std::collections::{BTreeMap, BTreeSet};
 
 use skein_fake_llm_domain::api::{Line, Source};
+use skein_world::sweep::{Case, cases, gate};
 use smith_domain_session::End;
 use smith_domain_session::llm::Failure;
 use smith_session_world::provider::SLOT_NAMES;
@@ -64,8 +65,8 @@ const EXPECTED_ENDS: [&str; 11] =
 /// (checked by `World::run`), and between them they reach every way a session
 /// can yield and end.
 #[test]
-#[expect(clippy::too_many_lines, reason = "the reach checks share one fixed seed sweep")]
-fn random_worlds_settle_with_every_session_ended() {
+#[expect(clippy::too_many_lines, reason = "the reach checks share one seed sweep")]
+fn random_worlds_settle_with_every_session_ended() -> Result<(), Case<String>> {
     let mut sample = Sample::new("random_worlds_settle_with_every_session_ended");
     let mut decodings = Decodings::default();
     let mut ends = BTreeSet::new();
@@ -83,18 +84,11 @@ fn random_worlds_settle_with_every_session_ended() {
     let mut drawn_job_bounds = [0; 4];
     let mut job_calls: BTreeMap<_, BTreeMap<_, u32>> =
         JOB_CLASSES.into_iter().map(|class| (class.word(), BTreeMap::new())).collect();
-    for seed in 0..1000 {
-        let mut settings = noisy(seed);
-        settings.provider.capture_answers = 16;
-        settings.provider.capture_bytes = 32_768;
-        let bound = usize::try_from(settings.agent.tools.jobs).expect("the drawn bound is at most four");
+    cases(skein_world::this_test!("random_worlds_settle_with_every_session_ended"), 0..1000, |seed| {
+        let (world, bound) = random_case(seed, &mut decodings);
         drawn_job_bounds[bound - 1] += 1;
-        let mut world = World::new(settings);
-        world.omit_trace();
-        submit_noisily(&mut world, &settings, seed);
-        world.run_with_decodings(ITERATIONS, &mut decodings);
         count_slots(&world, &mut slot_cases, &mut job_draws);
-        sample.ran(&world.reached()).expect("the case holds only shapes in form");
+        sample.ran(&world.reached())?;
         stale += world.stats().stale;
         parallel = parallel.max(world.stats().most_parallel);
         most_runs = most_runs.max(world.stats().most_runs);
@@ -154,7 +148,8 @@ fn random_worlds_settle_with_every_session_ended() {
             };
             ends.insert(kind);
         }
-    }
+        Ok(())
+    })?;
     sample.write();
     println!("used slot cases (conversation, unissued): {slot_cases:?}");
     println!(
@@ -165,6 +160,9 @@ fn random_worlds_settle_with_every_session_ended() {
     }
     let [shown_draws, unissued_draws] = job_draws;
     println!("job calls with slot draws: conversation={shown_draws}, unissued={unissued_draws}; failures={failures:?}");
+    if !gate() {
+        return Ok(());
+    }
     for (slot, [shown, unissued]) in SLOT_NAMES.iter().zip(slot_cases) {
         assert!(shown > 0 && unissued > 0, "slot {slot:?}: {shown} shown, {unissued} unissued cases");
     }
@@ -216,6 +214,19 @@ fn random_worlds_settle_with_every_session_ended() {
         invalid > 0 && not_run > 0,
         "some calls were malformed, and some were cut short and not run: {invalid} {not_run}"
     );
+    Ok(())
+}
+
+pub(super) fn random_case(seed: u64, decodings: &mut Decodings) -> (World, usize) {
+    let mut settings = noisy(seed);
+    settings.provider.capture_answers = 16;
+    settings.provider.capture_bytes = 32_768;
+    let bound = usize::try_from(settings.agent.tools.jobs).expect("the drawn bound is at most four");
+    let mut world = World::new(settings);
+    world.omit_trace();
+    submit_noisily(&mut world, &settings, seed);
+    world.run_with_decodings(ITERATIONS, decodings);
+    (world, bound)
 }
 
 fn count_slots(world: &World, total: &mut [[u32; 2]; SLOT_NAMES.len()], job_draws: &mut [u32; 2]) {
@@ -249,6 +260,7 @@ fn drawn_small_windows_compact_within_them() {
     let mut sample = Sample::new("drawn_small_windows_compact_within_them");
     for seed in 0..100 {
         let mut world = Scripted::with_shapes(seed);
+        world.omit_replay();
         world.env.limits.spend = 10_000;
         let mut start = opening(None, world.env.limits.spend);
         start.spec.window = u32::try_from(rng.between(2_000, 3_000)).expect("small window");
@@ -282,6 +294,7 @@ fn no_drawn_session_ends_because_its_history_grew() {
     let mut sample = Sample::new("no_drawn_session_ends_because_its_history_grew");
     for seed in 0..100 {
         let mut world = Scripted::with_shapes(seed);
+        world.omit_replay();
         world.env.limits.history_bytes = rng.between(24_576, 32_768);
         world.open(opening(None, world.env.limits.spend));
         world.complete(written_calls(16), llm::Stop::ToolUse, llm::Usage::ZERO);

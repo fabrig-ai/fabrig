@@ -68,7 +68,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::MakingActed { .. }
             | forge::Event::MakingAgain { .. }
             | forge::Event::OrderLanding { .. }
-            | forge::Event::JoinLanding { .. }
             | forge::Event::Landing { .. }
             | forge::Event::TrainRefusal { .. }
             | forge::Event::VetoLanding { .. }
@@ -126,7 +125,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::TakeBrief { .. }
             | forge::Event::DropBrief { .. }
             | forge::Event::Adopt { .. }
-            | forge::Event::ReleaseProject { .. }
+            | forge::Event::TakeAdoption { .. }
+            | forge::Event::Ask(_)
+            | forge::Event::Released(_)
             | forge::Event::ForgetAdoption { .. }
             | forge::Event::Names { .. }
             | forge::Event::Rename { .. }
@@ -151,7 +152,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
             | forge::Event::Delegated { .. }
-            | forge::Event::CloseDelegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::WaitsRefused { .. }
@@ -239,6 +239,10 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
+        Event::Restart { pending } => {
+            step(domain, env, Event::Restart { pending });
+            Ok(())
+        }
         Event::Released(released) => {
             step(domain, env, Event::Released(released));
             Ok(())
@@ -259,7 +263,6 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::Credential { .. }
         | Event::Forge(_)
         | Event::Setup { .. }
-        | Event::Restart { .. }
         | Event::Stop) => {
             let ordered = domain.work.is_empty() && domain.store_answers.is_empty();
             let admitted = if completes(&event) { ordered } else { admits(domain, &env.limits) };

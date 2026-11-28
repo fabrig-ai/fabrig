@@ -179,18 +179,10 @@ fn up(up: Up) -> d::Event {
 }
 fn callbacks(event: d::Event) -> Vec<d::Event> {
     match event {
-        d::Event::Client { event: jig_client::Event::Up { up: Up::Served { served, versions } } } => Vec::from([
-            up(Up::Served { served, versions }),
-            up(Up::FamilyServed {
-                family: 1,
-                served: true,
-                versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
-            }),
-            up(Up::FamilyServed {
-                family: 2,
-                served: true,
-                versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
-            }),
+        d::Event::Client { event: jig_client::Event::Up { up: Up::Served { served } } } => Vec::from([
+            up(Up::Served { served }),
+            up(Up::FamilyServed { family: 1, served: true }),
+            up(Up::FamilyServed { family: 2, served: true }),
         ]),
 
         d::Event::Infrastructure(infra::Event::Read { read, result }) => {

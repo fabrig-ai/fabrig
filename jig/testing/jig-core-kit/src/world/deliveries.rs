@@ -1,11 +1,26 @@
 //! Scripted peers consume each root delivery in order.
 use super::{Fault, ReplyTo, StoreOut, Token, World, connector, core, people, root};
+use jig_domain_contract as jig;
 use jig_domain_core::engine::store as engine_store;
 use jig_domain_link::{Login, LoginState};
 impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
         self.observer.delivered(self.wall, &mut delivery)?;
+        match delivery {
+            root::Delivery::Store(
+                out @ (engine_store::Out::Switch
+                | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. }),
+            ) => {
+                self.start_load(out);
+                return Ok(());
+            }
+            root::Delivery::ConnectorLoad { number, after } => {
+                self.connector_load(number, after);
+                return Ok(());
+            }
+            _ => {}
+        }
         let internal_read = matches!(&delivery, root::Delivery::Store(engine_store::Out::Load { range: engine_store::Range::Read(range), .. }) if range.party == 0);
         if !internal_read
             && !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
@@ -48,7 +63,9 @@ impl World {
             root::Delivery::Core(core::Held::ReadList { channel, read, endpoint, grant }) => {
                 self.list_reads.push(crate::lists::Reading { channel, read, endpoint, grant });
             }
-            root::Delivery::Start(_) => unreachable!("the root resumes its held start continuation"),
+            root::Delivery::Resume(_) | root::Delivery::Connector(..) => {
+                unreachable!("the root resumes its held start continuation")
+            }
             root::Delivery::ProjectMade { project } => self.project_made.push((self.store.applied, project)),
             root::Delivery::Core(core::Held::Acted { to, outcome }) => {
                 self.act_answers.push((to.into_token(), outcome));
@@ -93,6 +110,7 @@ impl World {
                 self.store.ask(StoreOut::Engine(load));
             }
             root::Delivery::Store(load) => self.point_load(load),
+            root::Delivery::ConnectorLoad { .. } => unreachable!("start loads routed above"),
             root::Delivery::Core(
                 core::Held::Applied { .. }
                 | core::Held::ApplicationDelivery { .. }
@@ -113,10 +131,10 @@ impl World {
             }
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing && !self.hold_projection_settlements {
-                    self.events.push_back(root::Event::Core(core::Event::ProjectionSettled {
-                        goal: feed.goal.number,
+                    self.events.push_back(root::Event::connector_up(
                         connector,
-                    }));
+                        jig::Up::Projections(jig::projections::Up::Settled { goal: feed.goal.number }),
+                    ));
                 }
                 self.projections.push((self.commits.len(), connector, *feed));
             }
@@ -223,7 +241,9 @@ impl World {
                     ask: self.initial_ask.clone(),
                 })));
             }
-            root::Delivery::Core(core::Held::Store(load)) => self.store.ask(StoreOut::Engine(load)),
+            root::Delivery::Core(core::Held::Store(_)) => {
+                unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)");
+            }
             root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {
                 let token = to.into_token();
                 assert!(
@@ -248,36 +268,10 @@ impl World {
                 self.people_replies.push((to.into_token(), reply.clone()));
                 self.people_answers.push(reply);
             }
-            root::Delivery::ApplicationDocument { .. }
-            | root::Delivery::Link { .. }
-            | root::Delivery::Core(
-                core::Held::ReadUsage { .. }
-                | core::Held::Delivery { .. }
-                | core::Held::PublicRead { .. }
-                | core::Held::SettledCall { .. }
-                | core::Held::Assign { .. }
-                | core::Held::Inbound { .. }
-                | core::Held::Relayed { .. }
-                | core::Held::Relay { .. }
-                | core::Held::NeedArrived { .. }
-                | core::Held::Result { .. }
-                | core::Held::TaskPartKept { .. }
-                | core::Held::AcknowledgePart { .. }
-                | core::Held::PartBusy { .. }
-                | core::Held::TaskTurnKept { .. }
-                | core::Held::TaskTerminalAcknowledged { .. }
-                | core::Held::NotesWritten { .. }
-                | core::Held::NotesDeleted { .. }
-                | core::Held::StopRun { .. }
-                | core::Held::CheckSource { .. }
-                | core::Held::SignOutSource { .. }
-                | core::Held::SourceSignedOut { .. }
-                | core::Held::Refuse { .. }
-                | core::Held::MakeEffect { .. },
-            ) => {}
             root::Delivery::Core(core::Held::PublicWait { .. }) => {
                 panic!("root releases its public durability callbacks internally");
             }
+            root::Delivery::ApplicationDocument { .. } | root::Delivery::Link { .. } | root::Delivery::Core(_) => {}
             root::Delivery::Fleet(_) => panic!("root releases its fleet continuations internally"),
         }
         Ok(())

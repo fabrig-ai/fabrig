@@ -492,7 +492,7 @@ const RESTART_TURNS: u32 = 64; // The real-store restart fixture's settlement bu
 fn restore_people(engine: &mut crate::Engine) {
     for _ in 0..RESTART_TURNS {
         crate::store::answer(engine);
-        if engine.domain.core_mut().start_phase() == Some(core::start::Phase::Sweep) {
+        if engine.domain.start_phase() == Some(core::start::Phase::Sweep) {
             return;
         }
         engine::iterate(engine, Time::ZERO, Wall::EPOCH);

@@ -149,6 +149,7 @@ impl ChangeResult {
                 }
             }
             change::Repair::Review { .. } => self.repairs.add(b"a person asked for changes on the forge", bound),
+            change::Repair::TemperDir { .. } => self.repairs.add(b"temper's check of .temper/ found faults", bound),
             change::Repair::Gate(_) => self.repairs.add(b"review asked for changes", bound),
             change::Repair::Semantic => self.repairs.add(b"the base broke it", bound),
             change::Repair::LandingAt { gate, .. } | change::Repair::Landing { gate } => {

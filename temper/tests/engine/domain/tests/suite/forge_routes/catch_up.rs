@@ -119,7 +119,18 @@ pub(super) fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
 }
 
 pub(super) fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8], head: u64, base: u64) {
-    use temper_protocol_worker_wire::v1::{self, Record};
+    check_job_with_fallback(world, task, job, branch, head, base, true);
+}
+
+fn check_job_with_fallback(
+    world: &World,
+    task: u64,
+    job: &host::JobAssignment,
+    branch: &[u8],
+    head: u64,
+    base: u64,
+    fallback: bool,
+) {
     assert_eq!(job.kind, JobKind(3));
     assert_eq!(
         change_row(world, task).delegate,
@@ -129,8 +140,7 @@ pub(super) fn check_job(world: &World, task: u64, job: &host::JobAssignment, bra
     assert_eq!(change_row(world, task).catch_up, Some(translate::commit(base)));
     assert_eq!(change_row(world, task).base.as_ref(), branch);
     assert_eq!(change_row(world, task).change.resolutions, 0);
-    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
-    assert!(!spec.refusal);
+    let spec = super::merge_job::find_spec(job, fallback);
     let head_text = forge_top::commit_text(&translate::commit(head));
     let base_text = forge_top::commit_text(&translate::commit(base));
     let expected = format!(
@@ -308,10 +318,20 @@ fn refused(command: bool, kind: bool, control: bool, words: &[u8]) {
     world.close();
 }
 
-/// temper/docs/design/domain/forge/updates.md, 1: a catch-up requires the project's `merge_job`.
+// temper/docs/design/domain/forge/updates.md, 1 and protocol/hooks.md, 4.2.
 #[test]
-fn a_catch_up_is_refused_without_a_merge_job() {
-    refused(false, true, true, b"change's merge: the project names no merge_job.");
+fn a_catch_up_makes_a_find_merge_job_at_the_goal_tip_without_a_hook_read() {
+    for fallback in [false, true] {
+        let (mut world, goal, branch, head) = goal_world(fallback, true, true);
+        world.forge_reads = Some(Vec::new());
+        let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", MAIN_PATH, MAIN_WORK, 1)
+            .expect("main advanced");
+        let task = catch_up(&mut world, &goal, base);
+        let job = next_job(&mut world, task);
+        check_job_with_fallback(&world, task, &job, &branch, head, base, fallback);
+        super::merge_job::assert_no_hook_reads(&world);
+        world.close();
+    }
 }
 
 /// temper/docs/design/domain/forge/updates.md, 1: a catch-up requires delegation to Job(3).

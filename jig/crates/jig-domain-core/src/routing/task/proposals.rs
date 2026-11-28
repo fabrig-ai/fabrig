@@ -145,7 +145,7 @@ pub(crate) fn proposal_decided(
         | RoutedCall::RecordNote { .. }
         | RoutedCall::Introduce(_)
         | RoutedCall::Subscribe { .. }
-        | RoutedCall::Unsubscribe(_)
+        | RoutedCall::Unsubscribe { .. }
         | RoutedCall::Control { .. } => unreachable!("matching proposal decision"),
     };
     assert!(key.task == proposer || outcome != tasks::ProposalOutcome::Withdrawn, "withdrawal by proposer");

@@ -7,12 +7,13 @@ use std::{
 };
 
 use skein_lib::{Duration, Rng};
-use skein_world::sweep::{Case, cases, gate};
+use skein_world::sweep::{Case, Sweep, cases, gate};
 use smith_domain_run as run;
 use smith_domain_run::{Answer, Exhausted, Fault, Invalid, Limits, Policy, Refusal, RunFailure};
+use smith_faults::parks;
 use smith_run_world::host;
 use smith_run_world::partner::Script;
-use smith_run_world::{Checkouts, Settings, Span, noisy};
+use smith_run_world::{Checkouts, Settings, Span, World, noisy};
 
 use crate::support::{answers, settled};
 
@@ -45,6 +46,8 @@ fn random_worlds_settle_with_every_start_answered_once() -> Result<(), Case<Infa
     let (mut cancels, mut races, mut stale) = (0, 0, 0);
     let (mut waited, mut delivered, mut host_answered) = (0, 0, 0);
     let (mut busy, mut lost, mut answered) = (0, 0, 0);
+    let mut sweep = park_sweep();
+    let mut park_reach = BTreeMap::new();
     let mut check = |settings: Settings| {
         let seed = settings.seed;
         let world = settled(&settings);
@@ -74,7 +77,10 @@ fn random_worlds_settle_with_every_start_answered_once() -> Result<(), Case<Infa
         Ok(())
     };
     cases(skein_world::this_test!("random_worlds_settle_with_every_start_answered_once", "noisy"), 0..300, |seed| {
-        check(noisy(seed))
+        let settings = noisy(seed);
+        check(settings)?;
+        check_parks(&settings, &mut sweep, &mut park_reach);
+        Ok(())
     })?;
     // A long child turn crosses the full run deadline.
     cases(
@@ -112,9 +118,23 @@ fn random_worlds_settle_with_every_start_answered_once() -> Result<(), Case<Infa
             check(settings)
         },
     )?;
+    sweep.check_fell().expect("each configured park fell");
     if !collect_reach {
         return Ok(());
     }
+    eprintln!("park draws in noisy seeds: {park_reach:?}");
+    assert_noisy_endings(&endings);
+    // And the races: turns spent after a close, a close or nudge crossing a
+    // conversation's own end, conversations out of time, cancels.
+    assert!(cancels > 0 && races > 0 && stale > 0, "{cancels} {races} {stale}");
+    assert!(
+        waited > 0 && delivered > 0 && host_answered > 0 && busy > 0 && lost > 0 && answered > 0,
+        "wait {waited}, delivered {delivered}, host answered {host_answered}, relays {busy}/{lost}/{answered}"
+    );
+    Ok(())
+}
+
+fn assert_noisy_endings(endings: &BTreeSet<&str>) {
     let expected = [
         "accepted",
         "busy",
@@ -130,14 +150,37 @@ fn random_worlds_settle_with_every_start_answered_once() -> Result<(), Case<Infa
         "unfinished",
     ];
     assert!(expected.iter().all(|kind| endings.contains(kind)), "missing sampled ending: {endings:?}");
-    // And the races: turns spent after a close, a close or nudge crossing a
-    // conversation's own end, conversations out of time, cancels.
-    assert!(cancels > 0 && races > 0 && stale > 0, "{cancels} {races} {stale}");
-    assert!(
-        waited > 0 && delivered > 0 && host_answered > 0 && busy > 0 && lost > 0 && answered > 0,
-        "wait {waited}, delivered {delivered}, host answered {host_answered}, relays {busy}/{lost}/{answered}"
-    );
-    Ok(())
+}
+
+fn park_sweep() -> Sweep {
+    let mut sweep = Sweep::new("random_worlds_settle_with_every_start_answered_once");
+    // The noisy portion of random_worlds_settle_with_every_start_answered_once
+    // already samples parked endings. Exercise the park scripts on the same
+    // draws in a companion world, leaving the ordinary workload and its reach
+    // checks intact. No JOB_RUNNING: the fake session runs no tools.
+    for kind in [
+        parks::WITHHELD_WAIT,
+        parks::CUT_TURN,
+        parks::HOST_CALL_ANSWERED,
+        parks::HOST_CALL_UNANSWERED,
+        parks::SUB_AGENT_KEPT,
+    ] {
+        sweep.configure(kind);
+    }
+    sweep
+}
+
+fn check_parks(settings: &Settings, sweep: &mut Sweep, reach: &mut BTreeMap<&'static str, u32>) {
+    let mut world = World::new(*settings);
+    world.draw_parks();
+    world.run(1_000_000);
+    let ledger = world.park_ledger();
+    sweep.ran(ledger);
+    if gate() {
+        for park in ledger.entries() {
+            *reach.entry(park.kind.name).or_insert(0_u32) += 1;
+        }
+    }
 }
 
 #[test]

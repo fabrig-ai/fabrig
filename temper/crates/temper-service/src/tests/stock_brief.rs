@@ -8,13 +8,13 @@
 )]
 use super::{engine, fixtures, generated};
 use fixtures::parsed_agent as worker_agent;
-use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain_run as run;
 
 // stock.md: charter 5's host room less 64 section titles and framing and 66 bytes spare.
-const CHARTER_5_HOST_ROOM: u32 = 319_324;
-const STOCK_BRIEF_BYTES: u32 = 317_786;
+const CHARTER_5_HOST_ROOM: u32 = 317_043;
+const STOCK_BRIEF_BYTES: u32 = 315_505;
 const FRAMING: u32 = 64 * (16 + 7);
 const MARGIN: u32 = 66;
 const REFERENCE_SPEC_BYTES: usize = 63_740;
@@ -111,6 +111,12 @@ fn workspace(writable: bool) -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: writable.then_some(run::HookTimes {
+                deliver: Some(run::HookTime { time: Duration::from_secs(900), asked: Duration::from_secs(900) }),
+                finish: None,
+                ceiling: Duration::from_secs(3600),
+                fault: Box::default(),
+            }),
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(1),
@@ -165,11 +171,16 @@ fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
 
 #[test]
 fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
+    // The largest provider framing includes 32 speed-name bytes and 18
+    // bytes for the service_tier key and JSON punctuation. The host and
+    // messages each give up 25 bytes before messages split into two offers.
+    const HOST_PART: u64 = 360_125;
+    const OFFER_BYTES: u32 = 180_062;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    assert_eq!(limits.host_part, 360_150);
+    assert_eq!(limits.host_part, HOST_PART);
     assert_eq!(limits.room, 742_860);
-    assert_eq!(limits.offer_bytes, 180_075);
+    assert_eq!(limits.offer_bytes, OFFER_BYTES);
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 18_431_842);
 
     for (number, open) in [
@@ -215,10 +226,14 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 59_783;
+            // Six boxed alternative LLMs carry an 80-byte optional speed:
+            // 16 each for name and alias slice, 48 for prices. Main's
+            // inline LLM isn't charged here, and no speed owns a payload.
+            // The configured hooks path owns another 13 bytes.
+            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_738;
             assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
-            assert_eq!(receiving, 127_391);
+            assert_eq!(receiving, 127_319, "the joint bound also owns the directory’s hook metadata");
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
         }
         if original.owned_bytes().unwrap() > receiving {
@@ -604,12 +619,15 @@ fn measure_turn(number: u32) {
             let request = out.pop().unwrap();
             if let smith_domain::Request::Lower(smith_domain::Lower::Read { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Read { owner, read: run::Read::Missing }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::ProbeHooks { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::HooksProbed { owner, hooks: None }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Probe { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Probed { owner, executable: false }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Complete { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Completed {
                     owner,
                     completion: smith_domain::llm::Completion {
+                        served: smith_domain::llm::ServedSpeed::Unreported,
                         reasoning_dropped: Box::default(),
                         content: Box::new([smith_domain::llm::Said::Text {
                             text: b"measured first turn".as_slice().into(),

@@ -221,6 +221,7 @@ pub fn incident_world(seed: u64) -> ClientWorld {
                         input: text(b"Restart checkout"),
                         outcome: Some(text(b"R restart checkout")),
                         failed: false,
+                        answer: None,
                         objects: list([ObjectKey::Task(10)]),
                         parts: list([]),
                     })]),
@@ -323,10 +324,7 @@ fn configured(seed: u64, truth: Truth, ops: OpsScript, rules: Vec<jig_client_scr
         Settings { seed, ..Settings::default() },
         Scripted::new(
             Script {
-                versions: VersionRange {
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
+                served: true,
                 truth,
                 bounds: Bounds {
                     text: 32,
@@ -430,6 +428,7 @@ pub fn environment_world(seed: u64) -> ClientWorld {
                                 input: text(b"staging for one week"),
                                 outcome: Some(text(b"Price 40 exceeds chat budget 10")),
                                 failed: false,
+                                answer: None,
                                 objects: list([ObjectKey::Proposal(p.key)]),
                                 parts: list([]),
                             })]),

@@ -552,7 +552,7 @@ pub fn resolution_conflict(pushed: bool) {
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } = ready else {
         panic!("resolution ready with conflicts: {ready:?}")
     };
-    assert_eq!(&*conflicts, &[Conflicts { repository: 0, files: Box::new([b"code".as_slice().into()]) }]);
+    assert_eq!(&*conflicts, &[Conflicts { repository: 0, files: Box::new([b"code".as_slice().into()]), cut: false }]);
     let at = translate::path(&temper_worker_domain_checkout::git::Place {
         git: None,
         workspace,
@@ -635,7 +635,7 @@ pub fn refuse_past_the_bound() {
     };
     assert_eq!(client, CLIENT);
     let named = [b"code0", b"code1", b"code2", b"code3"].map(|path| path.as_slice().into());
-    assert_eq!(conflicts.as_ref(), &[Conflicts { repository: 0, files: Box::new(named) }]);
+    assert_eq!(conflicts.as_ref(), &[Conflicts { repository: 0, files: Box::new(named), cut: true }]);
 
     let at = translate::path(&temper_worker_domain_checkout::git::Place {
         git: None,
@@ -1664,12 +1664,12 @@ pub fn a_refused_prefix_keeps_the_prefix_before_it() {
     const REMOTE: &[u8] = b"forge/temper";
     let mut world = World::new(73, Case::Clean, 64);
     let second = world.forge.advance(REMOTE, b"topic", b"next", b"next\n");
-    let message = || Message { title: b"Combine".as_slice().into(), body: Box::new([]) };
     let member = |number, head| CandidateMember {
         number,
         head: translate::commit(head),
-        message: message(),
-        squash_message: message(),
+        message: b"Combine".as_slice().into(),
+        squash_message: b"Combine".as_slice().into(),
+        head_trailers: false,
     };
     let mut spec = merge_spec(&world, Case::Clean);
     let repository = &mut spec.repositories[0];

@@ -46,7 +46,9 @@ def private(path, data):
 
 class Process:
     """Drain both pipes without persisting raw output or exposing it on failure."""
-    def __init__(self, argv, cwd, env, control=False):
+    def __init__(self, argv, cwd, env, wrapper, control=False):
+        if sys.platform == 'linux':
+            argv = [wrapper, 'internal', 'forge-child', '--parent', str(os.getpid()), '--signal', 'kill', '--', *argv]
         self.proc = subprocess.Popen(argv, cwd=cwd, env=env,
                                      stdin=subprocess.PIPE if control else subprocess.DEVNULL,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -277,7 +279,7 @@ class Sitting:
         self.step = 'starting ' + name
         cwd = self.scratch/name
         cwd.mkdir(mode=0o700)
-        proc = Process(argv, cwd, self.env | (extra or {}), control=name == 'relay')
+        proc = Process(argv, cwd, self.env | (extra or {}), self.binary, control=name == 'relay')
         self.processes.append(proc)
         return proc
 

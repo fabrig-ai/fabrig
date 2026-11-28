@@ -1,7 +1,7 @@
 //! A child refuses its pending restore before activation (protocol/store/opening.md 2, step 7).
 //! The store checks encodings and counts; the modelled child's stricter rule
 //! runs over the copy. Ending that start leaves the old generation active.
-use jig_store_world::patches::{self, BASE, Records, SETS};
+use jig_store_world::upgrade_fixtures::{self, BASE, Records, SETS};
 use jig_test_layouts::records::SHELF;
 
 /// A referee rule standing in for a child's restore rule (domain/engine/restart.md);
@@ -14,7 +14,7 @@ fn a_child_refuses(key: &[u8], bytes: &[u8]) -> bool {
     let schema = skein_codec::schema::parse(SHELF.as_bytes()).expect("kept shelf schema");
     let root = schema.find(b"Shelf").expect("shelf root");
     let mut value = skein_codec::value::Value::with_room(16);
-    let shelf = value.decode(&schema, root, bytes.into()).expect("patched shelf decodes");
+    let shelf = value.decode(&schema, root, bytes.into()).expect("upgraded shelf decodes");
     let books = value.field(shelf, skein_codec::schema::FieldIx::new(1)).expect("shelf books field");
     value.uint(books).expect("weight is a u32") > 2
 }
@@ -24,7 +24,7 @@ fn a_record_a_child_refuses_before_switch_keeps_the_old_generation_active() {
     const SEED: u64 = 911;
     let records = Records::story();
     let mut world = records.committed(SEED, BASE);
-    let original = patches::source(&mut world);
+    let original = upgrade_fixtures::source(&mut world);
     world.owner_sets(SETS);
     let last = world.open().expect("pending upgraded open");
     assert!(world.pending);
@@ -47,7 +47,7 @@ fn a_record_a_child_refuses_before_switch_keeps_the_old_generation_active() {
         let refused: Vec<_> =
             world.application(false).into_iter().filter(|(key, bytes)| a_child_refuses(key, bytes)).collect();
         assert_eq!(refused, [(key.into(), expected.clone())], "{start}");
-        patches::kept(&original, &patches::source(&mut world), &start);
+        upgrade_fixtures::kept(&original, &upgrade_fixtures::source(&mut world), &start);
         world.crash(SEED);
     }
 
@@ -57,7 +57,7 @@ fn a_record_a_child_refuses_before_switch_keeps_the_old_generation_active() {
     world.accept_recovery(1);
     assert_eq!(world.ran(), []);
     assert_eq!(world.active(), b"1\n");
-    patches::kept(&original, &patches::source(&mut world), &"operator's way back");
+    upgrade_fixtures::kept(&original, &upgrade_fixtures::source(&mut world), &"operator's way back");
     records.check(&mut world, &"operator's way back");
     assert!(!world.paths().iter().any(|path| path == b"generations/2" || path.starts_with(b"generations/2/")));
 }

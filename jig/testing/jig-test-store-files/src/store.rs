@@ -119,7 +119,7 @@ impl Store {
     pub fn starting(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
         Self::starting_with_owner_sets(limits, models, protocol::OwnerSets::NONE)
     }
-    /// Open typed start pages with the binary's patch sets installed before open.
+    /// Open typed start pages with the binary's owner sets installed before open.
     #[must_use]
     pub fn starting_with_owner_sets(
         limits: &root::Limits,
@@ -128,7 +128,7 @@ impl Store {
     ) -> Store {
         Self::with_owner_sets(limits, models, sets)
     }
-    /// Use the directory-backed component even without patch sets.
+    /// Use the directory-backed component even without owner sets.
     #[must_use]
     pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
         Self::build(limits, models, protocol::OwnerSets::NONE, true, true)
@@ -550,23 +550,23 @@ impl Store {
     pub fn ask(&mut self, out: StoreOut) {
         match out {
             StoreOut::Commit { number, writes } => self.submit(number, writes, 0),
-            out @ (StoreOut::Start { .. } | StoreOut::Engine(_)) => {
+            out @ (StoreOut::ConnectorLoad { .. } | StoreOut::Engine(_)) => {
                 self.request(out);
             }
         }
     }
     fn request(&mut self, out: StoreOut) {
-        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. })
-            && !self.generation_pending
-        {
-            self.replies.push(Up::Root(root::Event::StartDone(jig_domain_core::start::Phase::Switch)));
-            return;
-        }
-        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. }) {
+        if matches!(out, StoreOut::Engine(jig_domain_core::engine::store::Out::Switch)) && self.generation_pending {
             self.switch_requests += 1;
         }
-        let request = route::down(&mut self.routes, out).expect("root has room for its store request");
-        self.drive(VecDeque::from([request]), Queue::uncapped());
+        let mut immediate = Queue::uncapped();
+        if let Some(request) = route::down(&mut self.routes, out, self.generation_pending, &mut immediate) {
+            self.drive(VecDeque::from([request]), Queue::uncapped());
+        } else {
+            while let Some(reply) = immediate.pop() {
+                self.replies.push(reply);
+            }
+        }
     }
     pub fn answers(&mut self) -> Vec<Up> {
         let mut replies = std::mem::take(&mut self.replies);
@@ -610,11 +610,11 @@ impl Store {
         );
         assert!(!self.failed, "durable stores reopen after their files are cut");
         if !self.rows.is_empty() && !self.reached_kill() && (self.disk.is_none() || !self.sets.sets.is_empty()) {
-            self.refresh_patched_rows();
+            self.refresh_upgraded_rows();
         }
     }
-    /// Read back the rows patching can change, including the seal's header.
-    fn refresh_patched_rows(&mut self) {
+    /// Read back the rows an upgrade can change, including the seal's header.
+    fn refresh_upgraded_rows(&mut self) {
         use jig_domain_core::{CoreKey, Key};
         let keys: Vec<_> = self
             .rows
@@ -633,7 +633,7 @@ impl Store {
                 Queue::uncapped(),
             );
         }
-        assert!(!self.failed, "patched mirror rows read back through the component");
+        assert!(!self.failed, "upgraded mirror rows read back through the component");
     }
     fn env(&self) -> Env<Limits> {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.checked.limits() }
@@ -691,8 +691,6 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
-            // This world does not consume the census (protocol/store/growth.md, 1.3).
-            Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
                 self.generation_pending = pending;
@@ -722,7 +720,7 @@ impl Store {
             }
             Event::Got { owner, row } if owner == Token::new(0) => {
                 let Some(protocol::Row::Jig(row)) = row else {
-                    panic!("patched jig row remains at its key");
+                    panic!("upgraded jig row remains at its key");
                 };
                 let row = root::Record::Core(row);
                 self.rows.insert(row.key(), row);
@@ -762,6 +760,7 @@ impl Store {
                 ..
             }
             | Event::Ran { .. }
+            | Event::Census { .. }
             | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
@@ -791,6 +790,15 @@ impl Store {
     /// Suspend captured pages without losing their original store flights.
     pub fn pause_pages(&mut self, paused: bool) {
         self.pages_paused = paused;
+    }
+    /// Replace a captured restore page by a refusal on that same store flight.
+    pub fn refuse_held_page(&mut self, failure: protocol::restore::Failure) {
+        let Some(Delayed { event: Event::Page { owner, .. }, .. }) = self.delayed.pop_front() else {
+            panic!("a held restore page")
+        };
+        let mut next = VecDeque::new();
+        self.event(Event::PageRefused { owner, failure }, &mut next);
+        assert!(next.is_empty(), "the refused flight is terminal");
     }
     fn tick_pages(&mut self) {
         if self.pages_paused {

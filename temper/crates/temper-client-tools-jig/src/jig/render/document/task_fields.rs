@@ -112,7 +112,12 @@ pub(super) fn encode_template(value: &jig_client::contract::Template, out: &mut 
     out.key(b"number");
     out.unsigned(u64::from(value.number));
     out.key(b"name");
-    super::encode_document_text(&value.name, out, budget);
+    match &value.name {
+        Some(name) => out.string(name),
+        None => out.null(),
+    }
+    out.key(b"shown");
+    super::encode_document_text(&value.shown, out, budget);
     out.key(b"executor");
     super::encode_template_executor(value.executor, out, budget);
     out.key(b"contract");

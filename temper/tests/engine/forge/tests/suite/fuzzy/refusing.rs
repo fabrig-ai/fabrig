@@ -1,14 +1,15 @@
 //! Other users and a finite policy refusal keep the batch checks (testing/fakes.md, 2).
+use jig_domain_contract as contract;
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;
 use skein_world::{
     streams::{Stream, Streams},
-    sweep::{Exclusion, Sweep},
+    sweep::Sweep,
 };
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
-use temper_engine_forge_world::{REPO, World, changes, fake_config, translate};
+use temper_engine_forge_world::{REPO, World, changes, fake_config, open, translate};
 use temper_faults::forge::{CLOSED_BY_ANOTHER, MERGED_BY_ANOTHER, REFUSING};
 
 const OUTSIDE: u64 = 54;
@@ -72,7 +73,9 @@ fn release_unqueued(world: &mut World, branch: &top::Name) {
         world.run_for(1);
         for request in world.take_seen() {
             match request {
-                top::Request::Released { task: OUTSIDE } => released = true,
+                top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: OUTSIDE })) => {
+                    released = true;
+                }
                 top::Request::ContinueRelease { task: OUTSIDE } => {
                     world.event(top::Event::ContinueRelease { task: OUTSIDE, entry });
                 }
@@ -106,16 +109,10 @@ fn refusals_keep_the_batches_invariants() {
     let streams = Streams::new(seed);
     let workload = streams.seed_of(Stream::Workload, "landing_batches");
     let mut world = World::batch_turn_in(&streams, Some(super::super::landing_batches::workflow(true)), fake_config());
-    let holding = &["a change ready or queued for landing, or a batch member, until its record"];
-    sweep
-        .exclude(Exclusion::new(
-            "a_member_merged_by_another_lands_like_any_landing",
-            "landing train",
-            MERGED_BY_ANOTHER,
-            holding,
-        ))
-        .expect("one unrecorded-batch exclusion");
-    world.exclude_batch_member_merges(sweep.leaves_out(MERGED_BY_ANOTHER, holding).expect("batch exclusion"));
+    open::exclude(&mut sweep, &REFUSING).expect("refusing exclusions");
+    world.exclude_batch_member_merges(
+        sweep.leaves_out(MERGED_BY_ANOTHER, open::MERGED_BY_ANOTHER_UNRECORDED.when).expect("batch exclusion"),
+    );
     world.refuse_next_close_for(Duration::from_secs(2));
     world.other_users_after_member_reads(
         vec![(51, CLOSED_BY_ANOTHER, false), (52, MERGED_BY_ANOTHER, true), (53, MERGED_BY_ANOTHER, true)],
@@ -126,7 +123,7 @@ fn refusals_keep_the_batches_invariants() {
     eprintln!("seed {seed}: {} restored-fault holds released", world.restored_fault_releases());
     assert!(world.restored_fault_releases() > 0, "the restored close refusal was released");
     sweep.ran(world.ledger());
-    let excluded = sweep.left_out("a_member_merged_by_another_lands_like_any_landing");
+    let excluded = sweep.left_out(open::MERGED_BY_ANOTHER_UNRECORDED.scenario);
     assert!(excluded > 0, "the queued/batch exclusion was reached");
     eprintln!("seed {seed}: {excluded} queued/batch merge draws left out");
     sweep.check_fell().expect("configured refusals fell");

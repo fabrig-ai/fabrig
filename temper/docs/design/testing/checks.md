@@ -276,10 +276,6 @@ each behaviour in the lowest world that owns it, and one smoke above:
   loop pass its layer's budget, the numbers go to the user; no story is
   cut or moved to fit.
 
-## 5. Stage 1: the golden, its check and its judge
-
-Moved to [`checks-stage-one.md`](checks-stage-one.md), section 1.
-
 ## 6. Checks every world holds
 
 Written from `../draft/failure-worlds.md`, sections 3, 5 and 6. Each
@@ -350,6 +346,21 @@ landing's or a change's wait and a task's resolve across inspections.
 - **smith's and jig's** are their trees' (`smith/docs/design/testing.md`,
   6; `jig/docs/design/domain/testing-fakes.md`, 1); the system world calls
   each beside the engine's and the worker's.
+- **Relations across components,** in the composed system world
+  (`../draft/misbehaving-agents.md`, 7; skein's `testing/inspection.md`,
+  4.3): at each quiet point where it calls the adapters above, it calls
+  jig's `core` over the engine's core, which reads its placements and
+  flights as well as its task child; `jig_inspect::host` over each lane's
+  hub; `smith_inspect::inspect` and `host_calls` over each smith it runs,
+  with the task that smith's run serves; and writes its own inspection,
+  component `links`, holding each message its links carry between a
+  smith, a lane and the engine as `a relay in flight`, keyed as the
+  relation its message carries. It then checks `jig_inspect::HOST_CALLS`
+  and `PLACEMENTS` over them all, and an orphan fails the run as any
+  finding. The forge room's census is the engine adapter's
+  (`engine-checks.md`, 2.3). temper's one-process world runs its
+  components inside its service's processes, which no quiet point
+  borrows (skein's `testing/inspection.md`, 8), and checks no relation.
 
 ### 6.2 Faults, streams and sweeps
 

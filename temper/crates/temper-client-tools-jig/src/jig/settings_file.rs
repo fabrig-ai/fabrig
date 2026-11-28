@@ -2,7 +2,7 @@
 use super::{
     Limits,
     call::{Call, Value, Values, number, value},
-    settings_adapter,
+    names, settings_adapter,
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -16,15 +16,30 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
     }
     let number =
         c::SettingNumber { number: u32::try_from(number(call, 1).expect("setting number")).expect("parsed u32") };
+    if let Some(kind) = name_kind(call) {
+        return match kind {
+            names::Kind::Charter => c::Setting::Charter(number),
+            names::Kind::Template => c::Setting::Template(number),
+            names::Kind::Policy => c::Setting::Policy(number),
+        };
+    }
     match value(call, 0) {
-        Some(Value::Word(0)) => c::Setting::Charter(number),
-        Some(Value::Word(1)) => c::Setting::Template(number),
-        Some(Value::Word(2)) => c::Setting::Policy(number),
-        Some(Value::Word(3)) => c::Setting::Model(number),
-        Some(Value::Word(4)) => c::Setting::Worker(number),
-        Some(Value::Word(5)) => c::Setting::Provider(number),
+        Some(Value::Word(0)) => c::Setting::Model(number),
+        Some(Value::Word(1)) => c::Setting::Worker(number),
+        Some(Value::Word(2)) => c::Setting::Provider(number),
         Some(_) | None => unreachable!("parsed setting kind"),
     }
+}
+pub(crate) fn name_kind(call: &Call) -> Option<names::Kind> {
+    if call.form != 0 {
+        return None;
+    }
+    Some(match value(call, 0) {
+        Some(Value::Word(0)) => names::Kind::Charter,
+        Some(Value::Word(1)) => names::Kind::Template,
+        Some(Value::Word(2)) => names::Kind::Policy,
+        Some(_) | None => unreachable!("parsed setting kind"),
+    })
 }
 /// The revision flag follows the selector's positional and project arguments.
 pub(crate) fn revision(call: &Call) -> Option<u64> {
@@ -310,8 +325,39 @@ pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box
     Ok(out)
 }
 
-/// Directories named by a bounded, decoded input file; the host never parses JSON.
-pub fn directories(bytes: &[u8], limits: &Limits) -> Result<List<settings_form::overlay::DirectoryName>, Box<[u8]>> {
-    let items = settings_form::file::decode(bytes, &settings_adapter::limits(limits))?;
-    Ok(settings_form::overlay::directories(&items))
+/// What the client needs before sending a settings file: directories to read and format notices.
+#[derive(Debug)]
+pub struct Input {
+    pub directories: List<settings_form::overlay::DirectoryName>,
+    pub notices: List<Box<[u8]>>,
+}
+
+pub fn inspect(bytes: &[u8], limits: &Limits) -> Result<Input, Box<[u8]>> {
+    let read = settings_form::file::read(bytes, &settings_adapter::limits(limits))?;
+    Ok(Input { directories: settings_form::overlay::directories(&read.items), notices: read.notices })
+}
+
+/// Upgrade uses the same decoder as apply without opening or assembling overlay directories.
+#[must_use]
+pub fn upgrade(bytes: &[u8], limits: &Limits) -> super::Printed {
+    let limits = settings_adapter::limits(limits);
+    let read = match settings_form::file::read(bytes, &limits) {
+        Ok(read) => read,
+        Err(why) => return super::render::failure(&why, false, 1),
+    };
+    let stdout = match settings_form::file::render(read.items.as_slice(), &limits) {
+        Ok(bytes) => bytes,
+        Err(why) => return super::render::failure(&why, false, 1),
+    };
+    let mut measure = settings_form::Text::measure();
+    for notice in &read.notices {
+        measure.put(notice);
+        measure.put(b"\n");
+    }
+    let mut out = settings_form::Text::writing_exact(measure);
+    for notice in &read.notices {
+        out.put(notice);
+        out.put(b"\n");
+    }
+    super::Printed { status: 0, stdout, stderr: out.finish(), file: super::FileEnd::Keep }
 }

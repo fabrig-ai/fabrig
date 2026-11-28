@@ -29,11 +29,13 @@
   saying when the next begins if its source knows. The core keeps no
   calendar, infers no cadence and schedules nothing of its own
   (../authority-budgets.md, section 1);
-- **from connectors,** each by number, in jig's terms (../connectors.md,
-  section 2): resources' roles and kinds of hold; pools' slots; effects'
-  descriptions; verdicts; procedures' step decisions; outbox outcomes;
-  classified news for subscribers; sections and workspace items ready,
-  with their sizes; adoptions; drift; a restart step done;
+- **from connectors,** each by number, in the contract's terms, by the
+  connectors' port (2.5; ../connectors.md, section 2): answers to what it
+  asked, and what each says unasked: resources' roles and kinds of hold;
+  pools' slots; effects' descriptions; verdicts; procedures' step
+  decisions and waits; outbox outcomes; classified news for subscribers;
+  adoptions; drift; a restart step done; and acts in the deployment's
+  name;
 - **from itself:** an output it asked to resume once released (1.2), and
   its children's timers, through `fire`.
 
@@ -42,10 +44,9 @@
 Each request the core makes says which of three it is:
 
 - **part of the decision:** a record saved or erased, which goes into
-  the decision's commit; and the hand-offs the root completes before the
-  step returns: describe this effect, judge this requirement, keep or
-  drop this effect, take this procedure's parameters, gather or cut this
-  section;
+  the decision's commit; and its asks of connectors, each a judgement, a
+  notification or an operation that ends later (2.5), which the root
+  hands to the connector named within the decision;
 - **held:** what must wait for the decision's commit to be durable: an
   assignment, a message relayed to a run, a cancel, an acknowledgement,
   an answer to a call or to a party, a load (so that it sees every commit
@@ -67,12 +68,13 @@ A decision is a route through several children and connectors, completed
 within one step of the root's (skein/docs/foundation/programming-model.md, 4.5):
 
 - **One event in,** from the root.
-- **Hand-offs out and back:** the core asks the root for what only a
-  connector can say (a description, a verdict, a section's size), and
-  the root asks the connector and gives the answer back to the core,
-  before its step returns. Hand-offs are bounded per decision and
-  acyclic: the core never asks a connector something whose answer needs
-  another of the core's answers.
+- **Hand-offs out and back:** the core asks a connector, through the
+  root, what only the connector can say (a description, a verdict, a
+  member's holdings), and the root hands the connector's answer back
+  within the decision; a notification needs no answer, and an operation
+  that ends later is answered whenever it ends (2.5). Hand-offs are
+  bounded per decision and acyclic: the core never asks a connector
+  something whose answer needs another of the core's answers.
 - **One end:** the core says the decision is complete, and the root
   accepts it into the journal (../root.md, section 3).
 
@@ -143,35 +145,59 @@ step its last answer arrives.
 What a root calls: `Engine`, the core behind five free functions, and its vocabulary, `In` and
 `Out` (`temper/docs/design/draft/jig-domain-api.md`, 4.1 and 4.5). For now it passes through
 what has no port yet: section 1's vocabulary, whole but for the store's loads, which cross by
-the store's port (2.4).
+the store's port (2.4), what the core asks connectors and what they say, which cross by the
+connectors' port (2.5), and the start, which runs through the ports, its writes and the store's
+reports with it (2.6).
 
 ### 2.1 Its functions
 
 - **`Engine`** holds the core and nothing else. `Engine::new(config, connectors, limits)`, its
   `connectors` a `&[Declaration]` (`../connectors.md`, 2), builds it as `Core::new` does, refusing
-  what that refuses with the same `Problem`, and refuses a start whose declarations don't hold.
-  It returns the first of these that fails, taking each declaration in the order given (its
-  connector, then its resource kinds, then its effect kinds), then each configured connector, then
-  the total:
-  - `Problem::Declared { connector }`: a declaration's connector is not among `config.connectors`,
-    or is declared twice;
-  - `Problem::ResourceKind { connector, kind }` and `Problem::EffectKind { connector, kind }`: a
-    connector declares one kind twice;
-  - `Problem::Undeclared { connector }`: a configured connector has no declaration;
-  - `Problem::HoldKinds { limit }`: the declarations' resource kinds together are more than
+  what that refuses, and refuses a start whose declarations don't hold. Both refuse with
+  `StartProblem`. It returns the first of these that fails, taking each declaration in the order
+  given (its connector, then its resource kinds, then its effect kinds), then each configured
+  connector, then the total:
+  - `StartProblem::Declared { connector }`: a declaration's connector is not among
+    `config.connectors`, or is declared twice;
+  - `StartProblem::ResourceKind { connector, kind }` and `StartProblem::EffectKind { connector,
+    kind }`: a connector declares one kind twice;
+  - `StartProblem::Undeclared { connector }`: a configured connector has no declaration;
+  - `StartProblem::HoldKinds { limit }`: the declarations' resource kinds together are more than
     `tasks.hold_kinds`, the tasks child's table.
 
-  `Problem` is `jig-domain-link`'s, beside the workers' cases. Built, the engine has installed
-  every declared resource kind's rule in the tasks child, before anything is restored, and keeps
-  the effect kinds, by which it judges each description (`../connectors-effects.md`, 1.1). No root,
-  kit or world installs hold kinds: the core's step takes no `tasks::Event::Kinds` from outside,
-  and one given is a fault.
+  ```rust
+  // jig-domain-contract: the crate's root, beside `Declaration`
+  pub enum StartProblem {
+      Membership(jig_domain_link::Problem),   // the workers' membership, as the link refuses it
+      Declared { connector: Connector },
+      ResourceKind { connector: Connector, kind: u16 },
+      EffectKind { connector: Connector, kind: u16 },
+      Undeclared { connector: Connector },
+      HoldKinds { limit: u32 },
+  }
+  ```
+
+  `StartProblem` is the engine's own, beside the declaration it judges; `jig-domain-link`'s
+  `Problem` keeps the workers' cases alone (`Workers`, `WorkerName`), which the link's
+  `Membership::new` refuses and the engine carries whole as `Membership`. Why its own: a
+  declaration is the engine's, which the worker link never reads, and the link sits below the
+  contract, so the link's error can't name what the contract declares. Built, the engine has
+  installed every declared resource kind's rule in the tasks child, before anything is restored,
+  and keeps the effect kinds, by which it judges each description (`../connectors-effects.md`,
+  1.1). No root, kit or world installs hold kinds: the core's step takes no `tasks::Event::Kinds`
+  from outside, and one given is a fault.
 - **`step(engine, env, input, out)`** takes one input as one decision and appends its outputs to
   `out`, in the order the core made them. For `In::Core(event)` they are exactly what the core's
   own step returns for `event`, each as `Out::Core`, but for its loads, each of which leaves as
-  `Out::Held(Peer::Store(..))` at its place (2.4). `In::Store` is taken the same way, as one
-  decision.
+  `Out::Held(Peer::Store(..))` at its place (2.4), its asks of connectors and what it
+  releases to them, which leave by the connectors' port (2.5), its writes, each as `Out::Write`,
+  and the start's own outputs (2.6). `In::Store`, `In::Connector` and `In::Resume` are taken the
+  same way.
 - **`fire(engine, env, timer, out)`** fires one due timer the same way, as the core's `fire` does.
+- **`append(requests, out)`** is the conversion `step` and `fire` make, for the requests one of
+  the core's other entrances returned (2.3): it appends them to `out` in order, each load as
+  `Out::Held(Peer::Store(..))`, each ask of a connector or release to one by its port (2.5) and
+  each write as `Out::Write` (2.6), at its place, and every other request as `Out::Core`.
 - **`due(engine, now, wall, admit)` and `next_deadline(engine, now, wall, admit)`** keep today's
   timers, clocks and admission: `now` is the engine's clock and `wall` the wall's, since a
   sign-in expires on the wall. `Admit::All` admits every timer, as the core's `due` and
@@ -197,7 +223,11 @@ the store's port (2.4).
   (`temper/docs/design/draft/jig-domain-api.md`, 4.2 and 5) arrives as variants of `In` and `Out`
   and takes its cases out of `In::Core` and `Out::Core`, a milestone at a time, until they are
   empty and go. The store's is the first (2.4): `In::Store`, and `Out::Held` with its peer,
-  `Peer::Store`. The other marks (`Write`, `Ask`, `Now`) and peers come with their ports.
+  `Peer::Store`. The connectors' is the second (2.5): `In::Connector`, the mark `Out::Ask`, and
+  `Peer::Connector`. The start brings the rest of the marks and two peers of its own (2.6):
+  `Out::Write`, `Out::Now`, `Peer::Application` with the start's cases alone, and `Peer::Resume`
+  with `In::Resume`, carrying the start's continuations alone. The other peers, and those two
+  peers' other cases, come with their ports.
 
 ### 2.3 The core, while the move runs
 
@@ -213,8 +243,11 @@ the store's port (2.4).
   (`Admit::All` for `due` and `next_deadline`, `Admit::Finishing` for `finishing_due` and
   `next_finishing_deadline`), and `idle` for `quiescent`. The core's other entrances (`restore`,
   the start's, the reads', `finish_decision`, `want_accounts`, `resume_fleet`) and every other use
-  go through `core()` and `core_mut()`. What the holder does is unchanged: each event, timer and
-  request crosses in the order it did. A crate that only reads the core for its holder, such as a
+  go through `core()` and `core_mut()`. The requests such an entrance returns (`resume_fleet`,
+  `finish_decision`, the start's phases, the settings reads') the holder passes through `append`
+  (2.1) before it routes them, so that every load reaches it one way, as 2.4 says, and the holder
+  routes `Out` alone. What the holder does is unchanged: each event, timer and request crosses in
+  the order it did, at the point of its decision it did. A crate that only reads the core for its holder, such as a
   world's inspection or a reader of the core's state, keeps taking `&Core`, from `core()`.
 - **Never by `Deref`,** since a deref would make each use of the core read as a use of the engine:
   through two named methods every remaining use stays in sight, to review and to the counts. The
@@ -269,12 +302,16 @@ pub enum Failure {
 ```
 
 The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::Held(Peer)` with
-`Peer::Store(store::Out)`.
+`Peer::Store(store::Out)`. The start adds its cases to both, and the store's writes (2.6).
 
 - **Held, always.** Every load leaves as `Out::Held(Peer::Store(Out::Load { .. }))`, released
   once every commit made before it is durable, so that it sees them (`decisions.md`, 1.3). The
   root holds it as it holds any held output, gives it to its store once released, and gives
   each answer back as `In::Store(In::Loaded { .. })`, which it always takes (`../root.md`, 3).
+  The core's own steps queue each load as `core::Held::Store`, among their other held requests
+  in the one queue of requests they share, and the engine converts it at its edge (`step`,
+  `fire`, `append`): no root receives one, and a root's match over `core::Held`, which lists every
+  case, names it in an arm that routes nothing. The case leaves `core::Held` with `Out::Core` (3).
 - **One token per load,** unique among the engine's loads in flight and the load's until its
   last answer. A `Window` is answered page by page, in the order its turns are read, each page
   but the last with `more`; every other range by one answer, whose `more` or `next` says only
@@ -317,11 +354,210 @@ The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::He
   the store pages by itself, so its later pages keep the load its first took and wait for no
   commit, and a window of any length loads once begun.
 
+### 2.5 The connectors' port
+
+What the engine asks a connector, what the connector says, and what is released to it after a
+commit, each in the contract's values (`temper/docs/design/draft/jig-domain-api.md`, 6.3 to 6.5;
+`../connectors.md`, 2). A root routes each by the connector's number and reads none.
+
+```rust
+// jig-domain-contract: the crate's root
+pub struct Connector(pub u16);   // a connector's number in its application
+pub enum Ask { Lifecycle(lifecycle::Ask), Resources(resources::Ask), Effects(effects::Ask),
+               Topics(topics::Ask), Parts(parts::Ask), Procedures(procedures::Ask),
+               Projections(projections::Ask), Settings(settings::Ask), Requests(requests::Ask) }
+pub enum Up  { Lifecycle(lifecycle::Up), Resources(resources::Up), Effects(effects::Up),
+               Topics(topics::Up), Parts(parts::Up), Procedures(procedures::Up),
+               Projections(projections::Up), Settings(settings::Up), Requests(requests::Up),
+               Act { key: [u8; 16], act: Box<ops::Act>, carried: Option<ops::Carried> } }
+pub enum Released { Make { entry: u64 }, Answered { key: [u8; 16], outcome: ops::Outcome } }
+```
+
+The engine's own enums gain the port (2.2): `In::Connector(Connector, Up)`, the mark
+`Out::Ask(Connector, Ask)`, and `Peer::Connector(Connector, Released)`.
+
+- **Three kinds of ask.** Each case of a capability's `Ask` is one of three, as
+  `../connectors.md`, 2 lists them:
+  - a **judgement**, answered by its connector within the decision that asked it, by an `Up`
+    naming it (a description, a verdict, a member's holdings, settings judged, a public
+    document);
+  - a **notification**, answered by nothing (keep, drop, a subscription done, a step made);
+  - an **operation that ends later**, answered by an `Up` naming it whenever it ends, in any
+    later decision, the engine keeping the state that waits for it across a restart too, as it
+    does today (catching up, releasing a deleted project, settling a closing task's effects,
+    projecting a goal, gathering a party's document or a task line's parts, which a connector
+    may read from its store first, the core keeping the watcher or the read that waits for them,
+    as `temper/docs/design/draft/jig-domain-api.md`, 6.3 has it; deciding an application's
+    request, which may need held work first, a load, a setup or a forge read, the core keeping
+    the pending request until it is decided). Planning a run's brief and gathering or cutting
+    its sections can end later too, but the engine keeps their state only until a restart, when
+    the preparation begins again (`briefs.md`, 1.4).
+- **The decision's assertion, over judgements alone.** Each judgement asked is outstanding until
+  its connector answers it. At the decision's end, which a root marks by `finish_decision`
+  (2.3), none is outstanding: the engine asserts it, as it asserts its routes' invariants. A
+  notification needs no answer and an operation that ends later may end in any decision, so
+  neither is asserted. An answer that names nothing outstanding is taken as the core takes it
+  today: its route judges it, keeping or dropping it.
+- **Asked only about what it declared.** Lifecycle is asked of every connector. An ask the core
+  makes of every connector goes only to those that declare the capability: resources' (a
+  resource kind), effects' (an effect kind), projections' (`projects_goals`) and a brief's plan
+  (`sections`). Every other ask
+  goes to the connector its subject names: a settings kind's, a part kind's, a requirement's
+  judge, a resource's or an effect's owner, a procedure's executor, a topic subscription's
+  connector, an application request's. So a connector that declares no kind of a capability and
+  owns none of its subjects is never asked about it, and its step matches those asks in an empty
+  arm (`temper/docs/design/draft/jig-domain-api.md`, 3.3).
+- **What a connector says up** names its subject, as today's events do, less the connector's
+  number, which `In::Connector` carries. Some of it the core took from the roots as its
+  children's events, which the engine now makes itself: a closing task's holds released (the
+  tasks child's `Settled`), a procedure to step again (`WakeProcedure`), a resource read afresh
+  (`ReadAfresh`); and a catch-up's stage done reaches the core's start as the roots' call did.
+- **An act in the deployment's name.** `Up::Act` is a connector's act under a key of its own
+  (`../people/acts.md`, 3), checked as any party's. Its answer, once its decision is durable,
+  is released to that connector as `Released::Answered` under the same key, not to a reply token.
+  An act a root makes for the application itself still crosses as `In::Core` until the
+  operations' milestone.
+- **Released after the commit.** `Released::Make` is an outbox entry to make
+  (`../connectors-effects.md`, 1.2), held as any `Peer` output. The
+  root gives each released one to its connector as `Released`, after the commit
+  (`../root.md`, 9).
+- **Admission keeps today's classes.** `In::Connector` is admitted as the event it replaces is
+  today (`Event::new_work`): an answer finishes admitted work, and what a connector says unasked
+  (news, drift, a resource's role, a pool's slots) is new work, until one class per input
+  (`temper/docs/design/draft/jig-domain-api.md`, 4.4).
+- **What still crosses as `In::Core` and `Out::Core`,** for the milestones that reshape it
+  (section 3): the application's own asks, its admission table, providers and models' catalogue;
+  a run's preparation past its brief, a workspace, a claim and a job claimed, with their
+  answers; and a connector's operations on jig's work (subscribing, cancelling, holding or
+  releasing a task, a repair or a person's task seeded by the core, an application request's
+  core part), which each root translates until the operations come.
+- **Nothing stored or sent changes.** The port is in-process, between the engine, its root and
+  the connectors; no record, key or wire changes.
+- **Why by capability:** a connector's author reads only the capabilities it takes part in, and
+  a root needs one arm per connector, not one per ask, since it never reads what an ask is
+  (`../root.md`, 5). Why judgements alone are asserted: they are the only asks the decision
+  waits for; asserting more would forbid the operations that already span decisions.
+
+### 2.6 The start through the ports
+
+The engine runs its own start (`restart.md`): the core's script keeps its phases and their order,
+and each phase's exchange is a port's (`temper/docs/design/draft/jig-domain-api.md`, 5.1 and
+5.5). No root serves a phase, picks one, or calls the script's entrances.
+
+```rust
+// jig-domain-core-vocabulary's engine::store, beside 2.4's cases
+pub enum Out { Load { load: Token, range: Range }, Switch }     // both held
+pub enum In {
+    Loaded { load: Token, result: Answer },
+    Opened { pending: bool },                       // the store has opened: the start begins
+    Switched,                                       // the generation switched, or none was pending
+    Fill { bytes: u64 },                            // the store's fill, as each commit is answered
+    Census(Box<documents::deployment::StoreCensus>),// the store's census of its keyspaces
+}
+pub enum Range { /* 2.4's */ Start { ranges: Box<[RestoreRange]>, after: Option<Cursor> } }
+pub enum Rows { /* 2.4's */ Start { items: Box<[Item]>, next: Option<Cursor> } }
+pub enum Item { Record(Record), Missing { record: Key, target: Key } }
+pub struct Cursor { pub interval: u32, pub after: Box<[u8]> }   // the store's place, read by it alone
+pub enum Write { DropTranscript { task: u64 }, DropHistory { task: u64 },
+                 CopySettingsRevision(u32), Save(Record), Erase(Key), Wires }
+
+// jig-domain-core-vocabulary's engine
+pub enum In { Core(Event), Store(store::In), Connector(Connector, Up), Resume(Resume) }
+pub enum Out { Core(Request), Write(store::Write), Ask(Connector, Ask), Held(Peer), Now(Peer) }
+pub enum Peer { Store(store::Out), Connector(Connector, Released),
+                Application(application::Out), Resume(Resume) }
+pub struct Resume(pub Token);   // the engine's own continuation; the root reads nothing of it
+
+// jig-domain-core-vocabulary's engine::application
+pub enum Out {
+    Numbered { commits: u64 },                  // the journal's numbering, restored at a start
+    Start { phase: Option<Phase> },             // each phase as it begins; none once decisions open
+    Refused { phase: Phase, failure: Failure }, // the start refused (restart.md, 4)
+}
+```
+
+`Write` is the core's `Write` moved into the store's port, named along its old path too, and
+gains `Wires`, the start's mark. `Event::Fill` and `Event::Census` leave `Event` for the store's
+inputs. `Phase`, `Failure` and `RestoreRange` are the start's (`jig_domain_core::start`).
+
+- **It begins at the store's open.** `In::Store(Opened { pending })` begins the start, once and
+  before any other input, at the step's wall time, the start's time (`restart.md`, 3); the store's
+  routing gives it when its store has opened, as the roots' restart event does today.
+- **Each phase, said as it begins:** `Out::Now(Peer::Application(Start { phase: Some(phase) }))`,
+  and once `Open` is done and each connector asked to catch up, `Start { phase: None }`: decisions
+  are open. A root keeps the last it was told, for its admission and its reports.
+- **The engine's own loads** are the store port's held loads (2.4), one page each, of three walks:
+  `LoadCore` loads `RestoreRange::LIVE` whole, `LoadInbox` the census the core builds of its
+  inbox (`[Census(..)]`), and `Sweep` `[People]`. The first page is asked with `after: None`, and
+  each next one with the `next` its page gave, once the page's items are taken; a page with no
+  `next` ends the walk. The store's routing answers each with `Rows::Start`, its items in the
+  store's order (`../../protocol/store/loads.md`, 2), at the bounds it pages by. The engine
+  restores each `Record` in order, takes each `Missing` as the start's missing link (`restart.md`,
+  3), and sweeps the people rows as the script says, a row whose erase commits waiting for that
+  commit's continuation before the next, and the next page waiting for the rows of its own. A
+  start load answered otherwise (a refused page, a store that could not read it, an answer its
+  range cannot have) leaves the start where it is: the engine asks nothing more of it, and the
+  root stops with the store's cause, as today (`restart.md`, 4).
+- **The journal's numbering.** The stored deployment header, restored, says
+  `Out::Now(Peer::Application(Numbered { commits }))` in the decision that restored it. The root
+  applies it once that decision is accepted, before it accepts another, with
+  `Journal::restore_numbering(commits)` (`skein/docs/design/runtime/lib.md`, 11), so what the
+  journal holds, the next page's load among it, keeps its place. Nothing commits before it.
+- **Each connector, by its lifecycle.** At `RestoreConnector { connector }` the engine asks that
+  connector `Ask::Lifecycle(lifecycle::Ask::Restore)`, an operation that ends later, and the
+  phase ends when the connector says `Up::Lifecycle(lifecycle::Up::Done { stage: Restored })`.
+  The connector loads its own records (`../connectors.md`, 14). What it says up meanwhile is its
+  phase's: an adoption (`lifecycle::Up::Adopted`) or a resource's role (`resources::Up::Resource`),
+  taken as restored report state that decides nothing, as `restore_resource_role` takes a role
+  today, a role the engine cannot take refusing nothing; its settings' defaults, `settings::Up::Defaults`; and a stored value of
+  its kinds it cannot hold, `settings::Up::Unfit { kind, scope, number }`, which refuses the start
+  as `Failure::Application` with `ApplicationWhy::Shape`. A `Done { stage: Restored }` from
+  another connector or outside its phase is dropped. The catch-up after the opening stays as it
+  is (2.5).
+- **The switch, every start** (`restart.md`, 2): `Out::Held(Peer::Store(Switch))`, held so that
+  it leaves after every commit before it, and `In::Store(Switched)` ends the phase. The store's
+  routing answers `Switched` at once when its store had nothing pending, as the test service and
+  temper's root do today; a rehearsing root keeps the switch and answers nothing, so its start
+  stays at `Switch`.
+- **The wires, a write:** the decision `Wires` commits carries `Out::Write(Write::Wires)` beside
+  its continuation, and the store's routing saves the start's wires with it
+  (`../../protocol/store/records.md`, 3). A root that saves the deployment's header with each
+  writing decision counts it a write.
+- **Its continuations, by `Resume`.** Each commit the script asks for leaves as its writes and
+  `Out::Held(Peer::Resume(resume))`; the root feeds it back as `In::Resume(resume)` once the
+  journal releases it, always taken, and the script goes on from it. A cold start drops one held,
+  as the journal's volatile state goes, and one the engine does not hold is dropped.
+- **A refusal, once:** `Out::Now(Peer::Application(Refused { phase, failure }))`, the phase the
+  start stopped in and its first failure; the engine takes no further start input, and the root
+  stops as it does today.
+- **The store's reports at any time.** `Fill` and `Census` are inputs of the port in every phase.
+  Before the start's runs are adopted, the engine keeps the last of each and takes them as it
+  adopts, the census first; after, at once. So no root holds them.
+- **Stopping during the start** (`restart.md`, 5): told it stops, the engine asks no further phase
+  and drops what its start loads, a `Switched` and a `Resume` bring.
+- **What waits for the start stays the root's admission,** as today (`../root.md`, 3 and 8): it
+  holds, or answers not ready, what it did before the opening, knowing the start's place from
+  `Start`. Every input of the start is taken (`In::new_work`): `In::Store` and `In::Resume`.
+- **The core's entrances stay the engine's.** `start_begin`, `start_done`, `start_sweep`,
+  `start_resume`, `restore`, `census`, `start_missing` and `restore_resource_role` are what the
+  engine calls; kits and the core's own tests reach them through the access (2.3) until the
+  clean-up, and no root calls them.
+- **Nothing stored or sent changes.** The ports are in-process; the store's records, keys and
+  pages, the wires' record and every wire stay as they are.
+- **Why the engine:** each root served the phases in its own way (`ops`'s rows one at a time,
+  the test root's and temper's by pages, temper's walks split), and with them the order the core
+  owns. The engine paces its walks as it paces its other loads (2.4), and a root carries loads,
+  writes and continuations it reads nothing of. Why `Write` moved: the wires are a write of the
+  start, and the store's writes are the port's (`temper/docs/design/draft/jig-domain-api.md`,
+  5.1). Why the switch is asked every start: a rehearsal stops at it, pending or not.
+
 ## 3. Later
 
-- **The store's reports and the start's exchanges** (`temper/docs/design/draft/jig-domain-api.md`,
-  5.1): `Fill` and `Census` as inputs of the store's port, and each phase of the start through
-  the ports, the engine's own restart loads among them, with the start's milestone.
+- **The application's and `Resume`'s other cases** (`temper/docs/design/draft/jig-domain-api.md`,
+  5.5 and 5.6): a project made, drained, restarting, a brief failed, a restore refused, the
+  settings the service applies, and its periods, stopping and settling; the core's held callbacks
+  fed back. Until the remaining ports come, they cross as `In::Core` and `Out::Core`, and the two
+  peers carry the start's cases alone (2.6).
 - **The public reads' cap.** A public read loads nothing (`../people/public-reading.md`, 9), so
   the cap that temper's root and the test root keep on public reads in flight stays theirs, with
   their public watermark, until the parties' port and admission take it
@@ -330,11 +566,23 @@ The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::He
   execution file): the ports beside `In::Core` and `Out::Core`; one class per input, and `idle` in
   place of `quiescent` and `finish_owed`; then `In::Core`, `Out::Core` and the access gone, and
   `In` and `Out` named `Event` and `Request` once today's are.
-- **The rest of a declaration** (`temper/docs/design/draft/jig-domain-api.md`, 6.2 and 6.3): its
-  reads, topics, parts, procedures, symbols, settings, requests and whether it projects goals, each
-  with the capability the engine asks it by, and the `Connector` number type with the ports that
-  carry it; a start refused, too, for a kind its configuration names (a grant's, a requirement's, a
+- **The rest of a declaration** (`temper/docs/design/draft/jig-domain-api.md`, 6.2): its reads,
+  topics, parts, procedures, symbols, settings and requests as kinds in the declaration, the
+  settings and part kinds moving there from `Config` and the kept procedures' starts with them;
+  until then the asks of those capabilities go to the connector their subject names (2.5). A
+  start refused, too, for a kind its configuration names (a grant's, a requirement's, a
   template's symbol) that no connector declared, once reads and symbols are declared, since a
   grant's kind may be a read's. An effect kind's resource kinds, whether it is priced, and a
   resource kind's path shape wait for a check that reads them: the engine reads an effect's
   resources as names and its price as given.
+- **What still crosses outside the connectors' port** (2.5), each with its milestone of
+  `temper/docs/design/draft/jig-domain-api.execution.md`: the application's admission table,
+  providers and models' catalogue, with the application's port
+  (`temper/docs/design/draft/jig-domain-api.md`, 5.5); a run's preparation past its brief, a
+  workspace, a claim and a job claimed, with a run's workspace and claim
+  (`temper/docs/design/draft/jig-domain-api.md`, 6.6); a connector's operations on jig's work,
+  the application's own acts and an application request's core part, with the operations
+  (`temper/docs/design/draft/jig-domain-api.md`, 7.1 to 7.4); and the asks of
+  `temper/docs/design/draft/jig-domain-api.md`, 6.3 that the core does not make today (a resource
+  named, held or released, a writer slot, a procedure made, activated, messaged or closing as
+  asks of their own, what a run left), each with the first connector that needs it.

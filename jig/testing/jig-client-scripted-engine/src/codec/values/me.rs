@@ -7,9 +7,10 @@ use super::{
 };
 pub(in crate::codec) fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
     Ok(w::Template {
+        name: value.name.clone(),
         resources: skein_lib::List::with_capacity(0),
         number: value.number,
-        name: wire_document_text(&value.name),
+        shown: wire_document_text(&value.shown),
         executor: wire_template_executor(&value.executor),
         contract: wire_task_contract_document(&value.contract, limits)?,
         shallower: value.shallower,
@@ -45,6 +46,7 @@ pub(in crate::codec) fn wire_create_procedure(value: &c::CreateProcedure) -> w::
 
 pub(in crate::codec) fn wire_me(value: &c::Me, limits: &w::Limits) -> Result<w::Me, w::Problem> {
     Ok(w::Me {
+        charters: list(value.charters.iter().map(|item| w::MeCharter { number: item.number, name: item.name.clone() })),
         party: wire_me_party(&value.party),
         projects: try_pieces(value.projects.iter().map(|item| wire_me_project(item, limits)), limits)?,
         needs: wire_needs(&value.needs),

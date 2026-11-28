@@ -47,13 +47,13 @@ pub use v14::{
     BudgetRefusalValue, BudgetSpend, BudgetTime, BudgetTurns, CEILINGS, Call, CallName, Cancel, CompletionEvidence,
     CompletionFailure, CompletionFault, CredentialValue, DeliverAsk, Delivered, Delivery, DeliveryFailure,
     DeliveryReason, DeliveryRefusal, DeliveryReply, Directory, Drain, Effect, Fact, FactKind, Failed, Field, Grant,
-    GrantRefresh, GrantValue, HostAnswer, HostAsk, HostReply, InvalidStart, InvalidStartValue, KeptPart, Limited,
-    LimitedFault, Limits, Live, LiveAsk, LiveCall, LiveKind, Long, LongDone, Marker, Message, MessageRefusal,
-    MessageRefused, ModelFault, ModelFaultValue, Operation, Overflow as BudgetOverflow, OverflowValue, Part, PartKept,
-    PartKind, PolicyFailure, PriceRate, PriceRateValue, ProgramFault, ProgramValue, Receipt, ReceivingLimit,
-    ReceivingLimitValue, Refused, RefusedFault, Reply, RunFailure, RunResult, SavedReply, Scheme, Signal, Signalled,
-    Start, StartRefusal, TranscriptRefusal, TranscriptRefusalValue, Turn, Unauthorized, UnauthorizedFault, Waiting,
-    Window, WindowBound, Withdraw, Workspace,
+    GrantRefresh, GrantValue, HookTime, HookTimes, HostAnswer, HostAsk, HostReply, InvalidStart, InvalidStartValue,
+    KeptPart, Limited, LimitedFault, Limits, Live, LiveAsk, LiveCall, LiveKind, Long, LongDone, Marker, Message,
+    MessageRefusal, MessageRefused, ModelFault, ModelFaultValue, Operation, Overflow as BudgetOverflow, OverflowValue,
+    Part, PartKept, PartKind, PolicyFailure, PriceRate, PriceRateValue, ProgramFault, ProgramValue, Receipt,
+    ReceivingLimit, ReceivingLimitValue, Refused, RefusedFault, Reply, RunFailure, RunResult, SavedReply, Scheme,
+    Signal, Signalled, Start, StartRefusal, TranscriptRefusal, TranscriptRefusalValue, Turn, Unauthorized,
+    UnauthorizedFault, Waiting, Window, WindowBound, Withdraw, Workspace,
 };
 
 pub use v14::{ListAnswer, ListAsk, ListFailed, ListFailure, ListRefused, ListRow, ListRows};
@@ -95,6 +95,45 @@ pub mod wire {
             assert_ne!(changed, TEXT, "the mutation changes a field's type");
             let changed = skein_codec::schema::parse(changed.as_bytes()).expect("changed schema");
             assert_ne!(layout(), changed.fingerprints().family().digest());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CEILINGS, Directory, HookTime, HookTimes, Record};
+    use skein_lib::{Duration, List, Reader};
+
+    #[test]
+    fn a_start_directory_round_trips_with_and_without_hook_times() {
+        for hooks in [
+            None,
+            Some(HookTimes {
+                deliver: Some(HookTime { time: Duration::from_secs(3600), asked: Duration::from_secs(7200) }),
+                finish: None,
+                ceiling: Duration::from_secs(3600),
+                fault: Box::default(),
+            }),
+            Some(HookTimes {
+                deliver: None,
+                finish: None,
+                ceiling: Duration::from_secs(3600),
+                fault: b"the time file is not a regular file".as_slice().into(),
+            }),
+        ] {
+            let directory = Directory {
+                name: b"work".as_slice().into(),
+                path: b"/workspace/work".as_slice().into(),
+                writable: true,
+                git: true,
+                conflicts: List::with_capacity(0),
+                results: Some(b"/workspace/work/.git/smith-check".as_slice().into()),
+                hooks,
+            };
+            let bytes = directory.encode(&CEILINGS).expect("directory within channel ceilings");
+            let mut reader = Reader::new(&bytes);
+            assert_eq!(Directory::decode(&CEILINGS, &mut reader).expect("directory decodes"), directory);
+            assert!(reader.is_empty());
         }
     }
 }

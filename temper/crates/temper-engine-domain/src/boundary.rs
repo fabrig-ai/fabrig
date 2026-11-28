@@ -15,7 +15,7 @@ use jig_domain_link::Grant;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
-use skein_lib::{List, ReplyTo, Token, Wall};
+use skein_lib::{ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
 
 /// A complete claim's assignment, root to worker after durability; its
@@ -368,6 +368,10 @@ pub enum Fact {
 }
 
 #[derive(Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::large_enum_variant, reason = "decoded calls carry LLM choices with inline speed names")
+)]
 pub enum WorkerInput {
     /// A decoded push admission ask from jig's live attempt fence.
     Admit { asking: crate::wire::Asking, tag: u64, branch: Box<[u8]>, expected: Option<[u8; 32]>, commit: [u8; 32] },
@@ -527,6 +531,10 @@ pub enum ForgeReadAnswer {
     },
 }
 #[derive(Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::large_enum_variant, reason = "typed asks carry LLM choices with inline speed names")
+)]
 pub enum PartyInput {
     /// A visitor read (jig/docs/design/domain/people/public-reading.md, 5).
     PublicRead {
@@ -841,6 +849,10 @@ pub enum StoreRequest {
     Engine(engine_store::Out),
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "deliveries with a workspace stay inline in the bounded route queue")
+)]
 pub enum WorkerRequest {
     Settings(Box<[core::settings::WorkerSetting]>),
     Host(Box<HostRequest>),
@@ -887,21 +899,19 @@ pub(crate) enum Work {
     PartsLoaded { waiter: Token, result: engine_store::Answer },
     PartsFailed { waiter: Token },
     CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
-    StartDone(jig_domain_core::start::Phase),
-    Start(jig_domain_core::start::Action),
+    EngineResume(jig_domain_core::engine::Resume),
     Decoded { to: ReplyTo, body: Call },
     ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
+    Connector(jig_domain_contract::Connector, jig_domain_contract::Up),
     EngineStore(engine_store::In),
     Tasks(tasks::Event),
     RepairFindings { goal: u64, writes: Box<[forge::FindingWrite]> },
     People(people::Event),
     Fleet(fleet::Event),
-    Brief(brief::GatherEvent),
     Forge(forge::Event),
     LandingAdmission { row: forge::LandingRow, names: Box<[forge::Name]> },
     ForgeSettings(skein_lib::Queue<forge::Request>),
-    ForgeRestored,
     ForgeLimitHold { row: forge::LimitHold, words: Box<[u8]> },
     ForgeLimitRelease { task: u64, revision: u64 },
     StatusAccount { procedure: u64 },
@@ -915,12 +925,9 @@ pub(crate) enum Work {
 
 #[derive(Hash, Debug)]
 pub(crate) struct BriefConnector {
-    pub(crate) deadline: skein_lib::Time,
     pub(crate) task: u64,
-    pub(crate) kind: ForgeBriefKind,
+    pub(crate) kind: u16,
     pub(crate) gatherable: bool,
-    pub(crate) active: bool,
-    pub(crate) cutting: bool,
 }
 
 /// Preparation waits for the goal branch before its brief and workspace
@@ -928,29 +935,22 @@ pub(crate) struct BriefConnector {
 #[derive(Hash, Debug)]
 pub(crate) enum WorkspacePreparation {
     Ready(PreparedWorkspace),
-    Brief {
-        parent: Option<u64>,
-        sections: List<jig_domain_brief::Planned>,
-        documents: Box<[jig_domain_core::PlannedDocument]>,
-    },
-    Workspace {
-        attempt: u64,
-        context: Box<jig_domain_tasks::RunContext>,
-    },
+    Brief(Box<jig_domain_contract::parts::Preparation>),
+    Workspace { attempt: u64, context: Box<jig_domain_tasks::RunContext> },
 }
 
 impl WorkspacePreparation {
     pub(crate) fn prepared(&self) -> &PreparedWorkspace {
         match self {
             Self::Ready(prepared) => prepared,
-            Self::Brief { .. } | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
+            Self::Brief(_) | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
         }
     }
 
     pub(crate) fn into_prepared(self) -> PreparedWorkspace {
         match self {
             Self::Ready(prepared) => prepared,
-            Self::Brief { .. } | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
+            Self::Brief(_) | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
         }
     }
 }
@@ -979,6 +979,7 @@ pub(crate) use jig_domain_hub_link::Payload;
 /// (temper/docs/design/domain/root-translation.md, 2.1).
 #[derive(Hash, Debug)]
 pub(crate) struct AssignmentParts {
+    pub sections: Box<[BriefSection]>,
     pub saved: Box<[u64]>,
     pub workstream: u64,
     pub workspace: ForgeWorkspace,
@@ -1022,9 +1023,13 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::FindingsOwned { .. }
         | Delivery::PublicWait { .. }
         | Delivery::ForgeCommitted { .. }
+        | Delivery::TakeForgeAdoption { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
-        | Delivery::Start(_)
+        | Delivery::Resume(_)
+        | Delivery::EngineStore(
+            engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+        )
         | Delivery::Load { .. }) => Request::ToChild(Released(delivery)),
         delivery @ (Delivery::Host(_)
         | Delivery::AssignedJob { .. }

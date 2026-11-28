@@ -70,6 +70,11 @@ pub enum Kind {
         min: u64,
         max: u64,
     },
+    /// An item name, or decimal digits within the inclusive numeric bounds.
+    NameOrNumber {
+        min: u64,
+        max: u64,
+    },
     /// A closed word or a prefix followed by a bounded number.
     NamedNumber {
         words: &'static [&'static [u8]],
@@ -116,7 +121,9 @@ pub enum Bound {
 #[must_use]
 pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
     match argument.kind {
-        Kind::NumberRange { min, max } | Kind::NamedNumber { min, max, .. } => Bound::Numbers { least: min, most: max },
+        Kind::NumberRange { min, max } | Kind::NameOrNumber { min, max } | Kind::NamedNumber { min, max, .. } => {
+            Bound::Numbers { least: min, most: max }
+        }
         Kind::Count => Bound::Numbers { least: 1, most: u64::from(limits.rows) },
         Kind::Places => Bound::Numbers { least: 1, most: u64::from(u32::MAX) },
         Kind::Worker => Bound::Bytes { most: u64::from(limits.settings.worker_setting_name) },
@@ -243,6 +250,8 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"MODEL",
     b"EFFORT",
     b"MODEL[:EFFORT]",
+    b"SPEED",
+    b"MODEL:SPEED",
     b"AMOUNT",
     b"ADDRESS",
     b"ORG/NAME",

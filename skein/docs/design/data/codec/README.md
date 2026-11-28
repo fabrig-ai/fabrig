@@ -217,7 +217,7 @@ enum Form {
   default; its name and former names are none of its record's fields'
   names or former names, nor another tombstone's. It stays until fabrig
   keeps no code for a layout that has the field
-  (`temper/docs/design/draft/layouts-both-ways.md`, 7.4).
+  (`temper/docs/design/draft/archive/layouts-both-ways.md`, 7.4).
 - **`droppable`** before a field's name, `droppable hint: text 256`,
   lets a plan in Keep mode from this layout drop the field whatever its
   value, where the target lacks it (`layouts.md`, 2). Nothing else reads
@@ -226,7 +226,7 @@ enum Form {
   refuses a text that uses either, so a family's schema uses them once
   dev.fabrig.ai runs a build that reads them: its store's registry, and
   a peer it opens with, may hand that text to it
-  (`temper/docs/design/draft/layouts-both-ways.md`, 7.4). A field may
+  (`temper/docs/design/draft/archive/layouts-both-ways.md`, 7.4). A field may
   still be named `dropped` or `droppable` (`run-time.md`, 1.1).
 - **A variant holds one record, or nothing.** The record seals its own
   bounds, which an enum variant's fields could not.
@@ -461,7 +461,7 @@ pub fn generate(schema: &Schema) -> Output;
 - **Every family's version is frozen** at its header's: a change of
   layout is made in the family's current text alone and moves no
   version, whether it is stored, sent or both (temper's
-  `draft/layouts-both-ways.md`, 3). The store's registered families
+  `draft/archive/layouts-both-ways.md`, 3). The store's registered families
   (jig's `protocol/store/layouts.md`, 1), the worker wires (temper's
   `protocol/wires.md`, 3.1) and the client wires (jig's
   `protocol/client/versions.md`, 1) each say their numbers. So two
@@ -497,7 +497,7 @@ pub fn generate(schema: &Schema) -> Output;
   `protocol/store/jobs.md`, 4), or a wire's written converter (jig's
   `protocol/channel/layouts.md`, 6). A dropped field keeps a tombstone
   (section 3). Each is kept only while something dev.fabrig.ai runs is
-  at the layout that needs it (temper's `draft/layouts-both-ways.md`,
+  at the layout that needs it (temper's `draft/archive/layouts-both-ways.md`,
   7.4).
 - **Formats outside the registry are fixed:** the component's own rows
   and the secrets' store. A change designs and brings, in its own

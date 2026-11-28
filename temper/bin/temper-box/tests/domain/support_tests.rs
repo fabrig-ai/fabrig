@@ -41,7 +41,17 @@ fn readiness_eof_reports_child_status_and_stderr() {
 
 #[test]
 fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
-    support::boxed::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
+    support::fixture::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
+}
+
+#[test]
+fn a_fixture_wrapper_preserves_the_command_and_names_its_owner_and_signal() {
+    support::fixture::tests::a_fixture_wrapper_preserves_the_command_and_names_its_owner_and_signal();
+}
+
+#[test]
+fn long_running_kit_commands_name_their_fixture_death_signal() {
+    support::fixture::tests::long_running_kit_commands_name_their_fixture_death_signal();
 }
 
 #[test]
@@ -108,6 +118,72 @@ fn the_retained_cluster_charter_overrides_have_no_documents() {
     for item in charters {
         assert_eq!(item["set"]["documents"], serde_json::json!([]), "cluster charter: {}", item["setting"]);
     }
+}
+
+#[test]
+fn cluster_overrides_decode_over_the_current_stock_settings() {
+    use jig_client::contract::{Setting, SettingEdit, SettingNumber, SettingValue};
+
+    const CHAT_TEMPLATE: Setting = Setting::Template(SettingNumber { number: 1 });
+    let mut fixture: Value = serde_json::from_slice(include_bytes!("../fixtures/cluster/settings.json"))
+        .expect("retained cluster settings overrides");
+    support::cluster::overlay_settings(&mut fixture, cluster_stock_reads());
+    let bytes = serde_json::to_vec(&fixture).expect("merged cluster settings JSON");
+    let items = temper_client_tools::jig::settings_file::decode(&bytes, &temper_client_tools::limits::tools())
+        .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&why)));
+    let item = items.iter().find(|item| item.setting == CHAT_TEMPLATE).expect("chat template override");
+    let SettingEdit::Set(set) = &item.edit else { panic!("set chat template") };
+    let SettingValue::Template(template) = &set.value else { panic!("chat template value") };
+    assert_eq!(template.shown.bytes(), b"chat");
+    assert_eq!(template.name.as_deref(), Some(b"chat".as_slice()));
+}
+
+fn cluster_stock_reads() -> Vec<Value> {
+    use jig_domain_core::{
+        reads::SettingDocument,
+        settings::{Setting, Value as StockValue},
+    };
+    use temper_client_protocol_wire::v1::{CEILINGS, Record};
+
+    let engine = super::configuration::process_engine();
+    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let models = jig_protocol_engine_clients::translate::llm::catalogue(&stock.models);
+    let agents = temper_service::stock::agents();
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(agents.measure(&CEILINGS).expect("stock agents fit")).expect("size fits"),
+    );
+    agents.write(&CEILINGS, &mut bytes).expect("stock agents encode");
+
+    let preset = temper_client_tools::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("ctl link limits");
+    let tools = temper_client_tools::limits::tools();
+    [
+        (Setting::Charter(1), StockValue::Charter(Box::new(stock.charters[0].clone()))),
+        (Setting::Charter(2), StockValue::Charter(Box::new(stock.charters[1].clone()))),
+        (Setting::Template(1), StockValue::Template(Box::new(stock.templates[0].clone()))),
+        (Setting::Application { kind: 21, scope: 0, number: 1 }, StockValue::Application(bytes.finish())),
+    ]
+    .into_iter()
+    .map(|(setting, value)| {
+        let document = SettingDocument {
+            setting,
+            value: Some(value),
+            revision: 1,
+            overlay: None,
+            application: None,
+            proposed: None,
+        };
+        let wire = jig_protocol_engine_clients::translate::settings::setting_document(&document, &models, link.wire())
+            .expect("stock setting fits the wire");
+        let document = jig_client_protocol_link::translate::settings::restore_setting_document(&wire, &link)
+            .expect("stock setting reaches ctl");
+        let json = temper_client_tools::jig::render::settings_json(
+            &jig_client::contract::ReadValue::Setting(Box::new(document)),
+            &tools,
+        );
+        serde_json::from_slice(&json).expect("ctl settings JSON")
+    })
+    .collect()
 }
 
 #[test]

@@ -45,6 +45,7 @@ fn call(number: u64, tool: &[u8], input: &[u8], failed: bool) -> c::Block {
         input: text(input),
         outcome: Some(text(b"denied\nprivate details")),
         failed,
+        answer: None,
         objects: List::with_capacity(0),
         parts: List::with_capacity(0),
     })
@@ -201,7 +202,7 @@ fn root(input: &Input) -> Domain {
     );
     chat_event(
         &mut root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     );
     let mut out = Queue::uncapped();
     let mut me = f::me(&[b"Hello"]);

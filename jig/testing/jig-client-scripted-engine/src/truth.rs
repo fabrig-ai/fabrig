@@ -321,23 +321,15 @@ impl Rule {
 /// The starting truth, payload limits and request outcomes for a scenario.
 #[derive(Clone, Debug)]
 pub struct Script {
-    /// Jig owner range stated by the scripted protocol stream hello.
-    pub versions: jig_client_domain::contract::VersionRange,
+    /// Jig layout verdict stated by the scripted stream hello.
+    pub served: bool,
     pub truth: Truth,
     pub bounds: Bounds,
     pub rules: Vec<Rule>,
 }
 impl Default for Script {
     fn default() -> Self {
-        Self {
-            versions: jig_client_domain::contract::VersionRange {
-                first: jig_client_protocol_wire::VERSION,
-                last: jig_client_protocol_wire::VERSION,
-            },
-            truth: Truth::default(),
-            bounds: Bounds::default(),
-            rules: Vec::new(),
-        }
+        Self { served: true, truth: Truth::default(), bounds: Bounds::default(), rules: Vec::new() }
     }
 }
 impl Script {

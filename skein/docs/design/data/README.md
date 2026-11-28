@@ -7,6 +7,7 @@ codecs, and an in-memory dataset made durable on io's files. Read the
 representations before the store:
 
 - [`json.md`](json.md), `skein-json`: a demand-driven bounded tokenizer, selective collector and sized writer.
+- [`toml.md`](toml.md), `skein-toml`: one whole TOML 1.0 document read within bounds into a compact document, each key and value with its line.
 - [`codec/README.md`](codec/README.md), `skein-codec`, `skein-codegen`: schemas, generated codecs and bounds, run-time record reading, frozen versions and layouts named by fingerprint.
   - [`codec/golden.md`](codec/golden.md): golden bytes and tests.
   - [`codec/run-time.md`](codec/run-time.md): run-time schemas and generic values.

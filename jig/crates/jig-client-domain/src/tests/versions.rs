@@ -4,9 +4,6 @@ use crate::*;
 use alloc::boxed::Box;
 const DOCUMENT_BYTES: u64 = 32;
 const TOO_MANY: usize = 33;
-const RANGE: contract::VersionRange = contract::VersionRange { first: 2, last: 3 };
-const SERVED: contract::VersionRange = contract::VersionRange { first: 1, last: 1 };
-const RANGES: [Option<contract::VersionRange>; 2] = [None, Some(RANGE)];
 const KEPT_VERSIONS: [(u16, u32); 2] = [(19, 2), (20, 1)];
 fn live() -> Client {
     let mut client = Client::live();
@@ -17,12 +14,8 @@ fn live() -> Client {
 fn record() -> Family {
     Family { family: 19, version: 1, bytes: Box::new([255, 0, 1]) }
 }
-fn served(client: &mut Client, versions: Option<contract::VersionRange>) {
-    let served = match versions {
-        Some(range) => range.contains(SERVED.first),
-        None => false,
-    };
-    client.step(Event::Up { up: Up::FamilyServed { family: 19, versions, served } });
+fn served(client: &mut Client, served: bool) {
+    client.step(Event::Up { up: Up::FamilyServed { family: 19, served } });
 }
 
 #[test]
@@ -52,7 +45,7 @@ fn a_family_document_past_the_bytes_limit_ends_its_handle() {
 #[test]
 fn a_family_owner_not_served_keeps_its_requests_unsent() {
     let mut client = live();
-    served(&mut client, Some(RANGE));
+    served(&mut client, false);
     client.step(Event::Send {
         name: None,
         key: fixtures::KEY,
@@ -89,18 +82,18 @@ fn a_family_owner_not_served_ends_its_watches_not_served() {
     client.step(Event::Up { up: Up::Watched { watch, event: contract::WatchEvent::Opened } });
     client.downs();
     client.told();
-    served(&mut client, Some(RANGE));
+    served(&mut client, false);
     assert_eq!(client.told().as_ref(), &[Told::Ended { handle: TASK, why: Why::NotServed }]);
     assert_eq!(client.downs().as_ref(), &[Down::Close { watch }]);
     assert_eq!(client.domain.document(TASK).expect("ended handle").state, State::Ended);
-    served(&mut client, Some(RANGE));
+    served(&mut client, false);
     assert_eq!(client.told().as_ref(), &[]);
 }
 
 #[test]
 fn a_family_owner_served_again_sends_what_was_kept() {
     let mut client = live();
-    served(&mut client, None);
+    served(&mut client, false);
     client.step(Event::Send {
         name: None,
         key: fixtures::KEY,
@@ -108,7 +101,7 @@ fn a_family_owner_served_again_sends_what_was_kept() {
     });
     let downs = client.downs();
     let [Down::Save { record: saved }] = downs.as_ref() else { panic!("one kept record") };
-    served(&mut client, Some(SERVED));
+    served(&mut client, true);
     client.at(client.env.now.saturating_add(client.env.limits.requests.first));
     let sent = client.downs();
     let [Down::Send { key, request, .. }] = sent.as_ref() else { panic!("one resumed attempt: {sent:?}") };
@@ -118,37 +111,29 @@ fn a_family_owner_served_again_sends_what_was_kept() {
 }
 
 #[test]
-fn a_read_of_an_owner_not_served_is_answered_at_once_naming_its_range() {
-    for range in RANGES {
-        let mut client = live();
-        served(&mut client, range);
-        client.step(Event::Read {
-            handle: TASK,
-            read: Readable::Family {
-                scope: Scope::Project(1),
-                window: Window { rows: 3, after: None },
-                record: record(),
-            },
-        });
-        assert_eq!(client.downs().as_ref(), &[], "{range:?}");
-        assert_eq!(
-            client.told().as_ref(),
-            &[Told::Page { handle: TASK, page: Readout::NotServed { family: Some(19), served: range } }],
-            "{range:?}"
-        );
-    }
+fn a_read_of_an_owner_not_served_is_answered_at_once_naming_its_owner() {
+    let mut client = live();
+    served(&mut client, false);
+    assert_eq!(client.domain.not_served(), &[19]);
+    client.step(Event::Read {
+        handle: TASK,
+        read: Readable::Family { scope: Scope::Project(1), window: Window { rows: 3, after: None }, record: record() },
+    });
+    assert_eq!(client.downs().as_ref(), &[]);
+    assert_eq!(client.told().as_ref(), &[Told::Page { handle: TASK, page: Readout::NotServed { family: Some(19) } }]);
+    served(&mut client, true);
+    assert_eq!(client.domain.not_served(), &[]);
+    client
+        .read(TASK, Readable::Family { scope: Scope::Own, window: Window { rows: 1, after: None }, record: record() });
 }
 
 #[test]
-fn a_refused_layout_ends_a_current_read_despite_a_matching_version() {
+fn a_not_served_verdict_ends_a_current_read() {
     let mut client = live();
     let read = client
         .read(TASK, Readable::Family { scope: Scope::Own, window: Window { rows: 1, after: None }, record: record() });
-    client.step(Event::Up { up: Up::FamilyServed { family: 19, versions: Some(SERVED), served: false } });
-    assert_eq!(
-        client.told().as_ref(),
-        &[Told::Page { handle: TASK, page: Readout::NotServed { family: Some(19), served: Some(SERVED) } },]
-    );
+    client.step(Event::Up { up: Up::FamilyServed { family: 19, served: false } });
+    assert_eq!(client.told().as_ref(), &[Told::Page { handle: TASK, page: Readout::NotServed { family: Some(19) } },]);
     client.step(Event::Up { up: Up::ReadDone { read, result: Readout::Family { family: 19, record: None } } });
     assert!(client.told().is_empty(), "the read already ended at the judgement");
 }
@@ -156,7 +141,7 @@ fn a_refused_layout_ends_a_current_read_despite_a_matching_version() {
 #[test]
 fn a_read_while_out_of_date_is_answered_not_served() {
     let mut client = live();
-    client.step(Event::Up { up: Up::Served { served: false, versions: Some(RANGE) } });
+    client.step(Event::Up { up: Up::Served { served: false } });
     client.told();
     for read in [
         fixtures::project(1),
@@ -164,10 +149,7 @@ fn a_read_while_out_of_date_is_answered_not_served() {
     ] {
         client.step(Event::Read { handle: TASK, read });
         assert_eq!(client.downs().as_ref(), &[]);
-        assert_eq!(
-            client.told().as_ref(),
-            &[Told::Page { handle: TASK, page: Readout::NotServed { family: None, served: Some(RANGE) } }]
-        );
+        assert_eq!(client.told().as_ref(), &[Told::Page { handle: TASK, page: Readout::NotServed { family: None } }]);
     }
 }
 

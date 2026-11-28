@@ -1,21 +1,24 @@
+use super::formats::{FORMATS, Formats};
 use super::{Choice, FIELDS, FORMS, Field, Form, Shape, Value, Width, Word, most, overlay_replaces};
 use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"Read/edit/set whole: `settings show KIND N`. Refusals=shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend=deployment model-price units. uN=unsigned 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ?=optional; !=required; |null=nullable. Choices=JSON strings; A|B=alternatives; choice=described alternatives. set=setting.kind; project-policy=policy.";
+pub const INTRO: &[u8] = b"`settings show KIND N`: read/edit/set whole. Refusals: shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend: deployment model-price units. uN=unsigned 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ? optional, ! required, |null nullable. A|B=alternatives; choice=described JSON strings. set=setting.kind; project-policy=policy. Setting names: lowercase letters/digits/-, letter first; stock keeps its name.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
-    page_of(&FORMS, &FIELDS, limits)
+    page_of(&FORMS, &FIELDS, limits, FORMATS)
 }
 
 #[must_use]
-pub fn page_of(forms: &[Form], fields: &[Field], limits: &Limits) -> Box<[u8]> {
+pub(super) fn page_of(forms: &[Form], fields: &[Field], limits: &Limits, formats: Formats) -> Box<[u8]> {
     let mut measure = Text::measure();
     write(forms, fields, limits, &mut measure);
+    formats.write(&mut measure);
     let mut out = Text::writing_exact(measure);
     write(forms, fields, limits, &mut out);
+    formats.write(&mut out);
     let bytes = out.finish();
     for byte in &bytes {
         assert!(*byte == b'\n' || (b' '..=b'~').contains(byte), "page is printable ASCII and line ends");
@@ -56,7 +59,7 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
             }
         }
         if form.shape == Shape::Overlay {
-            out.put(b"As `charter`'s fields, replacing the default whole: ");
+            out.put(b"Same as `charter`, replacing each default whole: ");
             let mut first = true;
             for field in fields {
                 if overlay_replaces(field) {
@@ -175,6 +178,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             Width::U32 => b"u32",
             Width::U64 => b"u64",
         }),
+        Value::CharterOwner => out.put(b"u32|t[32]"),
         Value::Nanoseconds => out.put(b"ns"),
         Value::Time => out.put(b"ns since 1970 UTC"),
         Value::Boolean => out.put(b"bool"),

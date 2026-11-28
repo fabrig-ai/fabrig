@@ -44,7 +44,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   the browser's new chat with a draft; it opens with the pane at half,
   as the domain's start leaves it (`Mode::Split`, `../../pages/README.md`, *A new chat*).
 - **Sittings:** a session is kept (`../../../domain/agent/agents.md`, 4). Opened
-  again, from `launchpad.md`, 4, *Where you left off*, `/chats N` or `/chats`, it is the
+  again, from `launchpad.md`, 4, *Where you left off*, or `/chats`, it is the
   root's chat as any chat is, its conversation and draft read as they
   stand, and the domain opens a design session with its pane at half
   (`../../pages/README.md`, *A design session*); `launchpad.md`, 4, *Where you left off* says ", a design

@@ -4,20 +4,12 @@
 //! needs count all live task projections across the party's projects. Reply
 //! read positions and stored inbox rows are supplied by their owners.
 
-use super::{Count, Cursor, Proposer, TaskLine, TaskLink};
+pub use jig_domain_contract::parts::InboxObject;
+
+use super::{Count, Cursor, TaskLine, TaskLink};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
-/// The object one inbox row opens; its own document carries content and acts.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum InboxObject {
-    Question { message: u64 },
-    Proposal { proposer: Proposer, number: u64 },
-    Escalation { revision: u64 },
-    PersonTask,
-    Reply { message: u64 },
-    Result { position: u64 },
-}
 /// One owner-supplied inbox reference, with a chat header when it is a reply.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct InboxEntry {
