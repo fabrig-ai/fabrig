@@ -67,7 +67,7 @@ Each is generic, and says nothing about jig.
   - `skein-fake-person`, the person over the tree, and
     `skein-fake-person-browser`, its face over skein's browser kit (a
     name matched by words as well as exactly, a press at a point within
-    a node's box: skein's `testing/browser.md`, sections 5 and 6) and the
+    a node's box: skein's `testing/browser-vocabulary.md`, section 1, and `testing/browser-operations.md`, section 1) and the
     harness, which stops the application's binary and starts it again
     within a story, with skein's stories for a browser shell, which
     jig's tier calls beside its own (skein's `ui/web/testing.md`, 2;

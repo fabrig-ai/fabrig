@@ -1,4 +1,4 @@
-//! The page's reusable document handle (skein/docs/design/testing/browser.md, 6).
+//! The page's reusable document handle (skein/docs/design/testing/browser-operations.md, 1).
 
 use alloc::boxed::Box;
 use skein_lib::{Env, Token};

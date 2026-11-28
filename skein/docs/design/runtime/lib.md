@@ -99,18 +99,6 @@ reported its last event, `Closed`, once; its owner sends it nothing more.
 
 A token's top four bits may tag its namespace (`Token::tagged`, `tag`, `untagged`), for a root that hands tokens to several children.
 
-## 5. Containers
-
-Moved to [`lib-containers.md`](lib-containers.md), section 1.
-
-## 6. Bytes
-
-Moved to [`lib-bytes.md`](lib-bytes.md), section 1.
-
-## 7. Streams
-
-Moved to [`lib-streams.md`](lib-streams.md), section 1.
-
 ## 8. Time, deadlines and randomness
 
 - **`Time`** is nanoseconds on a monotonic clock, in a `u64`, read by the
@@ -429,7 +417,7 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
 
 ## 14. Open questions
 
-- **Remaining decoder allocation and scalar costs** (5, 6):
+- **Remaining decoder allocation and scalar costs** (`lib-containers.md`, 1; `lib-bytes.md`, 1):
   `temper/docs/development/limits-fuzzy.md` records actual list growth,
   scalar reads and scalar writes after the append-bookkeeping repair.
   Eager decoder allocation needs a different entrance/allocation contract

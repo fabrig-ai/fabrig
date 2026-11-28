@@ -59,7 +59,7 @@ fn a_press_finds_a_replaced_control_again_before_sending_input() {
 #[test]
 fn a_press_keeps_its_deadline_across_repeated_replacements() {
     // Four poll intervals fit within the original answer deadline
-    // (skein/docs/design/testing/browser.md, 6).
+    // (skein/docs/design/testing/browser-operations.md, 1).
     const REPLACEMENTS: u64 = 4;
     let (mut face, mut op) = pressing();
     let limits = skein_browser::Limits::default();

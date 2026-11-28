@@ -1,4 +1,4 @@
-//! Rendering reads use DOM and CSS parameters, not page evaluation (skein/docs/design/testing/browser.md, 5–6).
+//! Rendering reads use DOM and CSS parameters, not page evaluation (skein/docs/design/testing/browser-vocabulary.md, 1, and skein/docs/design/testing/browser-operations.md, 1).
 
 use super::{
     Browser, OpKind, Operation, PendingKind, Step as BrowserStep, field_array, field_u64, protocol_detail, quad_rect,

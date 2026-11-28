@@ -537,7 +537,7 @@ Moved to [`testing.md`](testing.md), section 1.
   `testing/layout.md`, section 1); for the reference UI, its UI kit's browser
   parts, its bundler, and its face and harness for the browser tier
   (skein's `ui/web/README.md`, 4.1, and `ui/web/bundle.md`, 2, and `ui/web/testing.md`, 2), over its browser kit
-  (skein's `testing/browser.md`, sections 5 and 6); a client compiled to
+  (skein's `testing/browser-vocabulary.md`, section 1, and `testing/browser-operations.md`, section 1); a client compiled to
   WebAssembly in its model (`skein/docs/foundation/programming-model.md`, 2.1). Its HTTP
   server and client serve as they are. Between hosts, TLS's server side
   (`../needs.md`, section 1).

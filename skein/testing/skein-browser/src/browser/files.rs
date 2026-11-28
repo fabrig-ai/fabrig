@@ -1,4 +1,4 @@
-//! File-only pages intercept requests before dispatch (skein/docs/design/testing/browser.md, 5–6).
+//! File-only pages intercept requests before dispatch (skein/docs/design/testing/browser-vocabulary.md, 1, and skein/docs/design/testing/browser-operations.md, 1).
 
 use super::{Browser, PendingKind, Phase, field_text, opt_field};
 use crate::{Limits, params::Params, wire::decode::Value};

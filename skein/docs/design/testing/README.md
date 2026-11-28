@@ -12,6 +12,8 @@ fakes are indexed in [`fakes/README.md`](fakes/README.md).
 
 - [`service-tiers.md`](service-tiers.md): what skein supplies for a service's tiers.
 - [`layout.md`](layout.md): test crates, shared harnesses and suites.
+- [`browser-vocabulary.md`](browser-vocabulary.md): the browser kit's requests, events and values.
+- [`browser-operations.md`](browser-operations.md): how the browser kit carries out those requests.
 
 ## 1. In one page
 
@@ -214,14 +216,6 @@ runs the pinned Forgejo in a scratch directory, for the tools and process tiers 
 conformance tool outside the suites holds the dialect to it. A service
 keeps its fake of its own git component, its worlds and its cost ceilings.
 
-## 5. What skein supplies for a service's tiers
-
-Moved to [`service-tiers.md`](service-tiers.md), section 1.
-
-## 6. Layout
-
-Moved to [`layout.md`](layout.md), section 1.
-
 ## 7. Where things stand
 
 How each part is tested, and what its worlds cover, is in the part's own
@@ -334,7 +328,7 @@ What of this document is not built is in [`README.status.md`](README.status.md).
 
 ## 9. Open questions
 
-- **One-process adoption and suite costs** (5, 6, 7). Switching a
+- **One-process adoption and suite costs** (`service-tiers.md`, 1; `layout.md`, 1; section 7). Switching a
   caller's focused and fuzzy steps is that caller's separate change,
   tree by tree (`tools/tiers/design.md`, 8). Measure suite CPU per
   process after that switch; per-test CPU in a shared process is not
@@ -353,39 +347,39 @@ What of this document is not built is in [`README.status.md`](README.status.md).
   `skein/docs/development/skein-limits-heavy.md`. Shared helper and JSON
   costs recorded there overlap separate repairs; their original counts
   are not measurements of what remains after those repairs.
-- **Complete process-world instruction measurements** (2, 5, 7).
+- **Complete process-world instruction measurements** (section 2; `service-tiers.md`, 1; section 7).
   Profiling the process operations needs a profiler that supports them;
   Callgrind's unsupported operations leave incomplete counts. A native
   CPU observation is no instruction comparison. Containment, observation,
   deadlines and the fixture starts each behaviour requires stay.
-- **Process startup cost** (6, 7). Isolating the cost before a test's
+- **Process startup cost** (`layout.md`, 1; section 7). Isolating the cost before a test's
   body needs separate measurements. Further table tests must still be
   cases of one behaviour under ../../foundation/testing-strategy.md, 8, keeping every
   assertion; a test past its guide cannot be merged away to make room.
-- **Further folds and row diagnostics** (6, 7). Different behaviours and
+- **Further folds and row diagnostics** (`layout.md`, 1; section 7). Different behaviours and
   process-local heap measurements stay separate, with fixtures built
   per row wherever sharing could change what is shown. Signing-heavy
   App JWT routes stay separate when their combined table exceeds the
   unit-test guide. A table reports its first failing row and stops
-  there (6): collecting every row's failure would catch a panic
+  there (`layout.md`, 1): collecting every row's failure would catch a panic
   (../../foundation/programming-model.md, 10.4). Default: no
   fold weakens these rules to reach a suite-margin target; further cost
   changes need a profile of their cause first.
-- **The counting allocator's remaining cost** (5). One thread-local
+- **The counting allocator's remaining cost** (`service-tiers.md`, 1). One thread-local
   access, its cells, layout construction and preconditions, allocation
   numbers, size conversions and System allocation remain necessary.
   Whether to add a `[profile.dev.package.skein-heap]` override for the
   remaining unoptimized work is the user's decision under
   ../../foundation/testing-strategy.md, 8. The instruction counts and each cause's share
   are in `skein/docs/development/world-costs.md`.
-- **Deployment-world allocation and fork costs** (5, 6). Required checked
+- **Deployment-world allocation and fork costs** (`service-tiers.md`, 1; `layout.md`, 1). Required checked
   allocation-header layout and the kernel's fork, wait and copy-on-write
   work remain. User-space instruction counts do not measure that kernel
   floor. `temper/docs/development/limits-worlds.md` records the shares
   and native system CPU; its different profiling arms do not establish
   an isolated remaining saving or a whole-suite total. A build override
   remains the user's decision under ../../foundation/testing-strategy.md, 8.
-- **Costs beyond the shared world helpers** (5, 6). Product work, a
+- **Costs beyond the shared world helpers** (`service-tiers.md`, 1; `layout.md`, 1). Product work, a
   world's own fixtures and process startup need separate cost work;
   `skein/docs/development/world-costs.md` gives their measured shares.
   Further JSON string work belongs with ../data/json.md, 8. Required scheduling,
@@ -400,7 +394,7 @@ What of this document is not built is in [`README.status.md`](README.status.md).
   other, would need the hand-off counted.
 - **The real loop in CI and sanitizers on the ring adapter** are the
   shell's (../runtime/shell.md, 9).
-- **A fixture a crate's unit tests and a world both read** (6). No `#[path]`
+- **A fixture a crate's unit tests and a world both read** (`layout.md`, 1). No `#[path]`
   crosses a package, and a kit would give a second copy of the crate's types,
   so the dialect world holds its own
   (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's. No
@@ -409,7 +403,7 @@ What of this document is not built is in [`README.status.md`](README.status.md).
   `skein-forge-connection-fixtures` holds the machine world's
   (../forge/connection.md, 10), for 55 lines of test data each side keeps as
   its own numbers. Default: the copy stays.
-- **The echo's client host** (6): `ClientHost` in
+- **The echo's client host** (`layout.md`, 1): `ClientHost` in
   `skein/examples/echo/shell/tests/end_to_end.rs` repeats `Proc`'s `Host` arms.
 - **The forge machine world in campaigns** (7.1): whether its fixed cut
   sweeps move to a binary of their own, so that its four seeded shards take
@@ -417,7 +411,7 @@ What of this document is not built is in [`README.status.md`](README.status.md).
   The test sits in the shell's package so that Cargo supplies its binary,
   `skein-echo-client` is held to the step subset and can't implement `Host`, and
   a kit's manifest alone is longer than the copy. Default: the copy stays.
-- **Helpers beside the forge kit's** (6):
+- **Helpers beside the forge kit's** (`layout.md`, 1):
   `skein/tests/fake-peers/tests/forge/fixtures.rs` and
   `temper/tests/engine/protocol-forge/src/fixtures.rs` repeat some of
   `skein_forge_kit::fixtures`. Default: they stay, until a debt item names them.

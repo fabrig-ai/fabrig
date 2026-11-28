@@ -1,4 +1,4 @@
-//! Refusals before mouse input (skein/docs/design/testing/browser.md, 6).
+//! Refusals before mouse input (skein/docs/design/testing/browser-operations.md, 1).
 use super::{Browser, OpKind, Operation, PendingKind, Step};
 use crate::boundary::{Event, Refusal};
 use crate::{Limits, wire::decode::Document};

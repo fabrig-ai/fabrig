@@ -1,4 +1,4 @@
-//! A changed viewport reaches CSS layout (skein/docs/design/testing/browser.md, 5).
+//! A changed viewport reaches CSS layout (skein/docs/design/testing/browser-vocabulary.md, 1).
 use super::{Event, FIND, PAGE, Request, Rig, Stage, query};
 
 mod rendering;
