@@ -1008,7 +1008,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
         (0, "setting_model_efforts", 1),
         (0, "setting_model_efforts_item", 4),
         (0, "setting_model_effort_some", 4),
-        (1, "document_text_bytes", 4),
+        (1, "shown", 4),
         (1, "model_effort_model", 5),
         (1, "model_effort_effort_some", 4),
         (2, "setting_policy_roles", 1),
@@ -1040,7 +1040,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
                 "setting_model_efforts" => wire.setting_model_efforts = bound,
                 "setting_model_efforts_item" => wire.setting_model_efforts_item = bound,
                 "setting_model_effort_some" => wire.setting_model_effort_some = bound,
-                "document_text_bytes" => wire.document_text_bytes = bound,
+                "shown" => wire.document_text_bytes = bound,
                 "model_effort_model" => wire.model_effort_model = bound,
                 "model_effort_effort_some" => wire.model_effort_effort_some = bound,
                 "setting_policy_roles" => wire.setting_policy_roles = bound,
@@ -3270,7 +3270,8 @@ fn settings_apply_and_show_keep_names_separate_from_shown() {
     }));
     let shown = read(&["settings", "show"], inventory);
     assert_eq!(shown.status, 0);
-    assert!(core::str::from_utf8(&shown.stdout).unwrap().contains("name \"lean-goal\""));
+    let text = core::str::from_utf8(&shown.stdout).unwrap();
+    assert!(text.contains("template 33 lean-goal \"goal for a lean design\": changed in revision 6"), "{text}");
     let shown = read(&["settings", "show", "template", "33", "--json"], setting_read(setting, value));
     assert_eq!(shown.status, 0);
     assert!(

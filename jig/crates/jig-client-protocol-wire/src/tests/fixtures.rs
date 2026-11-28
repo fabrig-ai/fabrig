@@ -11,6 +11,9 @@ use skein_lib::{List, Writer};
 pub use stream::*;
 pub use task_values::{authority, task};
 
+// Shortest current Me: fixed fields and empty values, including the charter-list count.
+const ME_ZERO_BYTES: u32 = 95;
+
 // The all-zero Task includes two absent option tags, a four-byte empty waits list prefix,
 // and a four-byte zero wait count.
 const TASK_ZERO_BYTES: u32 = 291;

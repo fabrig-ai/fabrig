@@ -4,7 +4,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"Read/edit/set whole: `settings show KIND N`. Refusals=shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend=deployment model-price units. uN=unsigned integer 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ?=optional; !=required; |null=nullable. Choices=JSON strings; A|B=alternatives; choice=described alternatives. set=setting.kind; project-policy=policy.";
+pub const INTRO: &[u8] = b"`settings show KIND N`: read/edit/set whole. Refusals: shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend: deployment model-price units. uN=unsigned 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ? optional, ! required, |null nullable. A|B=alternatives; choice=described JSON strings. set=setting.kind; project-policy=policy. Setting names: lowercase letters/digits/-, letter first; stock keeps its name.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {

@@ -107,9 +107,9 @@ fn a_template_reads_shown_or_the_earlier_name() {
     let named = fixtures::engine(&modern).expect("named template");
     assert_eq!(named.templates[1].shown.as_ref(), b"goal");
     assert_eq!(named.templates[1].name.as_deref(), Some(b"lean-goal".as_slice()));
-    let legacy = fixtures::engine(fixtures::ENGINE_SMALL).expect("legacy template");
-    assert_eq!(legacy.templates[1].shown.as_ref(), b"goal");
-    assert_eq!(legacy.templates[1].name, None);
+    let earlier = fixtures::engine(fixtures::ENGINE_SMALL).expect("earlier template");
+    assert_eq!(earlier.templates[1].shown.as_ref(), b"goal");
+    assert_eq!(earlier.templates[1].name, None);
     let malformed = fixtures::with(&modern, b"lean-goal", b"Lean-goal");
     let problems = fixtures::engine(&malformed).expect_err("malformed template name");
     assert_eq!(

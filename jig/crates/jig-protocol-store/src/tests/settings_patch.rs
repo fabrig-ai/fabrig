@@ -91,6 +91,15 @@ fn model() -> s::Record {
     }
 }
 
+fn settings_schema() -> &'static str {
+    for family in crate::STORE_FAMILIES {
+        if family.name == "jig-store-settings" {
+            return family.current;
+        }
+    }
+    unreachable!("settings family")
+}
+
 #[test]
 #[expect(clippy::disallowed_methods, reason = "derive the former settings layout from the current schema text")]
 fn a_model_at_the_older_settings_layout_has_no_speeds() {
@@ -98,8 +107,7 @@ fn a_model_at_the_older_settings_layout_has_no_speeds() {
     use skein_codec::schema;
     use skein_lib::Buffer;
 
-    let family = crate::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-settings").unwrap();
-    let text = family.current;
+    let text = settings_schema();
     let speed_record = text.lines().find(|line| line.starts_with("record Speed ")).unwrap();
     let old_text =
         text.replace(speed_record, "").replace(" speeds: list 4 Speed = [] speed: option bytes 32 = none", "");
@@ -137,7 +145,7 @@ fn stored_setting_names_default_to_none_at_the_previous_layout_and_round_trip_no
     use skein_codec::schema;
     use skein_lib::Buffer;
 
-    let current = schema::parse(include_str!("../../schema/settings-v3.schema").as_bytes()).unwrap();
+    let current = schema::parse(settings_schema().as_bytes()).unwrap();
     let old = schema::parse(include_str!("fixtures/settings-before-names-v3.schema").as_bytes()).unwrap();
     let current_root = current.root(b"Changed", None).unwrap();
     let old_root = old.root(b"Changed", None).unwrap();

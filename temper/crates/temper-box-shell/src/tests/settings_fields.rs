@@ -201,6 +201,11 @@ fn walk(shape: Shape, value: Json) {
     let limits = temper_client_tools::limits::form();
     let mut pending = vec![(shape, value)];
     while let Some((shape, value)) = pending.pop() {
+        if shape == Shape::Text && value.is_string() {
+            let field = fields::resolve(b"template.shown.bytes").expect("whole text uses the text object's byte bound");
+            scalar(&value, field, &limits, &mut pending);
+            continue;
+        }
         if let Choice::One { words } = fields::form(shape).choice {
             if value.is_string() {
                 word(&value, words);

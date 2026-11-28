@@ -442,6 +442,7 @@ fn the_drafter_is_charter_12_and_template_6() {
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
     expected.number = 12;
+    expected.name = Some(b"drafter".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/drafter.txt").as_slice().into();
     expected.policy.inspect = false;
     expected.policy.modify = false;
@@ -451,6 +452,7 @@ fn the_drafter_is_charter_12_and_template_6() {
     assert_eq!(*charter, expected);
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 6;
+    expected.name = Some(b"design-session".as_slice().into());
     expected.shown = b"design session".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(12);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 6).unwrap(), expected);
@@ -621,18 +623,20 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
     let configured = fixtures::engine();
     let limits = crate::limits::engine(&configured.jig.limits, &configured.limits).unwrap();
     let stock = crate::stock::forge(&limits);
-    for (number, text, words) in [
+    for (number, name, text, words) in [
         (
             14,
+            b"triager".as_slice(),
             include_str!("../stock/triager.md"),
             "Routes what comes in to its area's owner, and triages what fits no area.",
         ),
         (
             15,
+            b"prover",
             include_str!("../stock/prover.md"),
             "Owns its area's tests: triages their reds and flakes and makes the repairs.",
         ),
-        (16, include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
+        (16, b"porter", include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
     ] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("stock role");
         let mut sections = text.strip_prefix("## shared\n").unwrap().split("\n## ");
@@ -640,6 +644,7 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
         assert_eq!(charter.policy.instructions.as_ref(), shared.as_bytes());
         let mut expected = standing.clone();
         expected.number = number;
+        expected.name = Some(name.into());
         expected.policy.instructions = shared.as_bytes().into();
         for (part, section) in expected.parts.iter_mut().zip(sections) {
             let (heading, words) = section.split_once('\n').unwrap();
@@ -651,7 +656,7 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
             assert_eq!(part.on, reasons);
             part.instructions = words.trim_matches('\n').as_bytes().into();
         }
-        assert_eq!(charter, &expected, "only instructions differ for charter {number}");
+        assert_eq!(charter, &expected, "only name and instructions differ for charter {number}");
         assert!(shared.contains("Never accept your own proposal"));
         assert!(shared.contains("Never change what is outside your area"));
         assert!(shared.contains("Before every park, write your Now"));
@@ -1374,6 +1379,7 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
     expected.number = 4;
+    expected.name = Some(b"reviewer".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/review.txt").as_slice().into();
     expected.policy.modify = false;
     expected.policy.agents = false;
@@ -2156,6 +2162,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     let coordinator = stock.charters.iter().find(|charter| charter.number == 5).unwrap();
     let mut expected = stock.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
     expected.number = 5;
+    expected.name = Some(b"goal".as_slice().into());
     expected.policy.instructions = coordinator.policy.instructions.clone();
     expected.parts = coordinator.parts.clone();
     expected.policy.resume = false;
@@ -2173,6 +2180,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     assert_eq!(coordinator, &expected);
     let mut expected = stock.templates.iter().find(|template| template.number == 2).unwrap().clone();
     expected.number = 4;
+    expected.name = Some(b"draft-goal".as_slice().into());
     expected.shown = b"goal for a draft".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
     expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
@@ -2268,6 +2276,7 @@ fn the_status_charter_is_small_and_reaches_nothing() {
     let status = defaults.charters.iter().find(|charter| charter.number == 9).expect("status charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 9;
+    expected.name = Some(b"status".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/status.txt").as_slice().into();
     expected.policy.turns = 4;
     expected.policy.time = skein_lib::Duration::from_secs(300);
@@ -2319,6 +2328,7 @@ fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     let trial = defaults.charters.iter().find(|charter| charter.number == 10).expect("trial charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 10;
+    expected.name = Some(b"trial".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/trial.txt").as_slice().into();
     expected.policy.turns = 2;
     expected.policy.time = skein_lib::Duration::from_secs(120);
