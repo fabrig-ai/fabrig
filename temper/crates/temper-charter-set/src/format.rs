@@ -10,6 +10,7 @@ impl Set<'_> {
         Ok(Self {
             common: body(File::Common, self.common)?,
             goal: body(File::Goal, self.goal)?,
+            design: body(File::Design, self.design)?,
             designer: body(File::Designer, self.designer)?,
             coordinator: body(File::Coordinator, self.coordinator)?,
             implementer: body(File::Implementer, self.implementer)?,
@@ -33,6 +34,7 @@ impl Refusal {
         let text = match file {
             File::Common => source.common,
             File::Goal => source.goal,
+            File::Design => source.design,
             File::Designer => source.designer,
             File::Coordinator => source.coordinator,
             File::Implementer => source.implementer,

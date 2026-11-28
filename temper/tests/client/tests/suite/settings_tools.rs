@@ -1000,9 +1000,11 @@ fn ctl_directory_overlay_exports_applies_back_and_takes_a_new_default_after_rest
     let agent = fixtures::agent(&mut world);
     let file = br#"{"items":[{"setting":{"kind":"charter","number":2},"overlay":{"charters":["set"],"shell":false}}]}"#;
     let mut files = skein_lib::List::uncapped();
-    for (name, text) in
-        [(b"common.md".as_slice(), b"common".as_slice()), (b"implementer.md", b"our implementation rules")]
-    {
+    for (name, text) in [
+        (b"common.md".as_slice(), b"common".as_slice()),
+        (b"design.md", b"our design rules"),
+        (b"implementer.md", b"our implementation rules"),
+    ] {
         files.push(settings_form::overlay::Markdown { name: name.into(), text: text.into() }).expect("set file");
     }
     let mut directories = skein_lib::List::uncapped();
@@ -1024,6 +1026,7 @@ fn ctl_directory_overlay_exports_applies_back_and_takes_a_new_default_after_rest
     assert!(shown.contains("overlay replaces: shell"), "{shown}");
     let json = call(&mut world, agent, &[b"settings", b"show", b"charter", b"2", b"--json"]);
     assert!(!json.contains("charters"), "{json}");
+    assert!(!json.contains("our design rules"), "{json}");
     let literal = json.rsplit_once(",\"overlay\":").expect("exported overlay").1.strip_suffix('}').expect("JSON end");
     let reset = br#"{"items":[{"setting":{"kind":"charter","number":2},"edit":"reset"}]}"#;
     let number = fixtures::give_with_file(

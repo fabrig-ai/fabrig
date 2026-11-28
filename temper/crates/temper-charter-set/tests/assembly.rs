@@ -17,13 +17,14 @@ fn reason(name: &str) -> Option<&'static str> {
     }
 }
 fn empty() -> Set<'static> {
-    Set { common: None, goal: None, designer: None, coordinator: None, implementer: None }
+    Set { common: None, goal: None, design: None, designer: None, coordinator: None, implementer: None }
 }
 #[test]
 fn files_assemble_in_order_without_eating_inner_headings() {
     let set = Set {
         common: Some("A\n"),
         goal: Some("\nB\n\n"),
+        design: Some("\nDesign\n\n"),
         designer: Some("D"),
         coordinator: Some("## part, on: question,  words\n# Q\nq\n## part, on: news\nn\n"),
         implementer: Some("\nI\n"),
@@ -31,7 +32,7 @@ fn files_assemble_in_order_without_eating_inner_headings() {
     assert_eq!(
         goal_agent(&set, reason).unwrap(),
         GoalAgent {
-            instructions: b"A\n\nB".as_slice().into(),
+            instructions: b"A\n\nB\n\nDesign".as_slice().into(),
             parts: Box::new([
                 Part { reasons: Box::new(["first"]), text: b"D".as_slice().into() },
                 Part { reasons: Box::new(["question", "words"]), text: b"# Q\nq".as_slice().into() },
@@ -44,16 +45,26 @@ fn files_assemble_in_order_without_eating_inner_headings() {
 #[test]
 fn only_boundary_line_feeds_disappear_and_empty_sections_stay() {
     for absent in [None, Some(""), Some("\n\n")] {
-        let set = Set { common: absent, goal: absent, designer: absent, coordinator: absent, implementer: absent };
+        let set = Set {
+            common: absent,
+            goal: absent,
+            design: absent,
+            designer: absent,
+            coordinator: absent,
+            implementer: absent,
+        };
         assert_eq!(goal_agent(&set, reason).unwrap(), GoalAgent { instructions: Box::new([]), parts: Box::new([]) });
         assert!(implementer(&set).is_empty());
         let set = Set { common: Some("\n A\n\nZ \n"), ..set };
         assert_eq!(goal_agent(&set, reason).unwrap().instructions.as_ref(), b" A\n\nZ ");
         assert_eq!(implementer(&set).as_ref(), b" A\n\nZ ");
-        let set = Set { common: absent, goal: Some("G"), implementer: Some("I"), ..set };
-        assert_eq!(goal_agent(&set, reason).unwrap().instructions.as_ref(), b"G");
-        assert_eq!(implementer(&set).as_ref(), b"I");
+        let set = Set { common: Some("C"), goal: Some("G"), implementer: Some("I"), ..set };
+        assert_eq!(goal_agent(&set, reason).unwrap().instructions.as_ref(), b"C\n\nG");
+        assert_eq!(implementer(&set).as_ref(), b"C\n\nI");
     }
+    let design_only = Set { common: Some("\n\n"), design: Some("\nD\n"), ..empty() };
+    assert_eq!(goal_agent(&design_only, reason).unwrap().instructions.as_ref(), b"D");
+    assert!(implementer(&design_only).is_empty());
     let set = Set {
         designer: Some("\nD\n\n"),
         coordinator: Some("\n## part, on: news\n\nx\n\ny\n\n## part, on: timer"),
@@ -70,7 +81,8 @@ fn only_boundary_line_feeds_disappear_and_empty_sections_stay() {
 }
 #[test]
 fn directory_names_refuse_only_unknown_markdown() {
-    for known in [File::Common, File::Goal, File::Designer, File::Coordinator, File::Implementer] {
+    assert_eq!(File::Design.name(), "design.md");
+    for known in [File::Common, File::Goal, File::Design, File::Designer, File::Coordinator, File::Implementer] {
         assert_eq!(file(known.name()), Ok(Some(known)));
     }
     for ignored in ["settings.json", "common.txt", "other.MD", ""] {

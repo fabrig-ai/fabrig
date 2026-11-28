@@ -79,7 +79,8 @@ pub fn assemble(items: &mut List<c::SettingItem>, inputs: &[Directory], limits: 
             let Some(directory) = found else {
                 return Err(refusal(&name, "directory: could not be read"));
             };
-            let mut set = Set { common: None, goal: None, designer: None, coordinator: None, implementer: None };
+            let mut set =
+                Set { common: None, goal: None, design: None, designer: None, coordinator: None, implementer: None };
             for file in &directory.files {
                 let file_name =
                     core::str::from_utf8(&file.name).or(Err(refusal(&name, "file: UTF-8 name required")))?;
@@ -91,6 +92,7 @@ pub fn assemble(items: &mut List<c::SettingItem>, inputs: &[Directory], limits: 
                 match selected {
                     Some(File::Common) => set.common = Some(text),
                     Some(File::Goal) => set.goal = Some(text),
+                    Some(File::Design) => set.design = Some(text),
                     Some(File::Designer) => set.designer = Some(text),
                     Some(File::Coordinator) => set.coordinator = Some(text),
                     Some(File::Implementer) => set.implementer = Some(text),
