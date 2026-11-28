@@ -101,7 +101,8 @@ pub(super) fn write(directory: &Path, mut stop: Stop) {
     std::fs::write(directory.join("README.md"), README).expect("settled image provenance");
 }
 
-pub(super) fn load(directory: &Path) -> World {
+/// Load the stopped world and the source maps for its history comparison.
+pub(super) fn load(directory: &Path) -> (World, Maps) {
     let outside: Outside =
         serde_json::from_slice(&std::fs::read(directory.join("outside.json")).expect("outside file"))
             .expect("settled outside state");
@@ -135,10 +136,10 @@ pub(super) fn load(directory: &Path) -> World {
     golden::files::transcripts(directory, &mut store);
     // The source log also holds the observer's committed prefix and cold parts.
     // Replay its reads before recovery, without running the service or the story.
-    let active = Maps::read(&mut disk).active;
-    read_prefix(directory, active, &mut store);
+    let maps = Maps::read(&mut disk);
+    read_prefix(directory, maps.active, &mut store);
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
-    World {
+    let world = World {
         disk,
         configuration: {
             let mut config = golden::read_configuration(directory);
@@ -148,7 +149,8 @@ pub(super) fn load(directory: &Path) -> World {
         transport: start.fakes.forge,
         store: Rc::new(RefCell::new(store)),
         ledger: Rc::new(RefCell::new(ledger)),
-    }
+    };
+    (world, maps)
 }
 
 fn read_prefix(directory: &Path, active: u64, store: &mut referee::Store) {

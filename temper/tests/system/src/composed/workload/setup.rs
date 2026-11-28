@@ -80,6 +80,8 @@ pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload, park
                         artifact: b"report".as_slice().into(),
                         format: temper_engine_domain_forge_tiers::Format::Lines,
                         fuzzy: None,
+                        matched: None,
+                        rest: Some(b"workload".as_slice().into()),
                     }),
                 })
                 .collect(),

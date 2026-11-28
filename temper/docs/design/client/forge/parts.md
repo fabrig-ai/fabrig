@@ -13,7 +13,8 @@ section 6.
 ## 1. In one page
 
 - **Three kinds** (2), owner `FORGE`, at `CLIENT_VERSION`: a goal's, its
-  newest report's headline and the milestone that gathers it; a chat's,
+  newest report's headline, the milestone that gathers it and whether it
+  holds a goal branch; a chat's,
   its document's description; a milestone's, whole or so far, its
   totals and its goals as its card draws them.
 - **Their records** (3) are the forge family's, from its version 29.
@@ -34,7 +35,7 @@ version `CLIENT_VERSION`.
 
 | Kind | Number | Bytes | Inputs | Holds |
 |---|---|---|---|---|
-| `GOAL_PART` | 1 | 1,024 | `notes` | its newest report's headline and when it was written; the milestone that gathers it |
+| `GOAL_PART` | 1 | 1,024 | `notes` | its newest report's headline and when it was written; the milestone that gathers it; whether it holds a goal branch |
 | `CHAT_PART` | 2 | 1,024 | `notes` | its document's description |
 | `MILESTONE_PART` | 3 | 32,768 | `line`, `delegates`, `delegate_notes`, `records` | whole or so far; its totals; at most 16 of its goals, each its line and its report's headline; how many more |
 
@@ -54,7 +55,7 @@ The forge family's, from version 29, beside its other records
 
 ```
 record GoalReport { headline: bytes 512 at: u64 }
-versioned record GoalPart { report: option GoalReport milestone: option u64 }
+versioned record GoalPart { report: option GoalReport milestone: option u64 own_branch: bool = false }
 versioned record ChatPart { document: option bytes 512 }
 # line: jig-client-protocol-wire's TaskLine, encoded at jig's VERSION, with no parts.
 record MilestoneGoal { line: bytes 16384 headline: option bytes 512 }
@@ -68,7 +69,17 @@ versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals
   and `at`, the note's `changed`; none with no such note. `milestone`,
   the task's requester where that requester is a milestone of its
   project (`../../domain/milestones.md`, section 7, as the root's
-  `forge_route::milestones::of` finds it), else none.
+  `forge_route::milestones::of` finds it), else none. `own_branch`,
+  whether the task holds a goal branch (`../../domain/forge/branches.md`,
+  1), as the forge domain's holds tell it (`holds_goal_branch`): a
+  branch its repository's adoption prefix names as a goal's, under any
+  root and number, held by the task, so that a goal beneath a milestone
+  and a prefix of several segments count, and a goal whose changes land
+  one by one holds none. It is the engine's fact, never read from a
+  path, and made afresh with each answer, as the part's other fields
+  are: a goal takes its hold as it is made and keeps it for its life
+  (`../../domain/forge/branches.md`, 1), so no mark of its own moves it.
+  A part of an engine before the field reads `false`.
 - **`ChatPart`:** `document`, the description of the task's
   lowest-numbered note whose description doesn't begin `work:`
   (`../pages/chat/document.md`, 1), whole; none with none.
@@ -159,6 +170,12 @@ under `FORGE` at `CLIENT_VERSION` that decodes, `None` for anything else.
   still draw. A milestone's page (`../pages/milestone.md`, 3) lists every
   goal and keeps its own reads, but its goals' query names `GOAL_PART`,
   so its reports, one per goal, go.
+- **A goal's page** (`../pages/goal.md`, 2): the query that finds its
+  own line names `GOAL_PART`, and the page reads whether the goal lands
+  whole from that line's part, `own_branch`. It keeps the part last
+  decoded for its line as a list's row does (below); with none decoded
+  yet, it draws as a goal with no branch. A milestone's page's own line
+  asks no part.
 - **A part not made,** `not_served`, `unknown` or `failed`, is no answer
   for its row (`../pages/README.md`'s opening): the row keeps the part
   last decoded for its task in the list that holds it, for as long as the

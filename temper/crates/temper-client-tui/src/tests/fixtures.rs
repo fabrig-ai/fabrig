@@ -358,9 +358,14 @@ impl GoalCase {
         project.templates.push(chat).unwrap();
         project.templates.push(asking).unwrap();
         if self.ways {
-            for (number, name) in [(8, b"Custom".as_slice()), (4, b"goal for a draft"), (2, b"goal")] {
+            for (number, name, shown) in [
+                (8, None, b"Custom".as_slice()),
+                (4, Some(b"draft-goal".as_slice().into()), b"goal landed whole"),
+                (2, Some(b"goal".as_slice().into()), b"goal"),
+            ] {
                 let mut way = super::foot::template(number);
-                way.shown = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
+                way.name = name;
+                way.shown = c::DocumentText::complete(c::Text::new(shown.into(), 32).unwrap());
                 way.tracked = Some(1);
                 project.templates.push(way).unwrap();
             }

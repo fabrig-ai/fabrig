@@ -105,9 +105,13 @@ pub(crate) fn receipt_bytes(key: &ReceiptKey, receipt: &Receipt) -> Option<u64> 
         crate::ReceiptReport::Unset | crate::ReceiptReport::Unread | crate::ReceiptReport::Many { .. } => {}
         crate::ReceiptReport::Tests(tests) => {
             held = held.checked_add(
-                skein_lib::len_u64(tests.len()).checked_mul(u64::try_from(size_of::<crate::ReceiptTest>()).ok()?)?,
+                skein_lib::len_u64(tests.tests.len())
+                    .checked_mul(u64::try_from(size_of::<crate::ReceiptTest>()).ok()?)?,
             )?;
-            for test in tests {
+            for label in [&tests.matched, &tests.rest].into_iter().flatten() {
+                held = held.checked_add(skein_lib::len_u64(label.len()))?;
+            }
+            for test in &tests.tests {
                 held = held.checked_add(skein_lib::len_u64(test.key.len()))?;
             }
         }

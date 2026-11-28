@@ -31,7 +31,7 @@ fn created(outcome: &people::Outcome) -> u64 {
     assert_eq!(first, last);
     *first
 }
-pub(super) fn milestone(world: &mut World, words: &[u8]) -> u64 {
+pub(crate) fn milestone(world: &mut World, words: &[u8]) -> u64 {
     milestone_with_budget(world, 180, words, 400)
 }
 pub(super) fn milestone_with_budget(world: &mut World, key: u8, words: &[u8], budget: u64) -> u64 {
@@ -54,6 +54,10 @@ pub(super) fn stored(world: &World, task: u64) -> &forge_top::MilestoneRow {
     let forge_top::Stored::Milestone(row) = row.as_ref() else { panic!("milestone row") };
     row
 }
+pub(crate) fn conclude_with_goal(world: &mut World, milestone: u64, goal: &engine::Assignment) {
+    ask(world, 182, people::Ask::Conclude { project: 1, task: milestone });
+    finish_goal(world, goal);
+}
 fn no_issue(world: &World, task: u64) {
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Issue(task))), "milestones have no issues");
     assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Subscription(subscription) if subscription.task == task))), "milestones have no topics");
@@ -64,7 +68,7 @@ fn goal(world: &mut World, milestone: u64, own_branch: bool) -> engine::Assignme
 pub(super) fn goal_with_words(world: &mut World, milestone: u64, own_branch: bool, words: &[u8]) -> engine::Assignment {
     goal_with_budget(world, 181, milestone, own_branch, words, 300)
 }
-pub(super) fn goal_with_budget(
+pub(crate) fn goal_with_budget(
     world: &mut World,
     key: u8,
     milestone: u64,
@@ -83,7 +87,7 @@ pub(super) fn goal_with_budget(
     let task = created(&ask(world, key, people::Ask::Delegate { project, task: milestone, batch }));
     world.assigned.iter().find(|run| run.task == task).expect("goal assigned").clone()
 }
-fn world() -> World {
+pub(crate) fn world() -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -116,9 +120,10 @@ fn finish_registered(world: &mut World, goal: &engine::Assignment, row: &forge_t
     early_start::finish(world, &producer, b"Small fix");
     await_landed(world, row.task);
     if let Some(milestone) = row.milestone {
-        ask(world, 182, people::Ask::Conclude { project: 1, task: milestone });
+        conclude_with_goal(world, milestone, goal);
+    } else {
+        finish_goal(world, goal);
     }
-    finish_goal(world, goal);
 }
 
 #[test]

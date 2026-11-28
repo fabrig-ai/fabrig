@@ -437,11 +437,25 @@ pub fn settings_report_format_to_domain(record: temper_client_protocol_wire::v1:
 
 #[must_use]
 pub fn settings_gate_report_to_record(value: &temper_engine_domain_forge_landing::GateReport) -> temper_client_protocol_wire::v1::SettingsGateReport {
-    let temper_engine_domain_forge_landing::GateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002 } = value;
+    let temper_engine_domain_forge_landing::GateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002, matched: field_000003, rest: field_000004 } = value;
     temper_client_protocol_wire::v1::SettingsGateReport {
         artifact: field_000000.clone(),
         format: settings_report_format_to_record(field_000001),
         fuzzy: match field_000002 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        matched: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        rest: match field_000004 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
@@ -453,11 +467,25 @@ pub fn settings_gate_report_to_record(value: &temper_engine_domain_forge_landing
 
 #[must_use]
 pub fn settings_gate_report_to_domain(record: temper_client_protocol_wire::v1::SettingsGateReport) -> temper_engine_domain_forge_landing::GateReport {
-    let temper_client_protocol_wire::v1::SettingsGateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002 } = record;
+    let temper_client_protocol_wire::v1::SettingsGateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002, matched: field_000003, rest: field_000004 } = record;
     temper_engine_domain_forge_landing::GateReport {
         artifact: field_000000,
         format: settings_report_format_to_domain(field_000001),
         fuzzy: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        matched: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        rest: match field_000004 {
             Some(item) => {
                 let converted = item;
                 Some(converted)

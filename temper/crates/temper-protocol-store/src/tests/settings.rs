@@ -90,6 +90,8 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                             artifact: b"report".as_slice().into(),
                             format: temper_engine_domain_forge_tiers::Format::Lines,
                             fuzzy: Some(b"fuzzy_".as_slice().into()),
+                            matched: Some(b"slow".as_slice().into()),
+                            rest: Some(b"quick".as_slice().into()),
                         }),
                     }]),
                     tiers: Box::new([forge::Tier {

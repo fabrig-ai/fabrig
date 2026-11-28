@@ -175,10 +175,13 @@ fn me(proposed: bool) -> w::Me {
     let template = skein_codec::piece::split(&mut reader).unwrap().unwrap();
     let template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&template)).unwrap();
     let mut templates = vec![];
-    for number in [2, 4] {
+    for (number, name, shown) in
+        [(2, b"goal".as_slice(), b"goal".as_slice()), (4, b"draft-goal".as_slice(), b"goal landed whole".as_slice())]
+    {
         let mut way = template.clone();
         way.number = number;
-        way.shown = records::wire_text(if number == 2 { b"goal" } else { b"goal for a draft" });
+        way.name = Some(name.into());
+        way.shown = records::wire_text(shown);
         way.tracked = Some(10);
         if proposed {
             way.budget = w::TemplateBudget::Amount(w::TemplateAmount { value: 101 });

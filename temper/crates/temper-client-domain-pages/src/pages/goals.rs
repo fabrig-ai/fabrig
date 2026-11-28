@@ -566,13 +566,17 @@ fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }
 }
 
+pub(super) fn query_parts() -> List<c::PartAsk> {
+    let mut parts = List::with_capacity(1);
+    parts.push(parts::asks(temper_client_protocol_wire::GOAL_PART)).expect("one goal part");
+    parts
+}
+
 /// The project's goal template supplies the label (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
-    let mut parts = List::with_capacity(1);
-    parts.push(parts::asks(temper_client_protocol_wire::GOAL_PART)).expect("one goal part");
     Some(c::TaskQuery {
-        parts,
+        parts: query_parts(),
         project: Some(project),
         label: Some(jig_client::shapes::template(me, project, jig_client::shapes::GOAL)?.label),
         tracked: Some(true),

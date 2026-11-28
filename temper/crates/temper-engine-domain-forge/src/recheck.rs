@@ -112,8 +112,8 @@ pub(super) fn hold_words(row: &ChangeRow, measured: Option<&Receipt>) -> Option<
     };
     let mut keys = List::uncapped();
     match &receipt.report {
-        ReceiptReport::Tests(tests) if !tests.is_empty() => {
-            for test in tests {
+        ReceiptReport::Tests(tests) if !tests.tests.is_empty() => {
+            for test in &tests.tests {
                 keys.push(test.key.clone()).expect("receipt's bounded tests");
             }
         }

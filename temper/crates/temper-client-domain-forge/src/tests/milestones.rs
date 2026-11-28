@@ -137,7 +137,7 @@ fn part(bytes: Box<[u8]>) -> c::RowPart {
 fn a_goals_part_alone_names_its_milestone() {
     let mut line = row();
     assert_eq!(milestones::of(&line), None);
-    let part_value = w::GoalPart { report: None, milestone: Some(811) };
+    let part_value = w::GoalPart { report: None, milestone: Some(811), own_branch: false };
     let mut writer =
         skein_lib::Writer::new(usize::try_from(part_value.measure(&w::CEILINGS).expect("within ceilings")).unwrap());
     part_value.write(&w::CEILINGS, &mut writer).unwrap();

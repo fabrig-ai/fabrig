@@ -1169,21 +1169,8 @@ fn a_done_goal_owing_reds_stays_done() {
     }
 }
 
-fn branch(task: &mut c::Task) {
-    let mut path = List::uncapped();
-    for part in [b"temper".as_slice(), b"9", b"g9"] {
-        path.push(Box::from(part)).unwrap();
-    }
-    task.resources
-        .push(c::ResourceLine {
-            part: c::Part { connector: 1, kind: c::PartKind::Resource, key: c::PartKey::Path(path) },
-            kind: 1,
-            taken: false,
-            holder: None,
-            writer: None,
-            writer_lost: false,
-        })
-        .unwrap();
+fn branch_root(task: c::Task, total: u32, own_branch: bool) -> Domain {
+    root_with_side(task, 0, total, None, false, Side { own_branch, ..Side::empty() })
 }
 
 #[test]
@@ -1218,10 +1205,7 @@ fn landing_says() {
             end(&mut task, ending);
         }
         task.chip.details.details.ended_at = at;
-        if has_branch {
-            branch(&mut task);
-        }
-        let root = root(task, 0, total, None, false);
+        let root = branch_root(task, total, has_branch);
         for words in [fixtures::browser_words(), fixtures::words()] {
             assert_eq!(section_text(&draw(&root, &words).0, b"Landing").as_ref(), expected);
         }
@@ -1242,9 +1226,7 @@ fn lands_whole_through_nine_and_past() {
         (9, b"Lands whole once all nine are checked."),
         (10, b"Lands whole once all 10 are checked."),
     ] {
-        let mut task = document();
-        branch(&mut task);
-        let root = root(task, 0, total, None, false);
+        let root = branch_root(document(), total, true);
         for words in [fixtures::browser_words(), fixtures::words()] {
             assert_eq!(section_text(&draw(&root, &words).0, b"Landing").as_ref(), expected);
         }
@@ -1254,11 +1236,7 @@ fn lands_whole_through_nine_and_past() {
 #[test]
 fn how_it_runs_says_its_way_by_its_branch() {
     for has_branch in [false, true] {
-        let mut task = document();
-        if has_branch {
-            branch(&mut task);
-        }
-        let root = root(task, 0, 3, None, false);
+        let root = branch_root(document(), 3, has_branch);
         for words in [fixtures::browser_words(), fixtures::words()] {
             assert_eq!(
                 section_text(&draw(&root, &words).0, b"How it runs").as_ref(),

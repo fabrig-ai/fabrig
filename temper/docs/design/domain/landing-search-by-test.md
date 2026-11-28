@@ -43,8 +43,29 @@ sections 1 and 3). The policy's types it adds are `landing-search-by-test.md`, s
   `lines`, written in the gate's `report` object (`landing-settings.md`, 1.1):
   `artifact` and `format`, both required there, the artifact's name 1 to
   32 bytes with no `/` (`after-landing-runs.md`, 1). Its optional `fuzzy`
-  prefix classifies repair names, not probe ids (`landing-proof.md`, 2.3).
+  prefix and its two optional labels name failed tests in a repair's
+  words, not probe ids (below, *Its labels*).
   None by default: a gate with no report is probed whole.
+- **Its labels:** `matched`, the word for a failed test whose name (a
+  JUnit case's, or a `lines` line's last word) starts with the report's
+  `fuzzy` prefix, and `rest`, the word for every other; each optional,
+  and none by default, so that a gate names no project's suites. A
+  label is 1 to 64 bytes of UTF-8 with no control character (a byte
+  below 32, or 127), refused otherwise naming `report.matched` or
+  `report.rest` with `must be 1 to 64 bytes of text with no control
+  character`, as the prefix is refused naming `report.fuzzy`. A label
+  with no prefix labels nothing: every test is the rest. The prefix and
+  the labels are no part of the gate's key (below, *Its key*): they
+  change how a repair names a test, never what a run checks.
+- **Kept with the receipt:** a failed receipt's tests keep, beside each
+  test's key, whether its name started with the prefix as its report
+  was read, and the receipt keeps the gate's two labels as they stood
+  then (`landing-proof.md`, 1.2), so that a repair made or made again
+  from that receipt, after a retry or a change of the gate's settings,
+  names its tests as the run was read (`forge/change/repairs.md`, *A
+  landing's repair*). A receipt kept before labels reads as labelled
+  `fuzzy` and `focused`, each test's side as it was kept: the words
+  every repair said before (section 9).
 - **Its key:** a gate with a report appends it to its definition
   (`landing-proof.md`, 1.1) after what `base` appends: the byte 2, the
   artifact's length in two bytes and its bytes, and the format's byte, 0
@@ -298,6 +319,17 @@ sections 1 and 3). The policy's types it adds are `landing-search-by-test.md`, s
   6):
   - a gate's failed receipt keeps its `failures`, ids or many, which
     the `Receipt` row holds already for tiers;
+  - a receipt's named tests keep the gate's labels beside them (section
+    2, *Kept with the receipt*), `ReceiptTests`' `matched` and `rest`,
+    each `option bytes 64` whose default is `some` of `fuzzy`'s and of
+    `focused`'s bytes, so that an older row reads as every repair named
+    its tests before; each test's bit is `matched`, its former name
+    `fuzzy`. Both labels are `droppable`, so that the way back to the
+    layout before them (Keep, skein's `data/codec/layouts.md`, 2) drops
+    them whatever they hold, and the build before reads its bits as it
+    did. The gate's settings (`SettingsGateReport`, the store's and the
+    client wire's) gain `matched` and `rest`, `option bytes 64`, none by
+    default and `droppable` too;
   - the round's search keeps how it probes (whole, by test, or whole
     again), each gate's selection, and its passes and no verdicts by
     test, until the round ends; an older row's search is whole;
@@ -417,3 +449,8 @@ searches by test: written and compiled, run in that tier after landing.
   one probe by test (`../draft/probes-by-test.md`, 11).
 - **A green prefix proved and landed by itself** when the units above
   it have gone red again in a later round.
+- **The prefix's name:** the report's prefix keeps its member's name,
+  `fuzzy`, in the settings file, the store and the client wire, since a
+  member renamed is a move of the settings file's format
+  (`../protocol/configuration/file-formats.md`, 3). It is renamed with
+  that format's next move.

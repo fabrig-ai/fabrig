@@ -25,12 +25,12 @@ pub fn kinds(connector: u16) -> Box<[jig_domain_core_vocabulary::PartKind]> {
     ])
 }
 
-pub fn goal(report: Option<&(Box<[u8]>, Wall)>, milestone: Option<u64>) -> Option<Box<[u8]>> {
+pub fn goal(report: Option<&(Box<[u8]>, Wall)>, milestone: Option<u64>, own_branch: bool) -> Option<Box<[u8]>> {
     let report = match report {
         Some((headline, at)) => Some(w::GoalReport { headline: headline.clone(), at: at.as_nanos() }),
         None => None,
     };
-    let record = w::GoalPart { report, milestone };
+    let record = w::GoalPart { report, milestone, own_branch };
     record.encode(&w::CEILINGS).ok()
 }
 

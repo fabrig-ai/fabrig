@@ -20,7 +20,7 @@ fn bound(path: v1::Path) -> v1::Problem {
 fn goal_part_keeps_a_report_at_its_headline_bound() {
     let limits = fixtures::limits();
     let report = v1::GoalReport { headline: bytes(512), at: 37 };
-    let part = v1::GoalPart { report: Some(report), milestone: Some(12) };
+    let part = v1::GoalPart { report: Some(report), milestone: Some(12), own_branch: false };
     let mut writer =
         Writer::new(usize::try_from(part.measure(&v1::CEILINGS).expect("within ceilings")).expect("size fits"));
     part.write(&v1::CEILINGS, &mut writer).expect("encode goal");
@@ -32,6 +32,36 @@ fn goal_part_keeps_a_report_at_its_headline_bound() {
         (v1::GoalReport { headline: bytes(513), at: 37 }).encode(&limits).expect_err("headline past bound"),
         bound(v1::paths::GOAL_REPORT_HEADLINE)
     );
+}
+
+#[test]
+fn goal_part_round_trips_its_branch_fact() {
+    for own_branch in [false, true] {
+        let part = v1::GoalPart { report: None, milestone: None, own_branch };
+        let bytes = part.encode(&v1::CEILINGS).expect("encode goal part");
+        assert_eq!(crate::decode_goal_part(&bytes, &v1::CEILINGS), Some(part));
+    }
+}
+
+#[test]
+fn goal_part_without_the_branch_field_takes_its_default() {
+    let limits = &v1::CEILINGS;
+    let part = v1::GoalPart {
+        report: Some(v1::GoalReport { headline: Box::from(b"Build it".as_slice()), at: 37 }),
+        milestone: Some(12),
+        own_branch: false,
+    };
+    let bytes = part.encode(limits).expect("encode goal part");
+    let (branch, prior) = bytes.split_last().expect("goal part ends with its boolean");
+    assert_eq!(*branch, 0);
+    assert_eq!(crate::decode_goal_part(prior, limits), Some(part));
+    assert!(crate::decode_goal_part(&prior[..prior.len() - 1], limits).is_none());
+    for (prefix, tail) in [(prior, 2), (bytes.as_ref(), 0)] {
+        let mut writer = Writer::new(prefix.len() + 1);
+        writer.put(prefix).expect("part prefix");
+        writer.put(&[tail]).expect("part tail");
+        assert!(crate::decode_goal_part(&writer.finish(), limits).is_none());
+    }
 }
 
 #[test]

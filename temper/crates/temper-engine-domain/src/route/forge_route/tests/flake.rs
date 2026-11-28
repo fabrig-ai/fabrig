@@ -80,10 +80,11 @@ fn only_landing_repairs_with_named_failed_tests_offer_the_flake_choice() {
     let mut out = Queue::uncapped();
     for (report, offered) in [
         (
-            forge::ReceiptReport::Tests(Box::new([forge::ReceiptTest {
-                key: b"test a::t x".as_slice().into(),
-                fuzzy: false,
-            }])),
+            forge::ReceiptReport::Tests(forge::ReceiptTests {
+                tests: Box::new([forge::ReceiptTest { key: b"test a::t x".as_slice().into(), matched: false }]),
+                matched: None,
+                rest: None,
+            }),
             true,
         ),
         (forge::ReceiptReport::Many { bound: 16 }, false),
@@ -197,7 +198,7 @@ fn only_landing_repairs_of_a_gate_promising_no_report_offer_the_no_test_choice()
     // Restore the reportless receipt last so the dropped receipts cannot erase it.
     for (report, reportless) in [
         (forge::ReceiptReport::Unread, false),
-        (forge::ReceiptReport::Tests(Box::new([])), false),
+        (forge::ReceiptReport::Tests(forge::ReceiptTests { tests: Box::new([]), matched: None, rest: None }), false),
         (forge::ReceiptReport::Unset, true),
     ] {
         restore_forge(

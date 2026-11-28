@@ -773,6 +773,8 @@ fn landing_gates() -> crate::settings::ProjectGates {
                     artifact: b"report".as_slice().into(),
                     format: temper_engine_domain_forge_tiers::Format::Lines,
                     fuzzy: Some(b"fuzzy_".as_slice().into()),
+                    matched: None,
+                    rest: None,
                 }),
             }]),
             tiers: Box::new([crate::Tier {
@@ -866,12 +868,51 @@ fn landing_fields_and_gate_names_are_judged() {
     }
 }
 #[test]
+fn gate_report_labels_require_bounded_text_and_name_the_field() {
+    let largest = [b'a'; 64];
+    let too_long = [b'a'; 65];
+    for (field, matched) in [(b"report.matched".as_slice(), true), (b"report.rest".as_slice(), false)] {
+        for (label, accepted) in [
+            (None, true),
+            (Some(b"a".as_slice()), true),
+            (Some(largest.as_slice()), true),
+            (Some("rapide β".as_bytes()), true),
+            (Some(b"".as_slice()), false),
+            (Some(too_long.as_slice()), false),
+            (Some(b"slow\nquick".as_slice()), false),
+            (Some(b"bad\x7f".as_slice()), false),
+            (Some(b"\xff".as_slice()), false),
+        ] {
+            let mut gates = landing_gates();
+            let report = gates.repositories[0].gates[0].report.as_mut().unwrap();
+            let target = if matched { &mut report.matched } else { &mut report.rest };
+            *target = match label {
+                Some(label) => Some(label.into()),
+                None => None,
+            };
+            let expected = if accepted {
+                Ok(())
+            } else {
+                Err(Refusal::Landing { field, rule: b"must be 1 to 64 bytes of text with no control character" })
+            };
+            assert_eq!(
+                judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates)) }, &BOUNDS),
+                expected,
+                "field {field:?}, label {label:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
     use crate::settings::{CARRIER, gates_bytes, gates_record};
     let bounds = Bounds { ignored_paths: 2000, name_bytes: 1024, ..BOUNDS };
     let mut gates = landing_gates();
     gates.repositories[0].tiers = Box::new([]);
-    gates.repositories[0].gates[0].report = None;
+    let report = gates.repositories[0].gates[0].report.as_mut().unwrap();
+    report.matched = Some(b"slow".as_slice().into());
+    report.rest = Some(b"quick".as_slice().into());
     let before = gates_bytes(&gates).expect("small shape");
     let remaining = CARRIER - before;
     let mut paths = List::with_capacity(bounds.ignored_paths);

@@ -40,7 +40,9 @@ fn gate(world: &mut World, file: &[u8], report: bool) {
                 report: report.then(|| landing::GateReport {
                     artifact: b"failed".as_slice().into(),
                     format: landing::Format::Lines,
-                    fuzzy: None
+                    fuzzy: None,
+                    matched: None,
+                    rest: None,
                 }),
             }]),
         }])

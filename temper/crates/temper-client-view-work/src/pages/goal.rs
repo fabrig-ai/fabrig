@@ -51,6 +51,7 @@ pub(crate) fn main(
                         draft: &goal.draft,
                         chat: goal.requester_chat(root.pages().me(root.client())),
                         counts: goal.counts(task, ended),
+                        own_branch: goal.holds_branch(),
                         state: goal.state(task, ended, !bands.is_empty()),
                         reds: &goal.reds,
                         reds_cut: goal.reds_cut,
@@ -244,6 +245,7 @@ struct Page<'a> {
     draft: &'a (Option<Box<[u8]>>, Option<u64>),
     chat: Option<u64>,
     counts: Counts,
+    own_branch: bool,
     state: State,
     reds: &'a [temper_client_protocol_wire::v1::FindingRow],
     reds_cut: bool,
@@ -345,12 +347,12 @@ impl Page<'_> {
         tasks.draw(b, self.state, words, bindings, times);
         b.close();
         section(b, Word::GoalLandingTitle, words);
-        let landing = goal::landing(self.state, self.task, self.task.chip.details.details.ended_at, self.counts);
+        let landing = goal::landing(self.state, self.own_branch, self.task.chip.details.details.ended_at, self.counts);
         facts(b, &landing_words(words, times, landing));
         b.close();
         self.reds(b, words);
         section(b, Word::GoalHowTitle, words);
-        let way = if goal::holds_branch(self.task) { Word::GoalLandWhole } else { Word::GoalTaskByTask };
+        let way = if self.own_branch { Word::GoalLandWhole } else { Word::GoalTaskByTask };
         let asks = if goal::always_asks(self.task.spec.specification.words.bytes.bytes()) {
             Word::GoalAlwaysAsks
         } else {

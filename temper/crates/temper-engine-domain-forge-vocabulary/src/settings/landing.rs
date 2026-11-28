@@ -205,9 +205,9 @@ fn gates_size(v: &[Gate]) -> Option<u32> {
     for gate in v {
         let mut n = check_size(&gate.name, &gate.workflow, &gate.ignored)?.checked_add(3)?;
         if let Some(r) = &gate.report {
-            n = n.checked_add(text_size(&r.artifact)?)?.checked_add(2)?;
-            if let Some(f) = &r.fuzzy {
-                n = n.checked_add(text_size(f)?)?;
+            n = n.checked_add(text_size(&r.artifact)?)?.checked_add(4)?;
+            for value in [&r.fuzzy, &r.matched, &r.rest].into_iter().flatten() {
+                n = n.checked_add(text_size(value)?)?;
             }
         }
         size = size.checked_add(4)?.checked_add(n)?;
@@ -330,6 +330,20 @@ fn artifact(value: &[u8]) -> Result<(), Refusal> {
         Ok(())
     }
 }
+
+fn report_text(field: &'static [u8], value: Option<&[u8]>) -> Result<(), Refusal> {
+    let Some(value) = value else { return Ok(()) };
+    let rule = b"must be 1 to 64 bytes of text with no control character";
+    if value.is_empty() || value.len() > 64 || !skein_lib::bytes::is_utf8(value) {
+        return Err(refuse(field, rule));
+    }
+    for byte in value {
+        if *byte < 32 || *byte == 127 {
+            return Err(refuse(field, rule));
+        }
+    }
+    Ok(())
+}
 pub fn judge_gates(v: &ProjectGates, b: &Bounds) -> Result<(), Refusal> {
     if match gates_bytes(v) {
         Some(size) => size > CARRIER,
@@ -361,11 +375,9 @@ pub fn judge_gates(v: &ProjectGates, b: &Bounds) -> Result<(), Refusal> {
             }
             if let Some(r) = &gate.report {
                 artifact(&r.artifact)?;
-                if let Some(f) = &r.fuzzy
-                    && (f.is_empty() || f.len() > 64)
-                {
-                    return Err(refuse(b"report.fuzzy", b"must be 1 to 64 bytes"));
-                }
+                report_text(b"report.fuzzy", r.fuzzy.as_deref())?;
+                report_text(b"report.matched", r.matched.as_deref())?;
+                report_text(b"report.rest", r.rest.as_deref())?;
             }
         }
         for (i, tier) in repo.tiers.iter().enumerate() {
@@ -428,8 +440,8 @@ pub fn gates_heap(v: &ProjectGates) -> Option<u64> {
             held = held.checked_add(check_heap(&gate.name, &gate.workflow, &gate.ignored)?)?;
             if let Some(report) = &gate.report {
                 held = held.checked_add(skein_lib::len_u64(report.artifact.len()))?;
-                if let Some(fuzzy) = &report.fuzzy {
-                    held = held.checked_add(skein_lib::len_u64(fuzzy.len()))?;
+                for value in [&report.fuzzy, &report.matched, &report.rest].into_iter().flatten() {
+                    held = held.checked_add(skein_lib::len_u64(value.len()))?;
                 }
             }
         }
