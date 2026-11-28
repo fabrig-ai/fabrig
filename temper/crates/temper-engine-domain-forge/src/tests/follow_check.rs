@@ -6,6 +6,9 @@ use skein_forge::api;
 use skein_lib::List;
 use temper_engine_domain_forge_change as c;
 use temper_engine_domain_forge_tiers as p;
+
+mod unconfigured;
+
 const PROJECT: u32 = 2;
 const SOURCE: api::Repository = api::Repository { forge: 1, repository: 3 };
 const RUN: u64 = 71;
@@ -48,26 +51,26 @@ pub(crate) fn configured() -> (Domain, ChangeRow) {
         artifact: b"results".as_slice().into(),
         format: p::Format::Lines,
     };
-    d.keep_settings(
-        &env(),
-        1,
-        None,
-        &[crate::settings::Asked {
-            kind: 12,
-            scope: PROJECT,
-            number: 1,
-            edit: crate::settings::Edit::Set(crate::settings::SizedValue {
-                value: crate::settings::Value::Follow(follow),
-                size: 128,
-            }),
-        }],
-        &mut Queue::uncapped(),
-    );
+    follow_setting(&mut d, 1, 1, Some(follow));
     let mut row = fixtures::opening_row();
     row.change.state = c::State::Gating { head: fixtures::HEAD, asked: Box::new([c::FOLLOW_CHECK_GATE]) };
     row.follows = Some(ChangeFollows { follow: 1, commits: Box::new([sha1(0xaa), sha1(0xbb)]) });
     assert_eq!(check::select(&d, &mut row, &LIMITS), Ok(()));
     (d, row)
+}
+fn follow_setting(d: &mut Domain, revision: u64, number: u32, follow: Option<crate::settings::Follow>) {
+    use crate::settings::{Asked, Edit, SizedValue, Value};
+    let edit = match follow {
+        Some(follow) => Edit::Set(SizedValue { value: Value::Follow(follow), size: 128 }),
+        None => Edit::Remove,
+    };
+    d.keep_settings(
+        &env(),
+        revision,
+        None,
+        &[Asked { kind: 12, scope: PROJECT, number, edit }],
+        &mut Queue::uncapped(),
+    );
 }
 #[test]
 fn a_follow_gate_at_registration_names_its_limit() {
@@ -106,19 +109,22 @@ pub(super) fn keyed(d: &mut Domain, row: &mut ChangeRow) {
         &env(),
         row,
         ReadKind::Tree(1),
-        Ok(api::Answer::Tree {
-            entries: Box::new([api::TreeEntry {
-                name: b"src".as_slice().into(),
-                object: [9; 32],
-                mode: 0o040_000,
-                kind: api::TreeEntryKind::Tree,
-            }]),
-            more: false,
-        }),
+        Ok(tree()),
         &mut List::with_capacity(LIMITS.key_entries),
         &mut Queue::uncapped(),
     );
     assert!(action.is_none());
+}
+fn tree() -> api::Answer {
+    api::Answer::Tree {
+        entries: Box::new([api::TreeEntry {
+            name: b"src".as_slice().into(),
+            object: [9; 32],
+            mode: 0o040_000,
+            kind: api::TreeEntryKind::Tree,
+        }]),
+        more: false,
+    }
 }
 fn sent(d: &Domain, row: &mut ChangeRow) -> api::Write {
     let write = check::write(d, row, fixtures::OPEN).unwrap();
@@ -173,15 +179,18 @@ fn artifact(d: &mut Domain, row: &mut ChangeRow, bytes: &[u8]) {
         &env(),
         row,
         ReadKind::Report,
-        Ok(api::Answer::File {
-            head: fixtures::HEAD,
-            path: b"results".as_slice().into(),
-            bytes: bytes.into(),
-            truncated: false,
-        }),
+        Ok(artifact_answer(bytes)),
         &mut List::with_capacity(0),
         &mut Queue::uncapped(),
     );
+}
+fn artifact_answer(bytes: &[u8]) -> api::Answer {
+    api::Answer::File {
+        head: fixtures::HEAD,
+        path: b"results".as_slice().into(),
+        bytes: bytes.into(),
+        truncated: false,
+    }
 }
 #[test]
 fn the_follow_source_is_in_dispatch_and_canonical_key_and_receipts_answer_only_that_source() {
@@ -261,12 +270,7 @@ fn a_follow_report_names_source_failures_or_many_and_sets_parity() {
             &environment,
             &mut row,
             ReadKind::Report,
-            Ok(api::Answer::File {
-                head: fixtures::HEAD,
-                path: b"results".as_slice().into(),
-                bytes: FAILED.into(),
-                truncated: false,
-            }),
+            Ok(artifact_answer(FAILED)),
             &mut List::with_capacity(0),
             &mut Queue::uncapped(),
         );
