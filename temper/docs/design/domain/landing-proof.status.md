@@ -2,7 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [landing-proof.md](landing-proof.md).
 
-- **Not yet:** 1.2: a failed receipt keeps no labels of its gate's report [in flight: change 22940].
 
 
 - **Not yet:** 1.1: the project's

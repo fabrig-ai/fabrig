@@ -2,7 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
-- **Not yet:** *A landing's repair*: a failed test's label is `fuzzy` or `focused` by the gate's prefix, never the label its receipt keeps, and never none [in flight: change 22940].
 
 
 A stall's gaps are `stalls.status.md`'s.

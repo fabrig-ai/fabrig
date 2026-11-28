@@ -2,7 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [reference.md](reference.md).
 
-- **Not yet:** template 4: the reference's settings file shows it as `goal for a draft` [in flight: change 22936].
 
 
 
