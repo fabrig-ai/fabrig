@@ -1,6 +1,6 @@
 # Any project: temper without fabrig's way
 
-Draft, 2026-11-27, from a session with the user that day. temper is being made "more 'consumable' by any project": [ways.md](ways.md) and [pair.md](pair.md) move configuration and ownership into a repository's `.temper/`, and the user is starting on how a person meets it. What was still missing is "how ways like 'goal' and 'milestone' (or really any complex way the users may want, possibly fully custom, see the ways-gallery.md for reference) would work for a random project". Two questions: how much the stock is "'biased' towards fabrig's own way of developing, in particular the docs/design approach, with its drafts, .execution.md's, .status.md's"; and "what would a random project do to take advantage of temper's capabilities? how would a new project just 'plug' temper into it?". The user's direction: "encourage 'design as contract' but not quite require it (and expecially not require a certain definite form of it, like docs/design) and perhaps let it live more in a 'spectrum', where you can still take advanage of temper in your own way". This draft surveys where fabrig's way is built in (section 2), lays design out as a spectrum (3), splits who says what (4), gives a goal a plan of its own that never lands (5), carries goals and milestones to any project (6), and says how a project plugs temper in (7). Second pass, 2026-11-28: on the user's ask for "a 'simulation' of how temper would work" on "a couple of real world third party projects", [any-project.notes.md](any-project.notes.md) walks hono and vector through this draft, and click as far as its first step; 7.5 takes up what the projects' own processes ask of temper. It changes the stock charters ([stock-charters.md](stock-charters.md)), the chat's goal start, and [ways-temper-dir.md](ways-temper-dir.md), section 7's first change.
+Draft, 2026-11-27, from a session with the user that day. temper is being made "more 'consumable' by any project": [ways.md](ways.md) and [pair.md](pair.md) move configuration and ownership into a repository's `.temper/`, and the user is starting on how a person meets it. What was still missing is "how ways like 'goal' and 'milestone' (or really any complex way the users may want, possibly fully custom, see the ways-gallery.md for reference) would work for a random project". Two questions: how much the stock is "'biased' towards fabrig's own way of developing, in particular the docs/design approach, with its drafts, .execution.md's, .status.md's"; and "what would a random project do to take advantage of temper's capabilities? how would a new project just 'plug' temper into it?". The user's direction: "encourage 'design as contract' but not quite require it (and expecially not require a certain definite form of it, like docs/design) and perhaps let it live more in a 'spectrum', where you can still take advanage of temper in your own way". This draft surveys where fabrig's way is built in (section 2), lays design out as a spectrum (3), splits who says what (4), gives a goal a plan of its own that never lands (5), carries goals and milestones to any project (6), and says how a project plugs temper in (7). It changes the stock charters ([stock-charters.md](stock-charters.md)), the chat's goal start, and [ways-temper-dir.md](ways-temper-dir.md), section 7's first change.
 
 ## 1. In one page
 
@@ -10,7 +10,6 @@ Draft, 2026-11-27, from a session with the user that day. temper is being made "
 - **A goal's own plan lives in `.goal/` on its branch** (section 5): its changes read it in their checkouts, code takes it out before the branch lands, and the landing's pull request keeps it. It replaces the contracts document and the last change that deletes it.
 - **Goals start from words, a draft or an issue** (section 6). The draft is optional on the web, and a chat's draft is committed only where the project keeps drafts. A milestone's design sits at the project's rung, and a person, or later a planner agent, cuts it into goals.
 - **Plugging in is a ladder** (section 7). It starts with a forge, a repository and a model, and nothing written: Pair and Hand it over run as they are. Each rung after that pays on its own: a guide, a check at delivery, CI, ways of the project's own, a higher design rung. Ask temper reads the repository and proposes the setup as one change a person reads, "Set up temper here", in place of "Add .temper/ with your ways".
-- **A project's own process comes first** (7.5): its policy on AI, read before anything is proposed; what each change carries, its pull request template and its changelog entry; whose name is on a commit, for a CLA; the models named by code; the forge's other bots and reviewers; and no rewritten history. Two real projects walked through this draft found these, not design, to be what stands in the way ([any-project.notes.md](any-project.notes.md)).
 
 ## 2. Today: where fabrig's way is built in
 
@@ -155,7 +154,7 @@ fabrig's overlay gains what the stock drops, so fabrig's goals read the same rul
 
 ### 7.1 What a project needs
 
-A forge temper serves (GitHub through its App, or Forgejo), a repository temper may write, its landing branch, a model account and a worker with the tools the project's checks need: hono's need Node, Bun and Deno, and vector's Docker for its integration tests ([any-project.notes.md](any-project.notes.md), 2.2). Nothing in the repository: Pair and Hand it over run on the stock's words, and a goal runs at rung 2.
+A forge temper serves (GitHub through its App, or Forgejo), a repository temper may write, its landing branch, a model account and a worker. Nothing in the repository: Pair and Hand it over run on the stock's words, and a goal runs at rung 2.
 
 ### 7.2 What pays, in order
 
@@ -172,8 +171,7 @@ Each step is a change to the repository, and none needs the next.
 ### 7.3 One change to set up
 
 - **"Set up temper here"** replaces [ways-temper-dir.md](ways-temper-dir.md), section 7's "Add .temper/ with your ways" as a new project's first change, offered at creation or adoption and from "Tell temper how you work" ([to-begin.md](to-begin.md), section 3).
-- **Ask temper reads the project's policy on AI first** (7.5), and says what it allows before it proposes anything.
-- **Then the repository:** its build files, CI workflows, guides, other tools' agent files among them, its pull request template, and how it keeps documents (`docs/`, decision records, proposals, a changelog).
+- **Ask temper reads the repository first:** its build files, CI workflows, guides, other tools' agent files among them, and how it keeps documents (`docs/`, decision records, proposals, a changelog).
 - **It proposes, part by part,** each explained in the change's words and each dropped by the person if they like: `AGENTS.md` lines the guide lacks, its commands taken from CI, a link where another tool's guide already says them; a `deliver` hook running the project's own fast checks; the ways picked, Hand it over preselected; and the convention it found, as a guide line: decision records at their path and template put the project on rung 3, design rules of its own on rung 4, and nothing found means no line, so rung 2.
 - **It lands by the project's rules,** so that the first thing temper writes in a repository is a change a person reads. Every word an agent will read is then in the repository or in the stock's files: "no magic, expecially around prompts" ([ways.md](ways.md), second pass).
 - **Judgement is Ask temper's, the change is code's:** reading a repository and choosing is a model's; opening the change and checking `.temper/` before it lands are temper's ([ways-temper-dir.md](ways-temper-dir.md), section 6).
@@ -181,18 +179,6 @@ Each step is a change to the repository, and none needs the next.
 ### 7.4 Climbing later
 
 Ask temper proposes the next rung as it sees a project use temper: plans that repeat what a record would hold, a red that a check at delivery would have caught, a way the project keeps adjusting. Each proposal is a change a person decides. It is left for later (section 11).
-
-### 7.5 What a project's own process asks
-
-From the walks in [any-project.notes.md](any-project.notes.md), section 5.
-
-- **Its policy on AI, first:** an AI policy, the contributing guide, or an organisation's page it defers to. Ask temper reads it before anything else and says plainly what it allows: who must own a change, what must be disclosed, whether agents' pull requests are welcome at all. Where the policy bans them, as click's organisation does, temper says so and proposes nothing. Whether to change the policy is the owner's decision.
-- **What each change carries:** the repository's pull request template, filled by the implementer's report; a changelog entry or fragment where the guide asks for one; and what else the guide names. The hook checks what is mechanical, as vector's `make check-changelog-fragments` does. The stock implementer's words gain one line: where the repository has a pull request template, the report's body fills it.
-- **Whose name is on a commit:** temper's commits are its forge identity's today ([../protocol/git.md](../protocol/git.md), section 5), which can't sign a CLA. Authored as the requester, with temper as committer, a commit is covered by what its requester signed, and names the person a policy holds accountable (question 7).
-- **The models named by code:** a landing's words name the models its runs used, in one line code writes, where the project asks for it (question 8). A tool's co-author trailer is left out where the guide forbids it, as vector's does.
-- **People's approvals:** a project whose maintainers approve every change runs Hand it over with an owner's approval in its landing ([ways.md](ways.md), 5.4). temper's review is then a first pass, not the gate. A forge's own merge queue already fits: temper lands through it ([../domain/forge/queues.md](../domain/forge/queues.md), section 1).
-- **The forge's other actors:** a project's bot that pushes fixes onto a change's branch, as hono's autofix does, and another reviewer's review, as vector's automated review. A bot's commit is taken as a push from outside, and the change's head is checked again (question 9). Another reviewer's comments reach the change's implementer as a repair, to fix or to answer with a reason.
-- **No rewritten history:** temper's pushes to a branch a pull request has published add commits and never rewrite them, where the project asks so, as vector's guide does.
 
 ## 8. fabrig and dev.fabrig.ai
 
@@ -215,15 +201,10 @@ From the walks in [any-project.notes.md](any-project.notes.md), section 5.
 4. **fabrig's contracts document:** into `.goal/contracts.md` like any project's (the pick, 4.3); or kept as fabrig's own, beside the area's design, by its overlay.
 5. **Where a plan lives on:** the landing pull request's description (the pick, 5.1); the goal's record in the store; or nowhere, git keeping g's history.
 6. **The first change's name and reach:** "Set up temper here", proposing guide lines and a hook beside the ways (the pick, 7.3); or W10's "Add .temper/ with your ways" alone, the guide and hooks left to Ask temper's chat.
-7. **Whose name is on temper's commits:** the requester as author and temper as committer, everywhere (the pick, 7.5); the requester only where the project asks, by a setting; or temper's identity, its CLA signed by the deployment's owners.
-8. **Naming the models:** a line code writes into a landing's words, where a project's setting asks for it (the pick, 7.5); always, in every project; or left to the guide, for the implementer to write.
-9. **A bot's commit on a change's branch:** taken as a push from outside, and the head checked again (the pick, 7.5); refused, the change starting again; or trusted without a check, for bots the project names.
 
 ## 11. Later
 
-- **Issues as goals:** a goal started from an issue, its plan and progress written back to it. Both walks want it soon: vector breaks an RFC's work into issues, and hono keeps its design in them ([any-project.notes.md](any-project.notes.md), 3.4).
-- **The worker's tools:** what a project's checks need installed, read from `.tool-versions`, a devcontainer or its CI, and said to the deployment's owners at setup (7.1).
-- **A piece of work's base** among a repository's branches: a fix starting on click's `stable` rather than `main`.
+- **Issues as goals:** a goal started from an issue, its plan and progress written back to it.
 - **Climbing:** Ask temper proposing the next rung from what it sees (7.4).
 - **Plan and schedule:** the gallery entry of 6.2.
 - **Documentation other than Markdown:** a goal's own delivery taking the project's documentation formats where rung 3 or 4 keeps records in another.
