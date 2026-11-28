@@ -379,10 +379,6 @@ service, over HTTP, rather than joined to the engine's root.
   harness of the caller's, its processes and their order unchanged;
   `world`, `world_metered` and `slices` stay, at `()`.
 
-## 4. A walk in a world
-
-Moved to [`journey-walks-world.md`](journey-walks-world.md), section 1.
-
 ## 5. The program
 
 `temper-client-walk`, `temper/bin/temper-client-walk` and its crate
@@ -454,7 +450,7 @@ is built from, as `temper-client-journeys` does, under both roots.
 - **A request** is compared by `scripts/look-compare.sh NAME C`, which
   prints its journeys into scratch, `temper-client-walk print --out
   DIR`, and compares DIR's pages three ways with the request's commit's
-  (`journey-writer.md`, 6.1; `web/look-requests.md`, 3).
+  (`journey-writer-requests.md`, 1.1; `web/look-requests.md`, 3).
 - **`welcome-playground`:** the welcome seen and marked, "Try the
   playground" pressed, the playground's New chat seen and marked.
   Two pages.
@@ -634,7 +630,7 @@ its own process.
 - **The gallery's states as walks,** once a world reaches them, their
   answers then the engine's own (`web/gallery.md`).
 - **A recorded file printed across layouts,** by the plans of
-  `../draft/layouts-both-ways.md`, 4, so that printing a person's
+  `../draft/archive/layouts-both-ways.md`, 4, so that printing a person's
   recording needs no build of the deployment's commit.
 - **The writer's future** is `journey-writer.md`, 8: temper running it,
   and the playground's `story-a.log` made by a test rather than kept.

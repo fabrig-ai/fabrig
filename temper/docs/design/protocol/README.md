@@ -196,18 +196,6 @@ The forge's setup's names are setup/README.md's: connected, managed and owned
 setup host's (setup/reconcile.md),
 the pin (setup/owned.md, 1), the preparation (setup/owned.md, 3), the box and its steps (setup/box.md).
 
-## 4. The engine's service
-
-Moved to [`service-routing.md`](service-routing.md), section 1.
-
-## 5. The worker's service
-
-Moved to [`service-routing.md`](service-routing.md), section 2.
-
-## 6. One process
-
-Moved to [`service-process.md`](service-process.md), section 1.
-
 ## 7. Versions
 
 jig's rules hold (jig's `protocol/README.md`, section 7): one version,

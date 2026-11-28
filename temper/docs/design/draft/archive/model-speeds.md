@@ -25,7 +25,7 @@ Draft, 2026-11-21, from the user's words that day: support setting fast or ultra
   - Past fast mode's own rate limit or capacity, the request fails, with a 429 or a 529: nothing is served at standard in its place. Fast and standard keep separate caches, so a switch between them reads the conversation uncached.
   - Claude Opus 5.5's fast prices are twice its standard ones: $8 input and $40 output per 1,000,000 tokens, with the cache's multipliers on top, $0.40 a cache read and $10 a cache write.
   - Claude Code asks for it in its non-interactive mode when started with `--settings '{"fastMode": true}'`, and falls back to standard by itself past fast mode's limit. On a subscription's login, fast mode is paid from the account's usage credits, even with the plan's own usage left, and only once those credits are turned on. On a key it's paid per token.
-- **A stopgap for dev.fabrig.ai,** ready since 11-21 for the user's yes ([dogfood-hacks.md](dogfood-hacks.md), 2.15): a patched agent asks every OpenAI request for Ultrafast, whatever was chosen, while temper charges each completion at the model's configured prices. It goes once the setting of section 9 takes over.
+- **A stopgap for dev.fabrig.ai,** ready since 11-21 for the user's yes ([../dogfood-hacks.md](../dogfood-hacks.md), 2.15): a patched agent asks every OpenAI request for Ultrafast, whatever was chosen, while temper charges each completion at the model's configured prices. It goes once the setting of section 9 takes over.
 - **Nothing in temper knows a speed today.** The request writers send none, the response's tier isn't read, and a model has one set of prices.
 
 ## 3. A model's speeds
@@ -51,7 +51,7 @@ Draft, 2026-11-21, from the user's words that day: support setting fast or ultra
   - nothing takes the charter's speed for that model, else the model's default speed, else standard.
 - **It's kept by its name,** at most 32 bytes, never by its position in the model's list, so that a reordered list moves no choice. It's checked against the task's charter version: at its batch, at an amendment, and at a move, where a task whose speed the newest version doesn't offer stays on its revision (jig's `domain/engine/settings.md`, section 4). A speed its model doesn't declare is refused, naming the model and its speeds.
 - **As with an effort,** a task keeps the choice it was given until an amendment changes it, and a run reads its revision's models (jig's `domain/engine/settings.md`, section 3).
-- **`temper ctl`** ([areas.md](../client/ctl/areas.md)): `goal start`, `chat start` and `task amend` take:
+- **`temper ctl`** ([areas.md](../../client/ctl/areas.md)): `goal start`, `chat start` and `task amend` take:
   - `--speed SPEED`, for the main model, needing `--model` as `--effort` does;
   - `--sub-agent-speed MODEL:SPEED`, repeatable, for a sub-agent its `--sub-agent` names, split at the last colon, since a speed's name holds none.
 
@@ -85,7 +85,7 @@ Draft, 2026-11-21, from the user's words that day: support setting fast or ultra
 
 ## 7. The stock
 
-- **gpt-6.2-sol joins the stock's models** at the next stock number ([stock.md](../protocol/configuration/stock.md)): shown "GPT-6.2 Sol", OpenAI's, efforts `low` to `max` with `high` its default, its window and output those of the stock's others. Its prices are per 1,000,000 tokens in thousandths of a dollar, as OpenAI's page gives them at short context:
+- **gpt-6.2-sol joins the stock's models** at the next stock number ([stock.md](../../protocol/configuration/stock.md)): shown "GPT-6.2 Sol", OpenAI's, efforts `low` to `max` with `high` its default, its window and output those of the stock's others. Its prices are per 1,000,000 tokens in thousandths of a dollar, as OpenAI's page gives them at short context:
 
   | Speed | Input | Cached | Cache write | Output |
   |---|---|---|---|---|

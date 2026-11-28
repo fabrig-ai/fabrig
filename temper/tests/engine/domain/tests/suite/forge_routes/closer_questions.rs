@@ -1,4 +1,4 @@
-//! The goal answers its closer's live change (temper/docs/design/domain/forge/branches.md, 2).
+//! The goal answers its closer's live change (temper/docs/design/domain/forge/branches-closer.md, 1).
 use super::*;
 use temper_engine_domain_forge_closer::relay::{FALLBACK, Held, Stands};
 const QUESTION: &[u8] = b"Two reds remain: known reds, or change the golden test's policy?";

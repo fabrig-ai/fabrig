@@ -2,10 +2,6 @@
 
 ## 1. The page
 
-### 1.1 The terminal inbox
-
-Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
-
 ### 1.2 The browser's cards
 
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
@@ -451,14 +447,6 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
     Keep asking nor Stop asking for that subject in that project, on every card and device,
     until 7 days after its `at`; a later Keep asking of the same replaces
     it (`../../domain/forge/attention.md`, 1).
-### 1.3 Tell temper
-
-Moved to [`needs-you-tell.md`](needs-you-tell.md), section 1.
-
-### 1.4 What the client keeps
-
-Moved to [`needs-you-state.md`](needs-you-state.md), section 1.
-
 ### 1.5 Only you
 
 - **Only you** (`../../draft/what-reaches-you.md`, section 8;

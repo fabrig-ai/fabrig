@@ -1,5 +1,5 @@
 //! Refresh the requests stack (temper/docs/design/client/web/journeys.md, 7;
-//! temper/docs/design/client/journey-writer.md, 6).
+//! temper/docs/design/client/journey-writer-requests.md, 1).
 
 use std::{
     borrow::Cow, collections::BTreeMap, ffi::OsStr, fmt::Write as _, os::unix::ffi::OsStrExt as _, path::PathBuf,

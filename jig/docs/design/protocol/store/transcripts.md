@@ -223,7 +223,7 @@ it is read, by plans from the registry's texts, as a map value is
   frame goes up to the shell: a frame's conversion calls no owner.
 - **The formats:** a frame's layouts move as a registered value's do;
   its families' versions stay, the core's 6 and smith's 8 (temper's
-  `draft/layouts-both-ways.md`, 3). A change no plan derives refuses
+  `draft/archive/layouts-both-ways.md`, 3). A change no plan derives refuses
   the open, as a log-held value type's does (`logs.md`, 8), so temper's
   stored-layouts check holds every deployed frames' layout to a plan
   (temper's `protocol/floor.md`, 6). A frame's move is no level's:

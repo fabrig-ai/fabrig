@@ -401,7 +401,7 @@ pub struct Change {
     pub task: u64,
     pub way: Way,
     pub state: State,
-    /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
+    /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches-closer.md, 1).
     pub ended_held: Option<Cause>,
     pub gates: Box<[Gate]>,
     pub clean: Box<[Commit]>,

@@ -68,10 +68,6 @@ From a read-only survey of main at `de275134b0`, 2026-11-26:
 - **`.temper/` holds scripts.** `pre-pr` is the delivery check, by a convention temper's code gives smith (`../domain/agent/charter.md`, section 4). `merge` and `checked-close` run because the project's `merge_job` and `close_job` name them, and those settings' presence also switches the merge job and the close change on (`../domain/landing-settings.md`, 1.1). `close` is called by `checked-close`. `goal-pre-pr` and `goal-child-pre-pr` are wrappers for CI.
 - **Numbers, no names:** a template has a display name, and a charter has none. A record refers to each by number (`settings-numbers.md`, section 3).
 
-## 3. A way
-
-Moved to [ways-recipes.md](ways-recipes.md) (2026-11-27): a way's file, its task recipes, changes and landing, the stock three and the gallery.
-
 ## 4. A piece of work's way
 
 - **A start names a way, or takes a default.** `temper ctl chat start` on a repository, `change start`, `goal start` and `milestone new` take `--way NAME`, and a way's `start` task must fit the command: a conversation for `chat start`, a change for `change start`, an agent for `goal start`, a gathering for `milestone new`. A person's New offers the project's ways (section 12). A standing role starts a way within its grant (section 7). A start refuses a way that doesn't fit, and a way the project doesn't offer (`ways-temper-dir.md`, 1), naming why.
@@ -144,10 +140,6 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 - **For a new project,** stock rule 1 asks CI and up to date into each repository's landing branch, and the review lives in the defaults (5.3). A pattern naming a repository's landing branch, whatever it's called, is new: a pattern names a branch by its name today.
 - **For a project that exists** (the review's seventh finding): today's stock rule 1, every branch with CI, up to date and gate 1, is the fallback at rule number 1 for a project with no rule 1 of its own. The upgrade writes it as that project's rule 1, at that number, only where it applies: a project with its own rule 1 has already replaced it, and nothing is added beside its rules. Nothing it enforced loosens. An owner who wants ways to vary a value moves it to the defaults by a decision and a landing.
 
-## 6. Charters and their words
-
-Moved to [ways-charters.md](ways-charters.md) (2026-11-27): where an agent's words come from, and a project's charters held whole.
-
 ## 7. Standing roles
 
 ### 7.1 Between a person and ways
@@ -174,10 +166,6 @@ Moved to [ways-charters.md](ways-charters.md) (2026-11-27): where an agent's wor
 
 - **A recipe for one piece of work can't own a project's agent.** Draft first's triager (`../protocol/configuration/settings.md`, section 8; `standing-roles.md`, section 10) becomes a project's own standing role, started with `role start` or Team's "Hand an area to a role". A way names none. A project's triager stays as it is.
 - **The next pass** decides where the stock suggests a triager, for one to a project that first runs Milestone (section 12).
-
-## 8. `.temper/`
-
-Moved to [ways-temper-dir.md](ways-temper-dir.md) (2026-11-27): what a repository's `.temper/` holds, how temper reads and guards it, a new project's ways, and versioned files.
 
 ## 9. Names
 

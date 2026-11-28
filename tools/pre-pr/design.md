@@ -807,7 +807,7 @@ its base in (`source ancestry is incomplete`). Where its job asks, those
 two are typed as its outdated finding (*Its typed refusal*, below),
 which the goal's closer answers with the goal's catch-up from main and
 a close again, once
-(`temper/docs/design/domain/forge/branches.md`, 2, *A close found
+(`temper/docs/design/domain/forge/branches-closer.md`, 1, *A close found
 outdated*). Neither refuses nor passes with a warning, since a refusal holds
 until the goal's branch or main moves
 (`temper/docs/design/domain/forge/change/repairs-releases.md`, 1), and
@@ -1151,7 +1151,7 @@ cause.
     failures line and changes nothing else: the exit, the summary's
     other lines and the results file are as they would have been.
 - **Its outcome,** one of three, so that `refused` always means the
-  change was judged (`temper/docs/design/draft/whose-red.md`, 3.1):
+  change was judged (`temper/docs/design/draft/archive/whose-red.md`, 3.1):
   - **refused** where any failure this delivery made is the candidate's:
     a compiler error, a lint, a test failure, an exceeded count, a
     format, citation, outward-name, budget or journey refusal, a helper

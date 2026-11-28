@@ -3,7 +3,7 @@
 2026-11-10. Where the design lags or departs from [goal-runs-itself.md](goal-runs-itself.md).
 
 Sections 1 to 8 are carried by jig's `domain/tasks/lifecycle.md`, 2, and `jig/docs/design/domain/tasks/lifecycle-endings.md`, 3, and
-jig's `protocol/configuration-templates.md`, 2; `../../domain/forge/change/README.md`, 1, and `../../domain/forge/branches.md`, 1 and 2
+jig's `protocol/configuration-templates.md`, 2; `../../domain/forge/change/README.md`, 1, and `../../domain/forge/branches.md`, 1, and `../../domain/forge/branches-closer.md`, 1
 ; `../../protocol/tooling.md`, 4.2; `../../domain/worker/jobs.md`;
 `../../protocol/configuration/engine.md` and `../../protocol/configuration/settings-kinds.md`, section 1 and `../../protocol/configuration/stock.md` and `../../protocol/configuration/reference.md`; skein's
 `forge/vocabulary.md`, 1.2; and fabrig's `DESIGN.md`, section 2 and

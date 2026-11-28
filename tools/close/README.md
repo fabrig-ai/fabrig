@@ -3,7 +3,7 @@
 `<repository name>/.temper/hooks/close close <request.json>` settles a goal's
 in-flight status entries (`DESIGN.md`, section 2) once every change of the goal
 has ended, then checks the goal (temper/docs/design/protocol/tooling.md, 4.2;
-temper/docs/design/domain/forge/branches.md, 2). It runs from a job directory
+temper/docs/design/domain/forge/branches-closer.md, 1). It runs from a job directory
 with the goal's branch checked out in `<repository name>/`, with no model or
 credential. Settlement uses only Python's standard library and git, and no
 network.

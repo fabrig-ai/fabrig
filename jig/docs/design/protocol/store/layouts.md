@@ -286,7 +286,7 @@ plans each layout the registry holds to its value type's binary layout
 and its root and variant, to `current`'s, by `Plan::between` in the
 mode 5.6 gives: an older layout of a value type of the map in Read, as
 the engine reads a worker's message (temper's
-`draft/layouts-both-ways.md`, 4.4), and a later one in Keep. An older
+`draft/archive/layouts-both-ways.md`, 4.4), and a later one in Keep. An older
 layout of a value type held outside the map, a log's (`logs.md`, 8) or
 the frames' (1), is planned by `Plan::derive`, the Read mode refusing
 no value: the open walks no log and no frame, and nothing writes such
@@ -351,7 +351,7 @@ such a binary writes).
 ### 5.6 Later layouts
 
 A build started over a store a later build has committed to (temper's
-`draft/layouts-both-ways.md`, 8.1) finds layouts it has never had. A
+`draft/archive/layouts-both-ways.md`, 8.1) finds layouts it has never had. A
 plan has no notion of older or newer (skein's `data/codec/layouts.md`),
 so the store keeps which way each layout lies.
 

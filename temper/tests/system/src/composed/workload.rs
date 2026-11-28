@@ -1,4 +1,4 @@
-//! The composed workload and finite faults (temper/docs/design/testing/workloads.md, 5 and 8.2).
+//! The composed workload and finite faults (temper/docs/design/testing/workloads.md, 5, and temper/docs/design/testing/workloads-sweeps.md, 1.2).
 use super::{Key, Process, Script, Token, World, engine, host, link, parties, people, tasks};
 use skein_lib::Duration;
 use skein_world::streams::{Stream, Streams};

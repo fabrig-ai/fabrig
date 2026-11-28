@@ -1,6 +1,6 @@
 # tools-by-role: the reasons behind it
 
-This holds the reasons for `tools-by-role.md`, moved from [`../notes.md`](../notes.md), section 20.
+This holds the reasons for `tools-by-role.md`, moved from the shared notes file.
 
 The reasons behind `tools-by-role.md`, from the user, 2026-11-16, after a goal on one deployment's lean charter couldn't start, its first run's fixed part over the 65,536-byte allowance. It replaces the draft `charter-room`, whose goal the user cancelled: its named refusal and its check at apply are `../reference-code-production.notes.md`, section 6 here; its room following the configured charter bytes is dropped.
 

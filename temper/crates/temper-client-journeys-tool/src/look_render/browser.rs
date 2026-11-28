@@ -1,4 +1,4 @@
-//! Render reads issued as effects (temper/docs/design/client/journey-writer.md, 6.2, steps 4–7).
+//! Render reads issued as effects (temper/docs/design/client/journey-writer-requests.md, 1.2, steps 4–7).
 
 use skein_browser::boundary::{Element, Node, Property, Rect, Refusal};
 use skein_lib::Token;

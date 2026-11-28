@@ -1,0 +1,7 @@
+# Fourth split pass: testing/workloads.md, 58,247 bytes at b5729d449a.
+# The workload kit and the sweeps get their own pages; the worlds that run the workloads stay.
+title temper/docs/design/testing/workloads-kit.md: Drawing and comparing workloads
+temper/docs/design/testing/workloads.md 3 -> temper/docs/design/testing/workloads-kit.md 1
+
+title temper/docs/design/testing/workloads-sweeps.md: Sweeps of faults and acts
+temper/docs/design/testing/workloads.md 8 -> temper/docs/design/testing/workloads-sweeps.md 1

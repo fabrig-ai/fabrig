@@ -245,7 +245,7 @@ pub(super) fn goal(world: &World, goal: &Goal, milestone: u64) -> people::Ask {
     // The two-child goal and its change can pass a sixteenth of this spend to
     // a producer. Each extra fake completion costs one unit, above the reserve.
     member.authority.spend = 150 + 16 * 2 * u64::from(super::super::stretches::ROUNDS);
-    // temper/docs/design/domain/forge/branches.md, 2: reserve twelve tasks
+    // temper/docs/design/domain/forge/branches-closer.md, 1: reserve twelve tasks
     // for (two repairs + the change) * (three landing attempts + one),
     // beside the original work and closer. Both COMPOSED changes may be red.
     member.authority.delegation.tasks = 24;

@@ -1,0 +1,3 @@
+# Keep the writer's run and tests together; move the look request contract beside them.
+title temper/docs/design/client/journey-writer-requests.md: Look requests against the journey print
+temper/docs/design/client/journey-writer.md 6 -> temper/docs/design/client/journey-writer-requests.md 1

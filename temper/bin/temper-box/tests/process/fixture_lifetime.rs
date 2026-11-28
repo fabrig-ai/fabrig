@@ -5,13 +5,15 @@ use skein_world::end_to_end::{Binary, Command, Containment, Expectation, Mode};
 use std::{
     fs,
     io::{BufRead, BufReader},
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command as StdCommand, Stdio},
     thread,
 };
-use support::parent::{Guard, wait};
+use support::parent::Guard;
 
 const PEER_DOCUMENTS: [&[u8]; 4] = [b"github.json", b"oauth.json", b"llm.json", b"forgejo.json"];
+// Serve inserts the sign-in metadata before the closing head tag.
+const PAGE: &[u8] = b"<!doctype html><html><head><title>fixture lifetime</title></head><body></body></html>";
 
 pub(super) fn story() {
     if let Some(root) = temper_test_env::value(&temper_test_env::BOX_PARENT_TEST) {
@@ -26,12 +28,11 @@ pub(super) fn story() {
         .env(temper_test_env::BOX_PARENT_TEST.name, root)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stderr(fs::File::create(root.join("stand-in.stderr")).expect("stand-in stderr"));
     let stand_in = support::fixture::spawn(&mut command, Signal::Kill).expect("stand-in starts");
     let pid = stand_in.id();
-    let mut guard = Guard::new(stand_in);
     let manifest = root.join("fixture-pids");
-    wait(&mut guard, |_| manifest.exists());
+    let mut guard = wait_for(Guard::new(stand_in), root, "the stand-in publishes fixture pids", || manifest.exists());
     let pids = fs::read_to_string(manifest).expect("fixture pids");
     let [boxed, forge, llm]: [u32; 3] = pids
         .split_whitespace()
@@ -42,8 +43,10 @@ pub(super) fn story() {
     for child in [boxed, forge, llm] {
         guard.record(child, pid);
     }
-    let box_data = root.join("data/box/fake-backends/data");
-    wait(&mut guard, |_| root.join("fakes-ready").exists() && support::boxed::serve_listening(&box_data));
+    let data = box_data(root);
+    let mut guard = wait_for(guard, root, "the independent fakes are ready and serve is listening", || {
+        root.join("fakes-ready").exists() && support::boxed::serve_listening(&data)
+    });
     for child in [boxed, forge, llm] {
         assert!(guard.executable(child).expect("observe fixture").is_some(), "fixture {child} is running");
     }
@@ -76,6 +79,43 @@ pub(super) fn story() {
     scratch.remove();
 }
 
+fn wait_for(mut guard: Guard, root: &Path, condition: &'static str, ready: impl Fn() -> bool) -> Guard {
+    let mut deadline = skein_world::Deadline::arm(condition, support::parent::WITHIN);
+    deadline.watch_process(guard.child.as_ref().expect("stand-in").id());
+    loop {
+        if ready() {
+            return guard;
+        }
+        let child = guard.child.as_mut().expect("stand-in");
+        if let Some(exit) = child.try_wait().expect("stand-in status") {
+            panic!("{condition}: the stand-in exited with {exit}\n{}", startup_evidence(root));
+        }
+        if deadline.passed() {
+            match deadline.expired() {
+                skein_world::Expired::Starved(starved) => {
+                    drop(guard);
+                    starved.pass();
+                }
+                skein_world::Expired::Failed(figures) => panic!("{figures}\n{}", startup_evidence(root)),
+            }
+        }
+        thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+fn startup_evidence(root: &Path) -> String {
+    let stderr = fs::read_to_string(root.join("stand-in.stderr")).expect("read stand-in stderr");
+    let data = box_data(root);
+    let log = support::boxed::box_log(&data);
+    let serve = fs::read_to_string(data.join("box/logs/serve.log")).unwrap_or_else(|error| error.to_string());
+    let fakes_ready = root.join("fakes-ready").exists();
+    format!("independent fakes ready: {fakes_ready}\nstand-in stderr:\n{stderr}\nbox log:\n{log}\nserve log:\n{serve}")
+}
+
+fn box_data(root: &Path) -> PathBuf {
+    root.join("data/box/fake-backends/data")
+}
+
 fn check_steps(guard: &Guard, boxed: u32) -> u64 {
     let mut peers = [false; PEER_DOCUMENTS.len()];
     let mut serve = false;
@@ -97,7 +137,7 @@ fn check_steps(guard: &Guard, boxed: u32) -> u64 {
 fn stand_in(root: &Path) {
     let paths = ["config", "data", "cache"].map(|name| root.join(name));
     let bundle = root.join("bundle");
-    fake_backends::bundle(&bundle, b"<!doctype html><title>fixture lifetime</title>");
+    fake_backends::bundle(&bundle, PAGE);
     let program = skein_scratch::paths::binary("temper-box");
     let command = support::fixture::dying_with_test(
         Command {

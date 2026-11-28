@@ -249,10 +249,6 @@ lacks rather than fetching it.
   checks a different one afresh. The component is tested against git
   2.47 (section 9).
 
-## 4. Each operation
-
-Moved to [`git-operations.md`](git-operations.md), section 1.
-
 ## 5. Credentials and environment
 
 The environment is given whole: what is below, and nothing else. No

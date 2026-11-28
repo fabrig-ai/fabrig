@@ -401,7 +401,7 @@ Focused and fuzzy suites only.
   a bound (3.4), and every commit leaving a store a start would open
   (3.7), as their goals build them. A restart changing no outcome it
   shouldn't (3.5), and the composed workload's sweep mixing the restarts
-  with every other family, are `workloads.md`'s, sections 7 and 8.
+  with every other family, are `workloads.md`, section 7, and `workloads-sweeps.md`, section 1.
 - A stop in a start class the reconciling start adds, should it add one,
   or with the mark's commit stored and not yet answered, once the
   restart drafts pin what it does: a kind of its own in `ENGINE`, beside

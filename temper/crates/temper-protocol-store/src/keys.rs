@@ -98,7 +98,7 @@ pub const LOOKED: u8 = 37;
 pub const AWAY: u8 = 38;
 /// Decisions for a person (temper/docs/design/protocol/store.md, 2).
 pub const DECIDED: u8 = 39;
-/// A goal closer (temper/docs/design/domain/forge/branches.md, 2).
+/// A goal closer (temper/docs/design/domain/forge/branches-closer.md, 1).
 pub const CLOSER: u8 = 40;
 /// Landed drafts (temper/docs/design/protocol/store.md, 2).
 pub const LANDED_DRAFT: u8 = 41;

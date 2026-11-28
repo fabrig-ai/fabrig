@@ -1,6 +1,6 @@
 # config: the reasons behind it
 
-This holds the reasons for `config.md`, moved from [`notes.md`](notes.md), section 21.
+This holds the reasons for `config.md`, moved from the shared notes file.
 
 The reasons behind `config.md`, from the user, 2026-11-16.
 

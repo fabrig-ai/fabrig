@@ -1,4 +1,4 @@
-//! Logical names and the tasks a world made for them (`temper/docs/design/testing/workloads.md`, 3.2).
+//! Logical names and the tasks a world made for them (`temper/docs/design/testing/workloads-kit.md`, 1.2).
 
 use std::collections::BTreeMap;
 

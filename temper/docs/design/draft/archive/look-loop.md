@@ -178,8 +178,9 @@ prints them after the landing.
 
 `scripts/look-compare.sh NAME C`, beside `look-refresh.sh`, run in the
 landing's own tree. It runs the journeys tool's `look-compare NAME C`
-as `look-refresh.sh` runs `look-refresh` (`../../client/journey-writer.md`,
-4 and 6; `../../testing/tools.md`, 2): the command asks for each effect
+as `look-refresh.sh` runs `look-refresh` (`../../client/journey-writer.md`, 4;
+`../../client/journey-writer-requests.md`, 1; `../../testing/tools.md`, 2):
+the command asks for each effect
 as a value (a child with its arguments, a file) and decides on the
 answer, and its exit is the script's.
 
@@ -353,7 +354,7 @@ reach main before the landing's code does.
 `look-refresh.sh` drops a request once main's `looks.html` holds an
 entry for its newest `Look-landed`. A request that landed with no
 `Look-landed`, before this draft, is dropped by `Printed:` as now
-(`../../client/journey-writer.md`, 6).
+(`../../client/journey-writer-requests.md`, 1).
 
 ### 5.5 Retiring a journey
 

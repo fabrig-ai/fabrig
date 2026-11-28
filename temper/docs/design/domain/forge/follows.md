@@ -178,7 +178,7 @@ every setting is, its decision that project's owners'. Its value, a
 - **Under a standing role:** the follow task is the role's delegate,
   made by the root in a decision of its own with the role as its
   requester and its funder, as a goal's closer is its goal's
-  (`branches.md`, section 2): its authority the role's, one level less
+  (`branches-closer.md`, section 1): its authority the role's, one level less
   deep; its spend the least of what a person's follow task would get
   (above) and the role's available budget. So its follow changes stand
   below the role, their questions reach it through the follow task
@@ -273,7 +273,7 @@ every setting is, its decision that project's owners'. Its value, a
     the change's question Q with its result's words, or, cancelled or
     failed, with `The follow's owner gave no answer.`;
   - *a standing role,* its requester, in the question form, as a goal's
-    closer relays its change's (`branches.md`, section 2): its words
+    closer relays its change's (`branches-closer.md`, section 1): its words
     `Follow N's change M asks (question Q):`, a blank line, then the
     question's words whole, cut from their end to the deployment's
     `tasks.message_bytes` and marked `…`. The role is woken by it as by

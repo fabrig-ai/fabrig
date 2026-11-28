@@ -465,7 +465,7 @@ for it, never a read of another kind or another party's.
     contained, the head is the candidate as it is; not contained, it is
     prepared; unknown, the landing waits as it does for any fact it lacks;
   - **a goal's closer,** whether its base holds the goal branch's tip
-    (`branches.md`, 2): `before` the base's tip, `after` the goal's tip;
+    (`branches-closer.md`, 1): `before` the base's tip, `after` the goal's tip;
   - **a write's readback,** whether a branch's head holds a push's
     commit, or moved forward from the head a previous build's writer
     knew, and the record's one comparison of two heads of temper's

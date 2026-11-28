@@ -71,7 +71,7 @@
   ejection's red is not a check at the change's head. Default: such a
   repair finding nothing to do holds the change, as a failed one does,
   until a person decides (2026-11-14). A CI repair's and a landing's are
-  checked once more at the same content (`../../../draft/whose-red.md`,
+  checked once more at the same content (`../../../draft/archive/whose-red.md`,
   5).
 
 - **Every failed job at once** (`repairs.md`, *A repair that changes

@@ -9,7 +9,7 @@ questions: its producing, its repairs and its resolutions ask it, it
 passes each to its requester, and it answers the asker. A goal's
 closer, the requester of each change it makes and a procedure, passes
 each on to its goal and relays the answer back down
-(`../branches.md`, 2). It decides
+(`../branches-closer.md`, 1). It decides
 nothing itself (jig's `domain/tasks/proposals.md`
 ): the requester decides, and the change relays
 (`../../../draft/reference-code-production.notes.md`, N1). A change made with questions `none`

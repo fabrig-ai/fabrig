@@ -7,10 +7,6 @@ The table grows area by area, each with its stories (`testing.md`).
    `../../README.md`, section 2): the host's tools of `host.md`; every read
    of `tools-reads.md`, 1 other than the general proposal read of area 2; the watched
    reads' waits (`tools-waiting.md`, 1); every act of 5.3.
-## 2. Goals and plans
-
-Moved to [`areas-goals.md`](areas-goals.md), section 1.
-
 ## 3. Several parties
 3. **Several parties:** `party make --project PROJECT --role ROLE --out
    FILE` (jig's `MakeService`, keyed; `README.md`, section 7), `sign-in --service
@@ -82,14 +78,6 @@ Moved to [`areas-goals.md`](areas-goals.md), section 1.
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON
    (keyed).
-## 5. LLM accounts
-
-Moved to [`areas-accounts.md`](areas-accounts.md), section 1.
-
-## 6. Forges
-
-Moved to [`areas-forges.md`](areas-forges.md), section 1.
-
 ## 7. Landed drafts
 7. **Landed drafts** (`../../domain/forge/drafts.md`): a writer saying
    that a draft landed in one of a project's repositories is ready to

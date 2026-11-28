@@ -188,7 +188,7 @@
     panel and in its result, whose reason for it goes on `then CI passed at H`
     (`README.md`, 2, step 7).
 - **A repair that changes nothing is checked once more**
-  (`../../../draft/whose-red.md`, 5). A CI repair (its reason CI failed
+  (`../../../draft/archive/whose-red.md`, 5). A CI repair (its reason CI failed
   at the head, `Ci` or `Semantic`) or a landing's repair (`Landing` or
   `LandingAt`) changes nothing when it ends with the change's branch,
   read after its end, still at the head it was asked to repair, whatever
@@ -320,7 +320,7 @@
     test when the repair is asked: `Failed tests: not known`, or a report
     read naming none. Its contract's one choice is code 2, `no_test`, its
     words carrying the `No test:` line; never beside the flake's.
-- **The previous build's holds** (`../../../draft/whose-red.md`, 8): a
+- **The previous build's holds** (`../../../draft/archive/whose-red.md`, 8): a
   change that build held on its repair's flake verdict (`Flake`) or
   no-test verdict (`NoTest`) stays held, read as a red that stands with
   its one check still owed (`repairs-releases.md`, 5), and no step of this build holds
@@ -328,18 +328,6 @@
   as above, and goes on at the head it read, checked again, with its one
   check owed, which the rule above then judges; where no failed receipt
   resolves, it holds at once as above.
-
-## 2. Resolutions
-
-Moved to [`repairs-resolutions.md`](repairs-resolutions.md), section 1.
-
-## 3. Gathering briefs
-
-Moved to [`repairs-briefs.md`](repairs-briefs.md), section 1.
-
-## 4. Holds and releases
-
-Moved to [`repairs-releases.md`](repairs-releases.md), section 1.
 
 ## 5. Open questions
 

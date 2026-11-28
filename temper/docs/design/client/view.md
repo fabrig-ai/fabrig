@@ -22,10 +22,10 @@
   or that time has reached the instant its words next change (6),
   it builds the page in one outline (skein's `ui/README.md`, section 12), in
   the mockups' order:
-  - *the rail (3):* on a project page, every page but `Welcome`
+  - *the rail (`view-navigation.md`, 1):* on a project page, every page but `Welcome`
     while a project is open and the link is neither signed out nor out
     of date, in place of the top bar below. In the browser the tab bar
-    (3) follows the main;
+    (`view-navigation.md`, 1) follows the main;
   - *the top bar,* on any other page, the frame wherever the rail
     isn't (the look request `outside-pages`; `web/look.md`,
     *Outside a project*): temper's mark, "temper", a link in the browser
@@ -50,7 +50,7 @@
     `welcome-top`, 2026-11-12). temper box's line is the Welcome step's,
     under its cards (`pages/welcome.md`, 1).
     In the browser the top bar's last child, after its right, is the
-    rail's night switch (3), on every page and in every state that draws
+    rail's night switch (`view-navigation.md`, 1), on every page and in every state that draws
     the top bar, from its first frame, before `me` is read, since the
     look is the browser's, not the person's: on `Welcome` after the steps
     and the link region, elsewhere after the person's name and "Sign
@@ -248,10 +248,6 @@
   the checks' words a list, or nothing when they are not one, which the
   form marks invalid.
 - **No drawings.**
-
-## 3. Navigation
-
-Moved to [`view-navigation.md`](view-navigation.md), section 1.
 
 ## 4. Limits
 

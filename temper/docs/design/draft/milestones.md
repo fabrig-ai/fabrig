@@ -86,7 +86,7 @@ differ until its plans fold it in.
   work is then on the default branch, or it had nothing to land: a goal
   of "Task by task" ends done once its changes have landed, and one of
   "Plan, tasks, land whole" once its branch has landed or held nothing
-  new (`../domain/forge/branches.md`, section 2). The pages say "done"
+  new (`../domain/forge/branches-closer.md`, section 1). The pages say "done"
   for a goal, and "landed" only beside a landing they read, with its
   time.
 - **Its order is its goals' dependencies,** not the milestone's. A goal

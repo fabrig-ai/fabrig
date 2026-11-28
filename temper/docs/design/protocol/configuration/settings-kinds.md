@@ -273,7 +273,7 @@ forge's connector, which judges them (jig's `domain/engine/settings-application.
     by a party with a role in the deployment, as kinds 1 and 3 are;
   - *the stock's,* `stock.md`'s: template 4's, neither; the reference's,
     `reference.md`'s: template 4's, design alone, since its goals close by temper's
-    closer (`../../domain/forge/branches.md`, 2), whose close step settles what a
+    closer (`../../domain/forge/branches-closer.md`, 1), whose close step settles what a
     close-out wrote. A template's closer is no part of this kind: it is
     the template's `ended_by` (jig's `protocol/configuration-templates.md`, 2),
     which every way of making a goal from the template carries, while

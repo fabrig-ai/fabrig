@@ -1,6 +1,6 @@
 # design-economy: the reasons behind it
 
-This holds the reasons for `design-economy.md`, moved from [`notes.md`](notes.md), section 18.
+This holds the reasons for `design-economy.md`, moved from the shared notes file.
 
 The reasons behind `design-economy.md`, from the user, 2026-11-14, after a survey of the code's size found under 5% of hand-written production to cut with the design as it is.
 

@@ -1753,31 +1753,7 @@ impl ClusterChatJudge {
 fn cluster_settings(file: &std::path::Path, reads: &[support::Ended], providers: &serde_json::Value) {
     let mut fixture: serde_json::Value =
         serde_json::from_slice(&std::fs::read(file).expect("cluster settings FILE")).expect("settings JSON");
-    for read in reads {
-        let current = support::ctl::json(read);
-        let item = fixture["items"]
-            .as_array_mut()
-            .expect("settings items")
-            .iter_mut()
-            .find(|item| item["setting"] == current["setting"])
-            .expect("cluster setting override");
-        let mut overrides = item["set"].take();
-        let mut value = current["value"].clone();
-        if current["setting"]["kind"] == "charter" {
-            support::provider_setup::use_provider(&mut value, 1);
-        }
-        if current["setting"]["kind"] == "agents" {
-            value["profile"]
-                .as_object_mut()
-                .expect("agent profile")
-                .extend(overrides["profile"].as_object().expect("profile overrides").clone());
-            overrides.as_object_mut().expect("agent overrides").remove("profile");
-        }
-        value.as_object_mut().expect("whole setting").extend(
-            overrides.as_object().expect("setting overrides").iter().map(|(key, value)| (key.clone(), value.clone())),
-        );
-        item["set"] = value;
-    }
+    support::cluster::overlay_settings(&mut fixture, reads.iter().map(support::ctl::json));
     let items = fixture["items"].as_array_mut().expect("settings items");
     items.retain(|item| item["setting"]["kind"] != "worker");
     items.extend(support::provider_setup::items(providers));

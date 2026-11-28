@@ -234,7 +234,7 @@ checks (`../../protocol/hooks.md`, 4.1 and 5; smith's
   goal's agent's words have it write each delivery's title and body
   for the history too, and deliver at any point, even while its closer
   lands the branch, which then lands the new head
-  (`../forge/branches.md`, 2 and 3).
+  (`../forge/branches-closer.md`, 1, and `../forge/branches.md`, 3).
 - **Main into a goal's branch only for a change that needs it**
   (`../../draft/squash-in.md`, 4 and 5; `../forge/branches.md`, 1).
   The goal's agent's words have it ask for main's tip, a catch-up
