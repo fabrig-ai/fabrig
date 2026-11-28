@@ -135,6 +135,26 @@ pub fn unborn_repository(domain: &mut Domain, config: &Config, setup: Setup) {
     domain.made = made;
 }
 
+/// Marks a commit's path as a symbolic link for contents listings.
+/// The path's bytes are the target text. This fixture is not kept in an image.
+/// # Errors
+/// Returns `Missing` for an unknown commit or path.
+pub fn directory_link(domain: &mut Domain, commit: u64, path: &[u8]) -> Result<(), Error> {
+    let object = domain.commits.get(&commit).ok_or(Error::Missing(What::Commit))?;
+    if !object.tree.contains_key(path) {
+        return Err(Error::Missing(What::File));
+    }
+    if !domain.directory_links.contains_key(&commit) {
+        domain
+            .directory_links
+            .insert(commit, skein_lib::Set::with_capacity(object.tree.len()))
+            .expect("one set per commit");
+    }
+    let links = domain.directory_links.get_mut(&commit).expect("a set for the commit");
+    links.insert(copy_of(path)).expect("only paths of the commit");
+    Ok(())
+}
+
 /// Gives `user` the permission `permission` on `repository`.
 pub fn grant(domain: &mut Domain, repository: &[u8], user: u64, permission: Permission) {
     let id = domain.id(repository);

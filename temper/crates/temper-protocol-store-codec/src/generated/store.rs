@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x62, 0x7d, 0x40, 0x94, 0x3d, 0xae, 0x3e, 0xa5, 0xe8, 0xdc, 0x2a, 0x00, 0x81, 0x37, 0x66, 0xf4, 0x23, 0x42, 0xf2,
-    0xea, 0x8f, 0xe4, 0x30, 0x72, 0x08, 0x83, 0x42, 0x6d, 0x43, 0xfc, 0x94, 0xe9,
+    0xf1, 0xf7, 0x07, 0x28, 0xc6, 0x72, 0x51, 0xe5, 0x72, 0x56, 0xa3, 0x5b, 0xd1, 0xe4, 0xb1, 0xcb, 0xf5, 0xea, 0xc1,
+    0x3e, 0x9d, 0x76, 0x22, 0xd4, 0xa8, 0x92, 0x3e, 0x51, 0x19, 0x74, 0xc0, 0x85,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -10039,6 +10039,7 @@ pub enum DirectoryKind {
     File,
     Directory,
     Submodule,
+    Link,
 }
 
 // Record: DirectoryKind.
@@ -10047,7 +10048,8 @@ impl DirectoryKind {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -10080,6 +10082,7 @@ impl Record for DirectoryKind {
             Self::File => field::put(out, &[0], paths::DIRECTORY_KIND_TAG),
             Self::Directory => field::put(out, &[1], paths::DIRECTORY_KIND_TAG),
             Self::Submodule => field::put(out, &[2], paths::DIRECTORY_KIND_TAG),
+            Self::Link => field::put(out, &[3], paths::DIRECTORY_KIND_TAG),
         }
     }
 
@@ -10089,7 +10092,8 @@ impl Record for DirectoryKind {
             0 => Ok(Self::File),
             1 => Ok(Self::Directory),
             2 => Ok(Self::Submodule),
-            3..=u8::MAX => Err(Problem { path: paths::DIRECTORY_KIND_TAG, reason: skein_codec::Reason::Tag }),
+            3 => Ok(Self::Link),
+            4..=u8::MAX => Err(Problem { path: paths::DIRECTORY_KIND_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

@@ -1771,28 +1771,59 @@ fn a_changes_result_evidence_survives_restart_with_its_cut_counts() {
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }
 
+fn directory_call(path: &[u8], truncated: bool) -> forge::Stored {
+    use skein_forge::api::{Answer, Entry, EntryKind};
+    let answer = Answer::Directory {
+        head: [15; 32],
+        path: path.into(),
+        entries: Box::new([
+            Entry { name: b"main.rs".as_slice().into(), kind: EntryKind::File },
+            Entry { name: b"lib".as_slice().into(), kind: EntryKind::Directory },
+            Entry { name: b"vendor".as_slice().into(), kind: EntryKind::Submodule },
+            Entry { name: b"linked.rs".as_slice().into(), kind: EntryKind::Link },
+        ]),
+        truncated,
+    };
+    fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))))
+}
+
 #[test]
 fn a_directory_answer_round_trips_with_its_entries() {
-    use skein_forge::api::{Answer, Entry, EntryKind};
     let mut limits = fixtures::LIMITS;
     limits.client.rows = 1; // Directory entries use the existing byte budget alone.
     let bounds = crate::bounds(&limits, limits.client.op_bytes).expect("fixture bounds");
     for path in [b"".as_slice(), b"src"] {
         for truncated in [false, true] {
-            let answer = Answer::Directory {
-                head: [15; 32],
-                path: path.into(),
-                entries: Box::new([
-                    Entry { name: b"main.rs".as_slice().into(), kind: EntryKind::File },
-                    Entry { name: b"lib".as_slice().into(), kind: EntryKind::Directory },
-                    Entry { name: b"vendor".as_slice().into(), kind: EntryKind::Submodule },
-                ]),
-                truncated,
-            };
-            let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
+            let row = directory_call(path, truncated);
             assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
         }
     }
+}
+
+#[test]
+fn the_previous_directory_kind_cannot_keep_a_link_answer() {
+    use skein_codec::{
+        layout::{Misconverted, Mode, Plan, Refused, Workspace},
+        schema,
+    };
+    const CURRENT_KIND: &str = "enum DirectoryKind { file, directory, submodule, link }";
+    const EARLIER_KIND: &str = "enum DirectoryKind { file, directory, submodule }";
+    let text = fixtures::layouts::BINARY;
+    let earlier = text.replace(CURRENT_KIND, EARLIER_KIND);
+    let new = schema::parse(text.as_bytes()).expect("current schema");
+    let old = schema::parse(earlier.as_bytes()).expect("schema without links");
+    let new_call = new.root(b"Row", Some(b"call")).expect("registered call root");
+    let old_call = old.root(b"Row", Some(b"call")).expect("previous call root");
+    let keep = Plan::between(Mode::Keep, &new, new_call, &[], &old, old_call, &[]).expect("Keep plan for calls");
+    let mut work = Workspace::new();
+    assert!(work.fit(&keep));
+    let bytes = records::encode(&directory_call(b"src", false));
+    // The previous enum has the same wire width, so a successful conversion could not need more room.
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("bounded fixture"));
+    let Err(Misconverted::Refused(at)) = keep.convert(&bytes, &mut out, &mut work) else {
+        panic!("a link is not a previous directory kind");
+    };
+    assert_eq!(keep.refusal(at), Some((Refused::Variant, "DirectoryKind", "link")));
 }
 
 #[test]

@@ -607,6 +607,7 @@ fn contents_answer(answer: Answer, limits: &Limits) -> Response {
                 kind: match entry.kind {
                     a::EntryKind::File => api::EntryKind::File,
                     a::EntryKind::Directory => api::EntryKind::Directory,
+                    a::EntryKind::Link => api::EntryKind::Link,
                 },
             })
             .expect("one row per entry");

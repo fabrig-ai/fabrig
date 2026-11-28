@@ -1182,6 +1182,7 @@ pub fn directory_kind_to_record(value: &skein_forge::api::EntryKind) -> crate::v
         skein_forge::api::EntryKind::File => crate::v25::DirectoryKind::File,
         skein_forge::api::EntryKind::Directory => crate::v25::DirectoryKind::Directory,
         skein_forge::api::EntryKind::Submodule => crate::v25::DirectoryKind::Submodule,
+        skein_forge::api::EntryKind::Link => crate::v25::DirectoryKind::Link,
     }
 }
 
@@ -1191,6 +1192,7 @@ pub fn directory_kind_to_domain(record: crate::v25::DirectoryKind) -> skein_forg
         crate::v25::DirectoryKind::File => skein_forge::api::EntryKind::File,
         crate::v25::DirectoryKind::Directory => skein_forge::api::EntryKind::Directory,
         crate::v25::DirectoryKind::Submodule => skein_forge::api::EntryKind::Submodule,
+        crate::v25::DirectoryKind::Link => skein_forge::api::EntryKind::Link,
     }
 }
 

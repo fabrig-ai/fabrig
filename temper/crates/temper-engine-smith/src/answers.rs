@@ -2069,7 +2069,7 @@ fn directory_text(
         }
         text.add(&entry.name)?;
         match entry.kind {
-            api::EntryKind::File => {}
+            api::EntryKind::File | api::EntryKind::Link => {}
             api::EntryKind::Directory => text.add(b"/")?,
             api::EntryKind::Submodule => text.add(b" (submodule)")?,
         }

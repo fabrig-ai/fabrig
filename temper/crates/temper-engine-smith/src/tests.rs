@@ -2793,13 +2793,14 @@ fn directory_answers_render_entries_and_the_root_header() {
                 entries: Box::new([
                     Entry { name: b"main.rs".as_slice().into(), kind: EntryKind::File },
                     Entry { name: b"lib".as_slice().into(), kind: EntryKind::Directory },
+                    Entry { name: b"linked.rs".as_slice().into(), kind: EntryKind::Link },
                     Entry { name: b"vendor".as_slice().into(), kind: EntryKind::Submodule },
                 ]),
                 truncated,
             };
             let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(value))));
             let body =
-                b" at abcdef0123456789abcdef0123456789abcdef01 (a directory):\nmain.rs\nlib/\nvendor (submodule)";
+                b" at abcdef0123456789abcdef0123456789abcdef01 (a directory):\nmain.rs\nlib/\nlinked.rs\nvendor (submodule)";
             let length = header
                 .len()
                 .checked_add(body.len())

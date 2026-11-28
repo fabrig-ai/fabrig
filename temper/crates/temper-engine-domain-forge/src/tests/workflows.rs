@@ -116,6 +116,7 @@ fn the_workflows_are_read_at_the_landing_tip_and_kept_when_refused() {
     let mut entries = vec![
         Entry { name: b"ci.yml".as_slice().into(), kind: EntryKind::File },
         Entry { name: b"lint.yaml".as_slice().into(), kind: EntryKind::File },
+        Entry { name: b"linked.yml".as_slice().into(), kind: EntryKind::Link },
         Entry { name: b"README.md".as_slice().into(), kind: EntryKind::File },
         Entry { name: b"dir.yml".as_slice().into(), kind: EntryKind::Directory },
         Entry { name: b"module.yml".as_slice().into(), kind: EntryKind::Submodule },
@@ -135,7 +136,11 @@ fn the_workflows_are_read_at_the_landing_tip_and_kept_when_refused() {
                 github,
                 Ok(Answer::Directory { head: TIP, path: github.into(), entries: entries.into(), truncated: false }),
             )],
-            expected: vec![b"ci.yml".as_slice().into(), b"lint.yaml".as_slice().into()],
+            expected: vec![
+                b"ci.yml".as_slice().into(),
+                b"lint.yaml".as_slice().into(),
+                b"linked.yml".as_slice().into(),
+            ],
             saved: true,
         },
         Row {

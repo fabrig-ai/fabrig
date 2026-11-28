@@ -364,6 +364,7 @@ fn file(domain: &Domain, repository: &Repository, commit: u64, path: &[u8]) -> R
     {
         return Ok(Answer::File(copy_of(content)));
     }
+    let links = domain.directory_links.get(&commit);
     let mut children = skein_lib::Map::with_capacity(tree.len());
     for (key, _) in tree {
         let child = if path.is_empty() {
@@ -375,10 +376,19 @@ fn file(domain: &Domain, repository: &Repository, commit: u64, path: &[u8]) -> R
         };
         let (name, kind) = match skein_lib::bytes::find(child, b"/") {
             Some(at) => (child.get(..at).expect("slash position"), crate::api::EntryKind::Directory),
-            None => (child, crate::api::EntryKind::File),
+            None => {
+                let kind = if let Some(links) = links
+                    && links.contains(&**key)
+                {
+                    crate::api::EntryKind::Link
+                } else {
+                    crate::api::EntryKind::File
+                };
+                (child, kind)
+            }
         };
-        // An exact key is a file even when other keys have it as their prefix.
-        if children.get(name).is_none() || kind == crate::api::EntryKind::File {
+        // An exact key wins even when other keys have it as their prefix.
+        if children.get(name).is_none() || kind != crate::api::EntryKind::Directory {
             children.insert(copy_of(name), kind).expect("at most one child per key");
         }
     }

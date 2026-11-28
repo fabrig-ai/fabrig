@@ -104,7 +104,7 @@ record Pull { reviewers: list 65536 u64 number: u64 state: ItemState head: bytes
 record Step { number: u32 name: bytes 1048576 }
 record JobAnswer { attempt: JobAttempt step: option Step log: bytes 1048576 truncated: bool }
 record FileAnswer { head: fixed 32 path: bytes 1048576 bytes: bytes 1048576 truncated: bool }
-enum DirectoryKind { file, directory, submodule }
+enum DirectoryKind { file, directory, submodule, link }
 record DirectoryEntry { name: bytes 1048576 kind: DirectoryKind }
 record DirectoryAnswer { head: fixed 32 path: bytes 1048576 entries: bytes 2097152 pieces DirectoryEntry truncated: bool }
 record BranchesAnswer { branches: bytes 2097152 pieces AnswerName }
