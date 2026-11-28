@@ -357,7 +357,9 @@ pub(in crate::route) fn hold_changed_charter(
             let Some(speed) = super::refused_speed(domain, *model, choice) else { return false };
             Some((*model, Some(speed)))
         }
-        jig_domain_core::StepRefusal::Moved { .. } | jig_domain_core::StepRefusal::Refused(_) | jig_domain_core::StepRefusal::Denied { .. } => {
+        jig_domain_core::StepRefusal::Moved { .. }
+        | jig_domain_core::StepRefusal::Refused(_)
+        | jig_domain_core::StepRefusal::Denied { .. } => {
             return false;
         }
     };
