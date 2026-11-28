@@ -65,7 +65,7 @@ pub enum Ask {
 }
 
 /// What a connector says to the engine (jig/docs/design/domain/engine/vocabulary.md, 2.5).
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Up {
     Lifecycle(lifecycle::Up),
     Resources(resources::Up),

@@ -7,6 +7,21 @@ This document holds the root's boundary translation and output assembly, split f
 Small total functions, one per pair of vocabularies, matching
 exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
 
+- **The connector port.** The root routes the forge's asks and released
+  entries to its step and returns its `Up` to the engine. The forge
+  translates the cases that use only its own state. The root assembles
+  parts and documents from both domains, checks settings against
+  prepared values and root policy, and resolves applications and
+  adoptions against retained requests and the core's parties. It still
+  correlates effect calls, procedure steps and resource judgements with
+  core tasks, their authority and resources. It obtains effect owner
+  tokens from the core for the forge. It handles subscriptions and
+  projections that use its retained work; and prepares catch-up from the
+  core's restored tasks. The journal holds effect makes and the answer
+  to project release behind their writes. The hub link, run preparation,
+  start's restore and defaults, application's own acts, and the forge's
+  operations on jig's work still use their separate routes (jig's
+  `domain/engine/vocabulary.md`, 2.5).
 - **Configuration,** `Config`, field by field as
   `../protocol/configuration/engine.md` says: `core` to the core
   whole, with jig's kinds' stock defaults and temper's kinds'

@@ -45,7 +45,7 @@ use crate::domain::{
     Domain, close, emit, forge_release_ending, internal, journal_outputs, now, route, save, step_released,
 };
 use crate::limits::{Limits, core_limits, environment_core};
-use crate::restart::{accept_load, connector_start_done, load_decision, load_outputs, start_action};
+use crate::restart::{accept_load, load_decision, load_outputs, start_action};
 use crate::translate::{
     call_needs_input, checked_call, connector_answer, core_call, environment_forge, keep_connector_answer, named_call,
     relay_call, tool_kind,
@@ -488,8 +488,14 @@ fn route_engine_with_job(
     for _ in 0..outputs.len() {
         let request = match outputs.pop().expect("engine output count") {
             Out::Core(request) => request,
-            Out::Ask(connector, ask) => core::engine::bridge_ask(connector, ask),
-            Out::Held(Peer::Connector(connector, released)) => core::engine::bridge_released(connector, released),
+            Out::Ask(connector, ask) => {
+                asks::connector_ask(domain, env, decision, connector, ask);
+                continue;
+            }
+            Out::Held(Peer::Connector(connector, released)) => {
+                asks::connector_released(domain, env, decision, connector, released);
+                continue;
+            }
             Out::Held(Peer::Store(load)) => {
                 emit(decision, &env.limits, Delivery::EngineStore(load));
                 continue;
@@ -548,7 +554,7 @@ fn route_engine_with_job(
                 let replaced = save(decision, &env.limits, Write::Erase(Key::Core(key)));
                 domain.release_bytes(replaced, "erased write's turn body was held");
             }
-            core::Request::Ask { connector, ask } => asks::ask(domain, env, decision, connector, ask),
+            core::Request::Ask { connector, ask } => asks::application(domain, env, decision, connector, ask),
             core::Request::Held(output) => {
                 let Some(output) = making::held(domain, *output) else { continue };
                 if let core::Held::PublicRead { reply, answer } = output {
@@ -626,6 +632,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 if let Some(project) = period {
                     standing::move_roles(domain, project, None);
                 }
+            }
+            Work::Connector(connector, up) => {
+                let routed = forge_route::step_engine(domain, env, In::Connector(connector, up));
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::EngineStore(answer) => {
                 let routed = forge_route::step_engine(domain, env, In::Store(answer));
@@ -875,12 +885,19 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
     }
 }
 
+/// A connector answer or fact that belongs to the current decision.
+fn forge_up(domain: &mut Domain, up: jig_domain_contract::Up) {
+    domain.work.push(Work::Connector(jig_domain_contract::Connector(domain.config.forge_connector), up));
+}
+
 fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
     let mut out = Queue::uncapped();
     // Task saves keep the projection current during a gather and at merge
     // judgement. Refresh restored projections before reads start, and the
     // subject at each change step (gates.md, 1, Valid at a spec revision).
-    if let forge::Event::CatchUp = &event {
+    if let forge::Event::CatchUp
+    | forge::Event::Ask(jig_domain_contract::Ask::Lifecycle(jig_domain_contract::lifecycle::Ask::CatchUp)) = &event
+    {
         prepare_wait_catch_up(domain);
         for task in domain.forge.change_tasks() {
             if let Some(row) = domain.engine.core().tasks.task(task) {

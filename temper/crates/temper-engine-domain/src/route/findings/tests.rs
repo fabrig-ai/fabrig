@@ -473,7 +473,7 @@ fn a_cancelled_routed_red_returns_through_release_to_its_holder_with_back_news()
         &env,
         &mut decision,
         connector,
-        jig_domain_core::Ask::Release {
+        jig_domain_contract::Ask::Effects(jig_domain_contract::effects::Ask::Release {
             task: goal,
             root: goal,
             ending: tasks::Ending::Cancelled {
@@ -483,7 +483,7 @@ fn a_cancelled_routed_red_returns_through_release_to_its_holder_with_back_news()
                 result: None,
             },
             entry: 80,
-        },
+        }),
     );
     let finding = domain.forge.finding(1, number).unwrap();
     assert_eq!(finding.state, forge::FindingState::New);

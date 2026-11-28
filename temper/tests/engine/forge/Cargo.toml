@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-domain-contract.workspace = true
 temper-engine-inspect.workspace = true
 skein-world.workspace = true
 temper-client-protocol-wire.workspace = true

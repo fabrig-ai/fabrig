@@ -64,11 +64,11 @@ fn values(value: settings::SizedValue) -> Box<[KindValue]> {
     Box::new([KindValue { kind: 2, scope: PROJECT, number: RULE, value }])
 }
 
-fn ask(domain: &mut Domain, env: &Env<RootLimits>, decision: &mut Decision, ask: connector::Ask) {
+fn ask(domain: &mut Domain, env: &Env<RootLimits>, decision: &mut Decision, ask: jig_domain_contract::settings::Ask) {
     let mut requests = Queue::uncapped();
     requests.push(jig_domain_core::Request::Ask {
         connector: domain.config.forge_connector,
-        ask: jig_domain_core::Ask::Effect(ask),
+        ask: jig_domain_core::Ask::Connector(jig_domain_contract::Ask::Settings(ask)),
     });
     crate::route::route_core_requests(domain, env, decision, requests);
 }
@@ -80,12 +80,19 @@ fn judge(
     proposal: Option<u64>,
     items: Box<[application::Item]>,
 ) {
-    ask(domain, env, decision, connector::Ask::JudgeSettings { owner: OWNER, revision: 2, proposal, items });
+    ask(
+        domain,
+        env,
+        decision,
+        jig_domain_contract::settings::Ask::Judge { owner: OWNER, revision: 2, proposal, items },
+    );
 }
 
 fn answer(domain: &mut Domain) -> Box<[connector::Judged]> {
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsJudged { owner, judged }))) =
-        domain.work.pop()
+    let Some(Work::Connector(
+        _,
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Judged { owner, judged }),
+    )) = domain.work.pop()
     else {
         panic!("the same step returns SettingsJudged to the core");
     };
@@ -99,8 +106,10 @@ fn restored(kind: u32, scope: u32, number: u32, edit: application::RestoredEdit)
 }
 
 fn restored_answer(domain: &mut Domain, expected_owner: Token) -> Box<[connector::Judged]> {
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged }))) =
-        domain.work.pop()
+    let Some(Work::Connector(
+        _,
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Restored { owner, judged }),
+    )) = domain.work.pop()
     else {
         panic!("the same step returns SettingsRestored to the core");
     };
@@ -184,7 +193,7 @@ fn a_keep_ask_writes_the_forges_rows() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([project_rule(application::Edit::Set(Box::default()))]),
@@ -211,7 +220,7 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepProposalSettings { proposal: PROPOSAL, items: items.clone() },
+        jig_domain_contract::settings::Ask::KeepProposal { proposal: PROPOSAL, items: items.clone() },
     );
     let writes = committed_writes(&mut domain, &env, decision);
     assert!(writes.contains(&saved(settings::SettingSlot::Proposal(PROPOSAL), settings::Edit::Set(rule(false)))));
@@ -230,7 +239,7 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings { revision: 2, proposal: Some(PROPOSAL), items },
+        jig_domain_contract::settings::Ask::Keep { revision: 2, proposal: Some(PROPOSAL), items },
     );
     let writes = committed_writes(&mut domain, &env, decision);
     assert!(writes.contains(&saved(settings::SettingSlot::Change, settings::Edit::Set(rule(false)))));
@@ -247,14 +256,19 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepProposalSettings {
+        jig_domain_contract::settings::Ask::KeepProposal {
             proposal: WITHDRAWN_PROPOSAL,
             items: Box::new([project_rule(application::Edit::Set(Box::default()))]),
         },
     );
     committed_writes(&mut domain, &env, decision);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::DropProposalSettings { proposal: WITHDRAWN_PROPOSAL });
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        jig_domain_contract::settings::Ask::DropProposal { proposal: WITHDRAWN_PROPOSAL },
+    );
     let writes = committed_writes(&mut domain, &env, decision);
     assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Setting(settings::SettingKey {
         kind: 2,
@@ -286,7 +300,7 @@ fn a_restore_ask_reaches_the_forge_and_its_answer_reaches_the_core() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: RESTORE_OWNER,
             proposal: PROPOSAL,
             items: Box::new([
@@ -348,7 +362,7 @@ fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
         );
     }
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::ForgetReplaced { before: 3 });
+    ask(&mut domain, &env, &mut decision, jig_domain_contract::settings::Ask::ForgetReplaced { before: 3 });
     let writes = committed_writes(&mut domain, &env, decision);
     let setting_key =
         settings::SettingKey { kind: 2, scope: PROJECT, number: RULE, slot: settings::SettingSlot::Replaced(2) };
@@ -362,7 +376,7 @@ fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: OWNER,
             proposal: PROPOSAL,
             items: Box::new([
@@ -495,7 +509,7 @@ fn a_start_gives_the_forge_its_defaults() {
 fn save_settings_defaults_writes_the_forges_rows() {
     let (mut domain, env) = root();
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::SaveSettingsDefaults { revision: Some(2) });
+    ask(&mut domain, &env, &mut decision, jig_domain_contract::settings::Ask::SaveDefaults { revision: Some(2) });
     crate::route::route_into(&mut domain, &env, &mut decision);
     let writes = committed_writes(&mut domain, &env, decision);
     for (kind, number, value) in [(1, RULE, rule(true)), (3, 1, charter(2)), (3, 2, charter(4))] {
@@ -507,9 +521,13 @@ fn save_settings_defaults_writes_the_forges_rows() {
         })));
     }
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::SaveSettingsDefaults { revision: None });
-    assert!(domain.work.is_empty(), "matching defaults need no further rows, even without a revision");
+    ask(&mut domain, &env, &mut decision, jig_domain_contract::settings::Ask::SaveDefaults { revision: None });
+    crate::route::route_into(&mut domain, &env, &mut decision);
     crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    assert!(
+        crate::decision::commit(&mut domain.journal, &env.limits.journal).is_none(),
+        "matching defaults need no further rows, even without a revision"
+    );
 }
 
 #[test]
@@ -1147,7 +1165,7 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([project_rule(application::Edit::Set(Box::default()))]),
@@ -1242,7 +1260,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: RESTORE_OWNER,
             proposal: PROPOSAL,
             items: Box::new([restored(7, PROJECT, 1, application::RestoredEdit::Set { revision: 3 })]),
@@ -1592,15 +1610,17 @@ fn a_task_owned_follows_hold_is_admitted_only_for_a_project_owner() {
         let mut requests = Queue::uncapped();
         requests.push(jig_domain_core::Request::Ask {
             connector: domain.config.forge_connector,
-            ask: jig_domain_core::Ask::Application {
-                request: Token::new(21),
-                token: Token::new(22),
-                owner: OWNER,
-                person: 1,
-                scope: ApplicationScope::Project(2),
-                role: Some(role),
-                retention: skein_lib::Duration::from_secs(60),
-            },
+            ask: jig_domain_core::Ask::Connector(jig_domain_contract::Ask::Requests(
+                jig_domain_contract::requests::Ask::Decide {
+                    request: Token::new(21),
+                    token: Token::new(22),
+                    owner: OWNER,
+                    person: 1,
+                    scope: ApplicationScope::Project(2),
+                    role: Some(role),
+                    retention: skein_lib::Duration::from_secs(60),
+                },
+            )),
         });
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
@@ -1728,7 +1748,7 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([application::Item {
@@ -1821,7 +1841,7 @@ fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
             &mut domain,
             &env,
             &mut decision,
-            connector::Ask::RestoreSettings {
+            jig_domain_contract::settings::Ask::Restore {
                 owner: RESTORE_OWNER,
                 proposal: PROPOSAL,
                 items: Box::new([application::Restored {
@@ -1832,8 +1852,10 @@ fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
                 }]),
             },
         );
-        let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged }))) =
-            domain.work.pop()
+        let Some(Work::Connector(
+            _,
+            jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Restored { owner, judged }),
+        )) = domain.work.pop()
         else {
             panic!("restore judgement")
         };
@@ -1897,7 +1919,7 @@ fn dependency_structural_refusals_name_the_dependency_and_restore_rechecks_the_t
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: RESTORE_OWNER,
             proposal: PROPOSAL,
             items: Box::new([restored(13, PROJECT, 1, application::RestoredEdit::Set { revision: 3 })]),
@@ -1934,15 +1956,17 @@ fn a_tier_act_admits_only_project_or_deployment_owners_and_carries_the_party() {
         let mut requests = Queue::uncapped();
         requests.push(jig_domain_core::Request::Ask {
             connector: domain.config.forge_connector,
-            ask: jig_domain_core::Ask::Application {
-                request: Token::new(21),
-                token: Token::new(22),
-                owner: OWNER,
-                person: 1,
-                scope: ApplicationScope::Own,
-                role: Some(role),
-                retention: skein_lib::Duration::from_secs(60),
-            },
+            ask: jig_domain_core::Ask::Connector(jig_domain_contract::Ask::Requests(
+                jig_domain_contract::requests::Ask::Decide {
+                    request: Token::new(21),
+                    token: Token::new(22),
+                    owner: OWNER,
+                    person: 1,
+                    scope: ApplicationScope::Own,
+                    role: Some(role),
+                    retention: skein_lib::Duration::from_secs(60),
+                },
+            )),
         });
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);

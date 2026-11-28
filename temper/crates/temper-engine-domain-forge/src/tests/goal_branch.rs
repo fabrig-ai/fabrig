@@ -1,4 +1,5 @@
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, BranchCreation, Error, Op, Read, Write};
 
 const GOAL: u64 = 7;
@@ -816,7 +817,10 @@ fn a_closing_goal_keeps_its_branch_when_no_change_landed_it() {
         fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
         let released =
             outputs(&mut d, Event::Release { task: GOAL, root: OTHER, ending, reason: None, entry: CLOSING });
-        assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+        assert!(
+            released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+            "{released:?}"
+        );
         assert_no_making(&released);
         for request in &released {
             if let Request::Retained { .. } = request {
@@ -853,7 +857,10 @@ fn release(d: &mut Domain, ending: ReleaseEnding) -> Box<[Request]> {
 
 fn assert_kept_goal(d: &mut Domain) {
     let released = release(d, ReleaseEnding::Failed);
-    assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+    assert!(
+        released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "{released:?}"
+    );
     assert!(released.contains(&Request::Erase { key: Key::Hold(name(GOAL_BRANCH)) }), "{released:?}");
     for request in &released {
         if let Request::Retained { .. }
@@ -869,7 +876,10 @@ fn assert_kept_goal(d: &mut Domain) {
 
 fn deleting_goal(d: &mut Domain, ending: ReleaseEnding) -> Token {
     let requests = release(d, ending);
-    assert!(!requests.contains(&Request::Released { task: GOAL }), "delete must settle first: {requests:?}");
+    assert!(
+        !requests.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "delete must settle first: {requests:?}"
+    );
     assert!(d.hold(&name(GOAL_BRANCH)).is_some());
     outputs(d, Event::Committed { entry: CLOSING });
     fixtures::answer_next(d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
@@ -883,7 +893,10 @@ fn complete_goal_delete(d: &mut Domain, call: Token, result: Result<Answer, Erro
     assert!(deleted.contains(&Request::ContinueRelease { task: GOAL }), "{deleted:?}");
     assert_eq!(d.hold(&name(GOAL_BRANCH)), None);
     let released = outputs(d, Event::ContinueRelease { task: GOAL, entry: CLOSING });
-    assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+    assert!(
+        released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "{released:?}"
+    );
 }
 
 #[test]
@@ -960,7 +973,10 @@ fn a_goal_branchs_refused_delete_fails_the_release() {
         }
     }
     assert!(release_failed, "{failed:?}");
-    assert!(!failed.contains(&Request::Released { task: GOAL }), "{failed:?}");
+    assert!(
+        !failed.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "{failed:?}"
+    );
     assert!(d.hold(&name(GOAL_BRANCH)).is_some());
 }
 
@@ -1021,7 +1037,12 @@ fn restart_makings(read_room: u32) -> (Domain, Env<Limits>) {
 fn restart_finishes_while_a_making_waits_for_read_room() {
     let (mut d, env) = restart_makings(ONE_READ);
     let answered = at_answer(&mut d, &env, Ok(Answer::Commit(TIP)));
-    assert!(answered.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{answered:?}");
+    assert!(
+        answered.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))),
+        "{answered:?}"
+    );
     assert!(d.repository_fresh(REPO));
     assert!(d.goal_branch_waiting(&name(GOAL_BRANCH)));
 
@@ -1083,7 +1104,12 @@ fn restart_does_not_wait_for_a_makings_forge() {
         at_answer(&mut d, &env, Err(error));
         assert!(d.repository_fresh(REPO), "{error:?}");
         let answered = at_answer_call(&mut d, &env, first, Ok(Answer::Commit(TIP)));
-        assert!(answered.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{answered:?}");
+        assert!(
+            answered.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                stage: RestartStage::ReadAfresh
+            }))),
+            "{answered:?}"
+        );
         assert!(d.goal_branch_waiting(&name(GOAL_BRANCH)));
     }
 }
@@ -1270,9 +1296,16 @@ fn a_goal_branch_found_missing_after_restart_is_asked_as_its_read_ends() {
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let started = outputs(&mut d, Event::CatchUp);
-    assert!(started.contains(&Request::RestartDone { stage: RestartStage::Settled }));
+    assert!(started.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::Settled
+    }))));
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
-    assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{missing:?}");
+    assert!(
+        missing.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))),
+        "{missing:?}"
+    );
     assert_no_making(&missing);
     assert!(missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
     outputs(&mut d, Event::ContinueGoalBranch { task: GOAL, entry: TAKING });
@@ -1593,7 +1626,9 @@ fn a_goal_branch_making_restored_before_sending_keeps_its_taking_entry() {
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
-    assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(missing.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
     assert_no_making(&missing);
 
     fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));

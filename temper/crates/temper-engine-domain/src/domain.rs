@@ -1430,7 +1430,10 @@ fn released_into(
             domain.work.push(Work::Core(jig_domain_core::Event::PublicDurable { read }));
         }
         Delivery::ProjectReleased { connector, project } => {
-            domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
+            domain.work.push(Work::Connector(
+                jig_domain_contract::Connector(connector),
+                jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Released { project }),
+            ));
         }
         Delivery::MoveStanding { project, owner } => crate::route::standing::move_roles(domain, project, owner),
         Delivery::FindingsOwned { project, task, words } => {
@@ -1453,7 +1456,7 @@ fn released_into(
             // None needs an empty-project row.
         }
         Delivery::ForgeCommitted { entry } => {
-            domain.work.push(Work::Forge(forge::Event::Committed { entry }));
+            domain.work.push(Work::Forge(forge::Event::Released(jig_domain_contract::Released::Make { entry })));
         }
         Delivery::Start(continuation) => {
             let mut output = Queue::uncapped();

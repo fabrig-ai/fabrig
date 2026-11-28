@@ -7,6 +7,7 @@ use crate::settings::{
     SizedValue, Stock, TemplateGoal, Value,
 };
 use core::slice::from_ref;
+use jig_domain_contract as contract;
 use jig_domain_core_vocabulary::settings::application::{Restored, RestoredEdit};
 use skein_lib::List;
 use temper_client_protocol_wire::v1::Record;
@@ -456,14 +457,15 @@ fn a_released_project_erases_its_rules() {
     restore(&mut d, &other, SettingSlot::Change);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     assert_eq!(project_rules(&d, 1).len(), 1);
-    let sent = outputs(&mut d, Event::ReleaseProject { project: 1, request: Token::new(9) });
+    let sent =
+        outputs(&mut d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 1 })));
     assert_eq!(
         sent.as_ref(),
         &[
             Request::Erase { key: Key::Setting(key(&project, SettingSlot::Default)) },
             Request::Erase { key: Key::Setting(key(&project, SettingSlot::Change)) },
             Request::Erase { key: Key::Setting(key(&project, SettingSlot::Proposal(7))) },
-            Request::ProjectReleased { request: Token::new(9) },
+            project_released(1),
         ]
     );
     assert!(project_rules(&d, 1).is_empty());
@@ -855,7 +857,8 @@ fn a_deleted_project_loses_its_questions_and_ways() {
         restore(&mut d, &item(kind, 2, 1, Edit::Set(value)), SettingSlot::Change);
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let sent = outputs(&mut d, Event::ReleaseProject { project: 1, request: Token::new(9) });
+    let sent =
+        outputs(&mut d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 1 })));
     for (kind, value) in project_values() {
         for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
             let key = SettingKey { kind, scope: 1, number: 1, slot };

@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-26. Where temper's code lags or departs from [root.md](root.md).
+2026-11-28. Where temper's code lags or departs from [root.md](root.md).
 
 
 
@@ -55,6 +55,12 @@ LINKED`, as for every link jig's start cannot make
 `temper-service-shell/src/host.rs`, `start_failure`).
 
 ## Gaps and departures
+
+- **Departs:** 5: the forge's arm translates the port cases that depend
+  on state owned by the root, rather than translating them in the
+  forge's step (jig's `domain/root.md`, 6). Those cases need the root's
+  assembled values, core task and party state, retained replies or
+  journal (`root-translation.md`, 1). The rest use the forge's own edge.
 
 - **Not yet:** 9: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,

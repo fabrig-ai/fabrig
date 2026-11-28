@@ -1,4 +1,5 @@
 //! People act on a seeded train (testing/workloads.md, 4.2, 6, 8.1).
+use jig_domain_contract as contract;
 use std::collections::{BTreeMap, BTreeSet};
 
 use skein_fake_forge_domain::api as raw;
@@ -214,7 +215,9 @@ fn cancel_change(world: &mut World, task: u64, entry: u64) {
         world.run_for(1);
         for request in world.take_seen() {
             match request {
-                top::Request::EffectsSettled { task: settled } if settled == task => {
+                top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: settled }))
+                    if settled == task =>
+                {
                     world.event(top::Event::Release {
                         task,
                         root: task,
@@ -228,7 +231,9 @@ fn cancel_change(world: &mut World, task: u64, entry: u64) {
                     world.event(top::Event::ContinueRelease { task, entry });
                     world.event(top::Event::Committed { entry });
                 }
-                top::Request::Released { task: ended } if ended == task => {
+                top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: ended }))
+                    if ended == task =>
+                {
                     released = true;
                     break 'release;
                 }
@@ -290,7 +295,7 @@ fn close(world: &mut World, task: u64, ending: top::ReleaseEnding) {
         if world
             .take_seen()
             .iter()
-            .any(|request| matches!(request, top::Request::Released { task: ended } if *ended == task))
+            .any(|request| matches!(request, top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: ended })) if *ended == task))
         {
             released = true;
             break;

@@ -312,7 +312,7 @@ pub struct Name {
 }
 
 /// Who requested the connector-owned effect and when a call must answer.
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum EffectOrigin {
     /// A connector-owned goal projection, independent of executable task grants.
     Projection {
@@ -397,7 +397,7 @@ pub enum Ask {
 }
 
 /// An effect connector's answers, outbox outcomes and effect starts.
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Up {
     /// The effect's description.
     Described { owner: Token, description: Box<EffectDescription> },

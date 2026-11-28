@@ -1,6 +1,7 @@
 //! One repository's unread facts hold none of another's decisions (forge/catching-up.md, 2 and 4).
 #![expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "step stories collect and inspect requests")]
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
 use temper_engine_domain_forge_change as c;
 
@@ -115,7 +116,9 @@ fn one_wake(requests: &[Request], task: u64) {
     assert_eq!(requests.iter().filter(|r| **r == Request::WakeProcedure { task }).count(), 1, "{requests:?}");
 }
 fn no_report(requests: &[Request]) {
-    assert!(!requests.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(!requests.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
 }
 fn hold(repository: api::Repository, task: u64) -> Hold {
     Hold { name: name(repository), task, writer: None, design_writers: Box::new([]), beside: None, drift: None }
@@ -150,13 +153,18 @@ fn repositories_finish_independently_and_a_dropped_watch_ends_the_forge_pass() {
         e.now = e.now.saturating_add(Duration::from_secs(50));
         let mut out = Queue::uncapped();
         fire(&mut d, &e, &mut out);
-        assert!(!out.iter().any(|request| *request == Request::RestartDone { stage: RestartStage::ReadAfresh }));
+        assert!(!out.iter().any(|request| *request
+            == Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                stage: RestartStage::ReadAfresh
+            }))));
     }
     let done = outputs(
         &mut d,
         Event::Client(skein_forge_client::Event::Keep { owner: Token::new(900), watches: Box::new([]) }),
     );
-    assert!(done.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(done.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
     assert!(d.fresh_reads_in());
     assert!(d.repository_fresh(REPO));
     assert!(d.repository_fresh(OTHER));
@@ -218,9 +226,15 @@ fn a_done_producer_finishes_its_release_while_the_other_repository_is_limited() 
     assert_eq!(seen.iter().filter(|r| **r == Request::ContinueRelease { task: 72 }).count(), 1, "{seen:?}");
     assert!(!d.fresh_reads_in());
     let settled = outputs(&mut d, Event::ContinueRelease { task: 72, entry: 90 });
-    assert!(settled.contains(&Request::EffectsSettled { task: 72 }), "{settled:?}");
+    assert!(
+        settled.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: 72 }))),
+        "{settled:?}"
+    );
     let released = outputs(&mut d, Event::ContinueRelease { task: 72, entry: 90 });
-    assert!(released.contains(&Request::Released { task: 72 }), "{released:?}");
+    assert!(
+        released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 72 }))),
+        "{released:?}"
+    );
     assert_eq!(d.hold(&name(OTHER)).unwrap().writer, None);
     assert!(!d.repository_fresh(REPO));
     no_report(&seen);

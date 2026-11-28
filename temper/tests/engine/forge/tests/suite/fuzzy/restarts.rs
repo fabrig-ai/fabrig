@@ -1,4 +1,5 @@
 //! Restart faults over the connector's existing steps (testing/restarts.md, 9).
+use jig_domain_contract as contract;
 use std::convert::Infallible;
 
 use skein_lib::{Duration, Wall};
@@ -95,7 +96,9 @@ fn run(seed: u64, sweep: &Sweep) -> (Injector, usize) {
                     reconciling = true;
                     pending = false;
                 }
-                top::Request::RestartDone { stage: top::RestartStage::Settled } => reconciling = false,
+                top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                    stage: top::RestartStage::Settled,
+                })) => reconciling = false,
                 top::Request::ContinueGoalBranch { task: GOAL } => {
                     world.event(top::Event::ContinueGoalBranch { task: GOAL, entry: next_entry });
                     next_entry += 1;

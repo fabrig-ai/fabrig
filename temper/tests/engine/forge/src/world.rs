@@ -1,3 +1,4 @@
+use jig_domain_contract as contract;
 use skein_world::{
     faults::FaultLedger,
     streams::{Stream, Streams},
@@ -2317,15 +2318,15 @@ impl World {
                 top::Request::Settled { unfinished } => {
                     self.seen.push(top::Request::Settled { unfinished }).expect("world output capacity");
                 }
-                top::Request::RestartDone { stage } => {
+                restored @ top::Request::RestartDone { .. } => {
+                    restart = Some(top::Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)));
+                    self.seen.push(restored).expect("world output capacity");
+                }
+                done @ top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage })) => {
                     if stage == top::RestartStage::Settled {
                         self.settled_generation = Some((self.generation, self.env.now));
                     }
-                    restart = match stage {
-                        top::RestartStage::Restored => Some(top::Event::CatchUp),
-                        top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
-                    };
-                    self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
+                    self.seen.push(done).expect("world output capacity");
                 }
                 other @ top::Request::LandingDecision { task, decision, entry, .. } => {
                     use temper_engine_domain_forge_landing::Decision;
@@ -2391,19 +2392,14 @@ impl World {
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
-                | top::Request::ProjectionOutcome { .. }
-                | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
                 | top::Request::ContinueGoalBranch { .. }
-                | top::Request::EffectsSettled { .. }
-                | top::Request::Released { .. }
-                | top::Request::ProjectReleased { .. }
+                | top::Request::Up(_)
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::StepDependents { .. }
                 | top::Request::CloserChecked { .. }
                 | top::Request::ProjectAfter { .. }
-                | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingNews { .. }

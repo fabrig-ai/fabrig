@@ -130,7 +130,7 @@ fn after_interval(env: &Env<crate::Limits>) -> Wall {
 
 #[test]
 fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
-    use jig_domain_core::effects::connector::{Ask, EffectRefusal};
+    use jig_domain_core::effects::connector::EffectRefusal;
     for translate in [true, false] {
         let (mut domain, mut env, goal, first) = full_outbox();
         let mut out = Queue::uncapped();
@@ -158,7 +158,7 @@ fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
                 &env,
                 &mut decision,
                 connector,
-                Ask::Drop {
+                jig_domain_contract::effects::Ask::Drop {
                     owner,
                     answer: jig_domain_authority::Answer::Refuse,
                     findings: Box::new([]),

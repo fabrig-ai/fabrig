@@ -1,4 +1,5 @@
 use super::*;
+use jig_domain_contract as contract;
 
 const EARLIER_PARTY: u64 = 0;
 const PARTY: u64 = 7;
@@ -191,7 +192,8 @@ fn erase_project_erases_every_fact() {
     ] {
         outputs(&mut d, Event::Restore { record });
     }
-    let released = outputs(&mut d, Event::ReleaseProject { project: 1, request: REQUEST });
+    let released =
+        outputs(&mut d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 1 })));
     assert_eq!(
         released.as_ref(),
         [
@@ -201,7 +203,7 @@ fn erase_project_erases_every_fact() {
             Request::Erase { key: Key::Dismissed { party: PARTY, what: first } },
             Request::Erase { key: Key::Dismissed { party: PARTY, what: other } },
             Request::Erase { key: Key::Dismissed { party: OTHER_PARTY, what: PersonFact::ToBegin { project: 1 } } },
-            Request::ProjectReleased { request: REQUEST },
+            project_released(1),
         ]
     );
     assert_eq!(d.dismissals(PARTY).as_ref(), [PersonFact::ToBegin { project: 2 }]);
@@ -212,8 +214,9 @@ fn erase_project_erases_every_fact() {
 fn a_release_with_no_dismissals_marks_nothing() {
     let mut d = restore_rows(1);
     assert_eq!(
-        outputs(&mut d, Event::ReleaseProject { project: 1, request: REQUEST }).as_ref(),
-        [Request::ProjectReleased { request: REQUEST }]
+        outputs(&mut d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 1 })))
+            .as_ref(),
+        [project_released(1)]
     );
     assert_eq!(d.dismissals(PARTY).as_ref(), [PersonFact::ToBegin { project: 0 }]);
 }

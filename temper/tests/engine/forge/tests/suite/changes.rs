@@ -1,4 +1,5 @@
 //! Change history and catch-up production (temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/updates.md, 1).
+use jig_domain_contract as contract;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{World, changes};
@@ -127,7 +128,9 @@ fn another_hands_merge_ends_cancelled_or_no_change_without_pull_cleanup() {
             world.run_for(1);
             for request in world.take_seen() {
                 match request {
-                    top::Request::Released { task: CHANGE } => released = true,
+                    top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: CHANGE })) => {
+                        released = true;
+                    }
                     top::Request::ContinueRelease { task: CHANGE } => {
                         world.event(top::Event::ContinueRelease { task: CHANGE, entry });
                     }

@@ -295,6 +295,114 @@ pub(crate) fn start_refused(domain: &mut Domain, task: u64) {
     }
 }
 
+/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge/change/gates.md, 3).
+pub(in crate::route) fn hold_changed_charter(
+    domain: &mut Domain,
+    task: u64,
+    step: u64,
+    delegation: Option<temper_engine_domain_forge_change::Delegate>,
+    refusal: &jig_domain_core::StepRefusal,
+) -> bool {
+    use temper_engine_domain_forge_change::{Delegate, GateKind};
+    let Some((owner, 2, current)) = domain.engine.core().tasks.procedure_due(task) else { return false };
+    if owner != domain.config.forge_connector || current != step {
+        return false;
+    }
+    let Some(row) = domain.forge.change(task) else { return false };
+    let (role, charter): (&[u8], u32) = match delegation {
+        Some(Delegate::Gate { number, .. }) => {
+            let mut kind = None;
+            for gate in &row.change.gates {
+                if gate.number == number {
+                    kind = Some(gate.kind);
+                    break;
+                }
+            }
+            match kind {
+                Some(GateKind::Agent) => (b"review", row.review_charter),
+                Some(GateKind::Check) => (b"producer", row.producing_charter),
+                Some(GateKind::Person | GateKind::Follow) | None => return false,
+            }
+        }
+        Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
+            (b"producer", row.producing_charter)
+        }
+        Some(Delegate::Merge { .. } | Delegate::Close) | None => return false,
+    };
+    let model = match refusal {
+        jig_domain_core::StepRefusal::Denied { findings, .. }
+            if executor_refused(findings)
+                && (!domain
+                    .engine
+                    .core()
+                    .authority
+                    .rules()
+                    .ceiling
+                    .delegation
+                    .kinds
+                    .contains(&jig_domain_authority::Executor::Charter(charter))
+                    || domain.engine.core().charter(charter).is_none()) =>
+        {
+            None
+        }
+        jig_domain_core::StepRefusal::Refused(tasks::Problem {
+            why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Charter },
+            ..
+        }) => Some(*model),
+        jig_domain_core::StepRefusal::Moved { .. }
+        | jig_domain_core::StepRefusal::Refused(_)
+        | jig_domain_core::StepRefusal::Denied { .. } => {
+            return false;
+        }
+    };
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append_hold(&mut words, b"the change's ");
+    append_hold(&mut words, role);
+    match model {
+        Some(model) => {
+            append_hold(&mut words, b" choice names model ");
+            let Some(model) = domain.engine.core().settings.models.get(usize::from(model)) else { return false };
+            append_hold(&mut words, &model.name);
+            append_hold(&mut words, b", which charter ");
+            append_hold(&mut words, &decimal(u64::from(charter)));
+            append_hold(&mut words, b" no longer allows");
+        }
+        None => {
+            append_hold(&mut words, b" charter ");
+            append_hold(&mut words, &decimal(u64::from(charter)));
+            append_hold(&mut words, b" is no longer offered");
+        }
+    }
+    append_hold(&mut words, b"; cancel the change or make it again");
+    domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
+        task,
+        why: tasks::Hold::Procedure,
+        source: Box::new(tasks::HoldSource::Account {
+            connector: domain.config.forge_connector,
+            entry: None,
+            words: words.into_boxed(),
+        }),
+    }));
+    true
+}
+
+fn executor_refused(findings: &[jig_domain_authority::Finding]) -> bool {
+    for finding in findings {
+        if let jig_domain_authority::Finding::Executor { .. } = finding {
+            return true;
+        }
+    }
+    false
+}
+
+fn append_hold(words: &mut List<u8>, bytes: &[u8]) {
+    for byte in bytes {
+        if words.room() > 0 {
+            words.push(*byte).expect("checked hold account room");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,6 +482,7 @@ mod tests {
 
     #[test]
     fn a_taking_routes_the_cores_entry_to_the_forge() {
+        use jig_domain_contract::{Ask, resources};
         const ENTRY: u64 = 21;
         let (mut domain, env, task) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
         let connector = domain.config.forge_connector;
@@ -384,9 +493,9 @@ mod tests {
             &env,
             &mut decision,
             connector,
-            jig_domain_core::Ask::Hold { task, resource, entry: ENTRY },
+            Ask::Resources(resources::Ask::Hold { task, resource: resource.clone(), entry: ENTRY }),
         );
         let Some(Work::Forge(event)) = domain.work.pop() else { panic!("the forge hears the taking") };
-        assert_eq!(event, forge::Event::Hold { entry: ENTRY, task, resource: goal_branch(), from: None });
+        assert_eq!(event, forge::Event::Ask(Ask::Resources(resources::Ask::Hold { entry: ENTRY, task, resource })));
     }
 }

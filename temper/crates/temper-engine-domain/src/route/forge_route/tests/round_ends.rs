@@ -5,8 +5,9 @@ use super::{
 };
 use crate::{Domain, Limits, Work, route::forge_route as route};
 use jig_domain_authority as authority;
+use jig_domain_contract::{Ask, Up, effects};
 use jig_domain_core as core;
-use jig_domain_core::effects::connector;
+use jig_domain_core::engine::{In, Out};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
@@ -669,7 +670,7 @@ impl Round {
         }
         assert_eq!(outcome.len(), 1, "the refused deletion answers its outbox entry");
         self.route(outcome);
-        let Some(Work::Core(jig_domain_core::Event::EffectConnector(_))) = self.domain.work.pop() else {
+        let Some(Work::Connector(_, Up::Effects(effects::Up::Outbox { .. }))) = self.domain.work.pop() else {
             panic!("the root settles the connector's outbox entry without a hold")
         };
         assert!(self.domain.work.is_empty(), "the outbox answer did not ask for a second hold");
@@ -815,38 +816,34 @@ fn a_landings_merge_is_refused_while_its_dependency_is_pending() {
     let mut decision = crate::Decision::decide(&mut r.domain.journal, &r.env.limits.journal);
     let describe = r.core_requests(start);
     crate::route::route_core_requests(&mut r.domain, &r.env, &mut decision, describe);
-    let Some(Work::Core(described @ core::Event::EffectConnector(connector::Event::Described { .. }))) =
-        r.domain.work.pop()
+    let Some(Work::Connector(number, described @ Up::Effects(effects::Up::Described { .. }))) = r.domain.work.pop()
     else {
         panic!("the landing describes its merge: {:?}", r.domain.work)
     };
-    let judges = r.core_requests(described);
-    crate::route::route_core_requests(&mut r.domain, &r.env, &mut decision, judges);
+    let judges = crate::engine::step(&mut r.domain.engine, &r.env, In::Connector(number, described));
+    crate::route::route_engine_requests(&mut r.domain, &r.env, &mut decision, judges);
     let mut result = Queue::uncapped();
     while let Some(work) = r.domain.work.pop() {
-        let Work::Core(verdict @ core::Event::EffectConnector(connector::Event::Verdict { .. })) = work else {
+        let Work::Connector(number, verdict @ Up::Effects(effects::Up::Verdict { .. })) = work else {
             panic!("the landing's judges reply: {work:?}")
         };
-        let mut requests = r.core_requests(verdict);
+        let mut requests = crate::engine::step(&mut r.domain.engine, &r.env, In::Connector(number, verdict));
         while let Some(request) = requests.pop() {
             result.push(request);
         }
     }
     let mut refused = false;
     for request in &result {
-        if let core::Request::Ask {
-            ask:
-                core::Ask::Effect(connector::Ask::Drop {
-                    owner: dropped, why: connector::EffectRefusal::Dependencies, ..
-                }),
-            ..
-        } = request
+        if let Out::Ask(
+            _,
+            Ask::Effects(effects::Ask::Drop { owner: dropped, why: effects::EffectRefusal::Dependencies, .. }),
+        ) = request
         {
             refused |= *dropped == owner;
         }
     }
     assert!(refused, "{result:?}");
-    crate::route::route_core_requests(&mut r.domain, &r.env, &mut decision, result);
+    crate::route::route_engine_requests(&mut r.domain, &r.env, &mut decision, result);
     crate::route::route_into(&mut r.domain, &r.env, &mut decision);
 
     let row = r.domain.forge.landing(r.task).expect("landing remains");

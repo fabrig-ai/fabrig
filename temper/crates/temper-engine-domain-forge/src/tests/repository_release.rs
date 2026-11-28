@@ -5,9 +5,13 @@
     reason = "ordinary stored-row fixtures use growable vectors"
 )]
 use super::*;
-use crate::tests::{adopted, domain_with_limits, env, fixtures, outputs as drive, reconcile as links, restore_fit};
+use crate::tests::{
+    adopted, domain_with_limits, env, fixtures, outputs as drive, project_released, reconcile as links, restore_fit,
+};
 use crate::*;
+use jig_domain_contract as contract;
 use skein_forge::api;
+use skein_lib::Token;
 use temper_engine_domain_forge_landing as policy;
 
 const R: api::Repository = api::Repository { forge: 1, repository: 10 };
@@ -194,8 +198,8 @@ fn at(d: &mut Domain, l: &Limits, event: Event) -> Box<[Request]> {
     }
     requests.into_boxed_slice()
 }
-fn released(d: &mut Domain, project: u32, request: u64) -> Box<[Request]> {
-    drive(d, Event::ReleaseProject { project, request: Token::new(request) })
+fn released(d: &mut Domain, project: u32) -> Box<[Request]> {
+    drive(d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project })))
 }
 fn erases(requests: &[Request]) -> Vec<Key> {
     let mut keys = Vec::new();
@@ -284,7 +288,7 @@ fn a_project_release_erases_every_owned_family_and_keeps_other_adoptions() {
     at(&mut d, &l, Event::Restore { record: Stored::Receipt { key, receipt } });
     assert_eq!(d.fit_restored(&l), Ok(()));
     at(&mut d, &l, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let requests = released(&mut d, 5, 100);
+    let requests = released(&mut d, 5);
     let erased = erases(&requests);
     assert!(erased.contains(&own_receipt), "deleted project receipt of kept context");
     for (key, _) in &owned {
@@ -298,7 +302,7 @@ fn a_project_release_erases_every_owned_family_and_keeps_other_adoptions() {
     let flight = position(&erased, &Key::Flight { task: 1, entry: 1 });
     let entry = position(&erased, &Key::Entry(1));
     assert!(flight < entry);
-    assert_eq!(requests.last(), Some(&Request::ProjectReleased { request: Token::new(100) }));
+    assert_eq!(requests.last(), Some(&project_released(5)));
     assert_empty(&d, R, 1);
     assert_eq!(d.repository(Q).unwrap().project, 6);
     assert_eq!(d.repository(S).unwrap().project, 6);
@@ -316,9 +320,9 @@ fn a_project_release_erases_every_owned_family_and_keeps_other_adoptions() {
             "unrelated save: {row:?}"
         );
     }
-    assert_eq!(released(&mut d, 5, 101).as_ref(), &[Request::ProjectReleased { request: Token::new(101) }]);
+    assert_eq!(released(&mut d, 5).as_ref(), &[project_released(5)]);
     let mut empty = domain_with_limits(&l);
-    assert_eq!(released(&mut empty, 5, 102).as_ref(), &[Request::ProjectReleased { request: Token::new(102) }]);
+    assert_eq!(released(&mut empty, 5).as_ref(), &[project_released(5)]);
 }
 
 fn open(d: &mut Domain, l: &Limits) {
@@ -377,8 +381,14 @@ fn fire_page(d: &mut Domain, l: &Limits) -> Box<[Request]> {
     }
     requests.into_boxed_slice()
 }
-fn completed(requests: &[Request], token: u64) -> bool {
-    requests.contains(&Request::ProjectReleased { request: Token::new(token) })
+fn completed(requests: &[Request]) -> usize {
+    let mut count = 0_usize;
+    for request in requests {
+        if *request == project_released(5) {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
 }
 fn paging_seed() -> (Limits, Vec<(Key, Stored)>) {
     let l =
@@ -435,8 +445,9 @@ fn release_pages_are_bounded_link_whole_and_restartable_at_every_cut() {
     d.link_names(&links::empty_tasks(), &l);
     assert_eq!(d.missing_link(&links::empty_tasks()), None);
     at(&mut d, &l, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let mut page = at(&mut d, &l, Event::ReleaseProject { project: 5, request: Token::new(100) });
-    assert!(!completed(&page, 100));
+    let mut page =
+        at(&mut d, &l, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })));
+    assert_eq!(completed(&page), 0);
     let mut pages = 0_u32;
     for _ in 0_u32..10 {
         pages = pages.checked_add(1).unwrap();
@@ -457,13 +468,21 @@ fn release_pages_are_bounded_link_whole_and_restartable_at_every_cut() {
         restarted.link_names(&links::empty_tasks(), &l);
         assert_eq!(restarted.missing_link(&links::empty_tasks()), None, "cut after page {pages}");
         at(&mut restarted, &l, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        let mut rest = at(&mut restarted, &l, Event::ReleaseProject { project: 5, request: Token::new(200) });
-        let mut answered = completed(&rest, 200);
+        let mut rest = at(
+            &mut restarted,
+            &l,
+            Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })),
+        );
+        let mut answered = completed(&rest);
         let mut repeated = false;
-        if !answered {
-            rest = at(&mut restarted, &l, Event::ReleaseProject { project: 5, request: Token::new(201) });
+        if answered == 0 {
+            rest = at(
+                &mut restarted,
+                &l,
+                Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })),
+            );
             repeated = true;
-            answered = completed(&rest, 200);
+            answered = completed(&rest);
         }
         for _ in 0_u32..10 {
             assert!(writes(&rest) <= 512);
@@ -473,30 +492,31 @@ fn release_pages_are_bounded_link_whole_and_restartable_at_every_cut() {
                     "the restored client still admits the watch union"
                 );
             }
-            if answered {
+            if answered != 0 {
                 break;
             }
             assert_eq!(restarted.next_wall_deadline(), Some(skein_lib::Wall::from_nanos(0)));
             rest = fire_page(&mut restarted, &l);
-            answered = completed(&rest, 200);
+            answered = completed(&rest);
         }
-        assert!(answered, "restored release must answer");
+        assert!(answered != 0, "restored release must answer");
         if repeated {
-            assert!(completed(&rest, 201), "the repeated release waits for the same last page");
+            assert_eq!(answered, 2, "the repeated release waits for the same last page");
         }
         assert!(!pending(&restarted));
-        if completed(&page, 100) {
+        if completed(&page) != 0 {
             break;
         }
         assert_eq!(d.next_wall_deadline(), Some(skein_lib::Wall::from_nanos(0)));
         page = fire_page(&mut d, &l);
     }
     assert!(pages > 1);
-    assert!(completed(&page, 100));
+    assert_eq!(completed(&page), 1);
     assert!(!pending(&d));
     assert_eq!(
-        at(&mut d, &l, Event::ReleaseProject { project: 5, request: Token::new(101) }).as_ref(),
-        &[Request::ProjectReleased { request: Token::new(101) }]
+        at(&mut d, &l, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })))
+            .as_ref(),
+        &[project_released(5)]
     );
 }
 
@@ -534,7 +554,7 @@ fn a_released_repository_retires_its_ci_read_and_ignores_the_answer() {
     let owner = *owner;
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, api::Op::Read(api::Read::Checks { commit: [3; 32] }));
-    released(&mut d, 5, 100);
+    released(&mut d, 5);
     assert!(d.pending_ci.is_empty(), "release retires CI reads in its decision");
     assert!(!d.ci.contains_key(&(R, [3; 32])));
     let result = Ok(api::Answer::Checks(Box::new([])));
@@ -552,7 +572,7 @@ fn late_branch_pull_and_client_rows_do_not_recreate_a_released_repository() {
     let l = limits();
     let mut d = restore(&[(Key::Repository(R), adoption(R, 5))], &l);
     open(&mut d, &l);
-    released(&mut d, 5, 100);
+    released(&mut d, 5);
     let resource = skein_forge_client::Resource {
         repository: R,
         what: skein_forge_client::What::Branch(b"temper/x".as_slice().into()),
@@ -616,7 +636,7 @@ fn a_sent_entrys_late_outcome_is_dropped_after_its_repository_is_released() {
         (call, op) = fixtures::next_call(&mut d);
     }
     assert!(matches!(op, api::Op::Write(api::Write::Status { .. })), "entry was sent before release: {op:?}");
-    released(&mut d, 5, 100);
+    released(&mut d, 5);
     assert!(d.entries.is_empty());
     assert!(d.flights.is_empty());
     let requests = fixtures::answer(&mut d, call, Ok(api::Answer::Done));
@@ -656,7 +676,7 @@ fn a_rolled_back_adoption_releases_every_repository_family_too() {
     }
     assert_eq!(erased.last(), Some(&Key::Repository(R)));
     for request in requests {
-        assert!(!matches!(request, Request::ProjectReleased { .. }));
+        assert_ne!(request, project_released(5));
     }
     assert_empty(&d, R, 1);
 }

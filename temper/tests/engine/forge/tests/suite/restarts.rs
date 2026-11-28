@@ -1,4 +1,5 @@
 //! Each restart fault alone, at a named boundary (testing/restarts.md, 5 and 10).
+use jig_domain_contract as contract;
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api::{Error, Op, Read};
 use skein_lib::{Duration, Time, Wall};
@@ -57,7 +58,13 @@ fn entry(injector: &Injector, kind: Kind, from: Time, until: Option<Time>) {
 }
 
 fn stage_seen(world: &World, stage: top::RestartStage) -> bool {
-    world.seen().contains(&top::Request::RestartDone { stage })
+    let expected = match stage {
+        top::RestartStage::Restored => top::Request::RestartDone { stage },
+        top::RestartStage::ReadAfresh | top::RestartStage::Settled => {
+            top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage }))
+        }
+    };
+    world.seen().contains(&expected)
 }
 
 #[test]
@@ -229,7 +236,11 @@ fn missing_held_branch_is_read_before_it_is_made() {
     let seen = world.seen();
     let settle = seen
         .iter()
-        .position(|r| *r == top::Request::RestartDone { stage: top::RestartStage::Settled })
+        .position(|r| {
+            *r == top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                stage: top::RestartStage::Settled,
+            }))
+        })
         .expect("settle");
     let making = seen.iter().position(|r| *r == top::Request::ContinueGoalBranch { task: GOAL }).expect("making");
     assert!(answered <= making, "the branch read answers before the making request");
@@ -277,7 +288,9 @@ fn lost_made_writes_find_is_refused_after_restart() {
     assert_eq!(finds.len(), world.restart_answers().len(), "every find refused");
     assert!(world.restart_answers().iter().all(|(_, _, error)| *error == Error::Unavailable));
     assert!(
-        world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }),
+        world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: top::RestartStage::ReadAfresh
+        }))),
         "other reads finish; only the uncertain write's find fails"
     );
     assert_eq!(world.writes(), 1, "made write not repeated");

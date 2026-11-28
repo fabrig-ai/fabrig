@@ -23,7 +23,7 @@ pub enum AdoptionRole {
 }
 
 /// One party the connector learned while adopting a resource.
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct AdoptedParty {
     pub subject: Box<[u8]>,
     pub role: Role,

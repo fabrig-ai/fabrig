@@ -892,6 +892,7 @@ pub(crate) enum Work {
     Decoded { to: ReplyTo, body: Call },
     ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
+    Connector(jig_domain_contract::Connector, jig_domain_contract::Up),
     EngineStore(engine_store::In),
     Tasks(tasks::Event),
     RepairFindings { goal: u64, writes: Box<[forge::FindingWrite]> },

@@ -2,7 +2,11 @@
 //! (temper/docs/design/domain/routing.md, 6;
 //! temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 use alloc::boxed::Box;
-use jig_domain_core::{Event, effects::connector, settings::application};
+use jig_domain_contract::{Up, settings as application};
+use jig_domain_core::{
+    Event,
+    settings::application::{Follows, SizedEdit},
+};
 use skein_lib::{Decimal, Env, List, Queue};
 use temper_engine_domain_forge::settings;
 
@@ -12,26 +16,19 @@ mod follows;
 mod landing;
 pub(super) use landing::restored as restored_repairs;
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
-pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, number: u16, ask: connector::Ask) {
-    if number != domain.config.forge_connector {
-        return;
-    }
+pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, ask: application::Ask) {
     let mut out = Queue::uncapped();
     match ask {
-        connector::Ask::JudgeSettings { owner, revision: _, proposal, items } => {
+        application::Ask::Judge { owner, revision: _, proposal, items } => {
             let bounds = bounds(&env.limits);
             let mut judged = List::uncapped();
             for item in &items {
                 let answer = judge(domain, &bounds, env.limits.authority.roles, owner, proposal, item);
                 judged.push(answer).expect("one judgement per asked item");
             }
-            domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsJudged {
-                owner,
-                judged: judged.into_boxed(),
-            })));
+            super::forge_up(domain, Up::Settings(application::Up::Judged { owner, judged: judged.into_boxed() }));
         }
-        connector::Ask::KeepSettings { revision, proposal, items } => {
+        application::Ask::Keep { revision, proposal, items } => {
             let asked = typed_items(domain, proposal, &items);
             let holders = super::findings::settings_holders(domain, &asked);
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
@@ -57,18 +54,17 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 }
             }
         }
-        connector::Ask::KeepProposalSettings { proposal, items } => {
+        application::Ask::KeepProposal { proposal, items } => {
             let asked = typed_items(domain, None, &items);
             domain.forge.keep_proposal_settings(proposal, &asked, &mut out);
         }
-        connector::Ask::RestoreSettings { owner, proposal, items } => {
+        application::Ask::Restore { owner, proposal, items } => {
             let judged = restore(domain, &bounds(&env.limits), env.limits.authority.roles, proposal, &items, &mut out);
-            domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged })));
+            super::forge_up(domain, Up::Settings(application::Up::Restored { owner, judged }));
         }
-        connector::Ask::ForgetReplaced { before } => domain.forge.forget_replaced(before, &mut out),
-        connector::Ask::DropProposalSettings { proposal } => domain.forge.drop_proposal_settings(proposal, &mut out),
-        connector::Ask::SaveSettingsDefaults { revision } => save_defaults(domain, revision, &mut out),
-        _ => unreachable!("the forge routes only its settings asks here"),
+        application::Ask::ForgetReplaced { .. }
+        | application::Ask::DropProposal { .. }
+        | application::Ask::SaveDefaults { .. } => unreachable!("the forge owns these settings asks"),
     }
     if !out.is_empty() {
         domain.work.push(Work::ForgeSettings(out));
@@ -90,8 +86,8 @@ pub(super) fn restored_figures(domain: &Domain, env: &Env<Limits>, decision: &mu
     let setting = jig_domain_core::settings::Setting::Application { kind: 21, scope: 0, number: 1 };
     let revision = match domain.engine.core().current.applications.get(&setting) {
         Some(state) => match state.follows {
-            application::Follows::Default => 1,
-            application::Follows::Changed { revision } | application::Follows::Removed { revision } => revision,
+            Follows::Default => 1,
+            Follows::Changed { revision } | Follows::Removed { revision } => revision,
         },
         None => 1,
     };
@@ -105,7 +101,7 @@ fn restore(
     proposal: u64,
     items: &[application::Restored],
     out: &mut Queue<temper_engine_domain_forge::Request>,
-) -> Box<[connector::Judged]> {
+) -> Box<[application::Judged]> {
     let answers = domain.forge.restore_settings(bounds, proposal, items, out);
     let kept = domain.forge.proposal_settings(proposal);
     let mut judged = List::uncapped();
@@ -113,7 +109,7 @@ fn restore(
     let mut refused = false;
     for (item, answer) in items.iter().zip(answers.iter()) {
         let mut answer = match answer.clone() {
-            settings::Judged::Refuse(settings::Refusal::Retired) => connector::Judged::Refuse {
+            settings::Judged::Refuse(settings::Refusal::Retired) => application::Judged::Refuse {
                 why: settings::retired_words(settings::SettingKey {
                     kind: item.kind,
                     scope: item.scope,
@@ -122,10 +118,10 @@ fn restore(
                 }),
             },
             settings::Judged::Refuse(why) if item.kind == 13 => {
-                connector::Judged::Refuse { why: dependencies::words(item.number, &[&why.words()]) }
+                application::Judged::Refuse { why: dependencies::words(item.number, &[&why.words()]) }
             }
             settings::Judged::Refuse(why) if item.kind == 12 => {
-                connector::Judged::Refuse { why: follows::words(item.number, &[&why.words()]) }
+                application::Judged::Refuse { why: follows::words(item.number, &[&why.words()]) }
             }
             settings::Judged::Accept { .. } | settings::Judged::Same | settings::Judged::Refuse(_) => {
                 judgement(answer.clone())
@@ -144,7 +140,7 @@ fn restore(
                     .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked)),
             };
             if let Some(why) = why {
-                answer = connector::Judged::Refuse { why };
+                answer = application::Judged::Refuse { why };
                 refused = true;
             } else {
                 accepted.push(asked).expect("one retained edit per accepted restore");
@@ -160,17 +156,17 @@ fn restore(
     judged.into_boxed()
 }
 
-fn judgement(answer: settings::Judged) -> connector::Judged {
+fn judgement(answer: settings::Judged) -> application::Judged {
     match answer {
-        settings::Judged::Accept { size, charter } => connector::Judged::Accept {
+        settings::Judged::Accept { size, charter } => application::Judged::Accept {
             size,
             charters: match charter {
                 Some(charter) => Box::new([charter]),
                 None => Box::default(),
             },
         },
-        settings::Judged::Same => connector::Judged::Same,
-        settings::Judged::Refuse(why) => connector::Judged::Refuse { why: why.words() },
+        settings::Judged::Same => application::Judged::Same,
+        settings::Judged::Refuse(why) => application::Judged::Refuse { why: why.words() },
     }
 }
 
@@ -181,9 +177,9 @@ fn judge(
     owner: skein_lib::Token,
     proposal: Option<u64>,
     item: &application::Item,
-) -> connector::Judged {
+) -> application::Judged {
     let Some(asked) = typed(domain, proposal, item) else {
-        return connector::Judged::Refuse {
+        return application::Judged::Refuse {
             why: match item.kind {
                 14 => b"areas: value does not decode".as_slice().into(),
                 15 => b"triager: value does not decode".as_slice().into(),
@@ -196,10 +192,10 @@ fn judge(
     let answer = answers.first().expect("one forge judgement per item").clone();
     match answer {
         settings::Judged::Refuse(why) if asked.kind == 13 => {
-            connector::Judged::Refuse { why: dependencies::words(asked.number, &[&why.words()]) }
+            application::Judged::Refuse { why: dependencies::words(asked.number, &[&why.words()]) }
         }
         settings::Judged::Refuse(why) if asked.kind == 12 => {
-            connector::Judged::Refuse { why: follows::words(asked.number, &[&why.words()]) }
+            application::Judged::Refuse { why: follows::words(asked.number, &[&why.words()]) }
         }
         settings::Judged::Refuse(_) => judgement(answer),
         settings::Judged::Accept { .. } | settings::Judged::Same => {
@@ -210,7 +206,7 @@ fn judge(
                 .or(landing::refusal(domain, &asked))
                 .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked))
             {
-                Some(why) => connector::Judged::Refuse { why },
+                Some(why) => application::Judged::Refuse { why },
                 None => judgement(answer),
             }
         }
@@ -481,13 +477,6 @@ fn typed_items(domain: &Domain, proposal: Option<u64>, items: &[application::Ite
             .expect("one typed value per kept item");
     }
     asked.into_boxed()
-}
-
-fn save_defaults(domain: &mut Domain, revision: Option<u64>, out: &mut Queue<temper_engine_domain_forge::Request>) {
-    if let Some(revision) = revision {
-        domain.forge.remember_settings_defaults(revision, out);
-    }
-    domain.forge.save_settings_defaults(out);
 }
 
 /// Settings reads require membership in their requested scope (temper/docs/design/client/forge/served.md).
@@ -791,7 +780,7 @@ fn revision_value(
     let mut value = None;
     for item in &record.applications {
         if (item.kind, item.scope, item.number) == selector
-            && let application::SizedEdit::Set { .. } = item.edit
+            && let SizedEdit::Set { .. } = item.edit
         {
             if let Some(kept) = domain.forge.revision_setting(item.kind, item.scope, item.number, revision) {
                 value = Some(Box::new(kept.clone()));

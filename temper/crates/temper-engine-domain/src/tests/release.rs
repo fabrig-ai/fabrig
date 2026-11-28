@@ -1,6 +1,7 @@
 //! Project release answers cross the journal barrier
 //! (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
 use super::*;
+use jig_domain_contract::{Ask, Up, lifecycle};
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -9,16 +10,20 @@ fn release_answers_project_released_after_its_commit() {
     let connector = domain.config.forge_connector;
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let mut requests = Queue::uncapped();
-    requests
-        .push(jig_domain_core::Request::Ask { connector, ask: jig_domain_core::Ask::ReleaseProject { project: 1 } });
+    requests.push(jig_domain_core::Request::Ask {
+        connector,
+        ask: jig_domain_core::Ask::Connector(Ask::Lifecycle(lifecycle::Ask::ReleaseProject { project: 1 })),
+    });
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
-    let Some(crate::Work::Forge(forge::Event::ReleaseProject { project: 1, request })) = domain.work.pop() else {
+    let Some(crate::Work::Forge(forge::Event::Ask(Ask::Lifecycle(lifecycle::Ask::ReleaseProject { project: 1 })))) =
+        domain.work.pop()
+    else {
         panic!("release reaches the forge");
     };
     let mut child = Queue::uncapped();
     let repository = skein_forge::api::Repository { forge: 1, repository: 2 };
     child.push(forge::Request::Erase { key: forge::Key::Repository(repository) });
-    child.push(forge::Request::ProjectReleased { request });
+    child.push(forge::Request::Up(Up::Lifecycle(lifecycle::Up::Released { project: 1 })));
     crate::route::forge_route::outputs(&mut domain, &env, &mut decision, &mut child);
     // Ways invalidation may ask for a document whose delivery shares this barrier.
     while let Some(work) = domain.work.pop() {
