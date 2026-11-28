@@ -699,6 +699,50 @@ mod tests {
     }
 
     #[test]
+    fn copied_case_charters_keep_their_settings_and_distinct_names() {
+        use serde_json::json;
+        use skein_lib::Duration;
+        use std::collections::BTreeSet;
+
+        const SHORT_WAIT_MS: u64 = 5;
+        const CHAT: u32 = 1;
+        const IMPLEMENTER: u32 = 2;
+        let deferred = ([127, 0, 0, 1], 0).into();
+        let (_, config) = configured(crate::case::fixture(), deferred, deferred);
+        for (flag, value, wait, resume, brief) in [
+            ("second_wait_ms", json!(SHORT_WAIT_MS), Some(SHORT_WAIT_MS), None, None),
+            ("second_resume", json!(false), None, Some(false), None),
+            ("owner_brief", json!(true), None, None, Some(crate::case::OLD_BRIEF.as_bytes())),
+        ] {
+            let mut flags = config["world_settings"].clone();
+            flags[flag] = value;
+            let temper_service::stock::Given::Own { jig: defaults, .. } = own_defaults(&config, &flags) else {
+                panic!("the real loop supplies its own defaults")
+            };
+            let mut names = BTreeSet::new();
+            for (kind, name) in defaults
+                .charters
+                .iter()
+                .map(|c| ("charter", &c.name))
+                .chain(defaults.templates.iter().map(|t| ("template", &t.name)))
+                .chain(defaults.policies.iter().map(|(_, p)| ("policy", &p.name)))
+            {
+                if let Some(name) = name {
+                    assert!(names.insert((kind, name.as_ref())), "{flag}: duplicate {kind} name {name:?}");
+                }
+            }
+            let chat = defaults.charters.iter().find(|c| c.number == CHAT).expect("chat charter");
+            let copy = defaults.charters.iter().find(|c| c.number == IMPLEMENTER).expect("copied charter");
+            let mut expected = chat.policy.clone();
+            expected.waiting = wait.map_or(expected.waiting, Duration::from_millis);
+            expected.resume = resume.unwrap_or(expected.resume);
+            expected.instructions = brief.map_or(expected.instructions, skein_lib::bytes::copy_of);
+            assert_eq!(copy.policy, expected, "{flag}: copied run policy");
+            assert_eq!(copy.name.as_deref(), Some(b"implementer".as_slice()));
+        }
+    }
+
+    #[test]
     fn the_stopped_owner_fixture_fits_its_stock_charters() {
         let deferred = ([127, 0, 0, 1], 0).into();
         let (_, config) = configured(crate::case::fixture_5_2(), deferred, deferred);
