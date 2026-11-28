@@ -9,6 +9,7 @@ mod notes;
 pub mod outcome;
 pub mod pending;
 pub(crate) mod roles;
+mod runs;
 pub mod task_source;
 mod turn;
 pub(super) mod visibility;
@@ -270,11 +271,17 @@ pub trait Parts: core::fmt::Debug {
 
     fn diagnostic_prefix(&self) -> &'static [u8];
     fn command_prefix(&self) -> &'static [u8];
+    /// The repository directory of project charter files, with its trailing slash.
+    fn project_charter_directory(&self) -> &'static [u8];
     /// What a hold for failed runs asks first.
     fn failures_recovery(&self) -> &'static [u8];
     fn phrasebook(&self, text: u32) -> skein_ui::phrases::Phrasebook;
     /// An application procedure may refuse a repeat choice before the act is submitted.
     fn release_again_refusal(&self, _task: &contract::Task) -> Option<&'static [u8]> {
+        None
+    }
+    /// A host's local file command reads the newest setting named by argument zero.
+    fn file_setting(&self, _call: &crate::jig::call::Call) -> Option<crate::jig::names::Kind> {
         None
     }
     /// Resolve the host's setting selector before reading the inventory.
@@ -539,6 +546,12 @@ pub(crate) fn reads(
         };
         return notes::print(page, &reading.called.call, reading.called.json, limits);
     }
+    if reading.called.call.tool == crate::jig::rows::TASK_RUNS_AT {
+        let Some(Readout::Jig(ReadResult::Value(ReadValue::History(page)))) = reading.pages.get(&1) else {
+            unreachable!("validated history page")
+        };
+        return runs::print(page, &reading.called.call, reading.called.json, limits);
+    }
     document::print(document::Document::ReadSet(reading, party, wall), reading.called.json, limits, vocabulary)
 }
 
@@ -554,11 +567,17 @@ fn deleted_project(project: u32) -> Box<[u8]> {
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
+        (crate::jig::rows::SETTING_AT, 1, ReadValue::Setting(document))
+            if crate::jig::settings_file::preview_project(call).is_some() =>
+        {
+            if document::settings::valid_preview(document) { Ok(()) } else { Err(()) }
+        }
         (crate::jig::rows::ROLE_LIST_AT | 2, 1, ReadValue::Tasks(_))
         | (crate::jig::rows::ROLE_LIST_AT, 8.., ReadValue::Notes(_))
         | (crate::jig::rows::WAITS_AT, 1, ReadValue::Waits(_))
         | (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
         | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
+        | (crate::jig::rows::TASK_RUNS_AT, 1, ReadValue::History(_))
         | (crate::jig::rows::DEPLOYMENT_CENSUS_AT | crate::jig::rows::WORKER_LIST_AT, 1, ReadValue::Deployment(_))
         | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))

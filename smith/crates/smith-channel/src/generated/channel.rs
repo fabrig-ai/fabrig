@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 14;
 pub const LAYOUT: [u8; 32] = [
-    0x83, 0x3e, 0x35, 0x5d, 0xb3, 0x83, 0xc8, 0x22, 0x89, 0x12, 0x90, 0xe2, 0xd8, 0x15, 0x36, 0x5b, 0x3d, 0x54, 0xd9,
-    0x5a, 0x0c, 0x6b, 0xb8, 0x5c, 0x58, 0xa6, 0x7f, 0x9e, 0x59, 0x2a, 0xb5, 0x39,
+    0xba, 0x74, 0xbf, 0x8f, 0x6f, 0xa9, 0x81, 0xc9, 0xe0, 0x9b, 0x9e, 0xe8, 0x1c, 0x20, 0xb0, 0xa7, 0x0e, 0xa4, 0x1c,
+    0x5d, 0xc5, 0x36, 0x12, 0xe9, 0xec, 0x8f, 0xe1, 0x00, 0xbe, 0x81, 0x8b, 0xcd,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -57,6 +57,8 @@ pub struct Limits {
     pub usage_window_label: u32,
     pub account_refused_code: u32,
     pub account_refused_reason: u32,
+    pub guide_path: u32,
+    pub guides_guides: u32,
     pub completion_fault_code: u32,
     pub completion_fault_request_id: u32,
     pub completion_fault_field: u32,
@@ -110,6 +112,8 @@ pub const CEILINGS: Limits = Limits {
     usage_window_label: 32,
     account_refused_code: 128,
     account_refused_reason: 512,
+    guide_path: 1_024,
+    guides_guides: 64,
     completion_fault_code: 128,
     completion_fault_request_id: 128,
     completion_fault_field: 128,
@@ -163,6 +167,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "usage_window_label",
     "account_refused_code",
     "account_refused_reason",
+    "guide_path",
+    "guides_guides",
     "completion_fault_code",
     "completion_fault_request_id",
     "completion_fault_field",
@@ -219,6 +225,8 @@ impl Limits {
             self.usage_window_label,
             self.account_refused_code,
             self.account_refused_reason,
+            self.guide_path,
+            self.guides_guides,
             self.completion_fault_code,
             self.completion_fault_request_id,
             self.completion_fault_field,
@@ -276,6 +284,8 @@ impl Limits {
             usage_window_label: self.usage_window_label.min(most),
             account_refused_code: self.account_refused_code.min(most),
             account_refused_reason: self.account_refused_reason.min(most),
+            guide_path: self.guide_path.min(most),
+            guides_guides: self.guides_guides.min(most),
             completion_fault_code: self.completion_fault_code.min(most),
             completion_fault_request_id: self.completion_fault_request_id.min(most),
             completion_fault_field: self.completion_fault_field.min(most),
@@ -331,6 +341,8 @@ const LIMIT_PATHS: &[Path] = &[
     paths::USAGE_WINDOW_LABEL,
     paths::ACCOUNT_REFUSED_CODE,
     paths::ACCOUNT_REFUSED_REASON,
+    paths::GUIDE_PATH,
+    paths::GUIDES_GUIDES,
     paths::COMPLETION_FAULT_CODE,
     paths::COMPLETION_FAULT_REQUEST_ID,
     paths::COMPLETION_FAULT_FIELD,
@@ -549,6 +561,14 @@ pub mod paths {
     pub const FACT_ELAPSED: Path = Path::new("Fact.elapsed");
     pub const FACT_COUNT: Path = Path::new("Fact.count");
     pub const FACT_TAIL: Path = Path::new("Fact (tail)");
+    pub const GUIDE_DIRECTORY: Path = Path::new("Guide.directory");
+    pub const GUIDE_PATH: Path = Path::new("Guide.path");
+    pub const GUIDE_DIGEST: Path = Path::new("Guide.digest");
+    pub const GUIDE_BYTES: Path = Path::new("Guide.bytes");
+    pub const GUIDE_WHOLE: Path = Path::new("Guide.whole");
+    pub const GUIDE_TAIL: Path = Path::new("Guide (tail)");
+    pub const GUIDES_GUIDES: Path = Path::new("Guides.guides");
+    pub const GUIDES_TAIL: Path = Path::new("Guides (tail)");
     pub const RECEIVING_LIMIT_TAG: Path = Path::new("ReceivingLimit (tag)");
     pub const OVERFLOW_TAG: Path = Path::new("Overflow (tag)");
     pub const RECEIVING_LIMIT_VALUE_VALUE: Path = Path::new("ReceivingLimitValue.value");
@@ -4543,6 +4563,123 @@ impl Record for Fact {
     }
 }
 
+// Type: Guide.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Guide {
+    pub directory: u32,
+    pub path: Box<[u8]>,
+    pub digest: [u8; 32],
+    pub bytes: u32,
+    pub whole: bool,
+}
+
+// Record: Guide.
+impl Guide {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_path) },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 45;
+}
+
+impl Record for Guide {
+    type Limits = Limits;
+    const TAIL: Path = paths::GUIDE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.directory, limits, out, paths::GUIDE_DIRECTORY)?;
+        field::write(field::Bytes { limit: limits.guide_path.min(CEILINGS.guide_path) }, &self.path, limits, out, paths::GUIDE_PATH)?;
+        field::write(field::Fixed::<32>, &self.digest, limits, out, paths::GUIDE_DIGEST)?;
+        field::write(field::U32, &self.bytes, limits, out, paths::GUIDE_BYTES)?;
+        field::write(field::Boolean, &self.whole, limits, out, paths::GUIDE_WHOLE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            directory: field::read(field::U32, limits, reader, paths::GUIDE_DIRECTORY)?,
+            path: field::read(field::Bytes { limit: limits.guide_path.min(CEILINGS.guide_path) }, limits, reader, paths::GUIDE_PATH)?,
+            digest: field::read(field::Fixed::<32>, limits, reader, paths::GUIDE_DIGEST)?,
+            bytes: field::read(field::U32, limits, reader, paths::GUIDE_BYTES)?,
+            whole: field::read(field::Boolean, limits, reader, paths::GUIDE_WHOLE)?,
+        })
+    }
+}
+
+// Type: Guides.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Guides {
+    pub guides: List<Guide>,
+}
+
+// Record: Guides.
+impl Guides {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Guide"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, guides_guides), item: 0, size: size_of::<Guide>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for Guides {
+    type Limits = Limits;
+    const TAIL: Path = paths::GUIDES_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guides")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guides")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Sequence { limit: limits.guides_guides.min(CEILINGS.guides_guides), minimum: 45, item: field::Nested }, &self.guides, limits, out, paths::GUIDES_GUIDES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            guides: field::read(field::Sequence { limit: limits.guides_guides.min(CEILINGS.guides_guides), minimum: 45, item: field::Nested }, limits, reader, paths::GUIDES_GUIDES)?,
+        })
+    }
+}
+
 // Type: ReceivingLimit.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ReceivingLimit {
@@ -7882,6 +8019,8 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Grant", nodes: Grant::SHAPE },
     skein_codec::bounds::Declaration { name: "GrantRefresh", nodes: GrantRefresh::SHAPE },
     skein_codec::bounds::Declaration { name: "GrantValue", nodes: GrantValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "Guide", nodes: Guide::SHAPE },
+    skein_codec::bounds::Declaration { name: "Guides", nodes: Guides::SHAPE },
     skein_codec::bounds::Declaration { name: "HookTime", nodes: HookTime::SHAPE },
     skein_codec::bounds::Declaration { name: "HookTimes", nodes: HookTimes::SHAPE },
     skein_codec::bounds::Declaration { name: "HostAnswer", nodes: HostAnswer::SHAPE },
@@ -7998,6 +8137,8 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.usage_window_label,
     CEILINGS.account_refused_code,
     CEILINGS.account_refused_reason,
+    CEILINGS.guide_path,
+    CEILINGS.guides_guides,
     CEILINGS.completion_fault_code,
     CEILINGS.completion_fault_request_id,
     CEILINGS.completion_fault_field,

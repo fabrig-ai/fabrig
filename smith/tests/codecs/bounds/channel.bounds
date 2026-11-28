@@ -45,6 +45,8 @@ Field: ceilings encoded=262216 decoded=262208; at_most(3) encoded=14 decoded=6
 Grant: ceilings encoded=8218 decoded=8192; at_most(3) encoded=29 decoded=3
 GrantRefresh: ceilings encoded=8218 decoded=8192; at_most(3) encoded=29 decoded=3
 GrantValue: ceilings encoded=8198 decoded=8192; at_most(3) encoded=9 decoded=3
+Guide: ceilings encoded=1069 decoded=1024; at_most(3) encoded=48 decoded=3
+Guides: ceilings encoded=68420 decoded=69632; at_most(3) encoded=148 decoded=201
 HookTime: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 HookTimes: ceilings encoded=1070 decoded=1024; at_most(3) encoded=49 decoded=3
 HostAnswer: ceilings encoded=1048598 decoded=1048576; at_most(3) encoded=55 decoded=81

@@ -532,6 +532,7 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
     assert_eq!(
         **attempt,
         c::AttemptLine {
+            sources: None,
             task: 7,
             attempt: 2,
             claimed: Some(Wall::from_nanos(14)),
@@ -554,6 +555,7 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
         }
     );
     let absent = w::AttemptLine {
+        sources: None,
         task: 0,
         attempt: u64::MAX,
         claimed: None,
@@ -565,6 +567,7 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
     assert_eq!(
         translate::pages::attempt_line_fields(&absent),
         c::AttemptLine {
+            sources: None,
             task: 0,
             attempt: u64::MAX,
             claimed: None,

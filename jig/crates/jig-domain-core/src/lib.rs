@@ -107,6 +107,7 @@ pub use crate::{
     },
     settings::{
         charters::{Charter, CharterPart, Document},
+        project_charters::{ProjectCharter, ProjectCharters, ProjectChartersFault},
         templates::Template,
     },
     start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
@@ -127,9 +128,9 @@ pub use crate::{
 };
 
 pub use jig_domain_core_vocabulary::{
-    AtBound, Bound, Config, ConfiguredPolicy, EndpointFacts, Figures, GATHERING, MadePart, Nearest, PartAsk,
-    PartFailure, PartInputs, PartsAsk, RECURRING, ReportRefusal, Reported, ReportedBound, RowPart, SeedProject,
-    Settings, Thing, ToolFamilies, Unbounded, Wait, WaitKind, WaitObject, Waits,
+    AtBound, Bound, Config, ConfiguredPolicy, EndpointFacts, Figures, GATHERING, Guide, MadePart, Nearest, PartAsk,
+    PartFailure, PartInputs, PartsAsk, RECURRING, ReportRefusal, Reported, ReportedBound, RowPart, RunSources,
+    SeedProject, Settings, Thing, ToolFamilies, Unbounded, Wait, WaitKind, WaitObject, Waits,
 };
 
 /// The engine's children, routing and durable live state (domain/engine/README.md,
@@ -142,6 +143,7 @@ pub use jig_domain_core_vocabulary::{
     reason = "pending generation, worker placement, settling, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
+    pub(crate) build: Box<str>,
     pub(crate) part_kinds: Box<[jig_domain_core_vocabulary::PartKind]>,
     pub(crate) ended_groups: ended_groups::Marks,
     erasures: erase::Erasures,
@@ -211,6 +213,7 @@ pub struct Core {
     pub(crate) relaying: Map<u64, PendingRelay>,
     /// Configured project identifiers for bootstrap.
     pub projects: List<u32>,
+    project_charter_sets: Map<(u32, u64), ProjectCharters>,
     pub current: settings::Current,
     pub(crate) held: settings::Held,
     pub(crate) hub_turns: u32,
@@ -267,7 +270,7 @@ pub struct Core {
     /// Restored claims not yet reported by a host.
     pub(crate) unreported_restored: Map<u64, u64>,
     /// Claims awaiting completion of their route: attempt and prepared offered kinds.
-    pub claiming: Map<u64, (u64, tasks::Reasons, Option<tasks::SessionEnd>, Option<tasks::Fresh>)>,
+    pub claiming: Map<u64, PendingClaim>,
     /// Child work due to activation.
     pub(crate) due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.
@@ -305,6 +308,16 @@ fn assert_connector_registry(connectors: &[u16]) {
 
 mod inspect;
 
+/// The assignment waiting for the application to claim its prepared run.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct PendingClaim {
+    pub attempt: u64,
+    pub offered: tasks::Reasons,
+    pub session_end: Option<tasks::SessionEnd>,
+    pub fresh: Option<tasks::Fresh>,
+    pub sources: Option<tasks::ClaimSources>,
+}
+
 impl Core {
     /// The kept project name for a root's read context (domain/model.md, 6.1).
     #[must_use]
@@ -339,6 +352,7 @@ impl Core {
     /// Worker membership exceeds its bounds or the connector declarations do not hold.
     #[expect(clippy::too_many_lines, reason = "construct all bounded children, bindings and subject marks together")]
     pub fn new(mut config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, StartProblem> {
+        assert!(config.build.len() <= tasks::BUILD_BYTES, "build name fits an attempt row");
         let worker_names = match limits::problems(&config.defaults.workers, limits) {
             Ok(names) => names,
             Err(problem) => return Err(StartProblem::Membership(problem)),
@@ -432,6 +446,7 @@ impl Core {
             fill: 0,
             census: None,
             person_answers: false,
+            build: config.build,
             workers_in_process: config.workers_in_process,
             stopping: false,
             settling: false,
@@ -528,10 +543,15 @@ impl Core {
                     current.newest(),
                     charters::models(&current, &config.settings, limits),
                     charters::efforts(&config.settings),
-                );
+                )
+                .with_project_charter_capacity(limits.authority.projects);
                 tasks.set_kept_starts(config.kept_starts);
                 tasks
             },
+            project_charter_sets: Map::with_capacity(
+                jig_domain_core_vocabulary::settings::project_charters::capacity(limits)
+                    .expect("project charter bound"),
+            ),
             current,
             held: settings::Held::new(limits),
             hub_turns: config.hub_turns,

@@ -401,6 +401,8 @@ record ProposalHistory = d::ProposalHistory
 record AmendmentState = d::AmendmentState
 record HistoryAmendment by hand
 record HistoryLine = d::HistoryLine { at via s::wall }
+record Guide = t::Guide { workspace via s::text, commit via s::text, path via s::text }
+record RunSources = t::RunSources { build via s::text, guides slice }
 record AttemptLine = d::AttemptLine { claimed via s::wall, started via s::wall, ended via s::wall }
 record HoldLine = d::HoldLine { at via s::wall }
 enum HistoryRow by hand
@@ -755,7 +757,8 @@ record SettingsProposal = d::SettingsProposal
 record SettingsDocument = d::Settings
 record ApplicationSize
 enum SizedEdit = st::application::SizedEdit
-record SettingDocument = r::SettingDocument { overlay boxed }
+record ProjectCharterDocument = r::ProjectCharterDocument { parts slice }
+record SettingDocument = r::SettingDocument { overlay boxed, project boxed }
 enum RevisionEdit by hand
 enum RevisionReplaced by hand
 record RevisionItem by hand

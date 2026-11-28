@@ -161,30 +161,6 @@ only renders.
   may be deleted whole, and made again as a btrfs subvolume when its user
   starts to build.
 
-## 3. Digests and keys
-
-Moved to [`digests.md`](digests.md), section 1.
-
-### 3.1 The canonical encoding
-
-Moved to [`digests.md`](digests.md), section 1.1.
-
-### 3.2 H
-
-Moved to [`digests.md`](digests.md), section 1.2.
-
-### 3.3 Keys
-
-Moved to [`digests.md`](digests.md), section 1.3.
-
-### 3.4 The tree digest
-
-Moved to [`digests.md`](digests.md), section 1.4.
-
-### 3.5 The change set
-
-Moved to [`digests.md`](digests.md), section 1.5.
-
 ## 4. Layers
 
 ### 4.1 What a layer is
@@ -414,22 +390,6 @@ among them, is a stray, reported and left alone (2.1).
 - **Nothing is collected in M1.** A store without layers grows with
   each resolution and each rendered or streamed file, and is full at a
   limit of `state.md`, 1.1; its user deletes it whole (2.4).
-
-## 6. hearth's own state
-
-Moved to [`state.md`](state.md), section 1.
-
-### 6.1 The filesystem is the only truth
-
-Moved to [`state.md`](state.md), section 1.1.
-
-### 6.2 The startup scan
-
-Moved to [`state.md`](state.md), section 1.2.
-
-### 6.3 The steward's records
-
-Moved to [`state.md`](state.md), section 1.3.
 
 ## 7. Prerequisites
 

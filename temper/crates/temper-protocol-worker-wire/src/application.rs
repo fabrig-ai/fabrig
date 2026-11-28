@@ -16,18 +16,19 @@ pub fn application(limits: &v1::Limits) -> Result<Application, v1::Problem> {
     v1::check_limits(limits)?;
     let mut spoken_wires = List::with_capacity(1);
     spoken_wires.push(spoken()).expect("one application wire");
-    let mut roots = List::with_capacity(8);
+    let mut roots = List::with_capacity(9);
     for (carried, declaration) in [
         (Carried::Items, "Items"),
         (Carried::Left, "Left"),
         (Carried::Saved, "Saved"),
         (Carried::Preparation, "Preparation"),
+        (Carried::Guides, "Guides"),
         (Carried::JobSpec, "JobSpec"),
         (Carried::Grant, "Identity"),
         (Carried::Ask, "Ask"),
         (Carried::Answer, "Answer"),
     ] {
-        roots.push(Root { carried, wire: wire::FAMILY, declaration }).expect("eight translated parts");
+        roots.push(Root { carried, wire: wire::FAMILY, declaration }).expect("nine translated parts");
     }
     Ok(Application { spoken: spoken_wires, roots, written: List::uncapped() })
 }

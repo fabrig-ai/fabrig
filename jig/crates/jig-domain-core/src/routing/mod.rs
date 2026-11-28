@@ -111,8 +111,19 @@ pub(crate) struct PersonEscalation {
 
 #[derive(Hash, Debug)]
 pub(crate) enum CreationKind {
-    Batch { beneath: Option<u64>, person: u64, given: Option<people::Given>, stubs: Box<[tasks::Stub]> },
-    Propose { person: u64, reason: Box<[u8]>, to: u32, stubs: Box<[tasks::Stub]> },
+    Batch {
+        beneath: Option<u64>,
+        person: u64,
+        given: Option<people::Given>,
+        stubs: Box<[tasks::Stub]>,
+        executors: Box<[tasks::Executor]>,
+    },
+    Propose {
+        person: u64,
+        reason: Box<[u8]>,
+        to: u32,
+        stubs: Box<[tasks::Stub]>,
+    },
 }
 
 /// A party's batch waiting for the task child's make result.
@@ -122,6 +133,7 @@ pub(crate) struct Made {
     pub given: Option<people::Given>,
     pub stubs: Box<[tasks::Stub]>,
     pub dependencies: Option<party::batch_reads::Admission>,
+    pub executors: Box<[tasks::Executor]>,
 }
 
 /// One person task pending all numbered connector holdings in this decision.
@@ -152,7 +164,7 @@ pub(crate) struct DelegateCreation {
 
 #[derive(Hash, Debug)]
 enum BatchKind {
-    Delegation { stubs: Box<[tasks::Stub]>, given: Option<people::Given> },
+    Delegation { stubs: Box<[tasks::Stub]>, given: Option<people::Given>, checked: Box<[tasks::Executor]> },
     Proposal { reason: Box<[u8]>, as_holder: bool },
 }
 
@@ -160,6 +172,7 @@ enum BatchKind {
 pub(crate) struct ProcedureCreation {
     decision: tasks::ProcedureDecision,
     members: Box<[tasks::New]>,
+    checked: Box<[tasks::Executor]>,
     remaining: u32,
     answered: List<u16>,
     failed: bool,
@@ -602,6 +615,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             digest,
             *change,
         ),
+        Event::ProjectCharters(set) => core.take_project_charters(&env.limits, set),
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
         Event::Settling => {
             core.settling = true;
@@ -694,6 +708,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
                 view::routes::Written { run, turn: views::TurnName { attempt: attempt.raw(), turn, retry }, offset };
             view::routes::run_text(core, env, written, text, call)
         }
+        Event::RunGuides { task, attempt, guides } => {
+            route_tasks(core, env, work, tasks::Event::RunGuides { task, attempt, guides })
+        }
         Event::Tasks(event) => {
             let mut out = route_tasks(core, env, work, event);
             crate::admission::deletion::advance(core, env, &mut out);
@@ -702,14 +719,16 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
-        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => workspace_prepared(
-            core,
-            env,
-            work,
-            task,
-            attempt,
-            run::preparation::Prepared { writes, holds, credentials, workspace },
-        ),
+        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, guide_limit, workspace } => {
+            workspace_prepared(
+                core,
+                env,
+                work,
+                task,
+                attempt,
+                run::preparation::Prepared { writes, holds, credentials, guide_limit, workspace },
+            )
+        }
         Event::ClaimPrepared { task, attempt, budget, writes } => {
             route_claim_prepared(core, env, work, task, attempt, budget, writes)
         }

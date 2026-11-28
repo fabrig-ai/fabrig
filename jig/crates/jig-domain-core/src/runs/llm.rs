@@ -17,19 +17,27 @@ impl Core {
     /// refused, naming the charter's
     /// first model; a task of an unknown charter is left to tasks, which refuses its executor.
     #[expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")]
-    pub(crate) fn resolve_llm(&self, batch: &mut [tasks::New]) -> Result<(), tasks::Problem> {
+    pub(crate) fn resolve_llm(
+        &self,
+        limits: &crate::Limits,
+        batch: &[tasks::New],
+        bindings: &[Option<tasks::CharterBinding>],
+    ) -> Result<(), tasks::Problem> {
         let mut links = List::with_capacity(u32::try_from(batch.len()).expect("bounded batch"));
-        for new in &*batch {
+        for new in batch {
             links
                 .push(tasks::PayerLink { task: new.number, funder: new.funder })
                 .expect("one financial link per member");
         }
-        for new in batch {
+        for (at, new) in batch.iter().enumerate() {
             let number = new.number;
-            self.default_llm(new, number, links.as_slice(), None)?;
-            if let Some(template) = &mut new.recurring {
-                for member in &mut template.batch {
-                    self.default_llm(member, number, &[], Some(tasks::Payer::Project(new.project)))?;
+            let executor = tasks::bound_executor(new.executor, bindings, at);
+            self.default_llm(new, executor, number, links.as_slice(), None)?;
+            if let Some(template) = &new.recurring {
+                let bindings = self.bind_batch(limits, &template.batch, None)?;
+                for (at, member) in template.batch.iter().enumerate() {
+                    let executor = tasks::bound_executor(member.executor, &bindings, at);
+                    self.default_llm(member, executor, number, &[], Some(tasks::Payer::Project(new.project)))?;
                 }
             }
         }
@@ -39,15 +47,16 @@ impl Core {
     #[expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")]
     fn default_llm(
         &self,
-        new: &mut tasks::New,
+        new: &tasks::New,
+        executor: tasks::Executor,
         number: u64,
         links: &[tasks::PayerLink],
         occurrence_payer: Option<tasks::Payer>,
     ) -> Result<(), tasks::Problem> {
-        if let Err(why) = super::account_preference::executor(new.executor, new.llm.as_ref()) {
+        if let Err(why) = super::account_preference::executor(executor, new.llm.as_ref()) {
             return Err(tasks::Problem::new(Some(number), why));
         }
-        let charter = match new.executor {
+        let charter = match executor {
             tasks::Executor::Agent { charter } => charter,
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
                 return Ok(());

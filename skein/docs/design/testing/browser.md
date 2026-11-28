@@ -23,7 +23,7 @@ example's browser tier through it, are others (../ui/web/testing.md).
   or by words in it, presses them, types into them, and waits for what
   should show. It reads no page state, and the one script it runs in the
   page is the expression `document`, which names the page's current
-  document as a find's root (sections 4 and 6).
+  document as a find's root (`browser.md`, section 4, and `browser-operations.md`, section 1).
 - **Actions check what a person would.** A press lands only on something
   on screen, enabled and not covered by something else. Otherwise it is
   refused, saying why, and the test can wait and try again.
@@ -42,10 +42,10 @@ example's browser tier through it, are others (../ui/web/testing.md).
   them reports each request its main frame sends, in order, with the
   document load that sent it, and the first answer to each: what a test
   counts a page's round trips by. No header or body is kept, and none
-  is judged (sections 5 and 6).
+  is judged (`browser-vocabulary.md`, section 1, and `browser-operations.md`, section 1).
 - **A page's rendering, read for a tool** comparing two renders: its
   elements, an element's computed style and box. A page kept to files
-  sends nothing outside `file://` (section 5).
+  sends nothing outside `file://` ([`browser-vocabulary.md`](browser-vocabulary.md), section 1).
 - **Bounded like the rest of skein.** Persons, pages, operations,
   commands in flight and each message are counted under limits, checked
   by `valid`.
@@ -116,8 +116,8 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
     `file://` URLs, the images and masks beside it among them, which
     Chromium refuses it otherwise, each `file:` document being an
     origin of its own (section 7). A page kept to files still sends
-    nothing outside `file://` (section 5). temper's render check asks
-    for it (`temper/docs/design/client/journey-writer-requests.md`, 1.2, step
+    nothing outside `file://` ([`browser-vocabulary.md`](browser-vocabulary.md), section 1).
+    temper's render check asks for it (`temper/docs/design/client/journey-writer-requests.md`, 1.2, step
     4); every other owner passes `false`;
   - `--hide-scrollbars` where the owner asks for it, `command`'s
     `hide_scrollbars` (`RawPump::start` passes it on), and never
@@ -133,7 +133,7 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   (../runtime/io/processes.md): `LANG` and `LC_ALL` are `C.UTF-8`, which Chromium takes
   as its `en-US`, and `TZ` is `UTC`. So a page renders dates and
   numbers the same everywhere, and a native date or time field shows
-  its parts in one order (`browser.md`, section 6).
+  its parts in one order (`browser-operations.md`, section 1).
 - **Ready** comes once the browser answers its first command
   (`Browser.getVersion`). The event carries the version, which the test
   writes into its report.
@@ -146,7 +146,7 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   notification, as `skein-llm`'s `Close` is: the kit stops, and the
   pipes and the child stay the owner's to settle.
 - **A browser that ends on its own** first says why, once, as `Ended`
-  (section 5); then it fails every operation in flight with `Crashed`,
+  (`browser-vocabulary.md`, section 1); then it fails every operation in flight with `Crashed`,
   closes every page and person, and is `Closed`. Its `Ending` is one of:
   - `Pipe`: its replies' pipe ended or failed, or its commands' pipe
     ended, failed or gave bytes; the detail names the pipe and io's
@@ -205,367 +205,28 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   `Log` and `Inspector` (the document's object, exceptions, console and
   log entries, crashes); `Network`, on a page that asks for its
   requests alone; `CSS`, for a computed style; and `Fetch`, on a page
-  kept to files (sections 5 and 6). Several of these commands are experimental in
-  CDP, which is why the real browser is checked (section 9).
+  kept to files (`browser-vocabulary.md`, section 1, and `browser-operations.md`, section 1). Several of these commands are experimental in
+  CDP, which is why the real browser is checked (`browser.md`, section 9).
 - **A selector is a parameter, never an expression.** The kit sends an
   attribute read's selector as `DOM.querySelector`'s own, and Chromium
   parses it as CSS; no page script runs, and no selector becomes code.
 - **The one expression the kit evaluates is `document`.** It sends
   `Runtime.evaluate` with that expression alone, for a find's root
-  (section 6), and it never sends `Runtime.callFunctionOn`.
+  (`browser-operations.md`, section 1), and it never sends `Runtime.callFunctionOn`.
   - The expression calls nothing and reads no page state. A page cannot
     change what it names: a window's `document` can be neither redefined
     nor shadowed.
   - Its result is a handle, as a node id is: an object of the execution
     context that holds the page's current document. The kit can reuse
-    this document handle; it never keeps a scope's handle (section 6).
+    this document handle; it never keeps a scope's handle (`browser-operations.md`, section 1).
 
 ## 5. The vocabulary
 
-The kit's vocabulary is its own; the test translates its person's
-actions into it.
-
-```rust
-pub enum Request {                                       // from the test
-    Person { person: Token, downloads: Option<Box<[u8]>> },  // a browser context: its own cookies, storage and downloads
-    Page   { person: Token, page: Token, url: Box<[u8]>, requests: bool, files: bool },  // requests: report them; files: kept to files (below)
-    Go     { page: Token, op: Token, to: Go },           // an address, reload, back, forward
-    Find   { page: Token, op: Token, query: Query },     // one look
-    Await  { page: Token, op: Token, query: Query, expect: Expect, within: Duration },
-    Press  { page: Token, op: Token, node: Node, at: Option<Point> },  // none: the box's centre
-    Type   { page: Token, op: Token, node: Node, text: Box<[u8]> },
-    Compose { page: Token, op: Token, node: Node, text: Box<[u8]> },  // an IME composition, left open
-    Keys   { page: Token, op: Token, node: Node, text: Box<[u8]> },  // each character a key: a native date or time field
-    Key    { page: Token, op: Token, key: Key, shift: bool },  // Enter, Escape, Tab, Backspace, arrows, select-all, a letter
-    Viewport { page: Token, op: Token, width: u32, height: u32 }, // Done or Refused; desktop input
-    Address { page: Token, op: Token },                  // the current address, from the history
-    Tabs   { page: Token, op: Token },                   // the tabs its person holds that the kit did not open
-    Attribute { page: Token, op: Token, selector: Box<[u8]>, name: Box<[u8]> },  // of the first element a CSS selector finds
-    Snapshot   { page: Token, op: Token },               // the accessibility tree, as text
-    Screenshot { page: Token, op: Token },
-    Elements { page: Token, op: Token, selector: Option<Box<[u8]>> },  // none: every element
-    Style  { page: Token, op: Token, node: Node },       // its computed style
-    Rect   { page: Token, op: Token, node: Node },       // its border box
-    Close  { entity: Token },                            // a page, a person, or the browser
-}
-
-pub enum Event {                                         // to the test
-    Ready   { version: Box<[u8]> },
-    Opened  { page: Token },
-    Found   { op: Token, seen: List<Seen>, more: u32 },  // more: matches past the limit, counted
-    Met     { op: Token, seen: List<Seen> },
-    Missed  { op: Token, seen: List<Seen>, more: u32 },  // what was there when the deadline passed
-    Warned  { op: Token },                               // a go accepted its page's closing warning
-    Done    { op: Token },                               // a navigation, a press, typing, a key, a viewport change
-    Refused { op: Token, why: Refusal, detail: Box<[u8]> },  // Gone, Hidden, Covered, Disabled, Crashed; a Protocol's detail below
-    Snapshot   { op: Token, text: Box<[u8]> },
-    Screenshot { op: Token, png: Box<[u8]> },
-    Address { op: Token, url: Box<[u8]> },               // the history's current entry
-    Tabs    { op: Token, tabs: List<Tab>, more: u32 },   // more: tabs past the limit, counted
-    Attribute { op: Token, read: Read },
-    Elements { op: Token, elements: List<Element>, more: u32 },  // more: past the limit, counted
-    Style  { op: Token, style: List<Property> },
-    Rect   { op: Token, rect: Option<Rect> },            // none: it has no box
-    Downloaded { person: Token, name: Box<[u8]>, path: Box<[u8]> },  // a file one of its pages saved, complete
-    Trouble { page: Token, trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed, a request past the limit
-    Sent    { page: Token, id: Box<[u8]>, load: Box<[u8]>, document: bool,
-              method: Box<[u8]>, url: Box<[u8]> },        // a request its main frame sent, on a page that asks
-    Answered { page: Token, id: Box<[u8]> },             // the first answer to a request reported Sent
-    Ended   { why: Ending, detail: Box<[u8]> },          // the browser ended on its own, once, before its Closed (section 3)
-    Closed  { owner: Token },                            // terminal
-}
-
-pub enum Ending  { Pipe, Message, Unsent, Neither, Refused, Unanswered }  // section 3; detail at most Limits::text
-
-pub struct Query { role: Box<[u8]>, name: Box<[u8]>, matching: Match, within: Option<Node>, boxes: bool }
-pub enum Match   { Exact, Words }                        // Words: the name contains the query's bytes
-pub struct Point { x: u32, y: u32 }                      // whole CSS pixels from the box's top left
-pub struct Seen  { node: Node, role: Box<[u8]>, name: Box<[u8]>, value: Box<[u8]>,
-                   states: States, rect: Option<Rect> }   // focused, disabled, checked, expanded, selected, pressed
-pub enum Expect  { Present, Count(u32), Absent }
-pub enum Key     { Enter, Escape, Tab, Backspace, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, SelectAll,
-                   Letter { letter: u8, alt: bool } }   // a to z, by its place on the keyboard
-pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, perhaps empty
-pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: it can still reach the page that opened it
-pub struct Element  { node: Node, depth: u32, name: Box<[u8]> }  // depth: 0, the root element; name: its local name
-pub struct Property { name: Box<[u8]>, value: Box<[u8]> }       // as Chromium writes it
-```
-
-- **A person is a browser context,** with its own cookies and storage.
-  Two pages of one person share sign-ins and local storage, and each has
-  its own session storage, as two tabs do.
-- **A person's downloads go to a directory the test names,** or are
-  refused without one, as a headless browser refuses them by default. A
-  file one of the person's pages saves (a link with `download`, a
-  navigation to an attachment) is written there under a name the browser
-  chooses, never the page's, so that no page names a path; once it is
-  complete, `Downloaded` reports the name the page suggested and the
-  path written, each at most `Limits::text`, a longer one making the
-  download the page's `Trouble`. A download cancelled or failed is the
-  page's `Trouble` too.
-  - **Its page is its main frame's:** a download a page's own document
-    starts is that page's, and so its person's. One started in a frame
-    within it is not reported; the file may still be written.
-  - **Bounded:** at most `Limits::downloads` are in flight across the
-    browser; one past them is cancelled and is its page's `Trouble`.
-    The kit keeps each in flight's id, person and suggested name, and
-    never a file's bytes.
-  - **Its end:** a download outlives its page's close, and ends as its
-    person's. A person's close cancels its downloads in flight first,
-    and none is reported after its `Closed`.
-  - The directory is the test's: the kit never reads, moves or removes a
-    file in it.
-- **A page's requests are reported where its `Page` asks** (`requests`),
-  as a browser's network panel lists them, so that a test counts what a
-  page sends and in how many round trips. A page that does not ask
-  reports none, and the kit enables nothing for it (section 6).
-  - **`Sent`:** each request the page's main frame sends, in the order
-    Chromium reports them sent: `id`, Chromium's request id; `load`, the
-    id of the document load that sent it, Chromium's loader id;
-    `document`, whether it is the main frame's own navigation, a new
-    document's request, whose `id` is its `load`; its method; and its
-    URL as Chromium gives it, the query and the fragment among them.
-    Each is cut to `Limits::text`. A redirect followed is the same
-    request, reported once. A request of a frame within the page, or of
-    a worker, is not the page's and is not reported.
-  - **`Answered`:** once for each request reported `Sent`, at the first
-    of its answer's first body bytes, its end, and its failure, a
-    cancellation among them. So a streamed answer, which may never end,
-    is answered as its first bytes come; its later bytes and its end are
-    not reported.
-  - **A request keeps the load that sent it.** One the leaving document
-    sends as a navigation begins, even after the new document's
-    request, is reported with the leaving document's `load`, as Chromium
-    tags it (a fact the real browser checks, section 9); one sent at
-    `pagehide` Chromium does not report at all. So a test tells
-    the page's current document's requests from the one before by
-    `load`, never by their order.
-  - **What the kit keeps:** each request reported `Sent` whose
-    `Answered` has not come, by its page and id, at most
-    `Limits::requests` across the browser. One sent past them is
-    reported `Sent`, its answer is not followed, and it is its page's
-    `Trouble` (section 7). A page's close drops its requests, and
-    nothing of them is reported after its `Closed`. The kit keeps no
-    header and no body, and judges none: which requests count, and how,
-    is the test's.
-- **A node is the browser's backend node id,** which names one element
-  for as long as it lives. A node since removed is `Gone`, as a stale
-  handle is.
-- **Names match exactly or by words,** as the page computes them for
-  assistive technology: an element's label, or its text. `Exact`: the
-  name is the query's name. `Words`: the name contains the query's bytes,
-  unbroken and with case kept, as a person finds a sentence by a few
-  words in it. Other patterns are out (section 11). A query may be scoped
-  `within` a node found before, such as a button within a card. `boxes`
-  asks for each match's place on screen too. The person's browser face retains the
-  terminal query's complete bounded result: `boxed_matches` exposes its nodes
-  and the count beyond the match limit after `find_boxed` completes. Reading
-  that result asks nothing further of Chromium. Scope resolution asks for no
-  rectangles, and a matched node without geometry stays in the result.
-- **Text is found by words,** as a static text node's name: Chromium
-  gives each run of text a node of role `StaticText`, named by its text.
-  Words such as "3 failing" find "Checks: 3 failing, 2 passed", and keep
-  finding it while its other numbers change. Words match within one
-  node's name: a sentence that markup splits, such as one with a strong
-  word in it, is several nodes.
-- **A press lands at its node's centre, or at a point the test names**
-  within the node's box, in whole CSS pixels from its top left. A point
-  reaches what has no accessible node of its own: a shape of an inline
-  SVG, hidden from assistive technology, pressed through the named node
-  that holds it.
-- **A key may be pressed with Shift held,** as a person makes a new line
-  with Shift+Enter in a text area, where Enter alone sends.
-- **A letter, with Alt or without:** `Key::Letter { letter, alt }`, the
-  letter `a` to `z` named by its place on the keyboard (`KeyS`), so that
-  it is the same key whatever the layout. Without Alt it types its
-  letter, upper case with Shift, as a person's key does; with Alt it
-  makes no text, as a person presses an application's shortcut such as
-  Alt+Shift+S where the page reads it. Alt is the letter's alone, so no
-  other chord can be asked. Any other byte is refused `Protocol`,
-  before a command is sent.
-- **Select-all is a key of its own,** Control and A as the kit's
-  platform takes them, as a person selects a field's whole value before
-  typing over it: a `Type` after it replaces the value (the face's
-  typing, ../ui/web/testing.md 2). It is named by what it does: Control with
-  another key is asked for by no test, and the kit has no other.
-- **An attribute is read by a CSS selector,** of the first element it
-  finds in the page's current document, as the document holds it. It is
-  how a test reads what holds no role a person finds it by, such as a
-  hidden field, whose `value` attribute is its value. It reads markup,
-  not state: a field a person types into is read by a find, whose `Seen`
-  carries its value as the person sees it. No element, an element
-  without the attribute, and an empty attribute are three answers.
-- **A page's rendering is read for a tool** comparing two renders
-  (`temper/docs/design/client/journey-writer-requests.md`, 1.2), reading the
-  current document as an attribute read does (`browser.md`, section 6):
-  - `Elements`: its elements in document order, every one or those a
-    CSS selector selects, each with its node, its depth below the root
-    element and its local name; at most `Limits::elements`, the rest
-    counted.
-  - `Style`: every property Chromium computes for the node, with its
-    value, each cut to `Limits::text`.
-  - `Rect`: its border box, in whole CSS pixels as `Seen.rect`; none
-    where Chromium lays out no box for it.
-- **A page kept to files** (`files`): each request it sends outside
-  `file://`, a navigation's among them, fails before it leaves the
-  browser, a log error and so its `Trouble` (section 7).
-- **A node's states are Chromium's,** the accessibility properties of
-  those names on the node it computed: each is set where its property
-  reads `true`. `pressed` is a toggle's, such as a button with
-  `aria-pressed`, and reads `true`, `false` or `mixed`, so a `mixed`
-  toggle is not pressed.
-- **The current address** is the page's history's current entry, as the
-  browser's address bar shows it, so that a test sees the address the
-  page's own code put there.
-- **A refusal says what refused it.** `Protocol` is the kit's word for
-  an answer it can't place, so a `Refused` with it carries its `detail`:
-  the CDP method, `: `, and Chromium's error message, or `malformed
-  reply` for an answer without the field the kit asked for; a request the
-  kit refuses itself says so in its own words. Cut to `Limits::text`.
-  Every other refusal's `detail` is empty: its `why` says it all.
-- **Every operation has one terminal event:** `Found`, `Met`, `Missed`,
-  `Done`, `Refused`, `Snapshot`, `Screenshot`, `Address`, `Attribute`,
-  `Elements`, `Style` or `Rect`. Every person, page and the browser itself ends with one `Closed`. `Warned` is
-  not terminal: a go reports it at most once, before its terminal
-  (section 6).
-
-A page opens at 1280 by 800 CSS pixels. `Viewport` changes its dimensions
-with desktop input behaviour (`mobile: false`); other pages keep their size.
-The browser face exposes boxed semantic finds for assertions over these layouts.
+Moved to [`browser-vocabulary.md`](browser-vocabulary.md), section 1.
 
 ## 6. The operations
 
-Each operation is an entity with its own state, stepping from one reply
-to the next command, never a closure waiting on a reply:
-
-| Operation | Its steps |
-|---|---|
-| Viewport | `Emulation.setDeviceMetricsOverride` with the requested width and height, `mobile: false`; `Done` after its reply, or `Refused` |
-| a person | a browser context created; with a downloads directory, its downloads allowed there under the browser's own names, with their events (`Browser.setDownloadBehavior`, `allowAndName`, `eventsEnabled`), else denied |
-| opening a page | create a target in the person's context, attach to it, enable the domains it reports on, set the viewport, navigate; `Opened` once the load event fires |
-| go | navigate, reload, or move through the history; the page's `beforeunload` prompt, if it opens meanwhile, accepted, and `Warned`, or Chromium's entry that it blocked one taken as `Warned` (section 6); `Done` once the navigation commits: the load event for a new document, the same-document event for one that stays |
-| find | the page brought to the front (`Page.bringToFront`); the accessibility nodes matching the role and the name, under the scope or the page's current document, either asked by its object in that document (below): exactly, both asked of CDP; by words, the role's nodes asked without a name, their names compared in the kit; at most `Limits::matches` kept, the rest counted in `more`; their properties; their boxes, if asked |
-| await | a find, again every `Limits::poll`, until the expectation holds (`Met`) or `within` passes (`Missed`) |
-| press | the node scrolled into view, its named point with it; its box's centre, or the named point in the box; layout metrics turn the viewport point into document coordinates for the hit test; refused `Hidden` without a box or with a point outside it, `Disabled` if its accessibility node says so, `Covered` unless the hit test at that point lands on the node or inside it; then the mouse moved, pressed and released at the viewport point |
-| type | text with CR/LF first describes its node; for a single-line `input`, CR and LF are removed as on a person’s paste (CDP’s `Input.insertText` would change them to spaces). Text areas and editable content keep their line endings. Then the node is focused and the text inserted |
-| compose | the node focused; a composition set and left open, which a later `Type` commits |
-| keys | the node focused; for each character of the text, in order, its key down and up, the character its key and its text |
-| key | the key down and up, with the text it makes; with `shift`, Shift's modifier on both; select-all, A's key down and up with Control's modifier and no text; a letter, its code (`KeyS`), its key and Windows key code (upper case with Shift), its text unless `alt`, and with `alt` Alt's modifier on both |
-| download | not an operation: the browser-level `Browser.downloadWillBegin` names the frame, which is a page's when it is the page's target, and the suggested name, kept by the download's id; `Browser.downloadProgress` completed is `Downloaded`, its path the person's directory and the id; canceled is the page's `Trouble`; past `Limits::downloads`, `Browser.cancelDownload` |
-| requests | not an operation: on a page opened with `requests`, `Network.enable` among the domains it reports on, before it navigates; each `Network.requestWillBeSent` of its main frame without a `redirectResponse` is `Sent`, `document` where its `type` is `Document`; the first `Network.dataReceived`, `Network.loadingFinished` or `Network.loadingFailed` of a request the kit keeps is `Answered`, and the request leaves what it keeps; any other of them is skipped, a kept request's later ones and those of a request it never kept alike |
-| address | the page's navigation history (`Page.getNavigationHistory`); its current entry's URL, `Address` |
-| tabs | the browser's targets (`Target.getTargets`), those of type `page` in the page's person's context that no `Page` request opened, in the reply's order; each one's URL, title and `canAccessOpener`, within `Limits::matches`, the rest counted; `Tabs`. No script runs in them, and the kit attaches to none: what a person's tab strip and address bar show, and the browser's own word on the opener |
-| attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
-| elements | the current document's tree (`DOM.getDocument`, its whole depth), and with a selector the elements it selects among them (`DOM.querySelectorAll`); refused `Protocol` for a selector Chromium cannot parse |
-| style | the node's computed style (`CSS.getComputedStyleForNode`, `CSS` enabled at the page's first) |
-| rect | the node's box model (`DOM.getBoxModel`), its border quad's bounds; none where Chromium computes none |
-| files | not an operation: on a page opened with `files`, `Fetch.enable` for every URL before it navigates; each `Fetch.requestPaused` continued for a `file://` URL, else failed (`BlockedByClient`) |
-| snapshot | the page brought to the front; the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
-| screenshot | the page brought to the front; the viewport as PNG, under `Limits::screenshot` |
-
-- **A look brings its page to the front,** as a person chooses a tab
-  before looking: each find (each poll of an await), snapshot and
-  screenshot sends `Page.bringToFront` on that page's session and waits
-  for its answer before reading. A page already in front takes the same
-  step, with no extra polling. Its other tabs keep loading; the kit
-  attaches to none of them.
-  - A story's page counts as hidden while Chromium reports it hidden:
-    after another tab takes the front, until this page is brought back.
-    Looking brings it back and makes it visible to its own
-    `visibilitychange` listener (../ui/web/effects.md, section 1). A story about a
-    hidden page leaves it without these looks for the hidden interval;
-    listing tabs and reading attributes do not bring it to the front.
-
-- **A find by words reads each name whole,** as the reply carries it,
-  before a kept name is cut to `Limits::text`. A plain name is compared
-  in the wire buffer; an escaped name is decoded once. Once `Limits::matches`
-  is reached, the kit still tests membership and counts matching nodes with
-  a backend id, but does not build their properties or measure their boxes.
-  A words reply holds every node of the role under its scope. A reply past
-  `Limits::message` fails the browser (section 4): a test scopes a find by
-  words `within` a node, or raises the limit.
-- **A find asks only under the current document.** Its root is never a
-  node id, whose document the query does not check, but an object that
-  Chromium checks against the document that holds it:
-  - without a scope, the object of `document`, evaluated in the page's
-    current execution context (section 4);
-  - with a scope, the scope's object, resolved in the current document
-    (`DOM.resolveNode`). Chromium refuses a node of an earlier document,
-    and the find is refused `Gone` (section 5).
-
-  The kit releases a scope's object after the query. It can keep one
-  document object per page, for unscoped finds and polls after the page
-  has been brought to the front. Navigation or a session's execution
-  context being cleared or destroyed retires that object; it is no longer
-  used and the kit queues its release when a command slot is free. Closing
-  the page drops the handle and ends its context. An object arriving for
-  a read superseded by navigation or context loss is not cached and is
-  released. Chromium refuses an object once its execution context is
-  gone; a find encountering that refusal looks again at its next poll,
-  and an `Await` keeps its deadline.
-- **A find waits out a navigation.** While a navigation of the page is
-  in flight, the kit's go or the page's own, the kit holds its DOM and
-  accessibility commands to the page, and the evaluation of `document`,
-  until the navigation commits, as a go's does. A find in flight when the
-  navigation begins starts again, and asks once it has committed. An
-  attribute read, and each read of a page's rendering, waits and starts
-  again the same way, so that it reads one document from its root to
-  its answer.
-- **A press at a point reaches a shape of an inline SVG.** The hit test
-  there lands on the shape, inside the node that holds it, and the mouse
-  goes down on the shape; something over the shape covers it, as it would
-  cover a button. The kit checks only that the hit lands inside the node:
-  where no shape is painted, such as inside a shape with no fill, the
-  press goes to what is beneath, and the test sees that by its effect.
-- **A press is done when the browser has taken it,** not when its
-  effects show. What follows a press (a request, a page redrawn) the test
-  awaits.
-  A node detached before mouse input is `Gone`. Errors from dispatching
-  mouse input are `Protocol`, since a partial press cannot safely be repeated.
-- **The fake person's press re-finds a node gone before the mouse acts.**
-  It repeats the whole semantic find, including its scopes, after the
-  poll interval, until the original answer deadline. Other refusals
-  still fail the act. Repeated semantic finds also wait for that interval,
-  whether the target was present or absent. Box measurements keep their
-  own polling clock.
-- **Covered is not a failure.** A dialog that has not closed yet, or a
-  toast over a button, covers it for a moment. The test decides whether
-  to wait and press again.
-- **Typing inserts; keys press.** `type` inserts its text as one edit,
-  and commits a composition left open. A native date or time field
-  takes no inserted text. Each of its parts, a number or the half of
-  the day, takes keys, and a part filled moves the focus to the next.
-  `keys` reaches it as a person's keyboard does.
-  - The kit types the characters it is given, in order. Which
-    characters a field's parts take, and in which order, is the
-    test's: the browser's locale sets them (section 3), and the face
-    checks them as its facts (../ui/web/testing.md, 1 and 2).
-  - A key goes where the focus is. Focusing a field that does not have
-    the focus puts it on the field's first part; a field that has it
-    keeps it in the part it is in.
-- **A go answers its page's closing warning.** A person who navigates,
-  reloads or moves back or forward has chosen to leave the document. So
-  the kit accepts a `beforeunload` prompt that opens on the page while a
-  go of it is in flight (CDP's `Page.javascriptDialogOpening`, answered
-  by `Page.handleJavaScriptDialog`), and reports `Warned` before the
-  go's `Done`.
-  - A test sees by `Warned`, or by its absence, whether the page warned
-    when the person left it.
-  - Chromium shows the prompt only on a page that has had a person's
-    input since it loaded. On any other page it leaves without one, and
-    logs at error level, from source `intervention`, that it blocked it:
-    the entry's text begins `Blocked attempt to show a 'beforeunload'
-    confirmation panel`. While a go of the page is in flight, the kit
-    takes that entry as the prompt it would have accepted: `Warned`,
-    once, before the go's `Done`, and no `Trouble`. So a page that warns
-    is seen to warn whether or not the person acted on it first.
-  - Closing a page closes its target, which runs no `beforeunload`
-    handler, so a close is never warned.
-  - No request answers a dialog. A person who stays on a page that
-    warns, or who answers a confirm, waits for a test that needs one.
-- **Every command has a deadline,** `Limits::answer`. A browser that does
-  not answer in time fails the operation with what was pending, so a
-  hung browser fails a test rather than holding it up.
+Moved to [`browser-operations.md`](browser-operations.md), section 1.
 
 ## 7. Trouble
 
@@ -577,18 +238,18 @@ wrong, and reports each as `Trouble` with its text, cut to
 - a console message at error level;
 - a log entry at error level, which is how a content security policy
   violation, a failed load or a blocked request shows, other than the
-  blocked closing warning a go takes as its own (section 6) and the
+  blocked closing warning a go takes as its own (`browser-operations.md`, section 1) and the
   refusal of the kit's own inspector request (below);
 - the page crashing, which also fails its operations in flight with
   `Crashed`;
-- a native dialog, other than the closing warning a go accepts (section
-  6): an alert, a confirm, a prompt, or a `beforeunload` prompt with no
+- a native dialog, other than the closing warning a go accepts
+  (`browser-operations.md`, section 1): an alert, a confirm, a prompt, or a `beforeunload` prompt with no
   go of its page in flight. The kit dismisses it at once. Its text is
   the dialog's type, `: `, and its message (`confirm: Delete it?`).
 - a download the page started that was cancelled, denied, past
   `Limits::downloads`, or whose name or path is past `Limits::text`
-  (section 5). Its text is the name the page suggested.
-- a request its page sent past `Limits::requests` (section 5), whose
+  (`browser-vocabulary.md`, section 1). Its text is the name the page suggested.
+- a request its page sent past `Limits::requests` (`browser-vocabulary.md`, section 1), whose
   answer the kit does not follow. Its text is `requests past the
   limit`.
 
@@ -598,8 +259,8 @@ it is. The page goes on, and the test sees it as it stayed. Left open,
 the dialog would hold every operation on the page until its deadline,
 and no request would answer it.
 
-**The kit's own inspector request.** Enabling `CSS` on a page (section
-6, style) makes Chromium's inspector ask the document again for its own
+**The kit's own inspector request.** Enabling `CSS` on a page
+(`browser-operations.md`, section 1, style) makes Chromium's inspector ask the document again for its own
 URL, a same-origin request answered from the cache alone, to hold its
 sources. A page whose origin may not read its own URL refuses that
 request before it leaves the page, and a `file://` page always does,
@@ -615,7 +276,7 @@ down: enabling `CSS` before a page navigates, which would only move the
 request to the blank page it opens at, unchecked; and letting `file:`
 pages read files (`--allow-file-access-from-files`) to spare that
 refusal, since a page kept to files reads no other local file unless
-its owner asks for file access for a reason of its own (section 3).
+its owner asks for file access for a reason of its own (`browser.md`, section 3).
 
 A log entry's `url` is the resource it names, cut to `Limits::text`,
 beside its text and never in it, so that a test's expected words are
@@ -789,8 +450,8 @@ The kit's tests are a crate of their own, `tests/browser`
 
 ## 11. Open questions
 
-- **Every fragment of wrapped text** (5): whether the browser testing
-  interface should carry all content quads of a text node. Default:
+- **Every fragment of wrapped text** (`browser-vocabulary.md`, section 1):
+  whether the browser testing interface should carry all content quads of a text node. Default:
   `Seen.rect` keeps the first content quad alone; a missing rectangle stays
   in a boxed query's result for its caller to judge. Temper's public
   geometry story needs the other fragments to check a wrapped line whole
@@ -799,7 +460,7 @@ The kit's tests are a crate of their own, `tests/browser`
   namespaces it needs are there, or the real loop's sandbox stands in for
   it.
 - **A page's other requests:** its frames' and its workers' are not
-  reported (section 5), nor are a request's headers, status or timing.
+  reported (`browser-vocabulary.md`, section 1), nor are a request's headers, status or timing.
   Default: none until a test needs them.
 - **Other browsers.** CDP is Chromium's; Firefox and WebKit would need
   WebDriver BiDi, a second wire, if a bug ever shows only there.

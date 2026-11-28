@@ -234,6 +234,7 @@ fn prepare_given(
             .collect();
         start.engine.jig.projects = projects.into();
     }
+    start.engine.build = build_name;
     start.engine.program_environment =
         program_environment(directories, environment, working, &printed::running_word(environment));
     let mut service =

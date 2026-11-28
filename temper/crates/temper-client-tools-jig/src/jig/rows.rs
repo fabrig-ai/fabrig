@@ -276,6 +276,20 @@ pub const ACTIVITY: Tool = Tool {
     area: 1,
     notes: b"A turn's conversation prints whole; read its supplied system text with task turn TASK TURN.\nEach part is cut at 64 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
 };
+pub const TASK_RUNS_AT: u8 = 125;
+pub const TASK_RUNS: Tool = Tool {
+    name: b"task runs",
+    line: b"Read a task's attempts and what their runs were told from",
+    prints: b"Each attempt, oldest first: when claimed, started and ended and how, its build, settings revision, project charter set and source or none, and guides or `guides: unreported`; then `read on with: task runs TASK --after CURSOR` or `no more`",
+    result: b"runs",
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on"),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Each guide names its repository, commit, path, bytes, whether whole and its SHA-256.\nPages follow task history; a page can have no attempts and still have a cursor.\n",
+};
 pub const TURN: Tool = Tool {
     name: b"task turn",
     line: b"Read one turn of a task's run, part by part",
@@ -949,6 +963,39 @@ const SETTING_REVISION: super::table::Argument = flag(
     Optional,
     b"Its value at this revision; the newest when absent",
 );
+/// The project at slot 3 distinguishes this from application setting forms.
+pub const CHARTER_PREVIEW_PROJECT: usize = 3;
+pub const CHARTER_PREVIEW_REASON: u8 = 2;
+pub const CHARTER_PREVIEW: &[super::table::Argument] = &[
+    positional(
+        b"kind",
+        b"charter",
+        Kind::Word { set: &[b"charter"] },
+        Required,
+        b"A charter as a new project task would run by it",
+    ),
+    positional(
+        b"number",
+        b"NUMBER",
+        Kind::NameOrNumber { min: 0, max: 4_294_967_295 },
+        Required,
+        b"The charter's name or number",
+    ),
+    flag(
+        b"reason",
+        b"REASON",
+        Kind::Word { set: &settings_form::view::REASON_NAMES },
+        Optional,
+        b"Only parts read on this reason; every part when absent",
+    ),
+    flag(
+        b"project",
+        b"PROJECT",
+        Kind::Project { empty: false },
+        Required,
+        b"Preview for this project, at the newest revision",
+    ),
+];
 pub const SETTING: Tool = Tool {
     name: b"settings show",
     line: b"Read one setting's value whole",
@@ -990,10 +1037,11 @@ pub const SETTING: Tool = Tool {
             ),
             SETTING_REVISION,
         ],
+        CHARTER_PREVIEW,
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"The JSON value is what a settings file's `set` takes.\n",
+    notes: b"The JSON value is what a settings file's `set` takes.\nWith --project, preview a charter's instructions and parts by source.\n--json prints the whole read, regardless of --reason.\n--revision cannot be used with --project on a charter.\n",
 };
 pub const REVISION: Tool = Tool {
     name: b"revision show",

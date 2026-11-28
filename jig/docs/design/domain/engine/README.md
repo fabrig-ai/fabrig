@@ -21,6 +21,7 @@ does with all of it is ../root.md. The mechanics are those of skein's
 - [`settings-proposals.md`](settings-proposals.md): proposing settings and deciding a proposal.
 - [`settings-store.md`](settings-store.md): how settings are kept and loaded at startup.
 - [`settings-catalogue.md`](settings-catalogue.md): the model catalogue and a provider's list.
+- [`project-charters.md`](project-charters.md): a project's own charters, held by revision and bound by name.
 
 ## 1. In one page
 
@@ -208,14 +209,6 @@ edge (../people/README.md, section 2).
   - the settings: the defaults, the changes over them, the held
     revisions and their charter versions (`settings.md`).
 
-## 4. Its vocabulary toward the root
-
-Moved to [`vocabulary.md`](vocabulary.md), section 1.
-
-## 5. Decisions and the store
-
-Moved to [`decisions.md`](decisions.md), section 1.
-
 ## 6. Accounts
 
 The accounts child domain keeps the deployment's LLM accounts, and an
@@ -361,10 +354,6 @@ protocol layer, which composes jig's pieces with its own:
   input reaches that constructor only after validation; the core seeds
   the whole set and the deployment's roster, with no other implicit
   roster or partial seed.
-
-## 9. The world
-
-Moved to [`world.md`](world.md), section 1.
 
 ## 10. Open questions
 

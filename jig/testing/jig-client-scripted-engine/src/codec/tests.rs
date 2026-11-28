@@ -245,6 +245,7 @@ fn scripted_suspensions_and_worker_waits_keep_their_wire_facts() {
         );
         let value = c::ReadValue::History(Box::new(c::HistoryPage {
             rows: List::from_boxed(Box::new([c::HistoryRow::Attempt(Box::new(c::AttemptLine {
+                sources: None,
                 task: 7,
                 attempt: 4,
                 claimed: None,

@@ -49,8 +49,41 @@ OUTSIDE = re.compile(
 BARE_SECTION = re.compile(r"(?<![\w.])(sections?)\s+(" + NUM + r"(?:" + SEP + r"(?:section\s+)?" + NUM
                           + r")*)(?![\w.]*\d)(?!\.\d)")
 HEADING = re.compile(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.?(?:\s|$)")
+ATX_HEADING = re.compile(r"^(#{1,6})(?:\s|$)")
+MOVED_LINE = re.compile(r"Moved to " + LINK.pattern + r"(?:, section (" + NUM + r"))?\.")
 DATED = re.compile(r"\d{4}-\d{2}-\d{2}")
 DATE = re.compile(r"^(?:\d{4}-)?\d{2}-\d{2}$")  # "skein/docs/design/data/kv.md, 2026-10-05", "reference-case.md, 11-02"
+
+
+def heading_index(lines):
+    """Numbered headings and the move notices of sections with no text left."""
+    sections, body, fence = [], [], False
+    for line in lines:
+        heading = ATX_HEADING.match(line) if not fence else None
+        if heading:
+            number = HEADING.match(line)
+            body = []
+            sections.append((len(heading[1]), number[1] if number else None, body))
+        elif line.strip():
+            body.append(line)
+        if line.lstrip().startswith("```"):
+            fence = not fence
+
+    moved, kept, children = {}, set(), []
+    # From the bottom up, a child already accounts for the text in its own children.
+    for depth, number, body in reversed(sections):
+        notice = MOVED_LINE.fullmatch(body[0].rstrip()) if len(body) == 1 else None
+        whole = notice is not None and not re.match(r"(?:[a-zA-Z][\w+.-]*:|//|[?#])", notice[2])
+        while children and children[-1][0] > depth:
+            if not children.pop()[1]:
+                whole = False
+        children.append((depth, whole))
+        if number is not None:
+            if whole:
+                moved[number] = notice[2], notice[3]
+            else:
+                kept.add(number)
+    return kept | moved.keys(), {n: notice for n, notice in moved.items() if n not in kept}
 
 
 class Tree:
@@ -60,25 +93,30 @@ class Tree:
         self.root = root
         self.tracked = tracked
         self.headings = {}
+        self.moves = {}
         self.docs = None
 
     def heading_numbers(self, rel):
         if rel not in self.headings:
-            nums = set()
             try:
                 with open(os.path.join(self.root, rel), encoding="utf-8", errors="replace") as fh:
-                    fence = False
-                    for line in fh:
-                        if line.lstrip().startswith("```"):
-                            fence = not fence
-                        elif not fence:
-                            m = HEADING.match(line)
-                            if m:
-                                nums.add(m.group(1).rstrip("."))
+                    nums, moved = heading_index(fh)
             except OSError:
-                pass
-            self.headings[rel] = nums
+                nums, moved = set(), {}
+            self.headings[rel], self.moves[rel] = nums, moved
         return self.headings[rel]
+
+    def moved_detail(self, rel, number):
+        self.heading_numbers(rel)
+        notice = self.moves.get(rel, {}).get(number)
+        if notice is None:
+            return None
+        link, section = notice
+        dest, _ = resolve(self, rel, link, None, False)
+        if dest is None:
+            path = re.split(r"[?#]", link, maxsplit=1)[0]
+            dest = os.path.normpath(os.path.join(os.path.dirname(rel), path)).lstrip("/")
+        return f"moved to {dest}, section {section}" if section else f"moved to {dest}"
 
     def exists(self, rel):
         rel = os.path.normpath(rel)
@@ -473,7 +511,9 @@ def check_file(tree, rel, lines, is_code):
             out.append(("path", rel, c.line, c.token, c.how, c.context))
         have = set().union(*(tree.heading_numbers(t) for t in c.targets))
         for n in c.numbers:
-            if n.targets:
+            # A live reading still satisfies the citation; moved headings remain in the index for consumers.
+            moves = [tree.moved_detail(t, n.value) for t in n.targets]
+            if None in moves:
                 continue
             if c.kind == "path":
                 kind, target = "section", f"{c.target} {n.value}"
@@ -483,6 +523,8 @@ def check_file(tree, rel, lines, is_code):
                 detail = "missing" if tree.heading_numbers(doc_of_status(rel)) else "no-numbered-headings"
             else:
                 kind, target, detail = c.kind, f"{c.target} {n.value}", "missing"
+            if moves:
+                kind, detail = "moved", moves[0]
             out.append((kind, rel, c.line, target, detail, c.context))
     return out
 
@@ -508,8 +550,10 @@ def status_labels(tree, rel, self_doc, text, marks):
     out = []
     for m in status_label_matches(rel, text):
         for n in parse_nums(m.group(1)):
-            if n not in have:
-                out.append(("status-label", rel, line_at(marks, m.start()), f"{self_doc} {n}", "missing",
+            moved = tree.moved_detail(self_doc, n)
+            if moved or n not in have:
+                kind, detail = ("moved", moved) if moved else ("status-label", "missing")
+                out.append((kind, rel, line_at(marks, m.start()), f"{self_doc} {n}", detail,
                             text[max(0, m.start() - 20): m.end() + 80].strip()))
     return out
 

@@ -60,34 +60,6 @@ document's "The world" section.
   and the fake program a program backend runs in place of Claude Code
   (section 4).
 
-## 2. smith's tiers
-
-Moved to [`testing-tiers.md`](testing-tiers.md).
-
-### 2.1 Simulated worlds
-
-Moved to [`testing-tiers.md`](testing-tiers.md), section 1.
-
-### 2.2 The real loop
-
-Moved to [`testing-tiers.md`](testing-tiers.md), section 2.
-
-### 2.3 End to end
-
-Moved to [`testing-tiers.md`](testing-tiers.md), section 3.
-
-### 2.4 Benchmarks
-
-Moved to [`testing-tiers.md`](testing-tiers.md), section 4.
-
-### 2.5 Which tier a test belongs to
-
-Moved to [`testing-tiers.md`](testing-tiers.md), section 5.
-
-### 2.6 Placement
-
-Moved to [`testing-tiers.md`](testing-tiers.md), section 6.
-
 ## 3. Neighbours and their faces
 
 ### 3.1 Peers

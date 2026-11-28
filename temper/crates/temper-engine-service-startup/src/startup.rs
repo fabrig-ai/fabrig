@@ -1065,6 +1065,7 @@ fn checked_start_limits(
         }
     };
     let mut engine = settings::Engine {
+        build: "",
         landing_held: false,
         setups: Box::new([]),
         owned_forgejo: None,

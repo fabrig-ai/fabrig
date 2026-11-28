@@ -46,7 +46,75 @@ pub(crate) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
     out
 }
 
+#[expect(clippy::result_large_err, reason = "preserve the exact binding refusal for each task route")]
+fn bind_creation(
+    core: &Core,
+    limits: &Limits,
+    event: &tasks::Event,
+    checked: Option<&[tasks::Executor]>,
+) -> Result<Box<[Option<tasks::CharterBinding>]>, tasks::Problem> {
+    let (tasks::Event::Make { batch, .. }
+    | tasks::Event::MakeResultFollowups { batch, .. }
+    | tasks::Event::Activation {
+        end: tasks::End::FinishedWithFollowups { followups: tasks::ResultFollowups::Delegates(batch), .. },
+        ..
+    }) = event
+    else {
+        return Ok(Box::new([]));
+    };
+    core.bind_batch(limits, batch, checked)
+}
+
+fn not_offered(
+    core: &mut Core,
+    env: &Env<Limits>,
+    event: &mut tasks::Event,
+    problem: tasks::Problem,
+) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    let (tasks::Event::Make { reply_to, .. }
+    | tasks::Event::MakeResultFollowups { reply_to, .. }
+    | tasks::Event::Activation { reply_to, .. }) = event
+    else {
+        unreachable!("a creation has a reply")
+    };
+    let token = super::flight::take_reply(reply_to).into_token();
+    let party = if let Some(
+        Flight::Made { request, .. }
+        | Flight::Goal { request, .. }
+        | Flight::PersonProposal(crate::PersonProposalRoute::Accepting { request, .. }),
+    ) = core.flights.get(skein_lib::Id::from_token(token))
+    {
+        Some(*request)
+    } else {
+        None
+    };
+    if problem.why == tasks::Refusal::Executor
+        && let Some(request) = party
+    {
+        core.tasks.unpin_reports(token);
+        drop(core.land_task(token));
+        super::children::append_people(
+            core,
+            env,
+            jig_domain_people::Event::Decided {
+                request,
+                outcome: jig_domain_people::Outcome::Refused(jig_domain_people::Refusal::NotOffered),
+            },
+            &mut out,
+        );
+        return out;
+    }
+    let mut child = Queue::uncapped();
+    child.push(tasks::Request::Refused { reply_to: ReplyTo::new(token), problem });
+    tag_task_outputs(core, env, child)
+}
+
 fn route_proposal(core: &mut Core, env: &Env<Limits>, mut event: tasks::Event) -> Queue<Request> {
+    let bindings = match bind_creation(core, &env.limits, &event, None) {
+        Ok(bindings) => bindings,
+        Err(problem) => return not_offered(core, env, &mut event, problem),
+    };
     let mut out = Queue::uncapped();
     if let tasks::Event::Make { batch, reply_to, .. } | tasks::Event::MakeResultFollowups { batch, reply_to, .. } =
         &mut event
@@ -64,7 +132,7 @@ fn route_proposal(core: &mut Core, env: &Env<Limits>, mut event: tasks::Event) -
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    super::step::step_tasks(core, env, event, &mut out);
+    super::step::step_tasks_with_charters(core, env, event, &bindings, &mut out);
     tag_task_outputs(core, env, out)
 }
 
@@ -96,6 +164,7 @@ pub(crate) fn route_connector_repair(
         reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
         creator: tasks::Party::Deployment { project: seed.project },
         batch: Box::new([tasks::New {
+            charter_scope: tasks::CharterScope::Project,
             deadline: jig_domain_tasks::Deadline::Named,
             label: 0,
             flags: jig_domain_tasks::Flags::PLAIN,
@@ -139,6 +208,7 @@ pub(crate) fn route_person_task(
         reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
         creator: tasks::Party::Deployment { project: jig_domain_people::DEPLOYMENT },
         batch: Box::new([tasks::New {
+            charter_scope: tasks::CharterScope::Project,
             deadline: tasks::Deadline::Named,
             label: 0,
             flags: tasks::Flags::PLAIN,
@@ -182,15 +252,16 @@ pub(crate) fn resume_resources(
     batch: crate::effects::resources::Batch,
 ) -> Queue<Request> {
     let event = batch.kind.event(batch.reply_to, batch.members);
-    route_batch(core, env, work, event, Some(batch.deadline))
+    route_batch(core, env, work, event, Some((batch.deadline, &batch.checked)))
 }
 
+#[expect(clippy::too_many_lines, reason = "the batch keeps its binding across each admission handoff")]
 fn route_batch(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     mut event: tasks::Event,
-    deadline: Option<skein_lib::Time>,
+    resumed: Option<(skein_lib::Time, &[tasks::Executor])>,
 ) -> Queue<Request> {
     if let Some(token) = super::flight::request_token(&mut event)
         && let Some(Flight::PersonProposal(_)) = core.flights.get(skein_lib::Id::from_token(token))
@@ -201,6 +272,26 @@ fn route_batch(
         return super::effect::procedure::apply(core, env, reply_to, task, step, read, decision);
     } else {
         event
+    };
+    let token = super::flight::request_token(&mut event);
+    let checked = match resumed {
+        Some((_, checked)) => Some(checked),
+        None => match token {
+            Some(token) => match core.flights.get(skein_lib::Id::from_token(token)) {
+                Some(Flight::Made { route, .. }) => Some(route.executors.as_ref()),
+                Some(Flight::Delegating { route: (_, _, _, checked), .. }) => Some(checked.as_ref()),
+                _ => None,
+            },
+            None => None,
+        },
+    };
+    let bindings = match bind_creation(core, &env.limits, &event, checked) {
+        Ok(bindings) => bindings,
+        Err(problem) => return not_offered(core, env, &mut event, problem),
+    };
+    let deadline = match resumed {
+        Some((deadline, _)) => Some(deadline),
+        None => None,
     };
     let mut out = Queue::uncapped();
     if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, funder, .. }, reply_to, .. } = &mut event
@@ -232,8 +323,8 @@ fn route_batch(
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places, .. } = event {
-        if let Err(problem) = core.admit_batch(creator, &mut batch) {
+    let event = if let tasks::Event::Make { reply_to, creator, maker, batch, places, .. } = event {
+        if let Err(problem) = core.admit_batch(&env.limits, creator, &batch, &bindings) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
         }
@@ -242,7 +333,7 @@ fn route_batch(
             env,
             reply_to,
             crate::effects::resources::Kind::Creation { creator, maker, places },
-            batch,
+            (batch, &bindings),
             &mut out,
             deadline,
         ) {
@@ -251,8 +342,8 @@ fn route_batch(
                 return tag_task_outputs(core, env, out);
             }
         }
-    } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, mut batch, .. } = event {
-        if let Err(problem) = core.admit_batch(tasks::Party::Task(proposer), &mut batch) {
+    } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, batch, .. } = event {
+        if let Err(problem) = core.admit_batch(&env.limits, tasks::Party::Task(proposer), &batch, &bindings) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
         }
@@ -261,7 +352,7 @@ fn route_batch(
             env,
             reply_to,
             crate::effects::resources::Kind::Result { proposer, proposal },
-            batch,
+            (batch, &bindings),
             &mut out,
             deadline,
         ) {
@@ -278,7 +369,7 @@ fn route_batch(
         Err(requests) => return requests,
     };
     let event = question_event(core, event);
-    super::step::step_tasks(core, env, event, &mut out);
+    super::step::step_tasks_with_charters(core, env, event, &bindings, &mut out);
     crate::effects::resources::resume(core, work);
     tag_task_outputs(core, env, out)
 }
@@ -419,6 +510,9 @@ fn tag_tasks(
             super::run::calls::call_decision(core, out, ReplyTo::new(request), key, part);
         }
         tasks::Request::Released { revision } => terminals::released(core, env, revision, out),
+        tasks::Request::ReleasedProjectCharters { project, revision } => {
+            core.release_project_charters(project, revision, out);
+        }
         tasks::Request::Erase { key } => terminals::erase(key, out),
         tasks::Request::Relay { task, .. } => terminals::relay(core, env, task, out),
         tasks::Request::PersonProposed { reply_to, proposal } => {

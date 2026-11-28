@@ -1,4 +1,4 @@
-//! Opt-in main-frame requests and their first answers (skein/docs/design/testing/browser.md, 5–8).
+//! Opt-in main-frame requests and their first answers (skein/docs/design/testing/browser-vocabulary.md, 1, and skein/docs/design/testing/browser-operations.md, 1, and skein/docs/design/testing/browser.md, 7–8).
 use super::{Browser, cut_text, field_text, frame_id};
 use crate::boundary::{Event, Trouble};
 use crate::limits::Limits;

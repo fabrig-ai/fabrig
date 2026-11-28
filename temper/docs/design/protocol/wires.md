@@ -216,6 +216,7 @@ them.
   | `Left` | `Left` | up |
   | `Saved` | `Saved` | up |
   | `Preparation` | `Preparation` | up |
+  | `Guides` | `Guides` (`../domain/agent/project-charters.md`, 6) | up |
   | `JobSpec` | `JobSpec` | down |
   | `JobResult` | none: the job's result bytes, carried without conversion (8) | up |
   | `Grant` | `Identity` | down |

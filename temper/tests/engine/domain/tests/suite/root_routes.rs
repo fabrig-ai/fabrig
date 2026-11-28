@@ -2492,11 +2492,13 @@ fn period_specification() -> tasks::Spec {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one recurring story follows two periods through the root")]
 fn a_recurring_procedure_uses_the_root_period_route() {
     let mut driver = Driver::new(Store::new());
     hello(&mut driver);
     driver.settle();
     let mut member = tasks::New {
+        charter_scope: tasks::CharterScope::Project,
         label: 0,
         deadline: tasks::Deadline::Named,
         flags: tasks::Flags::PLAIN,
@@ -3113,6 +3115,7 @@ fn finish_task(driver: &mut Driver, assignment: &engine::Assignment, result: tas
 /// One delegate a chat asks for, with no authority of its own beyond its spend.
 fn plain_delegate(words: &[u8]) -> engine::Delegate {
     engine::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         executor: tasks::Executor::Agent { charter: 1 },
         spec: tasks::Spec {
             job: None,

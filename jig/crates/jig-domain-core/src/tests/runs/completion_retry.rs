@@ -47,6 +47,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::BriefFailed { .. }
                 | Now::RunPrepared { .. }
                 | Now::PartBusy { .. }
+                | Now::ProjectChartersRefused { .. }
                 | Now::RestoreRefused => {}
             },
             Request::Write(..) | Request::Ask { .. } | Request::Held(..) | Request::ProjectMade { .. } => {}

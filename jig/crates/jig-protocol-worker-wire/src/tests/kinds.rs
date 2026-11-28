@@ -14,6 +14,7 @@ fn prepared_tables_equal_the_separate_schema_and_statement() {
 fn record(kind: Kind) -> &'static [u8] {
     match kind {
         Kind::Part => b"Part",
+        Kind::Guides => b"Guides",
         Kind::PartKept => b"PartKept",
         Kind::PartBusy => b"PartBusy",
         Kind::Pause => b"Pause",
@@ -82,4 +83,16 @@ fn kinds_follow_every_schema_variant() {
         }
     }
     assert_eq!(seen, KINDS.len(), "every rule has a variant");
+}
+
+#[test]
+fn guides_round_trip_with_an_independent_byte_bound() {
+    use crate::{Record, v22};
+    use skein_lib::Reader;
+    let limits = v22::Limits { ask_bytes_bytes: 1, ..v22::CEILINGS };
+    let guide_limits = crate::sizes::guides(&limits);
+    let record = v22::Guides { task: 7, attempt: 2, bytes: v22::AskBytes { bytes: Box::from([1, 2, 3, 4]) } };
+    let bytes = record.encode(&guide_limits).unwrap();
+    assert_eq!(v22::Guides::decode(&guide_limits, &mut Reader::new(&bytes)).unwrap(), record);
+    assert!(record.measure(&limits).is_err(), "the ask-answer bound would be too small");
 }

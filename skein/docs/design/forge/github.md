@@ -152,14 +152,6 @@ Forgejo's (dialects.md, 1.2):
 - **Users by id,** with the login from the users' table, filled by `GET
   /user/{id}` (`user-by-id-reads`), one request in the cost.
 
-## 4. Each operation
-
-Moved to [`github-operations.md`](github-operations.md), section 1.
-
-## 5. Merging, updating, and the rules
-
-Moved to [`github-operations.md`](github-operations.md), section 2.
-
 ## 6. Decoding answers
 
 As forgejo.md 1.3: streams, strings kept whole or not, the answer's
@@ -240,10 +232,6 @@ bound, revisions, markers and malformed answers; and GitHub's:
 A repository gone or outside the installation loses its row at its next
 repository-level call. An absent leaf alone does not invalidate the
 repository that answered it.
-
-## 8. The App's documents
-
-Moved to [`github-app.md`](github-app.md), section 1.
 
 ## 9. Deliveries
 
@@ -360,10 +348,6 @@ subscribing; the others are `EVENTS`' (`github-app.md`, section 2), and no more.
 - **Later:** identifying failed action boundaries without a runner process
   marker. Those logs use the bounded job-tail fallback; no read window or
   stored request shape is added here.
-
-## 11. The setup's documents
-
-Moved to [`github-app.md`](github-app.md), section 2.
 
 ## 12. The pin
 

@@ -6,10 +6,12 @@ extern crate alloc;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Overflow, Writer};
 
+mod charter;
 mod judge;
 mod reading;
 mod ways;
 
+pub use charter::{CharterRoom, DeploymentCharters};
 pub use reading::{MethodFile, Reading, Unread};
 
 const ROOT: &[u8] = b".temper";

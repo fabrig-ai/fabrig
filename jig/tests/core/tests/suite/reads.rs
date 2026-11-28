@@ -554,6 +554,7 @@ fn question_world_with_obligation(
         to: skein_lib::ReplyTo::new(skein_lib::Token::new(49_001)),
         key: run_key(&world, parent, 1),
         batch: Box::new([core::Delegate {
+            charter_scope: tasks::CharterScope::Project,
             deadline: jig_domain_tasks::Deadline::Named,
             label: 0,
             flags: jig_domain_tasks::Flags::PLAIN,

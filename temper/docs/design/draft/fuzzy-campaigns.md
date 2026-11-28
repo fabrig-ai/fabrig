@@ -243,7 +243,7 @@ Which builder, the envelope and the wall are the user's figures still (status, *
 - **skein's test table and its generated test-env document** (`skein/docs/foundation/cli.md`, 8): skein's two test variables.
 - **`tools/tiers/design.md`:** `tools/tiers/campaign`, and one-process removing the variables (11.5 there).
 - **`tools/tiers/layers.md`,** 9, and **`tools/tiers/budgets.md`,** 4.2: the campaign pairs beside the real pairs, and their layers' rows.
-- **`temper/docs/design/testing/workloads.md`,** 8: a sweep's campaign configuration, and the composed workload's draws valid at any seed.
+- **`temper/docs/design/testing/workloads-sweeps.md`, section 1:** a sweep's campaign configuration, and the composed workload's draws valid at any seed.
 - **`.config/gate/README.md`,** After landing: the campaign.
 - **`test-budgets.md`,** 11: its sweep of fresh seeds is this draft's, changed with it.
 

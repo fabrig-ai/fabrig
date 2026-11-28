@@ -17,7 +17,7 @@ fn the_application_speaks_its_current_wire() {
     );
 }
 
-fn payloads() -> [(Carried, &'static str, Box<[u8]>); 8] {
+fn payloads() -> [(Carried, &'static str, Box<[u8]>); 9] {
     let limits = fixtures::limits();
     let items = fixtures::items(1);
     let mut landed = List::with_capacity(1);
@@ -33,6 +33,7 @@ fn payloads() -> [(Carried, &'static str, Box<[u8]>); 8] {
         (Carried::Left, "Left", crate::left(&left)),
         (Carried::Saved, "Saved", crate::saved(&saved)),
         (Carried::Preparation, "Preparation", crate::preparation(&preparation)),
+        (Carried::Guides, "Guides", crate::guides(&guide_report())),
         (
             Carried::JobSpec,
             "JobSpec",
@@ -71,7 +72,7 @@ fn the_roots_name_the_declarations_temper_encodes() {
         let mut value = skein_codec::value::Value::with_room(256);
         value.decode(&schema, schema.find(root.declaration.as_bytes()).unwrap(), bytes).expect("encoder's declaration");
     }
-    assert_eq!(application.roots.len(), 8);
+    assert_eq!(application.roots.len(), 9);
     for root in &application.roots {
         assert_ne!(root.carried, Carried::JobResult, "tooling's result is opaque");
     }
@@ -125,6 +126,7 @@ fn temper_roots_round_trip_in_their_carried_directions() {
     for end in [
         "hook_timeout_max_seconds: u32 = 3600 }",
         "landed: list 64 Landed }",
+        "record Guides { guides: list 64 Guide }",
         "repositories: list 64 SavedRepository }",
         "record Tag { tag: u64 }",
         "fallback: bytes 4096 = 0x }",
@@ -148,7 +150,7 @@ fn temper_roots_round_trip_in_their_carried_directions() {
                 assert_ne!(out.as_slice(), &*bytes, "{declaration} must cross layouts");
                 assert_eq!(transcode(Mode::Read, &worker, &engine, declaration, out.as_slice()), bytes);
             }
-            Carried::Left | Carried::Saved | Carried::Preparation | Carried::Ask => {
+            Carried::Left | Carried::Saved | Carried::Preparation | Carried::Guides | Carried::Ask => {
                 let sent = transcode(Mode::Keep, &engine, &worker, declaration, &bytes);
                 assert_ne!(sent, bytes, "{declaration} must cross layouts");
                 peer.up(root, &sent, &mut out).unwrap();
@@ -409,4 +411,93 @@ fn git_identity_with_a_field_the_worker_lacks_is_refused() {
     assert_eq!(problem.cause, Cause::Field);
     assert_eq!(&*problem.kept(), b"the worker's layout cannot keep temper-worker-wire Identity.email: field");
     assert_eq!(out.as_slice(), []);
+}
+
+fn shop_guide() -> v1::Guide {
+    v1::Guide {
+        repository: b"acme/shop".as_slice().into(),
+        commit: b"9f8e7d6c5b4a39000ff1e2d3c4b5a69788776655".as_slice().into(),
+        path: b"AGENTS.md".as_slice().into(),
+        digest: [23; 32],
+        bytes: 3201,
+        whole: true,
+    }
+}
+
+fn guide_report() -> v1::Guides {
+    let mut guides = List::with_capacity(1);
+    guides.push(shop_guide()).unwrap();
+    v1::Guides { guides }
+}
+
+#[test]
+fn guides_round_trip_empty_and_nonempty_reports() {
+    use skein_lib::Reader;
+    for report in [v1::Guides { guides: List::with_capacity(0) }, guide_report()] {
+        let bytes = crate::guides(&report);
+        let mut reader = Reader::new(&bytes);
+        assert_eq!(v1::Guides::decode(&fixtures::limits(), &mut reader).unwrap(), report);
+        assert!(reader.is_empty());
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "the layout fixture is ordinary test Rust")]
+fn the_guides_layouts_open_in_both_orders_and_leave_answers_unchanged() {
+    use jig_protocol_worker_wire::{
+        self as jig,
+        layouts::{Plans, Theirs},
+        v22,
+    };
+    use skein_codec::schema::parse;
+    let old_app: &str =
+        wire::TEXT.lines().filter(|line| !line.starts_with("record Guide")).collect::<Vec<_>>().join("\n").leak();
+    let old_jig: &str = jig::wire::TEXT
+        .replace("\nrecord Guides { task: u64 attempt: u64 bytes: AskBytes }", "")
+        .replace(", guides: Guides", "")
+        .leak();
+    let app = crate::application(&fixtures::limits()).unwrap();
+    let mut old_roots = List::with_capacity(8);
+    for root in &app.roots {
+        if root.carried != Carried::Guides {
+            old_roots.push(*root).unwrap();
+        }
+    }
+    let limits = v22::Limits { work_left_some: 45, ..v22::CEILINGS };
+    let answer = v22::Answer {
+        task: 7,
+        attempt: 2,
+        turns: 0,
+        spent: 0,
+        read: None,
+        refused: List::with_capacity(0),
+        ending: v22::Ending::Parked(v22::Parked { work: v22::Work { left: Some(Box::new([0; 4])), saved: None } }),
+    };
+    for (engine, worker, roots) in [
+        ([old_jig, old_app], [jig::wire::TEXT, wire::TEXT], &old_roots),
+        ([jig::wire::TEXT, wire::TEXT], [old_jig, old_app], &app.roots),
+    ] {
+        let [worker_jig, worker_app] = worker.map(|text| parse(text.as_bytes()).unwrap());
+        let mut plans = Plans::new(&engine, roots).unwrap();
+        let mut peer = plans
+            .judge(&[
+                Theirs {
+                    name: jig::wire::FAMILY,
+                    layout: worker_jig.fingerprints().family().digest(),
+                    text: worker_jig.text(),
+                },
+                Theirs {
+                    name: wire::FAMILY,
+                    layout: worker_app.fingerprints().family().digest(),
+                    text: worker_app.text(),
+                },
+            ])
+            .expect("both builds open across layouts");
+        let table = plans.fit_table(&peer, &limits).unwrap();
+        assert!(!table.iter().any(|rule| rule.kind == jig::Kind::Guides.number()), "neither mixed pair takes guides");
+        let bytes = answer.encode(&limits).unwrap();
+        let read = jig::convert::start_receive(&mut peer, jig::Kind::Answer.number(), &bytes, &limits);
+        let jig::convert::Advance::Frame(frame) = read else { panic!("answer must still decode: {read:?}") };
+        assert_eq!(&frame.bytes()[8..], bytes.as_ref());
+    }
 }

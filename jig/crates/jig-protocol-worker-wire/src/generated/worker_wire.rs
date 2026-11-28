@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 22;
 pub const LAYOUT: [u8; 32] = [
-    0xe9, 0x3f, 0xf9, 0x51, 0xad, 0x60, 0xf6, 0xf1, 0x2b, 0x47, 0xda, 0x0c, 0x65, 0xfb, 0xf1, 0x1a, 0x6b, 0x20, 0x99,
-    0xbc, 0x18, 0xdc, 0x1e, 0xf5, 0xf0, 0x9e, 0x34, 0xcf, 0x70, 0x7d, 0x2c, 0xb5,
+    0x01, 0x5f, 0x96, 0x8b, 0xa4, 0x6e, 0x37, 0x18, 0x29, 0x8e, 0xa4, 0xdd, 0xac, 0xc5, 0x51, 0x95, 0x5b, 0x05, 0x1a,
+    0x3b, 0xf3, 0x4c, 0x64, 0xc5, 0x36, 0x0a, 0x8b, 0x30, 0x4a, 0x85, 0x46, 0x7f,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -1005,6 +1005,10 @@ pub mod paths {
     pub const ASK_TAIL: Path = Path::new("Ask (tail)");
     pub const ASK_BYTES_BYTES: Path = Path::new("AskBytes.bytes");
     pub const ASK_BYTES_TAIL: Path = Path::new("AskBytes (tail)");
+    pub const GUIDES_TASK: Path = Path::new("Guides.task");
+    pub const GUIDES_ATTEMPT: Path = Path::new("Guides.attempt");
+    pub const GUIDES_BYTES: Path = Path::new("Guides.bytes");
+    pub const GUIDES_TAIL: Path = Path::new("Guides (tail)");
     pub const ASK_ANSWER_TAG: Path = Path::new("AskAnswer (tag)");
     pub const ASKED_RUN: Path = Path::new("Asked.run");
     pub const ASKED_ATTEMPT: Path = Path::new("Asked.attempt");
@@ -8710,6 +8714,64 @@ impl Record for AskBytes {
     }
 }
 
+// Type: Guides.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Guides {
+    pub task: u64,
+    pub attempt: u64,
+    pub bytes: AskBytes,
+}
+
+// Record: Guides.
+impl Guides {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("AskBytes"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
+impl Record for Guides {
+    type Limits = Limits;
+    const TAIL: Path = paths::GUIDES_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guides")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guides")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.task, limits, out, paths::GUIDES_TASK)?;
+        field::write(field::U64, &self.attempt, limits, out, paths::GUIDES_ATTEMPT)?;
+        field::write(field::Nested, &self.bytes, limits, out, paths::GUIDES_BYTES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            task: field::read(field::U64, limits, reader, paths::GUIDES_TASK)?,
+            attempt: field::read(field::U64, limits, reader, paths::GUIDES_ATTEMPT)?,
+            bytes: field::read(field::Nested, limits, reader, paths::GUIDES_BYTES)?,
+        })
+    }
+}
+
 // Type: AskAnswer.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AskAnswer {
@@ -9684,6 +9746,7 @@ pub enum FromWorker {
     UsageRead(UsageRead),
     Paused(Paused),
     Part(Part),
+    Guides(Guides),
 }
 
 // Record: FromWorker.
@@ -9707,7 +9770,8 @@ impl FromWorker {
         skein_codec::bounds::Node::Named("UsageRead"),
         skein_codec::bounds::Node::Named("Paused"),
         skein_codec::bounds::Node::Named("Part"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+        skein_codec::bounds::Node::Named("Guides"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -9755,6 +9819,7 @@ impl Record for FromWorker {
             Self::UsageRead(value) => { field::put(out, &[15], paths::FROM_WORKER_TAG)?; value.write(limits, out) },
             Self::Paused(value) => { field::put(out, &[16], paths::FROM_WORKER_TAG)?; value.write(limits, out) },
             Self::Part(value) => { field::put(out, &[17], paths::FROM_WORKER_TAG)?; value.write(limits, out) },
+            Self::Guides(value) => { field::put(out, &[18], paths::FROM_WORKER_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -9779,7 +9844,8 @@ impl Record for FromWorker {
             15 => Ok(Self::UsageRead(UsageRead::read(limits, reader)?)),
             16 => Ok(Self::Paused(Paused::read(limits, reader)?)),
             17 => Ok(Self::Part(Part::read(limits, reader)?)),
-            18..=u8::MAX => Err(Problem { path: paths::FROM_WORKER_TAG, reason: skein_codec::Reason::Tag }),
+            18 => Ok(Self::Guides(Guides::read(limits, reader)?)),
+            19..=u8::MAX => Err(Problem { path: paths::FROM_WORKER_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -9959,6 +10025,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Grant", nodes: Grant::SHAPE },
     skein_codec::bounds::Declaration { name: "GrantValue", nodes: GrantValue::SHAPE },
     skein_codec::bounds::Declaration { name: "Granted", nodes: Granted::SHAPE },
+    skein_codec::bounds::Declaration { name: "Guides", nodes: Guides::SHAPE },
     skein_codec::bounds::Declaration { name: "Header", nodes: Header::SHAPE },
     skein_codec::bounds::Declaration { name: "Hello", nodes: Hello::SHAPE },
     skein_codec::bounds::Declaration { name: "HostAnswer", nodes: HostAnswer::SHAPE },

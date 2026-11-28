@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 3;
 pub const LAYOUT: [u8; 32] = [
-    0x90, 0xb4, 0x56, 0x1b, 0xd9, 0xea, 0x35, 0xb6, 0xd7, 0x65, 0xa3, 0x21, 0x59, 0x0f, 0x26, 0x1e, 0x34, 0x4c, 0x3a,
-    0xfe, 0x44, 0x84, 0xf0, 0xf0, 0xa9, 0x18, 0x1e, 0xb1, 0x6a, 0x47, 0x80, 0x26,
+    0x3d, 0xaf, 0xd2, 0x18, 0xf6, 0x0b, 0xd3, 0xbf, 0xbf, 0x4e, 0x44, 0xb2, 0xf7, 0x04, 0x48, 0x7b, 0x4a, 0xd3, 0x3e,
+    0x67, 0x58, 0xa4, 0xd4, 0xab, 0xf3, 0xd6, 0x92, 0x0c, 0xa2, 0x98, 0x49, 0xa1,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -110,6 +110,12 @@ pub struct Limits {
     pub revision_models: u32,
     pub revision_items: u32,
     pub revision_applications: u32,
+    pub project_charter_name: u32,
+    pub project_charter_settings: u32,
+    pub project_charter_instructions: u32,
+    pub project_charter_parts: u32,
+    pub project_charters_source: u32,
+    pub project_charters_charters: u32,
     pub proposal_models: u32,
     pub proposal_items: u32,
     pub proposal_applications: u32,
@@ -209,6 +215,12 @@ pub const CEILINGS: Limits = Limits {
     revision_models: 64,
     revision_items: 3_221_225_472,
     revision_applications: 128,
+    project_charter_name: 32,
+    project_charter_settings: 32,
+    project_charter_instructions: 65_536,
+    project_charter_parts: 8,
+    project_charters_source: 256,
+    project_charters_charters: 512,
     proposal_models: 64,
     proposal_items: 128,
     proposal_applications: 128,
@@ -308,12 +320,19 @@ pub const LIMIT_NAMES: &[&str] = &[
     "revision_models",
     "revision_items",
     "revision_applications",
+    "project_charter_name",
+    "project_charter_settings",
+    "project_charter_instructions",
+    "project_charter_parts",
+    "project_charters_source",
+    "project_charters_charters",
     "proposal_models",
     "proposal_items",
     "proposal_applications",
 ];
 
 impl Limits {
+    #[expect(clippy::too_many_lines, reason = "one operation per schema field or limit")]
     #[must_use]
     pub fn values(&self) -> List<u32> {
         List::from_boxed([
@@ -410,12 +429,19 @@ impl Limits {
             self.revision_models,
             self.revision_items,
             self.revision_applications,
+            self.project_charter_name,
+            self.project_charter_settings,
+            self.project_charter_instructions,
+            self.project_charter_parts,
+            self.project_charters_source,
+            self.project_charters_charters,
             self.proposal_models,
             self.proposal_items,
             self.proposal_applications,
         ].into())
     }
 
+    #[expect(clippy::too_many_lines, reason = "one operation per schema field or limit")]
     #[must_use]
     pub fn at_most(&self, most: u32) -> Limits {
         let _: u32 = most;
@@ -513,6 +539,12 @@ impl Limits {
             revision_models: self.revision_models.min(most),
             revision_items: self.revision_items.min(most),
             revision_applications: self.revision_applications.min(most),
+            project_charter_name: self.project_charter_name.min(most),
+            project_charter_settings: self.project_charter_settings.min(most),
+            project_charter_instructions: self.project_charter_instructions.min(most),
+            project_charter_parts: self.project_charter_parts.min(most),
+            project_charters_source: self.project_charters_source.min(most),
+            project_charters_charters: self.project_charters_charters.min(most),
             proposal_models: self.proposal_models.min(most),
             proposal_items: self.proposal_items.min(most),
             proposal_applications: self.proposal_applications.min(most),
@@ -614,6 +646,12 @@ const LIMIT_PATHS: &[Path] = &[
     paths::REVISION_MODELS,
     paths::REVISION_ITEMS,
     paths::REVISION_APPLICATIONS,
+    paths::PROJECT_CHARTER_NAME,
+    paths::PROJECT_CHARTER_SETTINGS,
+    paths::PROJECT_CHARTER_INSTRUCTIONS,
+    paths::PROJECT_CHARTER_PARTS,
+    paths::PROJECT_CHARTERS_SOURCE,
+    paths::PROJECT_CHARTERS_CHARTERS,
     paths::PROPOSAL_MODELS,
     paths::PROPOSAL_ITEMS,
     paths::PROPOSAL_APPLICATIONS,
@@ -1091,6 +1129,15 @@ pub mod paths {
     pub const CHARTER_VERSION_OVERLAY: Path = Path::new("CharterVersion.overlay");
     pub const CHARTER_VERSION_VERSION: Path = Path::new("CharterVersion (version)");
     pub const CHARTER_VERSION_TAIL: Path = Path::new("CharterVersion (tail)");
+    pub const PROJECT_CHARTER_NAME: Path = Path::new("ProjectCharter.name");
+    pub const PROJECT_CHARTER_SETTINGS: Path = Path::new("ProjectCharter.settings");
+    pub const PROJECT_CHARTER_INSTRUCTIONS: Path = Path::new("ProjectCharter.instructions");
+    pub const PROJECT_CHARTER_PARTS: Path = Path::new("ProjectCharter.parts");
+    pub const PROJECT_CHARTER_TAIL: Path = Path::new("ProjectCharter (tail)");
+    pub const PROJECT_CHARTERS_SOURCE: Path = Path::new("ProjectCharters.source");
+    pub const PROJECT_CHARTERS_CHARTERS: Path = Path::new("ProjectCharters.charters");
+    pub const PROJECT_CHARTERS_VERSION: Path = Path::new("ProjectCharters (version)");
+    pub const PROJECT_CHARTERS_TAIL: Path = Path::new("ProjectCharters (tail)");
     pub const PROPOSAL_KEY: Path = Path::new("Proposal.key");
     pub const PROPOSAL_MODELS: Path = Path::new("Proposal.models");
     pub const PROPOSAL_AGAINST: Path = Path::new("Proposal.against");
@@ -8619,6 +8666,126 @@ impl Record for CharterVersion {
     }
 }
 
+// Type: ProjectCharter.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectCharter {
+    pub name: Box<[u8]>,
+    pub settings: Box<[u8]>,
+    pub instructions: Box<[u8]>,
+    pub parts: List<CharterPart>,
+}
+
+// Record: ProjectCharter.
+impl ProjectCharter {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_name) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_settings) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_instructions) },
+        skein_codec::bounds::Node::Named("CharterPart"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, project_charter_parts), item: 3, size: size_of::<CharterPart>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
+impl Record for ProjectCharter {
+    type Limits = Limits;
+    const TAIL: Path = paths::PROJECT_CHARTER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharter")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharter")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.project_charter_name.min(CEILINGS.project_charter_name) }, &self.name, limits, out, paths::PROJECT_CHARTER_NAME)?;
+        field::write(field::Bytes { limit: limits.project_charter_settings.min(CEILINGS.project_charter_settings) }, &self.settings, limits, out, paths::PROJECT_CHARTER_SETTINGS)?;
+        field::write(field::Bytes { limit: limits.project_charter_instructions.min(CEILINGS.project_charter_instructions) }, &self.instructions, limits, out, paths::PROJECT_CHARTER_INSTRUCTIONS)?;
+        field::write(field::Sequence { limit: limits.project_charter_parts.min(CEILINGS.project_charter_parts), minimum: 8, item: field::Nested }, &self.parts, limits, out, paths::PROJECT_CHARTER_PARTS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Bytes { limit: limits.project_charter_name.min(CEILINGS.project_charter_name) }, limits, reader, paths::PROJECT_CHARTER_NAME)?,
+            settings: field::read(field::Bytes { limit: limits.project_charter_settings.min(CEILINGS.project_charter_settings) }, limits, reader, paths::PROJECT_CHARTER_SETTINGS)?,
+            instructions: field::read(field::Bytes { limit: limits.project_charter_instructions.min(CEILINGS.project_charter_instructions) }, limits, reader, paths::PROJECT_CHARTER_INSTRUCTIONS)?,
+            parts: field::read(field::Sequence { limit: limits.project_charter_parts.min(CEILINGS.project_charter_parts), minimum: 8, item: field::Nested }, limits, reader, paths::PROJECT_CHARTER_PARTS)?,
+        })
+    }
+}
+
+// Type: ProjectCharters.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectCharters {
+    pub source: Box<[u8]>,
+    pub charters: List<ProjectCharter>,
+}
+
+// Record: ProjectCharters.
+impl ProjectCharters {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charters_source) },
+        skein_codec::bounds::Node::Named("ProjectCharter"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, project_charters_charters), item: 1, size: size_of::<ProjectCharter>() },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
+impl Record for ProjectCharters {
+    type Limits = Limits;
+    const TAIL: Path = paths::PROJECT_CHARTERS_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharters")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharters")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::put(out, &VERSION.to_be_bytes(), paths::PROJECT_CHARTERS_VERSION)?;
+        field::write(field::Bytes { limit: limits.project_charters_source.min(CEILINGS.project_charters_source) }, &self.source, limits, out, paths::PROJECT_CHARTERS_SOURCE)?;
+        field::write(field::Sequence { limit: limits.project_charters_charters.min(CEILINGS.project_charters_charters), minimum: 16, item: field::Nested }, &self.charters, limits, out, paths::PROJECT_CHARTERS_CHARTERS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        field::version(reader, VERSION, paths::PROJECT_CHARTERS_VERSION)?;
+        Ok(Self {
+            source: field::read(field::Bytes { limit: limits.project_charters_source.min(CEILINGS.project_charters_source) }, limits, reader, paths::PROJECT_CHARTERS_SOURCE)?,
+            charters: field::read(field::Sequence { limit: limits.project_charters_charters.min(CEILINGS.project_charters_charters), minimum: 16, item: field::Nested }, limits, reader, paths::PROJECT_CHARTERS_CHARTERS)?,
+        })
+    }
+}
+
 // Type: Proposal.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Proposal {
@@ -8759,6 +8926,8 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "PermissionRole", nodes: PermissionRole::SHAPE },
     skein_codec::bounds::Declaration { name: "Policy", nodes: Policy::SHAPE },
     skein_codec::bounds::Declaration { name: "PolicyNumber", nodes: PolicyNumber::SHAPE },
+    skein_codec::bounds::Declaration { name: "ProjectCharter", nodes: ProjectCharter::SHAPE },
+    skein_codec::bounds::Declaration { name: "ProjectCharters", nodes: ProjectCharters::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectPolicySetting", nodes: ProjectPolicySetting::SHAPE },
     skein_codec::bounds::Declaration { name: "Proposal", nodes: Proposal::SHAPE },
     skein_codec::bounds::Declaration { name: "ProposalId", nodes: ProposalId::SHAPE },
@@ -8912,6 +9081,12 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.revision_models,
     CEILINGS.revision_items,
     CEILINGS.revision_applications,
+    CEILINGS.project_charter_name,
+    CEILINGS.project_charter_settings,
+    CEILINGS.project_charter_instructions,
+    CEILINGS.project_charter_parts,
+    CEILINGS.project_charters_source,
+    CEILINGS.project_charters_charters,
     CEILINGS.proposal_models,
     CEILINGS.proposal_items,
     CEILINGS.proposal_applications,

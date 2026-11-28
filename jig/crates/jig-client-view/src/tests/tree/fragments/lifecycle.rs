@@ -280,6 +280,7 @@ fn attempts_render_every_run_end_recorded_times_phase_count_and_absences_in_chec
         for end in ends {
             let recorded = end.is_some();
             let value = AttemptLine {
+                sources: None,
                 task: u64::MAX,
                 attempt: 2,
                 claimed: recorded.then_some(Wall::from_nanos(14)),
@@ -314,6 +315,7 @@ fn a_suspended_history_attempt_names_its_worker_and_end() {
             started: None,
             ended: Some(Wall::from_nanos(37)),
             end: Some(RunEnd::Suspended { worker: 2, why }),
+            sources: None,
             phases: None,
         };
         let mut builder = Builder::new(&crate::tests::kit::limits());

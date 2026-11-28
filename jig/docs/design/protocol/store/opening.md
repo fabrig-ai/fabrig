@@ -429,10 +429,6 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
 - **The domain sees** the copy as any restart's store, pending until it
   asks for the switch (step 7).
 
-## 3. Owner sets and frames' sites
-
-Moved to [`opening-owners.md`](opening-owners.md), section 1.
-
 ## 4. Power loss
 
 Every write, sync and rename above is a cut point. After each, the
@@ -461,6 +457,3 @@ partial one removed, or the new.
 - **A read writes nothing,** converted or not (`transcripts.md`, 6): a cut anywhere in a
   read leaves every file as it was, and the next read converts the same
   frame the same way.
-## 5. Rehearsing and going back
-
-Moved to [`opening-rehearsal.md`](opening-rehearsal.md), section 1.

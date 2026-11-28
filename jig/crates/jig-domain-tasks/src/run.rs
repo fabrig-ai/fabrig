@@ -69,6 +69,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, numbe
 }
 
 pub(crate) struct Claiming {
+    pub(crate) sources: Option<crate::ClaimSources>,
     pub(crate) session_end: Option<crate::SessionEnd>,
     pub(crate) reasons: crate::Reasons,
     pub(crate) offered: crate::Reasons,
@@ -129,8 +130,19 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
 }
 
 fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
-    let Claiming { number, attempt, resumed, fresh, budget, account, reasons, offered, session_end, writes: _ } =
-        claiming;
+    let Claiming {
+        number,
+        attempt,
+        resumed,
+        fresh,
+        budget,
+        account,
+        reasons,
+        offered,
+        session_end,
+        sources,
+        writes: _,
+    } = claiming;
     let task = task_mut(domain, number).expect("entrance names task");
     task.record.numbers.reserved = task.record.numbers.reserved.checked_add(budget).expect("available budget");
     task.record.run_reserved = budget;
@@ -164,7 +176,7 @@ fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: C
     task.record.phase = Phase::Active(Active::Claimed { attempt });
     let why = task.record.due_reason;
     crate::activity::append(&mut task.record, env.wall, crate::Line::RunBegan { attempt, why, resumed, fresh }, out);
-    publish(domain, env, number, out);
+    crate::domain::publish_claim(domain, env, number, sources, out);
     fact(domain, Fact::Claimed { task: number, attempt });
     out.push(Request::Done { reply_to: to });
 }

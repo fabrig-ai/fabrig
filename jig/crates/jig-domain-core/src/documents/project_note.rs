@@ -120,6 +120,10 @@ pub(super) fn ledger(value: &tasks::FundingRecord) -> Ledger {
         },
     }
 }
+pub(crate) fn project_readable(core: &Core, party: u64, project: u32) -> bool {
+    core.open_project(project) && core.people.role(party, project).is_some()
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one project document gathers child-owned bounded policy, role and spending facts"
@@ -131,7 +135,7 @@ pub(super) fn project(
     number: u32,
     decision: Wall,
 ) -> Result<Project, Missing> {
-    if !core.open_project(number) || core.people.role(party, number).is_none() {
+    if !project_readable(core, party, number) {
         return Err(Missing::NotAllowed);
     }
     let value = core.authority.policy(number).ok_or(Missing::Unknown)?;

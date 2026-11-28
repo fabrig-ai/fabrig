@@ -41,6 +41,7 @@ pub(crate) struct Hosted {
     tell_parts: bool,
     refusals: crate::refusals::Refusals,
     pub(crate) answer: Option<crate::answers::Kept>,
+    pub(crate) guides: Option<Box<[u8]>>,
     /// Whether the workspace saves unfinished work before release.
     save: bool,
     pub(crate) live: crate::LiveAsk,
@@ -253,6 +254,7 @@ fn assign_runtime(
             None => false,
         },
         answer: None,
+        guides: None,
         refusals: crate::refusals::Refusals::new(env.limits.inbox),
         save: save && workspace.is_some(),
         live,
@@ -1113,6 +1115,9 @@ fn answer(
         ending: answer,
     };
     entry.answer = Some(crate::answers::Kept::Run(answer.clone()));
+    if let Some(guides) = crate::answers::guides(entry) {
+        out.push(Request::Up(guides));
+    }
     out.push(Request::Up(LinkUp::Answer { run, attempt, answer }));
     State::Closed
 }
@@ -1553,6 +1558,7 @@ impl Hosted {
             run,
             attempt,
             answer: None,
+            guides: None,
             grants: Box::new([]),
             refreshed: false,
             drained: false,

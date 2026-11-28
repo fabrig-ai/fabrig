@@ -108,6 +108,7 @@ mod fuzzy {
     mod decision_reads;
     mod deletion;
     mod faults;
+    mod project_charters;
     mod reads;
     mod resource_reports;
     mod retention;

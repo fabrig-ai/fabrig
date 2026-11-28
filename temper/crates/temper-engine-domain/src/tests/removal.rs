@@ -19,6 +19,7 @@ fn procedure() -> (crate::Domain, Env<crate::Limits>, u64) {
             reply_to: ReplyTo::new(Token::new(3)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: goal,
                 project: 1,
                 label: 0,

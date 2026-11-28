@@ -118,6 +118,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         &temper_service::stock::Given::Stock,
         None,
         true,
+        "",
         &[],
         Some((&config.jig, &config.limits)),
         &temper_config_shell::Programs::default(),

@@ -179,10 +179,6 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   start (`FixedStart::draw`), not from `getrandom`: the program's startup
   chooses both, and the kit reads no setting of its own for them.
 
-## 6. Startup
-
-Moved to [`shell-startup.md`](shell-startup.md), section 1.
-
 ## 7. Deferred optimisations
 
 Each sits behind the same records, keeps the contract of the kernel
@@ -521,7 +517,3 @@ its native worlds do (../testing/world.md; ../playground.md).
   world for `wasm32-unknown-unknown`, warnings denied, so a native
   item reached from the portable face fails the build, and a fence that
   leaves dead code warns (../testing/README.md, 10).
-
-## 14. A binary's table
-
-Moved to [`shell-table.md`](shell-table.md), section 1.

@@ -406,6 +406,7 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
                 },
                 s::Record::Application { .. }
                 | s::Record::Revision { .. }
+                | s::Record::ProjectCharters(_)
                 | s::Record::Extent { .. }
                 | s::Record::Charter { .. } => {
                     panic!("live fixture")

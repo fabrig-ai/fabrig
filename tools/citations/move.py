@@ -1152,40 +1152,92 @@ class Plan:
                         self.rewritten += 1
                     self.rewritten_files.add(source)
         self.edit_destination = None
-        self.rewrite_allow()
         self.names_by_hand()
-        return self.contents()
+        # The rendered row origins locate the findings; render any exception edits
+        # through the same path so reports use final line numbers in allow.txt too.
+        contents = self.contents()
+        if self.rewrite_allow(checked, contents):
+            contents = self.contents()
+        return contents
 
-    def rewrite_allow(self):
+    def allow_target(self, target):
+        parts = target.split()
+        if len(parts) == 2 and re.fullmatch(c.NUM, parts[1]):
+            destinations = [self.target(p, parts[1]) for p in parts[0].split("|")]
+            if len({n for _, n in destinations}) > 1:
+                return None
+            parts = ["|".join(p for p, _ in destinations)] + ([destinations[0][1]] if destinations[0][1] else [])
+        else:
+            parts = [self.moves.get(p, p) for p in parts]
+        return " ".join(parts)
+
+    def allow_locations(self, allow, checked, contents):
+        """Follow excused findings by row origin, checking that they still fail there."""
+        locations = collections.defaultdict(set)
+        sources = {e.src for e, _ in self.sections} | {path for path, _ in self.status_locations}
+        inverse = {dst: src for src, dst in self.moves.items()}
+        final_findings = {}
+        for path in sorted(sources & checked.keys()):
+            rules = {want for pattern, want in allow if fnmatch.fnmatchcase(path, pattern)}
+            if not rules:
+                continue
+            for _, _, line, target, _, _ in c.check_file(self.before, path, self.read(path).split("\n"), checked[path]):
+                if target not in rules and "*" not in rules:
+                    continue
+                mapped = self.allow_target(target) or target
+                for dst, ln, _ in self.final_positions.get((path, line), ()):
+                    if skipped_text(dst):
+                        continue
+                    if dst not in final_findings:
+                        text = contents[dst] if dst in contents else self.read(inverse.get(dst, dst))
+                        final_findings[dst] = {(n, t) for _, _, n, t, _, _ in
+                                               c.check_file(self.after, dst, text.split("\n"), checked[path])}
+                    if (ln, mapped) in final_findings[dst]:
+                        locations[path, target].add(dst)
+                        locations[path, "*"].add(dst)
+        return locations
+
+    def rewrite_allow(self, checked, contents):
         if c.ALLOW not in self.tracked:
-            return
-        c.allowed(str(self.root))
-        lines = self.lines(c.ALLOW)
-        for ln, line in enumerate(lines, 1):
+            return False
+        allow = c.allowed(str(self.root))
+        locations = self.allow_locations(allow, checked, contents)
+        changed = False
+        for ln, line in enumerate(self.lines(c.ALLOW), 1):
             if not line.strip() or line.lstrip().startswith("#"):
                 continue
             entry, _, reason = line.partition(" # ")
-            glob, target = entry.split(None, 1)
-            old = (glob, target)
-            if any(ch in glob for ch in "*?["):
-                if any(fnmatch.fnmatchcase(p, glob) for p in self.moves):
-                    self.by_hand.add((c.ALLOW, ln, "glob matches a moved path", glob))
+            pattern, want = entry.split(None, 1)
+            want = want.strip()
+            if any(ch in pattern for ch in "*?["):
+                if any(fnmatch.fnmatchcase(p, pattern) for p in self.moves):
+                    self.by_hand.add((c.ALLOW, ln, "glob matches a moved path", pattern))
+                if any(want == t and fnmatch.fnmatchcase(p, pattern) and
+                       any(not fnmatch.fnmatchcase(dst, pattern) for dst in destinations)
+                       for (p, t), destinations in locations.items()):
+                    self.by_hand.add((c.ALLOW, ln, "excused finding moves outside glob", pattern))
+                files = [pattern]
             else:
-                glob = self.moves.get(glob, glob)
-            parts = target.split()
-            if len(parts) == 2 and re.fullmatch(c.NUM, parts[1]):
-                destinations = [self.target(p, parts[1]) for p in parts[0].split("|")]
-                if len({n for _, n in destinations}) > 1:
-                    self.by_hand.add((c.ALLOW, ln, "split allow target", target))
-                    continue
-                parts = ["|".join(p for p, _ in destinations)] + ([destinations[0][1]] if destinations[0][1] else [])
-            else:
-                parts = [self.moves.get(p, p) for p in parts]
-            target = " ".join(parts)
-            if old != (glob, target):
-                self.edits[c.ALLOW][(ln, 0, len(line.rstrip("\r\n")))] = f"{glob} {target} # {reason.rstrip()}"
-                self.rewritten += 1
+                default = self.moves.get(pattern, pattern)
+                destinations = locations.get((pattern, want), set())
+                files = sorted(destinations - {default})
+                if not files or default in destinations:
+                    files.insert(0, default)
+            target = self.allow_target(want)
+            if target is None:
+                self.by_hand.add((c.ALLOW, ln, "split allow target", want))
+                continue
+            original = line.rstrip("\r\n")
+            ending = line[len(original):] or "\n"
+            replacements = [original if (file, target) == (pattern, want) else
+                            f"{file} {target} # {reason.rstrip()}" for file in files]
+            count = sum((file, target) != (pattern, want) for file in files)
+            if count:
+                self.edits[c.ALLOW][(ln, 0, len(original))] = ending.join(replacements)
+                self.rewritten += count
                 self.rewritten_files.add(c.ALLOW)
+                changed = True
+        return changed
 
     def names_by_hand(self):
         # Match path shapes once, then look up tokens, independent of the map's size.

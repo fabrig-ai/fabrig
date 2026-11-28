@@ -198,6 +198,7 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge/engine.md, 3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    ProjectCharters(temper_engine_domain::ProjectChartersDiagnostic),
     ForgeTable {
         words: Box<[u8]>,
     },

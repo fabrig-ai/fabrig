@@ -153,3 +153,82 @@ fn pages(told: &[Told]) -> List<Told> {
     }
     pages
 }
+
+#[test]
+fn history_delivers_attempts_with_and_without_sources() {
+    use contract::{AttemptLine, HistoryPage, HistoryRow, Read, ReadResult, ReadValue, RunSources};
+    const TASK: u64 = 7;
+    let mut client = Client::started();
+    let read = client.read(PAGE, Readable::Jig(Read::History { task: TASK, subtree: false, after: None }));
+    let older = AttemptLine {
+        task: TASK,
+        attempt: 1,
+        claimed: None,
+        started: None,
+        ended: None,
+        end: None,
+        phases: None,
+        sources: None,
+    };
+    let newer = AttemptLine {
+        attempt: 2,
+        sources: Some(RunSources {
+            build: "build-name".into(),
+            settings: 12,
+            charters: 0,
+            source: Box::new([]),
+            guides: Some(Box::new([])),
+        }),
+        ..older.clone()
+    };
+    let page = Readout::Jig(ReadResult::Value(ReadValue::History(Box::new(HistoryPage {
+        cut: false,
+        before: None,
+        after: None,
+        rows: List::from_boxed(Box::new([HistoryRow::Attempt(Box::new(older)), HistoryRow::Attempt(Box::new(newer))])),
+    }))));
+    client.step(Event::Up { up: Up::ReadDone { read, result: page.clone() } });
+    assert_eq!(client.told().as_ref(), &[Told::Page { handle: PAGE, page }]);
+}
+
+#[test]
+fn a_setting_read_carries_the_project_and_its_whole_charter() {
+    use contract::{
+        CharterPart, ProjectCharterDocument, Read, ReadResult, ReadSetting, ReadValue, Setting, SettingDocument,
+        SettingNumber, Text,
+    };
+    const CHARTER: u32 = 2;
+    const SET_REVISION: u64 = 4;
+    const SETTINGS_REVISION: u32 = 7;
+    let mut client = Client::started();
+    let setting = Setting::Charter(SettingNumber { number: CHARTER });
+    for project in [None, Some(PROJECT)] {
+        let what = Readable::Jig(Read::Setting(ReadSetting { setting, revision: 0, proposal: None, project }));
+        client.step(Event::Read { handle: PAGE, read: what.clone() });
+        let downs = client.downs();
+        let [Down::Read { read, what: sent }] = downs.as_ref() else { panic!("one setting read") };
+        assert_eq!(*sent, what);
+        let words = |bytes: &[u8]| Text::new(bytes.into(), u32::try_from(bytes.len()).unwrap()).unwrap();
+        let page = Readout::Jig(ReadResult::Value(ReadValue::Setting(Box::new(SettingDocument {
+            overlay: None,
+            setting,
+            revision: SETTINGS_REVISION,
+            value: None,
+            application: None,
+            proposed: None,
+            project: match project {
+                Some(_) => Some(Box::new(ProjectCharterDocument {
+                    name: b"implementer".as_slice().into(),
+                    revision: SET_REVISION,
+                    source: b"source".as_slice().into(),
+                    settings: b"careful".as_slice().into(),
+                    instructions: words(b"Work from the spec."),
+                    parts: List::from_boxed(Box::new([CharterPart { on: 1, instructions: words(b"Read the spec.") }])),
+                })),
+                None => None,
+            },
+        }))));
+        client.step(Event::Up { up: Up::ReadDone { read: *read, result: page.clone() } });
+        assert_eq!(client.told().as_ref(), &[Told::Page { handle: PAGE, page }]);
+    }
+}

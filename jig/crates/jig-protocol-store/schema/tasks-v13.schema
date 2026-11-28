@@ -97,11 +97,13 @@ enum EndedBy { result, requester, closer: Closer, standing }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum Deadline { named, span: DeadlineSpan }
+enum CharterScope { project, deployment }
 record Member { deadline: Deadline
     label: u32 flags: Flags
     number: u64 project: u32 executor: Executor llm: option LlmChoice spec: Spec contract: Contract
     authority: Authority numbers: Numbers funder: Funder
     dependencies: list 64 Number holdings: list 64 Holding wake: WakePolicy tracked: option u32
+    charter_scope: CharterScope = project
 }
 record RecurringTemplate { key: u32 batch: bytes 67108864 pieces Member overlap: RecurringOverlap }
 record Creation { member: Member recurring: option RecurringTemplate }
@@ -214,8 +216,10 @@ enum SuspendWhy { stopped, restarted }
 record SuspendedEnd { worker: u32 why: SuspendWhy }
 enum EndKind { parked, finished, cancelled, failed: FailedEnd, refused, suspended: SuspendedEnd }
 record Suspension { worker: u32 since: u64 until: u64 }
-record AttemptRow { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option EndKind phases: option u32 }
-record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: u64 end: option EndKind }
+record Guide { workspace: text 256 commit: text 256 path: text 256 digest: fixed 32 bytes: u32 whole: bool }
+record RunSources { build: text 64 settings: u32 charters: u64 source: bytes 256 guides: option list 64 Guide }
+record AttemptRow { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option EndKind phases: option u32 sources: option RunSources = none }
+record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: u64 end: option EndKind sources: option RunSources = none guide_limit: u32 = 0 }
 record ActivityWords { message: u64 by: Party kind: MessageKind words: bytes 524288 }
 record HeardMessage { word: Word }
 record NotifiedMessage { recipient: Party word: Word }
@@ -289,6 +293,8 @@ record TaskHistory {
     refused: list 128 Number
     grace: option Grace
     settings: SettingsRevision
+    charters: u64 = 0
+    scope: option bytes 32 = none
     revisions: Revisions
     created_at: u64
     changed: u64
@@ -390,6 +396,8 @@ record HotHistory {
     refused: list 128 Number
     grace: option Grace
     settings: SettingsRevision
+    charters: u64 = 0
+    scope: option bytes 32 = none
     revisions: Revisions
     created_at: u64
     changed: u64

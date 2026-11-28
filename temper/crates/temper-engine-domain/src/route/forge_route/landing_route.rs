@@ -836,6 +836,7 @@ fn prepare_delegate(
     authority.delegation.tasks = 0;
     authority.delegation.depth = 0;
     Ok(super::super::Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         executor: tasks::Executor::Job { kind: forge::PREPARE_KIND },
         spec: tasks::Spec {
             job: Some(Box::new(tasks::JobSpec { bytes: spec, deadline: bound.deadline })),

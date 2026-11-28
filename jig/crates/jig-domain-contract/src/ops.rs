@@ -761,6 +761,13 @@ pub enum Deadline {
     Span(Duration),
 }
 
+/// Which charter's words a creation asks for.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum CharterScope {
+    Project,
+    Deployment,
+}
+
 /// Root-authorized member of an atomic creation batch; tasks preflights the whole graph, payloads,
 /// capacity and finite reservations before mutation. (domain/tasks/README.md, sections 3–4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -775,6 +782,8 @@ pub struct New {
     pub project: u32,
     /// `Agent` charter executor, checked against admitted configuration.
     pub executor: Executor,
+    /// Whether to bind the named charter to the project's charter.
+    pub charter_scope: CharterScope,
     /// An agent task's LLM choice, checked against the configured models, its charter and its
     /// authority; absent for a procedure's or a person's task, and where the root resolves the
     /// default (domain/tasks/README.md, sections 3 and 4).

@@ -394,18 +394,29 @@ fn registry_orders(before: &maps::Maps, after: &maps::Maps, layouts: &BTreeSet<V
     for ((family, number), digests) in added {
         let key = keys::order(&family, number, 1024).expect("order key");
         let order = |maps: &maps::Maps| {
-            let bytes = maps.store.get(key.as_ref()).expect("type order");
-            wire::Order::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("order row")
+            maps.store
+                .get(key.as_ref())
+                .map(|bytes| wire::Order::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("order row"))
         };
         let old = order(before);
-        let mut expected = old.layouts.as_slice().to_vec();
+        let old = if let Some(row) = &old {
+            row.layouts.as_slice()
+        } else {
+            assert_eq!((family.as_ref(), number), ("jig-store-settings", 7), "only the new type has no order");
+            &[]
+        };
+        let mut expected = old.to_vec();
         for digest in digests {
             if !expected.contains(&digest) {
                 expected.push(digest);
             }
         }
-        assert_eq!(order(after).layouts.as_slice(), expected, "layout order of {family} type {number}");
-        if old.layouts.as_slice() != expected {
+        assert_eq!(
+            order(after).expect("type order").layouts.as_slice(),
+            expected,
+            "layout order of {family} type {number}"
+        );
+        if old != expected {
             changed.insert(key.into_vec());
         }
     }
@@ -436,6 +447,14 @@ fn current_registry_layouts(before: &maps::Maps, after: &maps::Maps, temper_text
         (Owner::Jig, "jig-store-settings", "Revision"),
         (Owner::Jig, "jig-store-settings", "CharterVersion"),
         (Owner::Jig, "jig-store-settings", "Proposal"),
+        (Owner::Jig, "jig-store-settings", "ProjectCharters"),
+        // Charter bindings and sources are optional additions to kept task records.
+        (Owner::Jig, "jig-store-tasks", "Row"),
+        (Owner::Jig, "jig-store-tasks", "person_proposal"),
+        (Owner::Jig, "jig-store-tasks", "decided_proposal"),
+        (Owner::Jig, "jig-store-tasks", "history"),
+        (Owner::Jig, "jig-store-tasks", "attempt"),
+        (Owner::Jig, "jig-store-tasks", "live_cold"),
         (Owner::Application, "temper-store", "application"),
         (Owner::Application, "temper-store", "setting"), // Named area and triager owners.
         (Owner::Application, "temper-store", "landing"),

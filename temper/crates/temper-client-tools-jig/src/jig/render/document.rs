@@ -508,6 +508,10 @@ pub(super) fn utc(wall: skein_lib::Wall, out: &mut Text) {
     }
     out.number(minute % 60);
 }
+pub(super) fn run_end(value: jig_client::contract::RunEnd, out: &mut Encoder) {
+    read_owner_activity::encode_owner_run_end(value, out, &mut Cut::whole());
+}
+
 struct Cut {
     room: usize,
     left: u64,

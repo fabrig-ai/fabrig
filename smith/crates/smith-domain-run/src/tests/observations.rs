@@ -41,7 +41,17 @@ fn a_run_tells_what_it_did_as_content_free_facts() {
     let told = facts(&mut harness);
     let expected = [
         Fact::Admitted { run, resumed: false },
-        Fact::Prepared { run, guides: 1, checks: 0 },
+        Fact::Prepared {
+            run,
+            guides: Box::new([crate::facts::Guide {
+                directory: 0,
+                path: bytes(b"AGENTS.md"),
+                digest: skein_lib::sha256::digest(b"Be kind."),
+                bytes: 8,
+                whole: true,
+            }]),
+            checks: 0,
+        },
         Fact::Opened { run, conversation: main, kind: crate::facts::Kind::Main },
         Fact::Called { run, conversation: main, call: Token::new(7), ask: Asked::SubAgent },
         Fact::Opened {
@@ -177,5 +187,54 @@ fn delayed_facts_keep_activation_history_and_child_parentage() {
                 }
             }
         );
+    }
+}
+
+#[test]
+fn preparation_reports_only_the_guides_read_with_their_exact_prefix_digests() {
+    let mut h = Harness::new(Limits { directories: 4, ..LIMITS });
+    let mounted = Workspace {
+        directories: Box::new([
+            workspace_directory(b"first", 901, false, false, &[]),
+            workspace_directory(b"missing", 902, false, false, &[]),
+            workspace_directory(b"last", 903, false, false, &[]),
+        ]),
+    };
+    let requests = h.start_workspace(1, agents(), Some(mounted));
+    let [Request::Admitted { run, .. }, Request::Read { .. }] = requests.as_ref() else {
+        panic!("guide read: {requests:?}")
+    };
+    let owner = *run;
+    for read in [Read::Text { text: bytes(b"whole"), whole: true }, Read::Missing] {
+        drop(h.step(Event::Read { owner, read }));
+        assert_no_preparation(facts(&mut h).as_ref());
+    }
+    let prefix = "cut at é".as_bytes();
+    let requests = h.step(Event::Read { owner, read: Read::Text { text: bytes(prefix), whole: false } });
+    let [Request::Open { conversation, .. }] = requests.as_ref() else { panic!("main opens after preparation") };
+    let observed = facts(&mut h);
+    let [Fact::Prepared { run, guides, checks: 0 }, Fact::Opened { .. }] = observed.as_ref() else {
+        panic!("one preparation report: {observed:?}");
+    };
+    assert_eq!(*run, owner);
+    assert_eq!(
+        guides.as_ref(),
+        &[(0, b"whole".as_slice(), true), (2, prefix, false)].map(|(directory, text, whole)| crate::facts::Guide {
+            directory,
+            path: bytes(b"AGENTS.md"),
+            digest: skein_lib::sha256::digest(text),
+            bytes: u32::try_from(text.len()).unwrap(),
+            whole,
+        }),
+    );
+    drop(h.step(Event::Started { conversation: *conversation, peer: PEER }));
+    assert_no_preparation(facts(&mut h).as_ref());
+}
+
+fn assert_no_preparation(observed: &[Fact]) {
+    for fact in observed {
+        if let Fact::Prepared { .. } = fact {
+            panic!("unexpected second or premature report: {observed:?}");
+        }
     }
 }

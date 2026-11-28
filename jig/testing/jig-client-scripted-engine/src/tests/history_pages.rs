@@ -36,6 +36,7 @@ fn semantic() -> HistoryRow {
 }
 fn attempt() -> HistoryRow {
     HistoryRow::Attempt(Box::new(AttemptLine {
+        sources: None,
         task: 8,
         attempt: u64::MAX,
         claimed: None,

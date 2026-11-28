@@ -97,6 +97,7 @@ pub fn mixed_history_page() -> w::HistoryPage {
     }));
     let attempt = w::HistoryRow::Attempt(w::HistoryRowAttempt {
         value: w::AttemptLine {
+            sources: None,
             task: 7,
             attempt: 2,
             claimed: Some(14),

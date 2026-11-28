@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x73, 0x96, 0x13, 0x2e, 0xc4, 0x3f, 0x40, 0x8c, 0x57, 0xd9, 0x44, 0x4a, 0x9a, 0x71, 0x32, 0x42, 0xee, 0x77, 0x65,
-    0x5e, 0xa1, 0xd2, 0xf3, 0x17, 0xf4, 0x13, 0xa6, 0xed, 0x18, 0xdb, 0x2c, 0x87,
+    0x8d, 0xd6, 0x46, 0x1b, 0x05, 0x31, 0x43, 0xae, 0x1e, 0x7b, 0x7c, 0xc8, 0x64, 0x70, 0x80, 0x35, 0x8e, 0x0f, 0xf1,
+    0xb1, 0x36, 0x5b, 0x5a, 0xab, 0x00, 0xbc, 0xa9, 0xfb, 0xba, 0xa3, 0xfb, 0xea,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -169,6 +169,12 @@ pub struct Limits {
     pub retained_action_settings_projects: u32,
     pub retained_action_settings_items: u32,
     pub amendment_state_dependencies: u32,
+    pub guide_workspace: u32,
+    pub guide_commit: u32,
+    pub guide_path: u32,
+    pub run_sources_build: u32,
+    pub run_sources_source: u32,
+    pub run_sources_guides_some: u32,
     pub history_page_rows: u32,
     pub runtime_running_tool_some: u32,
     pub runtime_backing_off_reason: u32,
@@ -412,6 +418,11 @@ pub struct Limits {
     pub settings_document_settings: u32,
     pub settings_document_held: u32,
     pub settings_document_pending: u32,
+    pub project_charter_document_name: u32,
+    pub project_charter_document_source: u32,
+    pub project_charter_document_settings: u32,
+    pub project_charter_document_instructions: u32,
+    pub project_charter_document_parts: u32,
     pub revision_document_items: u32,
     pub revision_row_items: u32,
     pub revisions_page_rows: u32,
@@ -577,6 +588,12 @@ pub const CEILINGS: Limits = Limits {
     retained_action_settings_projects: 32,
     retained_action_settings_items: 128,
     amendment_state_dependencies: 32,
+    guide_workspace: 256,
+    guide_commit: 256,
+    guide_path: 256,
+    run_sources_build: 64,
+    run_sources_source: 256,
+    run_sources_guides_some: 64,
     history_page_rows: 16_777_216,
     runtime_running_tool_some: 65_536,
     runtime_backing_off_reason: 65_536,
@@ -820,6 +837,11 @@ pub const CEILINGS: Limits = Limits {
     settings_document_settings: 512,
     settings_document_held: 32,
     settings_document_pending: 32,
+    project_charter_document_name: 32,
+    project_charter_document_source: 256,
+    project_charter_document_settings: 32,
+    project_charter_document_instructions: 1_114_240,
+    project_charter_document_parts: 8,
     revision_document_items: 16_777_216,
     revision_row_items: 32,
     revisions_page_rows: 32,
@@ -985,6 +1007,12 @@ pub const LIMIT_NAMES: &[&str] = &[
     "retained_action_settings_projects",
     "retained_action_settings_items",
     "amendment_state_dependencies",
+    "guide_workspace",
+    "guide_commit",
+    "guide_path",
+    "run_sources_build",
+    "run_sources_source",
+    "run_sources_guides_some",
     "history_page_rows",
     "runtime_running_tool_some",
     "runtime_backing_off_reason",
@@ -1228,6 +1256,11 @@ pub const LIMIT_NAMES: &[&str] = &[
     "settings_document_settings",
     "settings_document_held",
     "settings_document_pending",
+    "project_charter_document_name",
+    "project_charter_document_source",
+    "project_charter_document_settings",
+    "project_charter_document_instructions",
+    "project_charter_document_parts",
     "revision_document_items",
     "revision_row_items",
     "revisions_page_rows",
@@ -1397,6 +1430,12 @@ impl Limits {
             self.retained_action_settings_projects,
             self.retained_action_settings_items,
             self.amendment_state_dependencies,
+            self.guide_workspace,
+            self.guide_commit,
+            self.guide_path,
+            self.run_sources_build,
+            self.run_sources_source,
+            self.run_sources_guides_some,
             self.history_page_rows,
             self.runtime_running_tool_some,
             self.runtime_backing_off_reason,
@@ -1640,6 +1679,11 @@ impl Limits {
             self.settings_document_settings,
             self.settings_document_held,
             self.settings_document_pending,
+            self.project_charter_document_name,
+            self.project_charter_document_source,
+            self.project_charter_document_settings,
+            self.project_charter_document_instructions,
+            self.project_charter_document_parts,
             self.revision_document_items,
             self.revision_row_items,
             self.revisions_page_rows,
@@ -1810,6 +1854,12 @@ impl Limits {
             retained_action_settings_projects: self.retained_action_settings_projects.min(most),
             retained_action_settings_items: self.retained_action_settings_items.min(most),
             amendment_state_dependencies: self.amendment_state_dependencies.min(most),
+            guide_workspace: self.guide_workspace.min(most),
+            guide_commit: self.guide_commit.min(most),
+            guide_path: self.guide_path.min(most),
+            run_sources_build: self.run_sources_build.min(most),
+            run_sources_source: self.run_sources_source.min(most),
+            run_sources_guides_some: self.run_sources_guides_some.min(most),
             history_page_rows: self.history_page_rows.min(most),
             runtime_running_tool_some: self.runtime_running_tool_some.min(most),
             runtime_backing_off_reason: self.runtime_backing_off_reason.min(most),
@@ -2053,6 +2103,11 @@ impl Limits {
             settings_document_settings: self.settings_document_settings.min(most),
             settings_document_held: self.settings_document_held.min(most),
             settings_document_pending: self.settings_document_pending.min(most),
+            project_charter_document_name: self.project_charter_document_name.min(most),
+            project_charter_document_source: self.project_charter_document_source.min(most),
+            project_charter_document_settings: self.project_charter_document_settings.min(most),
+            project_charter_document_instructions: self.project_charter_document_instructions.min(most),
+            project_charter_document_parts: self.project_charter_document_parts.min(most),
             revision_document_items: self.revision_document_items.min(most),
             revision_row_items: self.revision_row_items.min(most),
             revisions_page_rows: self.revisions_page_rows.min(most),
@@ -2220,6 +2275,12 @@ const LIMIT_PATHS: &[Path] = &[
     paths::RETAINED_ACTION_SETTINGS_PROJECTS,
     paths::RETAINED_ACTION_SETTINGS_ITEMS,
     paths::AMENDMENT_STATE_DEPENDENCIES,
+    paths::GUIDE_WORKSPACE,
+    paths::GUIDE_COMMIT,
+    paths::GUIDE_PATH,
+    paths::RUN_SOURCES_BUILD,
+    paths::RUN_SOURCES_SOURCE,
+    paths::RUN_SOURCES_GUIDES,
     paths::HISTORY_PAGE_ROWS,
     paths::RUNTIME_RUNNING_TOOL,
     paths::RUNTIME_BACKING_OFF_REASON,
@@ -2463,6 +2524,11 @@ const LIMIT_PATHS: &[Path] = &[
     paths::SETTINGS_DOCUMENT_SETTINGS,
     paths::SETTINGS_DOCUMENT_HELD,
     paths::SETTINGS_DOCUMENT_PENDING,
+    paths::PROJECT_CHARTER_DOCUMENT_NAME,
+    paths::PROJECT_CHARTER_DOCUMENT_SOURCE,
+    paths::PROJECT_CHARTER_DOCUMENT_SETTINGS,
+    paths::PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS,
+    paths::PROJECT_CHARTER_DOCUMENT_PARTS,
     paths::REVISION_DOCUMENT_ITEMS,
     paths::REVISION_ROW_ITEMS,
     paths::REVISIONS_PAGE_ROWS,
@@ -4159,6 +4225,19 @@ pub mod paths {
     pub const HISTORY_LINE_AMENDMENT: Path = Path::new("HistoryLine.amendment");
     pub const HISTORY_LINE_AT: Path = Path::new("HistoryLine.at");
     pub const HISTORY_LINE_TAIL: Path = Path::new("HistoryLine (tail)");
+    pub const GUIDE_WORKSPACE: Path = Path::new("Guide.workspace");
+    pub const GUIDE_COMMIT: Path = Path::new("Guide.commit");
+    pub const GUIDE_PATH: Path = Path::new("Guide.path");
+    pub const GUIDE_DIGEST: Path = Path::new("Guide.digest");
+    pub const GUIDE_BYTES: Path = Path::new("Guide.bytes");
+    pub const GUIDE_WHOLE: Path = Path::new("Guide.whole");
+    pub const GUIDE_TAIL: Path = Path::new("Guide (tail)");
+    pub const RUN_SOURCES_BUILD: Path = Path::new("RunSources.build");
+    pub const RUN_SOURCES_SETTINGS: Path = Path::new("RunSources.settings");
+    pub const RUN_SOURCES_CHARTERS: Path = Path::new("RunSources.charters");
+    pub const RUN_SOURCES_SOURCE: Path = Path::new("RunSources.source");
+    pub const RUN_SOURCES_GUIDES: Path = Path::new("RunSources.guides");
+    pub const RUN_SOURCES_TAIL: Path = Path::new("RunSources (tail)");
     pub const ATTEMPT_LINE_TASK: Path = Path::new("AttemptLine.task");
     pub const ATTEMPT_LINE_ATTEMPT: Path = Path::new("AttemptLine.attempt");
     pub const ATTEMPT_LINE_CLAIMED: Path = Path::new("AttemptLine.claimed");
@@ -4166,6 +4245,7 @@ pub mod paths {
     pub const ATTEMPT_LINE_ENDED: Path = Path::new("AttemptLine.ended");
     pub const ATTEMPT_LINE_END: Path = Path::new("AttemptLine.end");
     pub const ATTEMPT_LINE_PHASES: Path = Path::new("AttemptLine.phases");
+    pub const ATTEMPT_LINE_SOURCES: Path = Path::new("AttemptLine.sources");
     pub const ATTEMPT_LINE_TAIL: Path = Path::new("AttemptLine (tail)");
     pub const HOLD_LINE_TASK: Path = Path::new("HoldLine.task");
     pub const HOLD_LINE_POSITION: Path = Path::new("HoldLine.position");
@@ -5820,6 +5900,7 @@ pub mod paths {
     pub const READ_SETTING_SETTING: Path = Path::new("ReadSetting.setting");
     pub const READ_SETTING_REVISION: Path = Path::new("ReadSetting.revision");
     pub const READ_SETTING_PROPOSAL: Path = Path::new("ReadSetting.proposal");
+    pub const READ_SETTING_PROJECT: Path = Path::new("ReadSetting.project");
     pub const READ_SETTING_TAIL: Path = Path::new("ReadSetting (tail)");
     pub const READ_REVISION_NUMBER: Path = Path::new("ReadRevision.number");
     pub const READ_REVISION_TAIL: Path = Path::new("ReadRevision (tail)");
@@ -5866,12 +5947,20 @@ pub mod paths {
     pub const APPLICATION_SIZE_SIZE: Path = Path::new("ApplicationSize.size");
     pub const APPLICATION_SIZE_TAIL: Path = Path::new("ApplicationSize (tail)");
     pub const SIZED_EDIT_TAG: Path = Path::new("SizedEdit (tag)");
+    pub const PROJECT_CHARTER_DOCUMENT_NAME: Path = Path::new("ProjectCharterDocument.name");
+    pub const PROJECT_CHARTER_DOCUMENT_REVISION: Path = Path::new("ProjectCharterDocument.revision");
+    pub const PROJECT_CHARTER_DOCUMENT_SOURCE: Path = Path::new("ProjectCharterDocument.source");
+    pub const PROJECT_CHARTER_DOCUMENT_SETTINGS: Path = Path::new("ProjectCharterDocument.settings");
+    pub const PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS: Path = Path::new("ProjectCharterDocument.instructions");
+    pub const PROJECT_CHARTER_DOCUMENT_PARTS: Path = Path::new("ProjectCharterDocument.parts");
+    pub const PROJECT_CHARTER_DOCUMENT_TAIL: Path = Path::new("ProjectCharterDocument (tail)");
     pub const SETTING_DOCUMENT_SETTING: Path = Path::new("SettingDocument.setting");
     pub const SETTING_DOCUMENT_REVISION: Path = Path::new("SettingDocument.revision");
     pub const SETTING_DOCUMENT_VALUE: Path = Path::new("SettingDocument.value");
     pub const SETTING_DOCUMENT_APPLICATION: Path = Path::new("SettingDocument.application");
     pub const SETTING_DOCUMENT_PROPOSED: Path = Path::new("SettingDocument.proposed");
     pub const SETTING_DOCUMENT_OVERLAY: Path = Path::new("SettingDocument.overlay");
+    pub const SETTING_DOCUMENT_PROJECT: Path = Path::new("SettingDocument.project");
     pub const SETTING_DOCUMENT_TAIL: Path = Path::new("SettingDocument (tail)");
     pub const SIZE_BYTES: Path = Path::new("Size.bytes");
     pub const SIZE_TAIL: Path = Path::new("Size (tail)");
@@ -41453,6 +41542,144 @@ impl Record for HistoryLine {
     }
 }
 
+// Type: Guide.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Guide {
+    pub workspace: Box<[u8]>,
+    pub commit: Box<[u8]>,
+    pub path: Box<[u8]>,
+    pub digest: [u8; 32],
+    pub bytes: u32,
+    pub whole: bool,
+}
+
+// Record: Guide.
+impl Guide {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_workspace) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_commit) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_path) },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 49;
+}
+
+impl Record for Guide {
+    type Limits = Limits;
+    const TAIL: Path = paths::GUIDE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.guide_workspace.min(CEILINGS.guide_workspace) }, &self.workspace, limits, out, paths::GUIDE_WORKSPACE)?;
+        field::write(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, &self.commit, limits, out, paths::GUIDE_COMMIT)?;
+        field::write(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, &self.path, limits, out, paths::GUIDE_PATH)?;
+        field::write(field::Fixed::<32>, &self.digest, limits, out, paths::GUIDE_DIGEST)?;
+        field::write(field::U32, &self.bytes, limits, out, paths::GUIDE_BYTES)?;
+        field::write(field::Boolean, &self.whole, limits, out, paths::GUIDE_WHOLE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            workspace: field::read(field::Text { limit: limits.guide_workspace.min(CEILINGS.guide_workspace) }, limits, reader, paths::GUIDE_WORKSPACE)?,
+            commit: field::read(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, limits, reader, paths::GUIDE_COMMIT)?,
+            path: field::read(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, limits, reader, paths::GUIDE_PATH)?,
+            digest: field::read(field::Fixed::<32>, limits, reader, paths::GUIDE_DIGEST)?,
+            bytes: field::read(field::U32, limits, reader, paths::GUIDE_BYTES)?,
+            whole: field::read(field::Boolean, limits, reader, paths::GUIDE_WHOLE)?,
+        })
+    }
+}
+
+// Type: RunSources.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RunSources {
+    pub build: Box<[u8]>,
+    pub settings: u32,
+    pub charters: u64,
+    pub source: Box<[u8]>,
+    pub guides: Option<List<Guide>>,
+}
+
+// Record: RunSources.
+impl RunSources {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, run_sources_build) },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, run_sources_source) },
+        skein_codec::bounds::Node::Named("Guide"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, run_sources_guides_some), item: 4, size: size_of::<Guide>() },
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 6] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
+impl Record for RunSources {
+    type Limits = Limits;
+    const TAIL: Path = paths::RUN_SOURCES_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunSources")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunSources")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.run_sources_build.min(CEILINGS.run_sources_build) }, &self.build, limits, out, paths::RUN_SOURCES_BUILD)?;
+        field::write(field::U32, &self.settings, limits, out, paths::RUN_SOURCES_SETTINGS)?;
+        field::write(field::U64, &self.charters, limits, out, paths::RUN_SOURCES_CHARTERS)?;
+        field::write(field::Bytes { limit: limits.run_sources_source.min(CEILINGS.run_sources_source) }, &self.source, limits, out, paths::RUN_SOURCES_SOURCE)?;
+        field::write(field::Optional { item: field::Sequence { limit: limits.run_sources_guides_some.min(CEILINGS.run_sources_guides_some), minimum: 49, item: field::Nested } }, &self.guides, limits, out, paths::RUN_SOURCES_GUIDES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            build: field::read(field::Text { limit: limits.run_sources_build.min(CEILINGS.run_sources_build) }, limits, reader, paths::RUN_SOURCES_BUILD)?,
+            settings: field::read(field::U32, limits, reader, paths::RUN_SOURCES_SETTINGS)?,
+            charters: field::read(field::U64, limits, reader, paths::RUN_SOURCES_CHARTERS)?,
+            source: field::read(field::Bytes { limit: limits.run_sources_source.min(CEILINGS.run_sources_source) }, limits, reader, paths::RUN_SOURCES_SOURCE)?,
+            guides: field::read(field::Optional { item: field::Sequence { limit: limits.run_sources_guides_some.min(CEILINGS.run_sources_guides_some), minimum: 49, item: field::Nested } }, limits, reader, paths::RUN_SOURCES_GUIDES)?,
+        })
+    }
+}
+
 // Type: AttemptLine.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AttemptLine {
@@ -41463,6 +41690,7 @@ pub struct AttemptLine {
     pub ended: Option<u64>,
     pub end: Option<RunEnd>,
     pub phases: Option<u32>,
+    pub sources: Option<RunSources>,
 }
 
 // Record: AttemptLine.
@@ -41480,11 +41708,13 @@ impl AttemptLine {
         skein_codec::bounds::Node::Option { item: 8 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Option { item: 10 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11] },
+        skein_codec::bounds::Node::Named("RunSources"),
+        skein_codec::bounds::Node::Option { item: 12 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11, 13] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 55;
+    pub const ENCODED_AT_ZERO: u64 = 81;
 }
 
 impl Record for AttemptLine {
@@ -41516,6 +41746,7 @@ impl Record for AttemptLine {
         field::write(field::Optional { item: field::U64 }, &self.ended, limits, out, paths::ATTEMPT_LINE_ENDED)?;
         field::write(field::Optional { item: field::Nested }, &self.end, limits, out, paths::ATTEMPT_LINE_END)?;
         field::write(field::Optional { item: field::U32 }, &self.phases, limits, out, paths::ATTEMPT_LINE_PHASES)?;
+        field::write(field::Optional { item: field::Nested }, &self.sources, limits, out, paths::ATTEMPT_LINE_SOURCES)?;
         Ok(())
     }
 
@@ -41528,6 +41759,7 @@ impl Record for AttemptLine {
             ended: field::read(field::Optional { item: field::U64 }, limits, reader, paths::ATTEMPT_LINE_ENDED)?,
             end: field::read(field::Optional { item: field::Nested }, limits, reader, paths::ATTEMPT_LINE_END)?,
             phases: field::read(field::Optional { item: field::U32 }, limits, reader, paths::ATTEMPT_LINE_PHASES)?,
+            sources: field::read(field::Optional { item: field::Nested }, limits, reader, paths::ATTEMPT_LINE_SOURCES)?,
         })
     }
 }
@@ -41672,7 +41904,7 @@ impl HistoryRowAttempt {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 55;
+    pub const ENCODED_AT_ZERO: u64 = 81;
 }
 
 impl Record for HistoryRowAttempt {
@@ -69356,6 +69588,7 @@ pub struct ReadSetting {
     pub setting: Setting,
     pub revision: u32,
     pub proposal: Option<ProposalKey>,
+    pub project: Option<u32>,
 }
 
 // Record: ReadSetting.
@@ -69365,11 +69598,13 @@ impl ReadSetting {
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("ProposalKey"),
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 35;
+    pub const ENCODED_AT_ZERO: u64 = 40;
 }
 
 impl Record for ReadSetting {
@@ -69397,6 +69632,7 @@ impl Record for ReadSetting {
         field::write(field::Nested, &self.setting, limits, out, paths::READ_SETTING_SETTING)?;
         field::write(field::U32, &self.revision, limits, out, paths::READ_SETTING_REVISION)?;
         field::write(field::Optional { item: field::Nested }, &self.proposal, limits, out, paths::READ_SETTING_PROPOSAL)?;
+        field::write(field::Optional { item: field::U32 }, &self.project, limits, out, paths::READ_SETTING_PROJECT)?;
         Ok(())
     }
 
@@ -69405,6 +69641,7 @@ impl Record for ReadSetting {
             setting: field::read(field::Nested, limits, reader, paths::READ_SETTING_SETTING)?,
             revision: field::read(field::U32, limits, reader, paths::READ_SETTING_REVISION)?,
             proposal: field::read(field::Optional { item: field::Nested }, limits, reader, paths::READ_SETTING_PROPOSAL)?,
+            project: field::read(field::Optional { item: field::U32 }, limits, reader, paths::READ_SETTING_PROJECT)?,
         })
     }
 }
@@ -70335,6 +70572,77 @@ impl Record for SizedEdit {
     }
 }
 
+// Type: ProjectCharterDocument.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectCharterDocument {
+    pub name: Box<[u8]>,
+    pub revision: u64,
+    pub source: Box<[u8]>,
+    pub settings: Box<[u8]>,
+    pub instructions: Box<[u8]>,
+    pub parts: List<CharterPart>,
+}
+
+// Record: ProjectCharterDocument.
+impl ProjectCharterDocument {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_name) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_source) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_settings) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_instructions) },
+        skein_codec::bounds::Node::Named("CharterPart"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, project_charter_document_parts), item: 5, size: size_of::<CharterPart>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 6] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
+impl Record for ProjectCharterDocument {
+    type Limits = Limits;
+    const TAIL: Path = paths::PROJECT_CHARTER_DOCUMENT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharterDocument")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharterDocument")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.project_charter_document_name.min(CEILINGS.project_charter_document_name) }, &self.name, limits, out, paths::PROJECT_CHARTER_DOCUMENT_NAME)?;
+        field::write(field::U64, &self.revision, limits, out, paths::PROJECT_CHARTER_DOCUMENT_REVISION)?;
+        field::write(field::Bytes { limit: limits.project_charter_document_source.min(CEILINGS.project_charter_document_source) }, &self.source, limits, out, paths::PROJECT_CHARTER_DOCUMENT_SOURCE)?;
+        field::write(field::Text { limit: limits.project_charter_document_settings.min(CEILINGS.project_charter_document_settings) }, &self.settings, limits, out, paths::PROJECT_CHARTER_DOCUMENT_SETTINGS)?;
+        field::write(field::Text { limit: limits.project_charter_document_instructions.min(CEILINGS.project_charter_document_instructions) }, &self.instructions, limits, out, paths::PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS)?;
+        field::write(field::Sequence { limit: limits.project_charter_document_parts.min(CEILINGS.project_charter_document_parts), minimum: 8, item: field::Nested }, &self.parts, limits, out, paths::PROJECT_CHARTER_DOCUMENT_PARTS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.project_charter_document_name.min(CEILINGS.project_charter_document_name) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_NAME)?,
+            revision: field::read(field::U64, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_REVISION)?,
+            source: field::read(field::Bytes { limit: limits.project_charter_document_source.min(CEILINGS.project_charter_document_source) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_SOURCE)?,
+            settings: field::read(field::Text { limit: limits.project_charter_document_settings.min(CEILINGS.project_charter_document_settings) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_SETTINGS)?,
+            instructions: field::read(field::Text { limit: limits.project_charter_document_instructions.min(CEILINGS.project_charter_document_instructions) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS)?,
+            parts: field::read(field::Sequence { limit: limits.project_charter_document_parts.min(CEILINGS.project_charter_document_parts), minimum: 8, item: field::Nested }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_PARTS)?,
+        })
+    }
+}
+
 // Type: SettingDocument.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingDocument {
@@ -70344,6 +70652,7 @@ pub struct SettingDocument {
     pub application: Option<ApplicationState>,
     pub proposed: Option<SizedEdit>,
     pub overlay: Option<Overlay>,
+    pub project: Option<ProjectCharterDocument>,
 }
 
 // Record: SettingDocument.
@@ -70359,11 +70668,13 @@ impl SettingDocument {
         skein_codec::bounds::Node::Option { item: 6 },
         skein_codec::bounds::Node::Named("Overlay"),
         skein_codec::bounds::Node::Option { item: 8 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9] },
+        skein_codec::bounds::Node::Named("ProjectCharterDocument"),
+        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 436;
+    pub const ENCODED_AT_ZERO: u64 = 465;
 }
 
 impl Record for SettingDocument {
@@ -70394,6 +70705,7 @@ impl Record for SettingDocument {
         field::write(field::Optional { item: field::Nested }, &self.application, limits, out, paths::SETTING_DOCUMENT_APPLICATION)?;
         field::write(field::Optional { item: field::Nested }, &self.proposed, limits, out, paths::SETTING_DOCUMENT_PROPOSED)?;
         field::write(field::Optional { item: field::Nested }, &self.overlay, limits, out, paths::SETTING_DOCUMENT_OVERLAY)?;
+        field::write(field::Optional { item: field::Nested }, &self.project, limits, out, paths::SETTING_DOCUMENT_PROJECT)?;
         Ok(())
     }
 
@@ -70405,6 +70717,7 @@ impl Record for SettingDocument {
             application: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_APPLICATION)?,
             proposed: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_PROPOSED)?,
             overlay: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_OVERLAY)?,
+            project: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_PROJECT)?,
         })
     }
 }
@@ -74437,6 +74750,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "GoalHoldingWrite", nodes: GoalHoldingWrite::SHAPE },
     skein_codec::bounds::Declaration { name: "Gone", nodes: Gone::SHAPE },
     skein_codec::bounds::Declaration { name: "Grant", nodes: Grant::SHAPE },
+    skein_codec::bounds::Declaration { name: "Guide", nodes: Guide::SHAPE },
     skein_codec::bounds::Declaration { name: "HandBack", nodes: HandBack::SHAPE },
     skein_codec::bounds::Declaration { name: "HeldRevision", nodes: HeldRevision::SHAPE },
     skein_codec::bounds::Declaration { name: "HeldRole", nodes: HeldRole::SHAPE },
@@ -74799,6 +75113,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ProgramState", nodes: ProgramState::SHAPE },
     skein_codec::bounds::Declaration { name: "Project", nodes: Project::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectCapacity", nodes: ProjectCapacity::SHAPE },
+    skein_codec::bounds::Declaration { name: "ProjectCharterDocument", nodes: ProjectCharterDocument::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectMember", nodes: ProjectMember::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectPolicy", nodes: ProjectPolicy::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectPolicyRole", nodes: ProjectPolicyRole::SHAPE },
@@ -74987,6 +75302,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "RunLocationAdrift", nodes: RunLocationAdrift::SHAPE },
     skein_codec::bounds::Declaration { name: "RunLocationConnected", nodes: RunLocationConnected::SHAPE },
     skein_codec::bounds::Declaration { name: "RunObservation", nodes: RunObservation::SHAPE },
+    skein_codec::bounds::Declaration { name: "RunSources", nodes: RunSources::SHAPE },
     skein_codec::bounds::Declaration { name: "RunStage", nodes: RunStage::SHAPE },
     skein_codec::bounds::Declaration { name: "RunStageBackingOff", nodes: RunStageBackingOff::SHAPE },
     skein_codec::bounds::Declaration { name: "RunStageClaimed", nodes: RunStageClaimed::SHAPE },
@@ -75386,6 +75702,12 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.retained_action_settings_projects,
     CEILINGS.retained_action_settings_items,
     CEILINGS.amendment_state_dependencies,
+    CEILINGS.guide_workspace,
+    CEILINGS.guide_commit,
+    CEILINGS.guide_path,
+    CEILINGS.run_sources_build,
+    CEILINGS.run_sources_source,
+    CEILINGS.run_sources_guides_some,
     CEILINGS.history_page_rows,
     CEILINGS.runtime_running_tool_some,
     CEILINGS.runtime_backing_off_reason,
@@ -75629,6 +75951,11 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.settings_document_settings,
     CEILINGS.settings_document_held,
     CEILINGS.settings_document_pending,
+    CEILINGS.project_charter_document_name,
+    CEILINGS.project_charter_document_source,
+    CEILINGS.project_charter_document_settings,
+    CEILINGS.project_charter_document_instructions,
+    CEILINGS.project_charter_document_parts,
     CEILINGS.revision_document_items,
     CEILINGS.revision_row_items,
     CEILINGS.revisions_page_rows,

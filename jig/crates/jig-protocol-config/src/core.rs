@@ -64,6 +64,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         kept_starts: Box::new([]),
         deployment,
         seed: engine.deployment.seed.unwrap_or(seed),
+        build: Box::from(""),
         workers_in_process,
         hub_turns: engine.limits.hub.turns,
         owners: engine.owners.clone(),

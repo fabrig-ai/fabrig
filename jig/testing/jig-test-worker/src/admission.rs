@@ -48,6 +48,7 @@ pub fn class(event: &Event) -> Class {
                 | Up::Waiting { .. }
                 | Up::Long { .. }
                 | Up::LongDone
+                | Up::Prepared { .. }
                 | Up::Fact { .. }
                 | Up::Unauthorized { .. }
                 // A later change of this goal relays usage; it is admitted work.

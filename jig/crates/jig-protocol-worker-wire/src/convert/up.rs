@@ -39,6 +39,9 @@ pub(super) fn parts(walk: &mut Walk<'_>, record: &mut wire::FromWorker, limits: 
                 limits.ask_bytes.min(wire::CEILINGS.ask_bytes),
             )?;
         }
+        wire::FromWorker::Guides(record) => {
+            walk.part(Nested::Carried(Carried::Guides), &mut record.bytes.bytes, limits.ask_bytes_bytes)?;
+        }
         wire::FromWorker::Turn(record) => {
             walk.part(Nested::Turn, &mut record.body, limits.turn_body.min(wire::CEILINGS.turn_body))?;
         }

@@ -453,9 +453,10 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
     // check_commits prices settings history, including named speeds in model choices, providers,
-    // limit overrides, setting names and replaced values at CORE's effective capacities
+    // limit overrides, charter scope in template creations, setting names and replaced values
+    // at CORE's effective capacities
     // (jig/docs/design/protocol/store/records.md, 4).
-    value: 40_008_900,
+    value: 40_009_028,
     // A log append and two places per journal write, four creation rows and an orphan erase: 3 * 20,801 + 5.
     ops: 62_408,
     // 256 MiB values + 62,408 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -466,9 +467,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 797_486_772,
     snapshot_after: 398_743_386,
-    chunk: 40_010_999,
+    chunk: 40_011_127,
     // The revision envelope, including what its items replaced, fits with its key.
-    page: skein_kv::Page { rows: 2, bytes: 40_010_979 },
+    page: skein_kv::Page { rows: 2, bytes: 40_011_107 },
     record: 39_828_995,
     log: 1 << 40,
     logs: 16,

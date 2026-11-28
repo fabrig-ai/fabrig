@@ -364,6 +364,7 @@ fn populated_rows() -> Vec<Record> {
             reply_to: ReplyTo::new(Token::new(2)),
             creator: tasks::Party::Person(1),
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: 1,
                 project: 1,
                 label: 0,

@@ -315,6 +315,12 @@ impl Hub {
         crate::answers::at(self, index)
     }
 
+    /// The report to send immediately before a replayed answer, if there is one.
+    #[must_use]
+    pub fn guides_at(&self, index: u32) -> Option<LinkUp> {
+        crate::answers::guides_at(self, index)
+    }
+
     /// Turns abandoned after shutdown past the contact grace.
     pub fn give_up_turns(&mut self) {
         self.turns.give_up();
@@ -447,6 +453,15 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             }
         }
         Event::Saved { owner, at } => hosted::saved(domain, owner, at, out),
+        Event::Guides { owner, bytes } => {
+            if let Some(run) = domain.hosted.get_mut(Id::from_token(owner))
+                && run.job.is_none()
+                && run.guides.is_none()
+                && run.answer.is_none()
+            {
+                run.guides = Some(bytes);
+            }
+        }
         Event::Down(down) => match down {
             LinkDown::Asked { run, attempt, number, answer } => {
                 crate::asks::asked(domain, env, run, attempt, number, answer, out);

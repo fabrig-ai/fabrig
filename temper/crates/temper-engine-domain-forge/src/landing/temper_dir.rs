@@ -287,7 +287,7 @@ fn read_tree(
     }
     // As in the change's own check, a tree known not to hold a method passes.
     let words = if method {
-        let verdict = reading.judge(home(d, repo));
+        let verdict = reading.judge(home(d, repo), d.deployment_charters());
         if verdict.faults.is_empty() {
             None
         } else {

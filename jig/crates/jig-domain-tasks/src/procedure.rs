@@ -23,13 +23,14 @@ pub(crate) fn stepped(
     (step, read): (u64, Option<u64>),
     decision: ProcedureDecision,
     reads_project: bool,
+    bindings: &[Option<crate::CharterBinding>],
     out: &mut Queue<Request>,
 ) {
     if let Err(problem) = fence(domain, number, step, read) {
         return out.push(Request::ProcedureRefused { task: number, step, problem });
     }
     task_mut(domain, number).expect("fenced procedure").record.room_wait = None;
-    let checked = match check(domain, env, number, step, read, &decision, reads_project) {
+    let checked = match check(domain, env, number, step, read, &decision, reads_project, bindings) {
         Ok(checked) => checked,
         Err(problem) => {
             if let Some(room) = crate::freeing_count(&problem) {
@@ -58,7 +59,7 @@ pub(crate) fn stepped(
     let numbers = if decision.batch.is_empty() {
         None
     } else {
-        Some(make_admitted(domain, env, Party::Task(number), decision.batch, out))
+        Some(make_admitted(domain, env, Party::Task(number), decision.batch, bindings, out))
     };
     for plan in checked.plans {
         crate::compound::apply(domain, env, Party::Task(number), plan, out);
@@ -109,6 +110,7 @@ struct Checked {
     started_from: Option<Box<[u64]>>,
 }
 
+#[expect(clippy::too_many_arguments, reason = "the checked step receives its charter bindings")]
 fn check(
     domain: &Domain,
     env: &Env<Limits>,
@@ -117,6 +119,7 @@ fn check(
     read: Option<u64>,
     decision: &ProcedureDecision,
     reads_project: bool,
+    bindings: &[Option<crate::CharterBinding>],
 ) -> Result<Checked, crate::Problem> {
     let task = record(domain, number).expect("step task checked");
     check_words(task, &env.limits, decision.words.as_deref())?;
@@ -138,7 +141,7 @@ fn check(
         }
     }
     if !decision.batch.is_empty() {
-        crate::batch::check(domain, &env.limits, Party::Task(number), &decision.batch, reads_project)?;
+        crate::batch::check(domain, &env.limits, Party::Task(number), &decision.batch, reads_project, bindings)?;
     }
     let started_from = started_from(task, &env.limits, &decision.started_from)?;
     // The fence, batch, result, and notice claims have all been checked. Only
@@ -164,9 +167,12 @@ fn check(
     for child in &parent.delegates {
         delegates.push(*child).expect("bounded delegates");
     }
-    for member in &decision.batch {
+    for (at, member) in decision.batch.iter().enumerate() {
         delegates.push(member.number).expect("batch checked");
-        staged.batch_members.push((member.number, member.executor)).expect("admitted batch bound");
+        staged
+            .batch_members
+            .push((member.number, crate::bound_executor(member.executor, bindings, at)))
+            .expect("admitted batch bound");
         staged.batch_goals = staged.batch_goals.checked_add(u32::from(member.tracked.is_some())).expect("batch bound");
         let mut numbers = match staged.funding_numbers(member.funder) {
             Some(numbers) => numbers,

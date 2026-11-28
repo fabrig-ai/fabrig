@@ -29,7 +29,7 @@ fn a_run_reads_the_inventory_a_setting_a_revision_and_a_history_page() {
         (br#"{"kind":"inventory"}"#.as_slice(), reads::Read::Settings),
         (
             br#"{"kind":"setting","setting":"charter","number":1,"revision":1}"#,
-            reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1, proposal: None },
+            reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 1, proposal: None },
         ),
         (br#"{"kind":"revision","number":1}"#, reads::Read::Revision { number: 1 }),
         (br#"{"kind":"revisions"}"#, reads::Read::Revisions { before: None }),
@@ -70,6 +70,7 @@ fn a_run_reads_its_own_held_charter_by_revision() {
         assert_eq!(
             run_read(&mut world, input.as_bytes()),
             core::SettingsAnswer::Setting(reads::SettingDocument {
+                project: None,
                 overlay: None,
                 setting: settings::Setting::Charter(1),
                 revision,

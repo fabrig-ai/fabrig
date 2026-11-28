@@ -101,6 +101,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
         Event::Live { agent, piece } => live(domain, env, agent, piece),
         Event::Decoded { agent, start, endpoints } => agents::decoded(domain, env, agent, start, endpoints),
         Event::Encoded { owner, encoded } => agents::encoded(domain, env, owner, encoded, out),
+        Event::EncodedGuides { owner, bytes } => host_step(domain, env, host::Event::Guides { owner, bytes }),
         Event::Activity { owner, activity } => {
             domain.facts_out = domain.facts_out.saturating_sub(1);
             if let Some(activity) = activity {
@@ -310,6 +311,9 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                 }
             }
             for index in 0..domain.host.kept_answers() {
+                if let Some(guides) = domain.host.guides_at(index) {
+                    out.push(Request::Link(guides));
+                }
                 if let Some(up) = domain.host.answer_at(index) {
                     match up {
                         host::LinkUp::Answer { run, attempt, answer } => answered(domain, run, attempt, answer, out),
@@ -320,6 +324,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         | host::LinkUp::UsageRead { .. }
                         | host::LinkUp::ListRead { .. }
                         // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+                        | host::LinkUp::Guides { .. }
                         | host::LinkUp::Paused { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }

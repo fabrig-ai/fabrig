@@ -63,7 +63,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   slowest machine, a guide.
 - **Each of the example's tests** starts one server, the example's
   binary, and one Chromium, and plays its stories with a person each: a
-  browser context, its own cookies and storage (../../testing/browser.md, section 5).
+  browser context, its own cookies and storage (../../testing/browser-vocabulary.md, section 1).
   The module is built with the dev profile, the bundler optimized (`bundle.md`, 1).
 - **A missing Chromium or bundle fails the suite,** naming the command
   that provides it; it is never skipped. The bundle's directory reaches
@@ -91,7 +91,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   word read with the item; a `<select>`'s
   option chosen by the kit's keys; and a date field and a time field
   given their values by the keys 2 names, in their parts' order
-  under the kit's locale (../../testing/browser.md, sections 3 and 6). A new Chromium
+  under the kit's locale (../../testing/browser.md, section 3, and ../../testing/browser-operations.md, section 1). A new Chromium
   version is a run of these, and a fact that changed is fixed in the
   face's table first.
 
@@ -104,7 +104,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     Chromium, which a find of that role asks the kit for (a text field:
     `textbox`; `spinbutton` for a number's, `Date` for a date's and
     `InputTime` for a time's; 1);
-  - names by words in them or exactly (../../testing/browser.md, section 5), and the
+  - names by words in them or exactly (../../testing/browser-vocabulary.md, section 1), and the
     n-th match in document order where a find asks for one past the
     first, failing when the kit kept fewer than it asks (its
     `Limits::matches`); text by
@@ -115,7 +115,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     find by its name alone does (../testing.md, 1.1);
   - `Pending` while the kit answers.
 - **Its tabs:** the person's other tabs read as the browser lists them
-  (../../testing/browser.md, section 6), awaited until they read as the step says: how
+  (../../testing/browser-operations.md, section 1), awaited until they read as the step says: how
   many, and for each its title, words in its address, and whether it can
   still reach its opener, each only where the step asks.
 - **Its acts:** press; type, an input's whole value (the field's value
@@ -123,20 +123,20 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   it), a date's or a time's by the kit's keys (below);
   Enter for a send; a key with Shift held, Shift+Enter a new line in a
   text area that sends on Enter (`patches.md`, section 1); an application's shortcut,
-  the kit's letter with Alt and Shift held (../../testing/browser.md, section 5); an
+  the kit's letter with Alt and Shift held (../../testing/browser-vocabulary.md, section 1); an
   option chosen with the
   kit's keys, as a keyboard chooses one; `Go`, a navigation to the path
   the application's codec prints for the address; a reload. A go and a
   reload accept the page's closing warning, as a person who chose to go
-  answers it (../../testing/browser.md, section 6).
+  answers it (../../testing/browser-operations.md, section 1).
   A semantic press whose node is `Gone` before mouse input finds its target
   again, from its outermost scope and with its match number kept, and starts
   a new press through the kit's checks. It looks again each poll interval, for
   a missing replacement too, until the first press's answer deadline, which
-  fails the act (../../testing/browser.md, section 6). Other refusals fail at once. A press
+  fails the act (../../testing/browser-operations.md, section 1). Other refusals fail at once. A press
   whose mouse input has begun is never retried.
 - **It reads the current address,** the kit's `Address`, from the page's
-  navigation history (../../testing/browser.md, section 6), as the address bar shows
+  navigation history (../../testing/browser-operations.md, section 1), as the address bar shows
   it: what the application's codec printed, or what its page replaced,
   such as a sign-in's secret taken from the address. A story reads it
   once what the page shows says the page has put it there, never at a
@@ -169,13 +169,13 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 
   With its own trouble it offers Chromium's stderr's tail, as the kit
   keeps it, for its caller to print. Its page is opened to
-  report its requests (../../testing/browser.md, section 5), and it
+  report its requests (../../testing/browser-vocabulary.md, section 1), and it
   reports each request the kit reports sent and each first answer, as
   the kit gives them, judging none: which count is its caller's. A
   story's harness (below) opens its persons' pages without them.
 - **A date or a time is typed as a person types it,** into its native
-  field's parts, since that field takes no inserted text (../../testing/browser.md,
-  section 6). The face knows the field by the role Chromium computes
+  field's parts, since that field takes no inserted text (../../testing/browser-operations.md,
+  section 1). The face knows the field by the role Chromium computes
   for it, `Date` or `InputTime`. It turns the value, in the element's
   own format (`elements.md`), into the keys of the field's parts under the
   kit's locale, `en-US` (../../testing/browser.md, section 3), and gives them to the
@@ -223,7 +223,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     come, a request unanswered, a field not grown, a pressed target not
     found again, a command's line or exit not come; and any operation
     the kit refuses with `Timeout`, its answer deadline passed
-    (../../testing/browser.md, section 6), whose bound is that deadline.
+    (../../testing/browser-operations.md, section 1), whose bound is that deadline.
     A find the kit refused with `Timeout` is that expiry, never an
     absent target, so it neither fails a press as missing nor meets a
     `Gone`.
@@ -272,7 +272,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   horizon, which is within every browser tier's wall hard limit
   (`tools/tiers/budgets.toml`).
   **Its persons' downloads** go to a directory the test names in its
-  setup, or are refused when it names none (../../testing/browser.md, section 5). The
+  setup, or are refused when it names none (../../testing/browser-vocabulary.md, section 1). The
   face keeps each person's `Downloaded` in order, its suggested name and
   path, for the person's script; the harness neither reads nor removes
   the files, which are the test's to read, as ordinary Rust.
@@ -309,8 +309,8 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     its handle, as a world's test reads them after its run.
   At a story's step it also:
   - presses a drawing's mark, which the person cannot: the kit's press
-    at the mark's point on the drawing's figure (`svg.md`, section 1; ../../testing/browser.md,
-    sections 5 and 6);
+    at the mark's point on the drawing's figure (`svg.md`, section 1;
+    ../../testing/browser-vocabulary.md, section 1, and ../../testing/browser-operations.md, section 1);
   - **stops the server binary and starts it again** at the address it
     had, which its arguments name, so that a page sees its server go and
     come back;
@@ -351,7 +351,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   - **keeps a value for the test:** an attribute the test names, or
     else the `value` attribute, of the first element a CSS selector the
     test gives finds in the person's page, as its document holds it at
-    the step (../../testing/browser.md, sections 5 and 6), under a name the test
+    the step (../../testing/browser-vocabulary.md, section 1, and ../../testing/browser-operations.md, section 1), under a name the test
     gives. A selector, not a target, since a hidden field holds no role
     a person finds it by, and its `value` attribute is its value. It
     reads markup: what a person typed into a field a find reads, by its
@@ -365,7 +365,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     by what the story saw;
   - **awaits a control pressed:** the target the step gives, found as
     the face finds one, until the kit says its node is pressed
-    (../../testing/browser.md, section 5), looking again each poll interval, within
+    (../../testing/browser-vocabulary.md, section 1), looking again each poll interval, within
     the step's time. A target the face does not find by then fails the
     step as missing, and one found but not pressed fails it, naming the
     target. So a story reads a toggle's state by its name and the
@@ -375,7 +375,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   - **opens again the URL** the person's page first opened, so that a
     story sees a printed URL spent;
   - **checks whether the person's last go met its page's closing
-    warning** (../../testing/browser.md, section 6), so that a story sees the warning
+    warning** (../../testing/browser-operations.md, section 1), so that a story sees the warning
     come while closing would lose requests, and not otherwise (`README.md`, 4.1). A
     story that looks for no warning has its person act on the page
     first, since the browser warns only on a page acted on since it
@@ -395,7 +395,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   what the world gives differs: its kernel, its clock, its programs
   and the browser's answers.
 - **The scripted browser** answers the kit's requests
-  (../../testing/browser.md, sections 5 and 6) from the pages the test
+  (../../testing/browser-vocabulary.md, section 1, and ../../testing/browser-operations.md, section 1) from the pages the test
   gives, each at a path, for every person: the nodes a find meets, by
   their accessible role and name, and the elements a selector meets,
   with their attributes. It makes a person's context at once; opens

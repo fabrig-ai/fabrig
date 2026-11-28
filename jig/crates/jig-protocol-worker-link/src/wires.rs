@@ -34,7 +34,7 @@ pub(crate) fn roots_present(spoken: &List<Spoken>, roots: &List<Root>) -> bool {
 }
 
 pub(crate) fn optional(kind: u16) -> bool {
-    for notice in [Kind::Paused, Kind::Part, Kind::Usage, Kind::UsageRead] {
+    for notice in [Kind::Paused, Kind::Part, Kind::Usage, Kind::UsageRead, Kind::Guides] {
         if notice.number() == kind {
             return true;
         }

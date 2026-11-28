@@ -77,6 +77,7 @@ pub(crate) fn pop_activity(domain: &mut Hub) -> Option<LinkUp> {
             | LinkUp::Part { .. }
             | LinkUp::Turn { .. }
             | LinkUp::JobAnswer { .. }
+            | LinkUp::Guides { .. }
             | LinkUp::Answer { .. } => true,
         };
         if valid_hub {

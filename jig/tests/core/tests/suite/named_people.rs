@@ -218,7 +218,7 @@ fn procedure(world: &mut World, person: u64) -> Option<Refusal> {
     let member = person_member(world, person);
     let env = world.env();
     let answer = world.domain.core_mut().procedure_batch_admit(
-        &env.limits.core.tasks,
+        &env.limits.core,
         DELEGATE,
         std::slice::from_ref(&member),
         env.wall,
@@ -402,6 +402,7 @@ fn raw_new(world: &mut World) -> tasks::New {
     let number = core::fresh(&mut world.domain.core_mut().counters, core::Family::Task).expect("task number");
     let source = live_row(world, PERSON_TASK);
     tasks::New {
+        charter_scope: tasks::CharterScope::Project,
         number,
         project: PROJECT,
         label: 0,

@@ -14,23 +14,37 @@ pub(crate) fn kept(domain: &Hub) -> u32 {
     domain.answers.len()
 }
 
-pub(crate) fn at(domain: &Hub, index: u32) -> Option<LinkUp> {
+fn retained(domain: &Hub, index: u32) -> Option<&crate::hosted::Hosted> {
     for (at, (_, id)) in domain.answers.iter().enumerate() {
         if u32::try_from(at).expect("bounded answer slots") == index {
-            let run = domain.hosted.get(*id).expect("an answer holds its slot");
-            let answer = run.answer.as_ref().expect("indexed answer");
-            return Some(match answer {
-                Kept::Run(answer) => LinkUp::Answer { run: run.run, attempt: run.attempt, answer: answer.clone() },
-                Kept::Job(answer) => LinkUp::JobAnswer { run: run.run, attempt: run.attempt, answer: answer.clone() },
-            });
+            return domain.hosted.get(*id);
         }
     }
     None
 }
 
+pub(crate) fn at(domain: &Hub, index: u32) -> Option<LinkUp> {
+    let run = retained(domain, index)?;
+    Some(match run.answer.as_ref().expect("indexed answer") {
+        Kept::Run(answer) => LinkUp::Answer { run: run.run, attempt: run.attempt, answer: answer.clone() },
+        Kept::Job(answer) => LinkUp::JobAnswer { run: run.run, attempt: run.attempt, answer: answer.clone() },
+    })
+}
+
+pub(crate) fn guides(run: &crate::hosted::Hosted) -> Option<LinkUp> {
+    let bytes = run.guides.as_ref()?.clone();
+    Some(LinkUp::Guides { run: run.run, attempt: run.attempt, bytes })
+}
+
+pub(crate) fn guides_at(domain: &Hub, index: u32) -> Option<LinkUp> {
+    guides(retained(domain, index)?)
+}
+
 pub(crate) fn acknowledge(domain: &mut Hub, run: Token, attempt: Token) {
     if let Some(id) = domain.answers.remove(&(run, attempt)) {
-        domain.hosted.get_mut(id).expect("retained answer").answer = None;
+        let entry = domain.hosted.get_mut(id).expect("retained answer");
+        entry.answer = None;
+        entry.guides = None;
         domain.hosted.retire(id);
     }
 }

@@ -184,50 +184,6 @@ in every deployment:
   deployment's `tool_payload` can make them: a start with more is refused,
   whatever the channel's own larger ceiling (domain/run.md, section 5).
 
-## 3. The derivation
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.
-
-### 3.1 The LLM path: skein
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.1.
-
-### 3.2 The session
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.2.
-
-### 3.3 The transcript
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.3.
-
-### 3.4 Rendering
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.4.
-
-### 3.5 The machine
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.5.
-
-### 3.6 The channel
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.6.
-
-### 3.7 The event sink
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.7.
-
-### 3.8 The service
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.8.
-
-### 3.9 A window's room
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.9.
-
-### 3.10 A run's charter and outcome
-
-Moved to [`limits-derivation.md`](limits-derivation.md), section 1.10.
-
 ## 4. Checked at startup
 
 Each relationship has a name. A configuration that breaks one is

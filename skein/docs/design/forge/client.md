@@ -428,10 +428,6 @@ live resources) and `Slow` (the periodic backstop).
   left.
 - **In flight:** at most `calls`, one `Request::Call` per `resume`.
 
-## 7. Effects: keys, write lanes and recovery
-
-Moved to [`client-effects.md`](client-effects.md), section 1.
-
 ## 8. Restart
 
 After a restart the owner gives the client its rows, then, once its

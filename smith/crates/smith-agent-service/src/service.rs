@@ -151,6 +151,7 @@ pub(crate) struct Stages {
     channel_events: Queue<channel::Heard>,
     pending_messages: Queue<PendingMessage>,
     channel_below: Queue<ChannelLower>,
+    prepared: Option<domain::Fact>,
     llm_events: Queue<llm::ToDomain>,
     llm_below: Queue<io::Request>,
     machine_events: Queue<machine::ToDomain>,

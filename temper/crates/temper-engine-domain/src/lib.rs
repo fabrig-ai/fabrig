@@ -14,6 +14,7 @@ mod budget;
 mod changes_from;
 mod deadline;
 mod decision;
+mod deployment_charters;
 mod domain;
 mod engine;
 mod journal_stop;
@@ -39,8 +40,8 @@ mod tests;
 mod translate;
 pub mod wire;
 pub use decision::{
-    Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, accept_routed, commit, committed,
-    fresh, resume, uncommitted, valid as journal_valid,
+    Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, StartResume, accept_routed, commit,
+    committed, fresh, resume, uncommitted, valid as journal_valid,
 };
 pub use store::{
     CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, DocumentOutcome, DocumentRefusal, Documented,
@@ -65,7 +66,7 @@ pub use temper_engine_domain_see::{
     ForgePerson, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeName,
     SeeNames, SeeNotRead, SeePerson, SeeProposal, SeeRead, SeeRepository, SeeSettings, SeeWords,
 };
-pub use translate::{Config, LANDING_ATTEMPTS, LandingRules, landing_stock};
+pub use translate::{Config, LANDING_ATTEMPTS, LandingRules, forge_declaration, landing_stock};
 
 /// Startup's secret-free decision (protocol/credentials.md, 2.2).
 /// Runs are volatile; every surviving carried row is no longer in use.

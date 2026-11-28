@@ -3833,6 +3833,11 @@ fn held_mark(holding: &Holding, env: &Env<Limits>) -> Option<crate::git::Kept> {
     })
 }
 
+/// The checkout's head, never a requested start or a fetched input.
+pub(crate) fn prepared_head(hold: &Hold, repository: u32) -> Option<Commit> {
+    Some(hold.holding.tips.get(repository)?.head)
+}
+
 fn ready(holding: &mut Holding, out: &mut Queue<Request>) -> State {
     let conflicts = mem::replace(&mut holding.conflicts, List::with_capacity(0)).into_boxed();
     let prepared = if holding.recovered {

@@ -89,7 +89,12 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     let mut records =
         activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Prepare { reply_to: to(), task: 1 }));
     core.proofs.insert(1, RunProof::claimed(1, 7, 7, None, jig_domain_fleet::HostKind::Worker)).unwrap();
-    core.claiming.insert(1, (7, tasks::Reasons::ALL, None, None)).unwrap();
+    core.claiming
+        .insert(
+            1,
+            PendingClaim { attempt: 7, offered: tasks::Reasons::ALL, session_end: None, fresh: None, sources: None },
+        )
+        .unwrap();
     records.extend(activity_decision(
         &mut core,
         &env,
@@ -254,7 +259,12 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     );
     activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Prepare { reply_to: to(), task: 1 }));
     core.proofs.insert(1, RunProof::claimed(1, 8, 7, Some(3), jig_domain_fleet::HostKind::Worker)).unwrap();
-    core.claiming.insert(1, (8, tasks::Reasons::ALL, None, None)).unwrap();
+    core.claiming
+        .insert(
+            1,
+            PendingClaim { attempt: 8, offered: tasks::Reasons::ALL, session_end: None, fresh: None, sources: None },
+        )
+        .unwrap();
     let resumed = activity_decision(
         &mut core,
         &env,
@@ -292,7 +302,12 @@ fn cumulative_read_core() -> (Core, Env<Limits>) {
     );
     activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Prepare { reply_to: to(), task: 1 }));
     core.proofs.insert(1, RunProof::claimed(1, 7, 7, None, jig_domain_fleet::HostKind::Worker)).unwrap();
-    core.claiming.insert(1, (7, tasks::Reasons::ALL, None, None)).unwrap();
+    core.claiming
+        .insert(
+            1,
+            PendingClaim { attempt: 7, offered: tasks::Reasons::ALL, session_end: None, fresh: None, sources: None },
+        )
+        .unwrap();
     activity_decision(&mut core, &env, Event::ClaimPrepared { task: 1, attempt: 7, budget: 10, writes: Box::new([]) });
     activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Started { task: 1, attempt: 7 }));
     for number in [1, 2] {

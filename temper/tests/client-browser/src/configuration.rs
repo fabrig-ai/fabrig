@@ -333,6 +333,7 @@ fn model_json(
 ) -> serde_json::Value {
     let limits = temper_client_tools::limits::tools();
     let read = jig_domain_core_vocabulary::reads::SettingDocument {
+        project: None,
         overlay: None,
         setting,
         revision: 0,
@@ -634,6 +635,7 @@ mod tests {
             for (number, row) in STOCK_MODELS.into_iter().zip(models) {
                 let setting = Setting::Model(number);
                 let document = SettingDocument {
+                    project: None,
                     overlay: None,
                     setting,
                     revision: current.newest(),

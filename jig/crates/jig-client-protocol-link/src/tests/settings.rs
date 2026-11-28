@@ -642,12 +642,55 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
 #[test]
 fn proposed_setting_read_round_trips_its_exact_proposal_key() {
     let client = c::ReadSetting {
+        project: None,
         setting: c::Setting::Rules,
         revision: 0,
         proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
     };
     let wire = t::wire_read_setting(&client);
     assert_eq!(e::restore_read_setting(&wire), client);
+}
+
+#[test]
+fn project_charter_reads_and_documents_cross_the_client_wire() {
+    const PROJECT: u32 = 3;
+    const CHARTER: u32 = 2;
+    const SET_REVISION: u64 = 4;
+    let limits = fixtures::limits();
+    let setting = c::Setting::Charter(c::SettingNumber { number: CHARTER });
+    let project_charter = c::ProjectCharterDocument {
+        name: b"implementer".as_slice().into(),
+        revision: SET_REVISION,
+        source: Box::from([0xff, 0x00]),
+        settings: b"careful".as_slice().into(),
+        instructions: fixtures::text("Read the spec.\n\nCheck résumé.".as_bytes()),
+        parts: List::from_boxed(Box::new([
+            c::CharterPart { on: 1, instructions: fixtures::text(b"First: read the brief.") },
+            c::CharterPart { on: 2, instructions: fixtures::text(b"Question: check the spec.") },
+        ])),
+    };
+    for project in [None, Some(PROJECT)] {
+        let read = c::ReadSetting { setting, revision: 0, proposal: None, project };
+        let bytes = t::wire_read_setting(&read).encode(limits.wire()).unwrap();
+        let wire = w::ReadSetting::decode(limits.wire(), &mut Reader::new(&bytes)).unwrap();
+        assert_eq!(e::restore_read_setting(&wire), read);
+
+        let document = c::SettingDocument {
+            overlay: None,
+            setting,
+            revision: 7,
+            value: None,
+            application: None,
+            proposed: None,
+            project: match project {
+                Some(_) => Some(Box::new(project_charter.clone())),
+                None => None,
+            },
+        };
+        let bytes = e::wire_setting_document(&document, limits.wire()).unwrap().encode(limits.wire()).unwrap();
+        let wire = w::SettingDocument::decode(limits.wire(), &mut Reader::new(&bytes)).unwrap();
+        assert_eq!(t::restore_setting_document(&wire, &limits), Ok(document));
+    }
 }
 
 #[test]
@@ -775,6 +818,7 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
         }
     }
     let document = c::SettingDocument {
+        project: None,
         overlay: Some(Box::new(overlay)),
         setting: c::Setting::Charter(c::SettingNumber { number: 2 }),
         revision: 3,

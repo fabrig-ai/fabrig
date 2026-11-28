@@ -153,6 +153,7 @@ fn delegate(world: &mut World, run: &engine::Assignment, words: &[u8], tracked: 
     authority.delegation.depth = u32::from(tracked);
     authority.budget.spend = if tracked { GOAL_BUDGET } else { CHILD_BUDGET };
     let member = engine::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         tracked: if tracked { Some(1) } else { None },
         label: 0,

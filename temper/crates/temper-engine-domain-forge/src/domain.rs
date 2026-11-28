@@ -424,6 +424,7 @@ pub struct Domain {
     pub(crate) setting_stock: Option<Box<[crate::settings::Stock]>>,
     pub(crate) held_rules: crate::settings::HeldRules,
     pub(crate) held_charters: crate::ForgeCharters,
+    pub(crate) deployment_charters: crate::DeploymentCharters,
     pub(crate) landing_logs: Map<skein_forge::api::Repository, crate::LandingLog>,
     pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root-restart.md, 1.1).
@@ -1287,6 +1288,7 @@ impl Domain {
             setting_stock: None,
             held_rules: empty_rules(l),
             held_charters: crate::ForgeCharters { change: 0, review: 0 },
+            deployment_charters: crate::DeploymentCharters { offered: Box::new([]), limit: 0 },
             verifications: Map::with_capacity(l.changes),
             landing_logs: Map::with_capacity(l.repositories),
             restore_phase: RestorePhase::Cold,

@@ -1,0 +1,7 @@
+# Fourth split pass: testing/browser.md, 53,582 bytes at 3c86c80d85.
+# The vocabulary and operations get their own pages; the rest of the kit stays.
+title skein/docs/design/testing/browser-vocabulary.md: Browser: the vocabulary
+skein/docs/design/testing/browser.md 5 -> skein/docs/design/testing/browser-vocabulary.md 1
+
+title skein/docs/design/testing/browser-operations.md: Browser: the operations
+skein/docs/design/testing/browser.md 6 -> skein/docs/design/testing/browser-operations.md 1

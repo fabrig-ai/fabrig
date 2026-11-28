@@ -410,7 +410,9 @@ fn sent_in(site: Site, kinds: &str) -> String {
         Site::Carried(Carried::JobSpec) => format!("jobs of kinds {kinds}"),
         Site::Carried(Carried::Grant) => format!("assignments, jobs of kinds {kinds}, list reads and renewals"),
         Site::Carried(Carried::Answer) => "answers to asks".into(),
-        Site::Carried(Carried::Left | Carried::Saved | Carried::Preparation | Carried::JobResult | Carried::Ask) => {
+        Site::Carried(
+            Carried::Left | Carried::Saved | Carried::Preparation | Carried::Guides | Carried::JobResult | Carried::Ask,
+        ) => {
             unreachable!("gaps list only what the engine sends")
         }
     }

@@ -49,6 +49,7 @@ pub(super) fn make_task_with_budget(
             reply_to: ReplyTo::new(Token::new(3)),
             creator,
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: goal,
                 project: 1,
                 label: 0,

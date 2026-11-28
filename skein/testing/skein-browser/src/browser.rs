@@ -1,5 +1,5 @@
 //! The browser and its operations, each advanced by one reply or event.
-//! Looking brings its page forward; the kit takes its own inspector refusal (skein/docs/design/testing/browser.md, 6–7).
+//! Looking brings its page forward; the kit takes its own inspector refusal (skein/docs/design/testing/browser-operations.md, 1, and skein/docs/design/testing/browser.md, 7).
 
 #![expect(
     clippy::disallowed_types,

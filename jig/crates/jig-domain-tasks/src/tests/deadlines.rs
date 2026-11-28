@@ -200,6 +200,7 @@ fn running_at_a_wall() -> Harness {
     h.make(vec![new]);
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -310,6 +311,7 @@ fn a_tasks_deadline_moves_with_its_open_and_closed_suspensions() {
     h.env.wall = Wall::from_nanos(1040);
     h.send(Event::Prepare { reply_to: super::revisions::to(), task: 1 });
     h.send(Event::Claim {
+        sources: None,
         reply_to: super::revisions::to(),
         task: 1,
         attempt: 2,

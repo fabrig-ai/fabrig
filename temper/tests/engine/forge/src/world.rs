@@ -2312,6 +2312,10 @@ impl World {
                         self.to_top.push((self.generation, top::Event::Committed { entry }));
                     }
                 }
+                top::Request::SaveTemperRevision { row, .. } => {
+                    self.store_record(top::Stored::DotTemperRevision(row));
+                    wrote = true;
+                }
                 top::Request::Erase { key } => {
                     if let Some(records) = &mut self.write_records
                         && matches!(key, top::Key::Writes(_))

@@ -414,50 +414,6 @@ since what it would charge is not known.
   (`results.md`, section 2). Smoke runs, and a fix's before and after, go in commit
   bodies; a calibration goes in its task file (5.2).
 
-## 6. Agents as adapters
-
-Moved to [`agents.md`](agents.md), section 1.
-
-### 6.1 What each agent sees
-
-Moved to [`agents.md`](agents.md), section 1.1.
-
-### 6.2 smith as it ships
-
-Moved to [`agents.md`](agents.md), section 1.2.
-
-### 6.3 Codex's threads
-
-Moved to [`agents.md`](agents.md), section 1.3.
-
-## 7. Models as tiers
-
-Moved to [`agents.md`](agents.md), section 2.
-
-## 8. The result schema
-
-Moved to [`results.md`](results.md), section 1.
-
-### 8.1 One result per attempt
-
-Moved to [`results.md`](results.md), section 1.1.
-
-### 8.2 Tokens
-
-Moved to [`results.md`](results.md), section 1.2.
-
-### 8.3 Ends
-
-Moved to [`results.md`](results.md), section 1.3.
-
-## 9. Statistics
-
-Moved to [`results.md`](results.md), section 2.
-
-## 10. Isolation
-
-Moved to [`isolation.md`](isolation.md), section 1.
-
 ## 11. How it relates
 
 - **To smith's tests.** Benchmarks find and show; tests specify and gate.

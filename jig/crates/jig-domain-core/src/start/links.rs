@@ -98,23 +98,7 @@ impl Core {
         self.link_party(&source, row.requester)?;
         self.link_executor(&source, row.executor)?;
         self.link_funder(&source, row.funder)?;
-        match row.executor {
-            tasks::Executor::Agent { charter } => {
-                for revision in [Some(row.settings.task), row.settings.run].into_iter().flatten() {
-                    require_link(
-                        self.held(revision),
-                        &source,
-                        Linked::Record(Key::Core(CoreKey::Settings(crate::settings::Key::Held(revision)))),
-                    )?;
-                    require_link(
-                        self.charter_at(charter, revision).is_some(),
-                        &source,
-                        Linked::Charter { charter, revision },
-                    )?;
-                }
-            }
-            tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {}
-        }
+        self.link_agent_charters(&source, row)?;
         if let Some(number) = row.placed {
             require_link(
                 self.tasks.placed_hold(number).is_some(),
@@ -184,6 +168,37 @@ impl Core {
                 }
             }
             tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } | tasks::Phase::Ended(_) => {}
+        }
+        Ok(())
+    }
+
+    fn link_agent_charters(&self, source: &Key, row: &tasks::TaskRecord) -> Result<(), Failure> {
+        match row.executor {
+            tasks::Executor::Agent { charter } => {
+                if row.charters != 0 {
+                    require_link(
+                        self.project_charter_set(row.project, row.charters).is_some(),
+                        source,
+                        Linked::Record(Key::Core(CoreKey::Settings(crate::settings::Key::ProjectCharters {
+                            project: row.project,
+                            revision: row.charters,
+                        }))),
+                    )?;
+                }
+                for revision in [Some(row.settings.task), row.settings.run].into_iter().flatten() {
+                    require_link(
+                        self.held(revision),
+                        source,
+                        Linked::Record(Key::Core(CoreKey::Settings(crate::settings::Key::Held(revision)))),
+                    )?;
+                    require_link(
+                        self.charter_at(charter, revision).is_some(),
+                        source,
+                        Linked::Charter { charter, revision },
+                    )?;
+                }
+            }
+            tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {}
         }
         Ok(())
     }

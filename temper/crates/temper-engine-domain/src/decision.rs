@@ -21,6 +21,14 @@ use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Map, Q
 
 pub use temper_engine_domain_limits::{JournalLimits as Limits, journal_valid as valid};
 
+/// The core's own start step or a backfill step owned by the root.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum StartResume {
+    Core(jig_domain_core::engine::Resume),
+    /// Backfill one restored project's set, or report that forge restore is complete.
+    ProjectCharters(Option<u32>),
+}
+
 /// Owned root effects held after the decision they follow (domain/root.md, section 4). External notices have no acknowledgement of their own; web
 /// replies consume one reply destination. Internal fleet/load deliveries are
 /// resumed by the root and never passed to the protocol as child events.
@@ -61,7 +69,7 @@ pub enum Delivery {
         project: u32,
     },
     /// Resumes the start only after this decision is durable.
-    Resume(jig_domain_core::engine::Resume),
+    Resume(StartResume),
     /// Tell a new finding holder only after the areas/triager save commits (domain/areas.md, 5).
     FindingsOwned {
         project: u32,

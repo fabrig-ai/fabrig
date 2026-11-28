@@ -265,7 +265,7 @@ fn outputs(
         let request = writes.pop().expect("counted retirement outputs");
         match request {
             Request::Erase { key } => erase(groups, key),
-            Request::Save { .. } => {
+            Request::Save { .. } | Request::SaveTemperRevision { .. } => {
                 if keep_saves {
                     saves = saves.checked_add(1).expect("bounded saves");
                     emit(out, request);

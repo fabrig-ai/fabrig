@@ -433,14 +433,6 @@ task had made it.
 - **The rest** is a delegate's: its questions and result reach the
   task, its reservation is the task's, a restart restores it.
 
-## 7. Budgets and spend
-
-Moved to [`authority-budgets.md`](authority-budgets.md), section 1.
-
-## 8. Checks
-
-Moved to [`authority-checks.md`](authority-checks.md), section 1.
-
 ## 9. Proposals
 
 What may be proposed, what it needs, and what an acceptance does; where

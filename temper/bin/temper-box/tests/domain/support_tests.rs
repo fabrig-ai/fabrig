@@ -172,6 +172,7 @@ fn cluster_stock_reads() -> Vec<Value> {
             overlay: None,
             application: None,
             proposed: None,
+            project: None,
         };
         let wire = jig_protocol_engine_clients::translate::settings::setting_document(&document, &models, link.wire())
             .expect("stock setting fits the wire");

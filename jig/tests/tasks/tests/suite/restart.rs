@@ -107,6 +107,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
@@ -128,6 +129,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
@@ -157,6 +159,7 @@ fn stale_claims_and_replayed_terminal_are_and_do_not_mutate() {
     w.claim(1, 4);
     let reply_to = w.to();
     w.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
@@ -633,6 +636,8 @@ fn restore_does_not_rejudge_shape_phase_authorization_or_funding_conservation() 
             apply: |row| {
                 row.phase = Phase::Active(Active::Running { attempt: 99 });
                 row.open_attempt = Some(jig_domain_tasks::OpenAttempt {
+                    sources: None,
+                    guide_limit: 0,
                     attempt: 99,
                     claimed: None,
                     started: None,

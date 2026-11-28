@@ -16,6 +16,7 @@ pub(crate) struct Batch {
     pub reply_to: ReplyTo,
     pub kind: Kind,
     pub members: Box<[tasks::New]>,
+    pub checked: Box<[tasks::Executor]>,
     pub deadline: Time,
 }
 
@@ -67,7 +68,7 @@ pub(crate) fn defer(
     env: &Env<Limits>,
     reply_to: ReplyTo,
     kind: Kind,
-    batch: Box<[tasks::New]>,
+    (batch, bindings): (Box<[tasks::New]>, &[Option<tasks::CharterBinding>]),
     out: &mut Queue<tasks::Request>,
     deadline: Option<Time>,
 ) -> Option<tasks::Event> {
@@ -117,7 +118,8 @@ pub(crate) fn defer(
         return None;
     }
     let deadline = deadline.unwrap_or(env.now.saturating_add(env.limits.tasks.hold_wait));
-    let batch = Batch { reply_to, kind, members: batch, deadline };
+    let checked = crate::settings::binding::executors(&batch, bindings);
+    let batch = Batch { reply_to, kind, members: batch, checked, deadline };
     let _flight = core.fly(crate::routing::flight::Flight::AwaitingResources(batch));
     None
 }

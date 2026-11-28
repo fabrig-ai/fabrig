@@ -166,6 +166,9 @@ pub(crate) fn client_text_to_record(value: &c::Text) -> Box<[u8]> {
     bytes::copy_of(value.bytes())
 }
 
+pub(crate) use super::settings::charter_words_to_domain;
+pub(crate) use client_text_to_record as charter_words_to_record;
+
 pub(crate) fn document_outcome_to_domain(
     value: w::DocumentOutcome,
     limits: &Limits,

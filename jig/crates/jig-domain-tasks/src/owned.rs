@@ -92,8 +92,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(total)
         }
+        Stored::Attempt(row) => run_sources_bytes(row.sources.as_ref()),
         Stored::Retention(_)
-        | Stored::Attempt(_)
         | Stored::Result(_)
         | Stored::EndedByParty(_)
         | Stored::EndedByProject(_)
@@ -418,6 +418,21 @@ fn proposal_bytes(proposal: &Proposal) -> Option<u64> {
     Some(total)
 }
 
+fn run_sources_bytes(sources: Option<&crate::RunSources>) -> Option<u64> {
+    let Some(sources) = sources else { return Some(0) };
+    let mut total = bytes(sources.build.len())?.checked_add(bytes(sources.source.len())?)?;
+    if let Some(guides) = &sources.guides {
+        total = total.checked_add(bytes(size_of_val(&**guides))?)?;
+        for guide in guides {
+            total = total
+                .checked_add(bytes(guide.workspace.len())?)?
+                .checked_add(bytes(guide.commit.len())?)?
+                .checked_add(bytes(guide.path.len())?)?;
+        }
+    }
+    Some(total)
+}
+
 /// Borrowed complete heap footprint of one task record, including its boxed carrier.
 #[must_use]
 pub fn task_bytes(task: &TaskRecord) -> Option<u64> {
@@ -435,6 +450,11 @@ pub fn task_bytes(task: &TaskRecord) -> Option<u64> {
     }
     // The inline record includes Spec::asks and the durable asked_requester latch.
     bytes(size_of::<TaskRecord>())?
+        .checked_add(bytes(task.scope.as_deref().unwrap_or_default().len())?)?
+        .checked_add(match &task.open_attempt {
+            Some(open) => run_sources_bytes(open.sources.as_ref())?,
+            None => 0,
+        })?
         .checked_add(match &task.retry_notice {
             Some(crate::RetryNotice::Failed { reason, .. } | crate::RetryNotice::Refused { reason, .. }) => {
                 match reason {

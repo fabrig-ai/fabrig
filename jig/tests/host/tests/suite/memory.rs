@@ -112,6 +112,7 @@ impl Measured {
                 Request::Up(
                     LinkUp::ListRead { .. }
                     // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                    | LinkUp::Guides { .. }
                     | LinkUp::Paused { .. }
                     | LinkUp::UsageRead { .. }
                     | LinkUp::Draining
@@ -627,6 +628,7 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             LinkUp::Activity { .. } => activity += 1,
             other @ (LinkUp::ListRead { .. }
             // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+            | LinkUp::Guides { .. }
             | LinkUp::Paused { .. }
             | LinkUp::UsageRead { .. }
             | LinkUp::Draining

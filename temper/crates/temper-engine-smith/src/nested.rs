@@ -51,6 +51,7 @@ pub(crate) fn delegate(value: &Value) -> Result<engine::Delegate, Problem> {
         None => None,
     };
     Ok(engine::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         deadline,
         executor,
         spec,

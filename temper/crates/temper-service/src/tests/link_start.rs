@@ -182,6 +182,7 @@ impl Joint {
                     | temper_worker_domain::Event::Process(_)
                     | temper_worker_domain::Event::Live { .. }
                     | temper_worker_domain::Event::Decoded { .. }
+                    | temper_worker_domain::Event::EncodedGuides { .. }
                     | temper_worker_domain::Event::Encoded { .. }
                     | temper_worker_domain::Event::Activity { .. }
                     | temper_worker_domain::Event::Done { .. }

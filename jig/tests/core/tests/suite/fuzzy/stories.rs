@@ -62,6 +62,7 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
                 to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
                 key: core::CallKey { task: parent.0, attempt: parent.1, completion, position: 0 },
                 batch: Box::new([core::Delegate {
+                    charter_scope: tasks::CharterScope::Project,
                     deadline: jig_domain_tasks::Deadline::Named,
                     label: 0,
                     flags: jig_domain_tasks::Flags::PLAIN,
@@ -133,6 +134,7 @@ fn random_period_budgets_reset_before_a_standing_template_creates_its_next_batch
                     key: 1,
                     overlap: tasks::RecurringOverlap::Skip,
                     batch: Box::new([tasks::New {
+                        charter_scope: tasks::CharterScope::Project,
                         deadline: jig_domain_tasks::Deadline::Named,
                         label: 0,
                         flags: jig_domain_tasks::Flags::PLAIN,

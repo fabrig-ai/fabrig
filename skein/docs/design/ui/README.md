@@ -93,14 +93,6 @@ fake person. What waits is in section 15, and what is open in section
 - [`tree.md`](tree.md): the semantic tree and how its vocabulary grows.
 - [`testing.md`](testing.md): how the UI kit is tested, including the fake person.
 
-## 3. The tree
-
-Moved to [`tree.md`](tree.md), section 1.
-
-## 4. Growing the vocabulary
-
-Moved to [`tree.md`](tree.md), section 2.
-
 ## 5. Building
 
 - **The builder** owns the tree it builds: open, close, text and runs, a
@@ -517,10 +509,6 @@ builder asserts each before it allocates.
   scenarios' named ceilings with headroom (../../foundation/testing-strategy.md, 6).
 - **Shells bound their own from them:** the text shell's output
   (text.md, section 3), the browser parts' (web/README.md, section 11).
-
-## 14. Testing
-
-Moved to [`testing.md`](testing.md), section 1.
 
 ## 15. Later
 

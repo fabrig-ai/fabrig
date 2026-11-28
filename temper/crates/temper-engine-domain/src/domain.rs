@@ -328,7 +328,11 @@ impl Domain {
     /// The run channel admitted at this worker's configured position.
     #[must_use]
     pub fn worker_channel(&self, position: u32) -> Option<Token> {
-        self.engine.core().fleet.worker_channel(position)
+        self.worker_fleet().worker_channel(position)
+    }
+
+    pub(crate) fn worker_fleet(&self) -> &jig_domain_fleet::Domain {
+        &self.engine.core().fleet
     }
 
     /// Tasks whose prepared assignment has not yet been handed to a worker.
@@ -398,6 +402,18 @@ impl Domain {
     #[must_use]
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
+    }
+
+    /// The connector's current home for a project.
+    #[must_use]
+    pub fn project_home(&self, project: u32) -> Option<&forge::Repository> {
+        self.forge.home(project)
+    }
+
+    /// The connector's retained method revision for a project.
+    #[must_use]
+    pub fn project_temper_revision(&self, project: u32) -> Option<&forge::DotTemperRevision> {
+        self.forge.temper_revision(project)
     }
     /// The restored settings head; service admission keeps this revision with its lists.
     #[must_use]
@@ -617,6 +633,7 @@ impl Domain {
         let mut engine = Engine::new(config.core, &declarations, &core_limits(limits))?;
         // temper/docs/design/domain/agent/agents.md, 2: the person answers in their inbox.
         engine.core_mut().person_answers();
+        forge.give_deployment_charters(crate::deployment_charters::snapshot(engine.core(), limits, &config.host_part));
         Ok(Domain {
             rehearsal: None,
             host_part: config.host_part,
@@ -1473,7 +1490,12 @@ fn released_into(
         Delivery::ForgeCommitted { entry } => {
             domain.work.push(Work::Forge(forge::Event::Released(jig_domain_contract::Released::Make { entry })));
         }
-        Delivery::Resume(resume) => domain.work.push(Work::EngineResume(resume)),
+        Delivery::Resume(resume) => match resume {
+            crate::StartResume::Core(resume) => domain.work.push(Work::EngineResume(resume)),
+            crate::StartResume::ProjectCharters(project) => {
+                forge_route::project_charters::restore(domain, env, decision, project);
+            }
+        },
         Delivery::EngineStore(request) => crate::store_route::released(domain, request, out),
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),
         Delivery::Relay { task, attempt, word, .. } => {

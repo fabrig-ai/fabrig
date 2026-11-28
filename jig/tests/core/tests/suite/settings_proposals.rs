@@ -827,8 +827,12 @@ fn proposed_settings_read_whole_set_removed_and_reset_with_the_reviews_audience(
             newest,
             Box::new([settings::Item { setting, edit: proposed_edit }]),
         ));
-        let point =
-            reads::Read::Setting { setting, revision: 0, proposal: Some((people::Proposer::Party(member), proposal)) };
+        let point = reads::Read::Setting {
+            project: None,
+            setting,
+            revision: 0,
+            proposal: Some((people::Proposer::Party(member), proposal)),
+        };
         for reader in [owner, signed] {
             let review = proposal_document(&mut world, reader, member, proposal);
             let documents::ProposalAction::Settings { review: Some(review), .. } = review.action else {
@@ -850,6 +854,7 @@ fn proposed_settings_read_whole_set_removed_and_reset_with_the_reviews_audience(
                 &mut world,
                 owner,
                 reads::Read::Setting {
+                    project: None,
                     setting,
                     revision: newest,
                     proposal: Some((people::Proposer::Party(member), proposal)),
@@ -862,6 +867,7 @@ fn proposed_settings_read_whole_set_removed_and_reset_with_the_reviews_audience(
                 &mut world,
                 owner,
                 reads::Read::Setting {
+                    project: None,
                     setting: settings::Setting::Template(999),
                     revision: 0,
                     proposal: Some((people::Proposer::Party(member), proposal)),
@@ -1221,6 +1227,7 @@ fn a_runs_large_proposed_charter_is_read_whole_by_its_reviewer() {
         world.restart_with_limits(config, limits);
         run_charter_review(&mut world, signed, task, proposal, &expected);
         let point = reads::Read::Setting {
+            project: None,
             setting: settings::Setting::Charter(number),
             revision: 0,
             proposal: Some((people::Proposer::Task(task), proposal)),

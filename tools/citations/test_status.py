@@ -11,7 +11,7 @@ README = SCRIPT.with_name("README.md")
 DESIGN = "temper/docs/design"
 OPENING = "# a: status\n\n2026-11-20. Where the code lags or departs from [a.md](a.md).\n\n"
 ZERO = "0 Not yet (0 in flight), 0 Departs, 0 Design lags, 0 Design departs, 0 Open"
-
+GENERATED_LINE = "Generated from x's table: a test checks it byte for byte.\n"
 
 def expected(tree="temper", counts=ZERO, opened="- none", over="- none",
              openings="- none", done="- none", unread="- none"):
@@ -221,6 +221,27 @@ class Status(unittest.TestCase):
             f"{DESIGN}/draft/x.notes.md": "x" * 8_193,
             f"{DESIGN}/draft/x.execution.md": "x" * 8_193,
         }, expected(unread=f"- {DESIGN}/draft/x.status.md"))
+
+    def test_opening_excludes_generated_page(self):
+        self.check_roll_up({
+            f"{DESIGN}/cli/x-args.md": "# x: arguments\n\n" + GENERATED_LINE + "\n" + "x" * 8_193,
+            f"{DESIGN}/a.md": "# a\n\n" + "x" * 8_193,
+        }, expected(openings=f"- {DESIGN}/a.md: 8,198 bytes"))
+
+    def test_generated_marker_must_be_first_after_title(self):
+        start = "# x: arguments\n\nAn introduction.\n\n" + GENERATED_LINE + "\n"
+        self.check_roll_up({f"{DESIGN}/cli/x-args.md": start + "x" * (8_193 - len(start))},
+                           expected(openings=f"- {DESIGN}/cli/x-args.md: 8,193 bytes"))
+
+    def test_generated_page_requires_title(self):
+        self.check_roll_up({f"{DESIGN}/cli/x-args.md": GENERATED_LINE
+                            + "x" * (8_193 - len(GENERATED_LINE))},
+                           expected(openings=f"- {DESIGN}/cli/x-args.md: 8,193 bytes"))
+
+    def test_generated_page_still_over_the_mark(self):
+        start = "\n# x: arguments\n \t\n" + GENERATED_LINE + "\n"
+        self.check_roll_up({f"{DESIGN}/cli/x-args.md": start + "x" * (49_153 - len(start))},
+                           expected(over=f"- {DESIGN}/cli/x-args.md: 49,153 bytes"))
 
     def test_opening_order(self):
         self.check_roll_up({

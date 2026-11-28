@@ -58,7 +58,7 @@ pub(super) fn history(
     for row in &page.rows {
         rows.push(match row {
             reads::PageRow::Attempt(value) if subtree || value.task == task => {
-                w::HistoryRow::Attempt(w::HistoryRowAttempt { value: objects::ended::attempt(value) })
+                w::HistoryRow::Attempt(w::HistoryRowAttempt { value: objects::ended::attempt(value)? })
             }
             reads::PageRow::History(value) if subtree || value.task == task => {
                 w::HistoryRow::Change(Box::new(w::HistoryRowChange { value: history::line(models, value, limits)? }))

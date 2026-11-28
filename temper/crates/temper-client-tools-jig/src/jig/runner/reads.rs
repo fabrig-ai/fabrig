@@ -37,6 +37,36 @@ pub struct Reading {
     pub application: super::application::Reading,
     pub provider_defaults: BTreeSet<u32>,
 }
+impl Reading {
+    fn new(called: Called, parts: &'static dyn render::Parts) -> Self {
+        Self {
+            called,
+            command_prefix: parts.command_prefix(),
+            pending: 0,
+            pages: BTreeMap::new(),
+            documents: BTreeMap::new(),
+            text: None,
+            project: None,
+            specification: None,
+            thread: None,
+            talk: None,
+            questions: BTreeMap::new(),
+            question: None,
+            person: None,
+            person_answerer: None,
+            proposals: BTreeMap::new(),
+            proposal: None,
+            met_inbox: None,
+            application: super::application::Reading::new(),
+            provider_defaults: BTreeSet::new(),
+            parts,
+        }
+    }
+}
+
+#[cfg(test)]
+mod charter_preview_tests;
+
 pub(super) fn handle(runner: &Runner, prefix: u32, local: u32) -> Handle {
     Handle { asker: runner.asker, number: (u64::from(prefix) << 32u32) | u64::from(local) }
 }
@@ -103,28 +133,9 @@ fn start_reading(
         Some(After::Talk(reply)) => (None, Some(reply)),
         None => (None, None),
     };
-    let reading = Reading {
-        called,
-        command_prefix: runner.parts.expect("host vocabulary").command_prefix(),
-        pending: 0,
-        pages: BTreeMap::new(),
-        documents: BTreeMap::new(),
-        text: None,
-        project: None,
-        specification: None,
-        thread: None,
-        talk,
-        questions: BTreeMap::new(),
-        question: None,
-        person: None,
-        person_answerer: None,
-        proposals: BTreeMap::new(),
-        proposal: None,
-        met_inbox,
-        application: super::application::Reading::new(),
-        provider_defaults: BTreeSet::new(),
-        parts: runner.parts.expect("host vocabulary"),
-    };
+    let mut reading = Reading::new(called, runner.parts.expect("host vocabulary"));
+    reading.met_inbox = met_inbox;
+    reading.talk = talk;
     if reading.called.call.tool <= 3 || reading.called.call.tool == rows::WAITS_AT {
         start_overview(runner, client, env, reading, out);
     } else {
@@ -249,6 +260,10 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);
         }
+        rows::TASK_RUNS_AT => {
+            let after = cursor(&reading.called.call, 1);
+            read(runner, &mut reading, 1, c::Read::History { task, subtree: false, after }, out);
+        }
         rows::TASK_NOTES_AT => {
             let Some(me) = super::acts::me(runner, client) else { return };
             let call = &reading.called.call;
@@ -298,7 +313,10 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             read(runner, &mut reading, 1, what, out);
         }
         rows::SETTINGS_AT..=rows::REVISIONS_AT => {
-            if !reading.parts.prepare_setting(&mut reading.called.call, super::acts::me(runner, client)) {
+            let me = super::acts::me(runner, client);
+            if !prepare_charter_preview(&mut reading.called.call, me)
+                || !reading.parts.prepare_setting(&mut reading.called.call, me)
+            {
                 let printed = render::failure(b"unknown project", reading.called.json, 1);
                 finish(reading, printed, out);
                 return;
@@ -307,6 +325,9 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
         }
         rows::TREE_AT => watch(runner, &mut reading, 3, c::Subject::Tree { task, window: env.limits.rows }, out),
         7 => watch(runner, &mut reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out),
+        _ if reading.parts.file_setting(&reading.called.call).is_some() => {
+            read(runner, &mut reading, 6, c::Read::Settings, out);
+        }
         _ => unreachable!("read tool"),
     }
     runner.active.insert(reading.called.call_number, reading);
@@ -504,20 +525,33 @@ fn setting_page(
     page: &Readout,
     out: &mut Queue<Out>,
 ) -> Result<bool, names::Missing> {
-    if reading.called.call.tool != rows::SETTING_AT || local != 6 {
+    let file = reading.parts.file_setting(&reading.called.call);
+    if (file.is_none() && reading.called.call.tool != rows::SETTING_AT) || local != 6 {
         return Ok(false);
     }
     let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = page else { return Ok(false) };
     let call = &mut reading.called.call;
-    if let Some(Value::Text(name)) = value(call, 1) {
-        let kind = match reading.parts.setting_name_kind(call) {
+    let argument = usize::from(file.is_none());
+    if let Some(Value::Text(name)) = value(call, argument) {
+        let kind = match file.or(reading.parts.setting_name_kind(call)) {
             Some(kind) => kind,
             None => settings_file::name_kind(call).expect("named setting form"),
         };
         let Some(number) = kind.number(settings, name) else { return Err(names::Missing::new(kind, name)) };
-        names::resolved(call, 1, number);
+        names::resolved(call, argument, number);
     }
-    setting_read(runner, reading, Some(settings), out);
+    if let Some(kind) = file {
+        let number = u32::try_from(number(call, argument).expect("setting number")).expect("parsed u32");
+        let what = c::Read::Setting(c::ReadSetting {
+            project: None,
+            setting: kind.setting(number),
+            revision: settings.newest,
+            proposal: None,
+        });
+        read(runner, reading, 1, what, out);
+    } else {
+        setting_read(runner, reading, Some(settings), out);
+    }
     Ok(true)
 }
 fn person_page(
@@ -850,6 +884,15 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
     }
 }
 
+fn prepare_charter_preview(call: &mut Call, me: Option<&c::Me>) -> bool {
+    let Some(Project::Name(_)) = settings_file::preview_project(call) else { return true };
+    let Some(me) = me else { return false };
+    let Some(project) = selected_project(value(call, rows::CHARTER_PREVIEW_PROJECT), me) else { return false };
+    *call.values.get_mut(rows::CHARTER_PREVIEW_PROJECT).expect("project slot") =
+        Some(crate::jig::call::Values::One(Value::Project(Project::Number(project))));
+    true
+}
+
 fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
     if let Some(Value::Text(_)) = value(&reading.called.call, 1) {
         read(runner, reading, 6, c::Read::Settings, out);
@@ -864,6 +907,11 @@ fn setting_read(runner: &Runner, reading: &mut Reading, inventory: Option<&c::Se
         Some(setting) => setting,
         None => settings_file::selector(call),
     };
+    if let Some(Project::Number(project)) = settings_file::preview_project(call) {
+        let what = c::Read::Setting(c::ReadSetting { setting, project: Some(*project), revision: 0, proposal: None });
+        read(runner, reading, 1, what, out);
+        return;
+    }
     let revision =
         if let c::Setting::Application { .. } = setting { settings_file::revision(call) } else { number(call, 2) };
     let revision = match revision {
@@ -879,13 +927,20 @@ fn setting_read(runner: &Runner, reading: &mut Reading, inventory: Option<&c::Se
             super::application::read(runner, reading, super::application::Query::Setting(setting), out);
         }
         (_, Some(revision), _) => {
-            read(runner, reading, 1, c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }), out);
+            read(
+                runner,
+                reading,
+                1,
+                c::Read::Setting(c::ReadSetting { project: None, setting, revision, proposal: None }),
+                out,
+            );
         }
         (_, None, Some(inventory)) => {
             if let c::Setting::Provider(_) = setting {
                 super::providers::defaults(reading, inventory);
             }
-            let what = c::Read::Setting(c::ReadSetting { setting, revision: inventory.newest, proposal: None });
+            let what =
+                c::Read::Setting(c::ReadSetting { project: None, setting, revision: inventory.newest, proposal: None });
             read(runner, reading, 1, what, out);
         }
         (_, None, None) => read(runner, reading, 6, c::Read::Settings, out),

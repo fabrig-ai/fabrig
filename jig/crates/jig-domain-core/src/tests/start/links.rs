@@ -64,16 +64,19 @@ fn restore_task(core: &mut Core, env: &Env<crate::Limits>, record: tasks::Stored
 }
 
 fn link(core: &mut Core, env: &Env<crate::Limits>) -> Action {
-    let mut out = Queue::uncapped();
-    step_phase(core.start_done(env, Phase::LoadCore, &mut out), Phase::LoadInbox);
+    link_writes(core, env, &mut Queue::uncapped())
+}
+
+fn link_writes(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) -> Action {
+    step_phase(core.start_done(env, Phase::LoadCore, out), Phase::LoadInbox);
     let mut previous = Phase::LoadInbox;
     for connector in core.connectors.clone() {
         let next = Phase::RestoreConnector { connector };
-        step_phase(core.start_done(env, previous, &mut out), next);
+        step_phase(core.start_done(env, previous, out), next);
         previous = next;
     }
-    step_phase(core.start_done(env, previous, &mut out), Phase::Link);
-    core.start_done(env, Phase::Link, &mut out)
+    step_phase(core.start_done(env, previous, out), Phase::Link);
+    core.start_done(env, Phase::Link, out)
 }
 
 fn task() -> tasks::TaskRecord {
@@ -390,6 +393,7 @@ fn recurring_lifetime_allotments_are_not_simultaneous_live_capacity() {
 fn member() -> tasks::New {
     let row = task();
     tasks::New {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         label: row.label,
         flags: row.flags,
@@ -759,4 +763,36 @@ fn linked(action: Action) {
         Action::Commit(_) => {}
         Action::Idle | Action::Refused(_) => panic!("linked start reaches Sweep"),
     }
+}
+
+#[test]
+fn project_charter_sets_restore_and_only_unheld_old_sets_are_pruned() {
+    use crate::tests::project_charters::{erased, set};
+    let (mut core, env) = loaded();
+    for revision in [3, 1, 2] {
+        assert_eq!(
+            core.restore_core(
+                CoreRecord::Settings(crate::settings::Record::ProjectCharters(set(revision))),
+                &env.limits
+            ),
+            Restored::Live
+        );
+    }
+    assert_eq!(core.project_charters(1), 3, "newest is selected by revision, not restore order");
+    restore_task(&mut core, &env, period());
+    let mut row = task();
+    row.charters = 1;
+    restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
+    let mut out = Queue::uncapped();
+    let Action::Commit(_) = link_writes(&mut core, &env, &mut out) else {
+        panic!("the settings erasure commits before sweep: {:?}", core.start_failure());
+    };
+    assert!(erased(&out, 2));
+    assert!(!erased(&out, 1));
+    assert!(!erased(&out, 3));
+    assert_eq!(core.project_charters(1), 3);
+    assert_eq!(core.project_charter_set(1, 3), Some(&set(3)));
+    assert_eq!(core.project_charter_set(1, 2), None);
+    assert_eq!(core.project_charter_set(1, 1), Some(&set(1)));
+    assert_eq!(core.tasks.task(1).expect("restored live agent").charters, 1);
 }
