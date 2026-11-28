@@ -96,6 +96,7 @@ pub struct Journal<W, O> {
     held: Queue<Held<O>>,
     now: Queue<O>,
     open: Option<()>,
+    numbered: bool,
     last_number: u64,
     sent: u64,
     durable: u64,
@@ -114,11 +115,28 @@ impl<W, O> Journal<W, O> {
             held: Queue::uncapped(),
             now: Queue::uncapped(),
             open: None,
+            numbered: false,
             last_number: durable,
             sent: durable,
             durable,
             stopped: false,
         }
+    }
+
+    /// Restores the numbering a restart finds after the journal was made.
+    /// Numbers then begin after `durable`; held and door outputs keep their place
+    /// and stay ready.
+    /// Asserts if a commit was numbered or `durable` is below the journal's.
+    /// Does nothing if the journal has stopped.
+    pub fn restore_numbering(&mut self, durable: u64) {
+        if self.stopped {
+            return;
+        }
+        assert!(!self.numbered, "restore numbering before numbering a commit");
+        assert!(durable >= self.durable, "restore numbering without lowering durability");
+        self.last_number = durable;
+        self.sent = durable;
+        self.durable = durable;
     }
 
     /// Opens an uncapped decision, including after the journal has stopped.
@@ -161,6 +179,7 @@ impl<W, O> Journal<W, O> {
                 self.stopped = true;
                 return;
             };
+            self.numbered = true;
             self.last_number = number;
             self.outstanding.push(self.last_number);
             self.pending.push(Commit { number: self.last_number, writes: decision.writes });
@@ -269,6 +288,7 @@ impl<W: Hash, O: Hash> Hash for Journal<W, O> {
         self.held.hash(state);
         self.now.hash(state);
         self.open.hash(state);
+        self.numbered.hash(state);
         self.last_number.hash(state);
         self.sent.hash(state);
         self.durable.hash(state);
