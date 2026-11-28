@@ -904,11 +904,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 engine::step(&mut domain.engine, &env.with(env.limits.core), In::Core(event), &mut out);
                 route_engine(domain, env, &mut decision, out, &mut work);
             }
-            Work::Engine(input) => {
-                let mut out = Queue::uncapped();
-                engine::step(&mut domain.engine, &env.with(env.limits.core), input, &mut out);
-                route_engine(domain, env, &mut decision, out, &mut work);
-            }
+            Work::Engine(input) => routes::step_engine(domain, env, &mut decision, input, &mut work),
             Work::EngineOutputs(out) => route_engine(domain, env, &mut decision, out, &mut work),
             Work::Finish => finish_only = true,
             Work::ResumeFleet => {

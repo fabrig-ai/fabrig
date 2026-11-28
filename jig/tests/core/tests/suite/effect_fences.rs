@@ -207,9 +207,17 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
 }
 
 fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_missing_acknowledgement() {
-    let world = World::new(Setup { seed: 133, ..Setup::default() });
+    const SEED: u64 = 133;
+    let world = World::new(Setup { seed: SEED, ..Setup::default() });
     let key = world.call_key(1);
-    let (mut core, env) = recovered(&world, 133, false);
+    let (configuration, limits) = fixture(SEED, false);
+    let mut declarations = configuration.declarations();
+    let second = declarations.iter_mut().find(|declaration| declaration.connector == jig::Connector(2));
+    second.expect("second connector").effects = Box::new([effect_kind(5, false)]);
+    let env = Env { now: Time::from_nanos(world.wall_time().as_nanos()), wall: world.wall_time(), limits: limits.core };
+    let mut core = core::engine::Engine::new(configuration.core, &declarations, &env.limits)
+        .expect("both connectors declare effects");
+    super::start_links::reopen(core.core_mut(), &world, &env);
     let _requests = core::step(
         core.core_mut(),
         &env,
@@ -224,7 +232,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
             },
         }),
     );
-    let _requests = core::step(
+    let mut requests = core::step(
         core.core_mut(),
         &env,
         core::Event::AnswerPayload {
@@ -241,6 +249,18 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
             untooled: false,
         },
     );
+    let mut closing = Vec::new();
+    while let Some(request) = requests.pop() {
+        if let core::Request::Ask {
+            connector,
+            ask: core::Ask::Connector(jig::Ask::Effects(effects::Ask::Close { task, .. })),
+        } = request
+        {
+            assert_eq!(task, key.task);
+            closing.push(connector);
+        }
+    }
+    assert_eq!(closing, [1, 2], "both effect connectors must settle before either releases");
     for connector in [1, 1, 99] {
         let mut requests =
             answer_connector(&mut core, &env, connector, Up::Effects(effects::Up::Closed { task: key.task }));

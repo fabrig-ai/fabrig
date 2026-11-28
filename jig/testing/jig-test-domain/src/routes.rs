@@ -28,16 +28,57 @@ pub(super) fn route_core(
     route_engine(domain, env, decision, out, work);
 }
 
+pub(super) fn step_engine(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Delivery>,
+    input: In,
+    work: &mut Queue<Work>,
+) {
+    // The connector keeps its document under the construction token, not the party's watcher.
+    let document = if let In::Connector(number, jig::Up::Parts(jig::parts::Up::Made { watcher, .. })) = &input
+        && let Some(document) = crate::numbered(domain, number.0).take_document(*watcher)
+    {
+        Some((number.0, document))
+    } else {
+        None
+    };
+    let mut out = Queue::uncapped();
+    engine::step(&mut domain.engine, &env.with(env.limits.core), input, &mut out);
+    route_engine_outputs(domain, env, decision, out, work, document);
+}
+
 pub(super) fn route_engine(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Delivery>,
+    out: Queue<Out>,
+    work: &mut Queue<Work>,
+) {
+    route_engine_outputs(domain, env, decision, out, work, None);
+}
+
+fn route_engine_outputs(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Delivery>,
     mut out: Queue<Out>,
     work: &mut Queue<Work>,
+    mut document: Option<(u16, connector::ClientDocument)>,
 ) {
     for _ in 0..out.len() {
         match out.pop().expect("engine output count") {
-            Out::Core(request) => route_request(domain, env, decision, request, work),
+            Out::Core(request) => {
+                if let core::Request::Held(held) = &request
+                    && let core::Held::ApplicationDelivery { watcher, connector: number, .. } = **held
+                {
+                    let (owner, value) = document.take().expect("construction owns the delivered document");
+                    assert_eq!(owner, number, "construction keeps its connector");
+                    hold(decision, Delivery::ApplicationDocument { watcher, number, document: Box::new(value) });
+                } else {
+                    route_request(domain, env, decision, request, work);
+                }
+            }
             Out::Ask(connector, ask) => match connector.0 {
                 1 => work.push(Work::Connector { number: 1, event: connector::Event::Ask(ask) }),
                 2 => work.push(Work::Connector { number: 2, event: connector::Event::Ask(ask) }),
@@ -86,11 +127,9 @@ fn route_held(
 ) {
     if let core::Held::PublicRead { .. } | core::Held::PublicWait { .. } = held {
         hold(decision, Delivery::Core(held));
-    } else if let core::Held::ApplicationDelivery { watcher, connector: number, subject: _ } = held {
-        let document = crate::numbered(domain, number).take_document(watcher).expect("connector made the document");
-        hold(decision, Delivery::ApplicationDocument { watcher, number, document: Box::new(document) });
+    } else if let core::Held::ApplicationDelivery { .. } = held {
+        unreachable!("document delivery is paired with its construction output");
     } else if let core::Held::ApplicationWatchEnded { watcher, connector: number, subject, why } = held {
-        drop(crate::numbered(domain, number).take_document(watcher));
         work.push(Work::Connector { number, event: connector::Event::DocumentForget { subject } });
         hold(decision, Delivery::Core(core::Held::WatchEnded { watcher, why }));
     } else if let core::Held::Applied { to, connector: number, token } = held {

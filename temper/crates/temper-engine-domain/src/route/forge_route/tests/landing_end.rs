@@ -25,11 +25,7 @@ fn ending_wakes(choice: landing::Decision) {
     }
     // Admit one main member without driving other trains or starting any reads.
     super::super::start_landing(&mut domain, &env, 7);
-    let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), resource));
-    let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event));
-    let Some(Work::LandingAdmission { mut row, .. }) = domain.work.pop() else { panic!("landing admission") };
+    let (mut row, _) = super::take_landing_admission(&mut domain, &env);
     assert_eq!(row.landing.members.len(), 1);
     assert_eq!(row.landing.members[0].change, 7);
     let task = row.landing.task;

@@ -2264,6 +2264,25 @@ fn reserved_turn_landing_with_limits(
     (domain, env, row)
 }
 
+fn take_landing_admission(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+) -> (super::forge::LandingRow, Box<[super::forge::Name]>) {
+    use super::Work;
+    use jig_domain_contract::{Up, resources};
+    use jig_domain_core::{Event, engine::In};
+
+    let Some(Work::Connector(connector, up @ Up::Resources(resources::Up::Resource { .. }))) = domain.work.pop() else {
+        panic!("branch resource")
+    };
+    assert_eq!(connector.0, domain.config.forge_connector);
+    drop(crate::engine::step(&mut domain.engine, env, In::Connector(connector, up)));
+    let Some(Work::Core(event @ Event::ConnectorRepair { .. })) = domain.work.pop() else { panic!("landing task") };
+    drop(crate::engine::step(&mut domain.engine, env, In::Core(event)));
+    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    (row, names)
+}
+
 fn form_turn_landing(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> super::forge::LandingRow {
     use super::{Work, forge, forge_change};
     let mut row = change_row(Some(7));
@@ -2286,11 +2305,7 @@ fn form_turn_landing(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
         }
     ));
     super::start_landing(domain, env, 7);
-    let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), resource));
-    let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), event));
-    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    let (row, names) = take_landing_admission(domain, env);
     assert_eq!(row.landing.members[0].change, 7);
     for name in names {
         domain.work.push(Work::Forge(forge::Event::Hold {

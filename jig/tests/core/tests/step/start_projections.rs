@@ -17,8 +17,11 @@ struct Harness {
 impl Harness {
     fn new() -> Self {
         let limits = jig_test_profile::limits().core;
+        let configuration = jig_test_profile::config(411);
+        let declarations = configuration.declarations();
         let mut h = Self {
-            core: jig_test_profile::new_core(jig_test_profile::config(411).core, &limits).expect("configured core"),
+            core: core::Core::new(configuration.core, &declarations, &limits)
+                .expect("configured projection connectors"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         };

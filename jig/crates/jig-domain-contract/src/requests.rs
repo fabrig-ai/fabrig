@@ -29,8 +29,8 @@ impl ApplicationScope {
 /// What the engine asks of an application request connector.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
-    /// Judgement: decide the admitted request, answered by `Up::Decided` or by asking
-    /// for the request's core part first (`ApplicationPart` through `In::Core`).
+    /// Operation that ends later: decide the admitted request and answer with `Up::Decided`.
+    /// The connector can ask for the request's core part first (`ApplicationPart` through `In::Core`).
     Decide {
         request: Token,
         token: Token,
