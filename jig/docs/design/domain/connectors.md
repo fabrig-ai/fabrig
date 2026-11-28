@@ -77,14 +77,14 @@ application root            routes between the core and every connector
 
   | Capability | jig asks | It says up |
   |---|---|---|
-  | `lifecycle`, every connector | ▷ catch up, from the opening: read afresh, then settle the outbox; · adopt this resource into this project; ▷ release this project, being deleted, its tasks erased: drop what you keep of its adoptions and of your kinds' settings in its scope (people/acts.md, 2), asked again at each start until answered | each half of a catch-up done; the project released, once that has committed, at once when nothing is kept; unasked: an adoption, with its role and whether it is the project's home |
+  | `lifecycle`, every connector | ▷ restore your records, at a start (section 14); ▷ catch up, from the opening: read afresh, then settle the outbox; · adopt this resource into this project; ▷ release this project, being deleted, its tasks erased: drop what you keep of its adoptions and of your kinds' settings in its scope (people/acts.md, 2), asked again at each start until answered | its records restored; each half of a catch-up done; the project released, once that has committed, at once when nothing is kept; unasked: an adoption, with its role and whether it is the project's home |
   | `resources` | · a task is erased, so nothing it named need be kept for it (3.4); · a task took a write hold, with the taking's entry (`connectors-effects.md`, 1.7); · a fenced attempt was lost; ◆ the holdings a batch member needs, whoever made the batch (3.1); · a repair or a delegation it made was refused | the holdings, or refused with the symbol or the holder; unasked: a resource's role and kind of hold, a pool's slots, drift, a resource read afresh after a lost attempt |
   | `effects` | ◆ describe this effect, or the one kept under a proposal; ◆ judge this requirement for this effect's state (section 7); · keep it under its key or the proposal's number, or drop it, with why; ▷ resolve an uncertain entry; ▷ settle a closing task's effects; ▷ release what a closing task held, through its entry | its description: kind, resources, purpose, condition, price; refused; busy; a verdict: met, wait for what, refuse on which fact; a closing task's effects settled; its holds released; unasked: an outbox entry's outcome (made, failed, uncertain), and an effect its procedure's step or projection makes |
   | `topics` | · a subscription to its topic taken, or refused; · an unsubscription taken; · a task's interest in its topic ended | unasked: news for these subscribers, classified (connectors-facts.md, 1.3) |
   | `parts` | ▷ make a party's document of an application subject; · drop a subject's binding; · answer a party's read of an application subject, which it holds itself; ▷ make the parts of these task lines, after any read of its store; ◆ a public document | the document made, or why not; the lines' parts; the public document; unasked: the tasks whose parts changed |
   | `procedures` | · start this procedure task, with its context; · what its step made, with the revisions it names; · its step refused, and why; · its waits refused, and why | a step's decision: effects, batches, amendments, cancels, proposals, messages, a hold, a result (connectors-procedures.md); unasked: a task's waits, whenever they change, and a procedure to step again |
   | `projections`, for one that projects goals | ▷ project this goal: its state, its plan, its milestones (section 8); · forget a goal's projection | the projection settled; unasked: its outbox entry's outcome |
-  | `settings` | ◆ judge these items of your kinds, for the revision they would make, or as restored (section 17); · keep these items' values: a change committed, a removal, a reset; a proposal's items made, accepted, ended; · forget values replaced before a revision; · save the defaults | judged: accept; refuse, why; leave it as it is; at a start, which of the application's defaults of its kinds differ, with their sizes |
+  | `settings` | ◆ judge these items of your kinds, for the revision they would make, or as restored (section 17); · keep these items' values: a change committed, a removal, a reset; a proposal's items made, accepted, ended; · forget values replaced before a revision; · save the defaults | judged: accept; refuse, why; leave it as it is; at a start, which of the application's defaults of its kinds differ, with their sizes, and a stored value of its kinds it cannot hold |
   | `requests` | ▷ decide this request admitted for the application (`../client/domain/contract/requests.md`, 3), after any held work it needs first (a load, a setup, a forge read), the core keeping the request pending until decided; · drop a prepared one; · its core part answered | decided, or to be tried again; unasked: subjects marked changed |
   | any connector | an act's answer, under its key, once durable | an act in the deployment's name, under a key of its own: a person's conversation closed, the deployment's key added or account removed, one of its resources adopted, a project made or deleted (people/acts.md, 3) |
   | after a commit | make this outbox entry (the journal released it) | its outcome, as above |
@@ -92,8 +92,8 @@ application root            routes between the core and every connector
 - **Still through the root, for now** (engine/vocabulary.md, 3): a brief
   section's gathering, cutting and handing over (engine/briefs.md, 1.1);
   what a run of a task needs prepared, its workspace items and their
-  credentials, and its claim; what a run left on its resources; a
-  restart's restore of its records; and its operations on jig's work
+  credentials, and its claim; what a run left on its resources; and its
+  operations on jig's work
   beyond a step's decision (subscribing, cancelling, holding or releasing
   a task, a repair or a person's task, a request's core part).
 - **A connector speaks the contract at its own step's edge**
@@ -526,14 +526,25 @@ Each connector keeps its system's request budget:
 
 ## 14. Restart
 
-At a restart (engine/restart.md), a connector is given, when the core
-asks for each step:
+At a restart (engine/restart.md), a connector is asked, when the core
+reaches each step:
 
-1. **its settings, then its records:** the application's defaults of
-   its kinds, of which it tells the core which differ from those it
-   stored (section 17); its live resources, its procedures' states and
-   parameters, its outbox, its projections' states, what it made by key,
-   and its own state, loaded from its live ranges;
+1. **to restore its records** (`lifecycle::Ask::Restore`, in its
+   `RestoreConnector` phase, connector by connector in the configured
+   order): it loads its own live ranges through the root's store, as it
+   loads anything of its own, and restores its live resources, its
+   procedures' states and parameters, its outbox, its projections'
+   states, what it made by key, and its own state. Whether its step asks
+   the load or its root's arm asks it for the connector is the
+   application's: the engine meets only the ask and the answer. As it
+   restores, it says up what the engine keeps of its records: each stored
+   adoption or resource's role (below), which of the application's
+   defaults of its kinds differ from those it stored (section 17), and a
+   stored value of its kinds it cannot hold, `settings::Up::Unfit`,
+   which refuses the start. Then it says `Done { stage: Restored }`, and
+   the engine goes on. A failure of its own records (its own fit, a link
+   it cannot make) is the application's cause, on which the root stops
+   (engine/restart.md, 4);
 2. **its catching up, at the opening** (`Ask::CatchUp`), once the
    engine's own records are in and its runs adopted, its two halves
    together while the engine serves:
@@ -551,7 +562,8 @@ asks for each step:
    serves;
 3. **its acts to send again:** each act in the deployment's name it
    keeps unanswered, sent again under its key once the core is ready,
-   answered from its saved answer when it was made (people/acts.md, 3).
+   as it is asked to catch up, answered from its saved answer when it
+   was made (people/acts.md, 3).
 
 From the opening its procedures step as their wakes come. A decision
 on a fact its system owns waits for that fact's first fresh read, or for
@@ -562,10 +574,12 @@ held in memory before the restart is needed, and nothing is judged
 from what the store held alone.
 
 Restoration reports each stored adoption to the core through
-`Event::Adopted`, with its project, stable name, role and home flag.
-The reference connector also emits `Request::Resource` to rebuild the
-core's hold report. These reports ask for no external action. Restoration
-makes no new effect or write.
+`lifecycle::Up::Adopted`, with its project, stable name, role and home
+flag, or a resource's role through `resources::Up::Resource`, as at any
+time; the engine takes either in the connector's own `RestoreConnector`
+phase as restored report state, deciding nothing (engine/vocabulary.md, 2.6).
+These reports ask for no external action. Restoration makes no new
+effect or write.
 
 - **Catching up reports each half once it has ended.** The fresh reads'
   report waits for every fresh read to answer; the settle's for every

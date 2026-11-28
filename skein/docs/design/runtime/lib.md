@@ -273,6 +273,11 @@ data structure, like a queue; a service does not hand-roll one
   ); `release` is the most one release call moves, `durable` the last
   commit number the store holds, from which numbering goes on.
   `JournalLimits` holds only `release`, the per-call output limit.
+  `restore_numbering(durable)` restores the numbering a restart finds
+  later than the journal was made, before its first commit: numbers then
+  begin after `durable`, and what it holds and has at its door keeps its
+  place and stays ready. Called once a commit was numbered, or with a
+  `durable` below the journal's, it is the owner's bug and an assertion.
   `decide()` opens a decision with no room to reserve, which cannot be
   refused; `Decision::push_write` and `push_held` add without a
   `Result`. New external work waits at the root's watermark

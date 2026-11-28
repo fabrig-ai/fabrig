@@ -394,8 +394,8 @@ It inspects nothing it holds. What jig asks of it:
   `Range` wrap the core's and each connector's: one variant per child.
   Its keys order first by child, then by the child's own order, so a
   child's ranges stay contiguous. The core's live families and each
-  connector's are ranges of their own, which the restart script loads
-  (section 8).
+  connector's are ranges of their own, which the engine and each
+  connector load at a restart (section 8).
 - **Configuration** is split the same way: the root gives each child its
   part, and the engine each connector's declaration (connectors.md, 2),
   which the root builds from the connector's table of kinds, or states
@@ -430,23 +430,31 @@ in the root between steps; each owner hands over its part once.
 
 ## 8. Restart, from the root
 
-The core runs restart as a script (engine/restart.md). The root:
+The core runs restart as a script, and the engine serves its phases
+through its ports (engine/restart.md, 4; engine/vocabulary.md, 2.6).
+The root serves none of them. It:
 
-1. loads the core's live ranges, the deployment's and then the
-   settings' first, and restores them into the core, then says done;
-2. for each connector the core names, loads its kinds' settings from
-   its family, hands it the application's defaults for them and passes
-   to the core which defaults changed, then asks it for its live
-   ranges, loads them, restores them into it, and says done;
-3. tells the core when the fleet's claims have been given, and passes on
-   workers' hellos as they dial in;
-4. lets the core open decisions;
-5. asks each connector to catch up as the core asks it at the opening,
-   and passes each connector's report of its fresh reads and of its
-   settle to the core as it comes, while it serves every other event.
+1. gives the engine its store's open, `store::In::Opened`, as its first
+   input;
+2. carries the engine's start loads, its switch and its writes as it
+   carries any of the store's (section 5): its store's routing pages a
+   `Range::Start` load, answers a switch over a store with nothing
+   pending at once, and saves the start's wires with their decision; a
+   rehearsing root keeps the switch unanswered;
+3. holds the start's continuations, `Peer::Resume`, as any held output,
+   and feeds each back once released;
+4. applies the journal's numbering, `Numbered`, once the decision that
+   carried it is accepted and before it accepts another;
+5. keeps the start's place from `Start` and its refusal from `Refused`,
+   for its admission, its reports and its stop: what waits for the start
+   it holds or answers not ready, as before the opening (section 3);
+6. routes each connector's restore and catch-up asks, and what it says
+   up, by the connector's number, as any of the connectors' port
+   (section 5); a connector loads its own records through the root's
+   store like any of its loads (connectors.md, section 14).
 
-The root does only the step it is asked for, and the core asks for the
-next only once this one is done, so the order is the core's.
+So the order is the engine's: the root never picks a phase, nor knows
+what a load of the start is for.
 
 A restart that fails leaves its decision unaccepted, and the root takes
 no decision after it: since no decision can be refused, the root itself
@@ -538,7 +546,6 @@ commented as such. Its crate has one module per part of this document:
 ├── translate.rs    the small total functions (section 6)
 ├── assemble.rs     outputs put together from their owners' parts (section 7)
 ├── client_documents.rs  a party's documents, by the connector that makes them (section 5)
-├── restart.rs      the script's steps, as the core asks (section 8)
 ├── steps.rs        a procedure's step outcomes, to the connector it names (section 5)
 ├── limits.rs       the children's limits, and their sum (section 10)
 └── tests.rs

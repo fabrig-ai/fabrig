@@ -2,8 +2,9 @@
 
 A restart is a cold start that rebuilds everything a decision reads from
 the store and the connectors, and makes nothing twice. The core runs it
-as a script: it asks the root for one step at a time, and asks for the
-next only once the root says this one is done (../root.md, section 8).
+as a script, one step at a time, and asks for the next only once this
+one is done; the engine serves each step through its ports (section 4),
+and the root carries them (../root.md, section 8).
 
 ## 1. The restart script
 
@@ -21,10 +22,11 @@ next only once the root says this one is done (../root.md, section 8).
    section 6), so what is loaded fits; a live set past limits lowered
    since refuses the start, saying which. A live task names its
    revision, which is held (`settings.md`, 3).
-2. **Each connector's records,** connector by connector: it is given
-   the application's defaults of its kinds and says which differ from
-   those it stored (`settings-application.md`, 1); then the root loads that connector's live
-   ranges and restores them into it (../connectors.md, section 14). Once
+2. **Each connector's records,** connector by connector, as the engine
+   asks it to restore them: it loads its own live ranges and restores
+   them, and says which of the application's defaults of its kinds,
+   which its configuration gives it, differ from those it stored
+   (`settings-application.md`, 1; ../connectors.md, section 14). Once
    every connector has, new defaults, jig's and the connectors', make
    the release's revision in one decision, with the connectors' new
    defaults saved in it, checked against the limits with the live
@@ -97,10 +99,10 @@ non-empty store without a registry is refused too (`../../protocol/store/opening
 generation `active` names: the store's open answers that a generation
 is pending, and the script asks, after the connectors' records (step
 2) and before the runs adopted (step 3), for one step more,
-`Phase::Switch`, which the root serves by asking the store to
-switch. Every engine's start takes that step, pending or not (a worker
+`Phase::Switch`, which the engine serves by asking the store to
+switch (`vocabulary.md`, 2.6). Every engine's start takes that step, pending or not (a worker
 alone keeps no store): once the store is
-active the root commits the start's wires (`../../protocol/store/records.md`, 3),
+active the engine commits the start's wires, a write of its own (`../../protocol/store/records.md`, 3),
 the start's mark, and only once it is durable are secrets served, runs
 adopted and connectors let reach their systems. Before it the restores may commit, as they do at any start
 (people's expired rows erased, the accounts' wants saved, the release's
@@ -112,7 +114,7 @@ before the switch, and what acts on a record comes after it: the tasks
 child's links of its live tasks (stubs, writers, waits and funders),
 which adopting the runs needs, are made at `Phase::Link`, the link
 pass, before the sweep and the switch, and step 3 adopts. The
-mark is a root decision carrying the store's `Write::Wires`, and the
+mark is the engine's decision carrying its `Write::Wires`, and the
 store opens its secrets' gate on it. The fleet's checks of a host's
 programs, which read what a worker reports and start nothing, may go
 before it. Over a generation with nothing pending, the step switches
@@ -214,31 +216,41 @@ jobs' runner do not infer those marks or close windows.
 
 ## 4. The start's interface
 
-**The start's interface** (`jig_domain_core::start`). The root drives
-the start; the core owns its order. `Core::start_begin(pending, at)`
-takes the store's pending flag and the start's time; the core then
-answers `Action::Step(phase)` for each `Phase` in turn: `LoadCore`,
-`LoadInbox`, `RestoreConnector { connector }` for each connector,
-`Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, and `Open`. As `Open`
-is done the core asks each connector to catch up, `Ask::CatchUp` (step
-5), and the root passes each connector's report of a half back with
-`catch_up_done(connector, stage)`, `stage` its
-`effects::connector::RestartStage`, `ReadAfresh` or `Settled`;
-`caught_up(connector)` says whether both have come since the opening.
-No phase follows `Open`, so nothing the start gates waits for a
-connector. The root serves the
-phase and reports it with `start_done(env, phase, out)`, and gives the
-sweep its people rows with `start_sweep(env, SweepInput, out)`; it never
-picks a successor. `Action::Commit(continuation)` asks the root to put
-the writes the core pushed and the `Continuation` in one decision, and
-to call `start_resume` once that decision is released; a cold restart
-drops a held continuation with the rest of the volatile state, and a
-stale one is an assertion. `Wires` always answers a commit, so nothing
-leaves the process before the start's mark is durable. A row whose owner
-is missing reaches the core as `start_missing(record, target)`, which
-the link refuses as `Failure::Link` naming both keys, as any link it
-cannot make (above). `Action::Refused(failure)` stops
-the start, `start_phase()` naming the phase: a `start::Failure` is the
+**The start's interface** (`jig_domain_core::start`). The engine
+drives the start through its ports (`vocabulary.md`, 2.6); the core
+owns its order. The store's open, `store::In::Opened { pending }`,
+begins it at the start's time; the core then asks for each `Phase` in
+turn: `LoadCore`, `LoadInbox`, `RestoreConnector { connector }` for
+each connector, `Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, and
+`Open`, and the engine says each as it begins. The core's records come
+by the engine's own paged loads of the store (`LIVE`, the inbox's
+census, the people swept); each connector restores its own records as
+the engine asks it, `lifecycle::Ask::Restore`, and says when it has,
+`Done { stage: Restored }`; the switch is a held store output answered
+`Switched`; the wires are a write. As `Open` is done the core asks each
+connector to catch up, `Ask::CatchUp` (step 5), and each connector's
+report of a half, `Done { stage }` with `ReadAfresh` or `Settled`,
+reaches the core's `catch_up_done(connector, stage)` through the
+connectors' port; `caught_up(connector)` says whether both have come
+since the opening. No phase follows `Open`, so nothing the start gates
+waits for a connector, and the engine says decisions are open,
+`Start { phase: None }`. Within the core the script's entrances stay
+as they are, and the engine calls them: `start_begin(pending, at)`,
+`start_done(env, phase, out)` for a phase served, `start_sweep(env,
+SweepInput, out)` for each people row, and `start_resume` once a
+commit's continuation is released. `Action::Commit(continuation)` asks
+for the writes the core pushed and the continuation in one decision;
+the engine holds it as its own `Resume` and goes on as it comes back,
+and a cold restart drops a held continuation with the rest of the
+volatile state. `Wires` always answers a commit, so nothing leaves the
+process before the start's mark is durable. A row whose owner is
+missing reaches the core as `start_missing(record, target)`, from a
+page's `Missing` item, which the link refuses as `Failure::Link`
+naming both keys, as any link it cannot make (above). The deployment's
+header, restored, says the journal's numbering, which the root applies
+before it accepts another decision. `Action::Refused(failure)` stops
+the start, and the engine says it once with the phase it stopped in,
+`Refused { phase, failure }`: a `start::Failure` is the
 store against the configuration, never a record judged: `Settings`,
 `ProjectPolicy { project }` (a saved policy past `limits.policy_bytes`
 or that cannot be accounted), `HeldPastLimit`,
@@ -246,12 +258,15 @@ or that cannot be accounted), `HeldPastLimit`,
 owned bytes, past the fleet's needs bound, `fleet.md`), `AccountsPastLimit`,
 `LiveSet { set, key, held, limit }` (a live set past its limit, `set` a
 `LiveSet`), `Accounting` and `LlmChoice`, each reached by a test from a
-stored record. `Action::Idle` follows `Open`, and `start_opened()` says
+stored record, and `Application` for a stored value of a connector's
+kinds that the connector cannot hold, which it says up as
+`settings::Up::Unfit`. `Action::Idle` follows `Open`, and `start_opened()` says
 decisions are open. The store's side is `Store::start_restore()` before
 its open, then typed pages, `Event::Page` and `Event::PageRefused`
-(`../../protocol/store/loads.md`, 1); a refused page, like an open refused or a
+(`../../protocol/store/loads.md`, 1), which the store's routing gives
+the engine as its loads' pages; a refused page, like an open refused or a
 connector's own fit, is the application's cause and is never turned
-into a `start::Failure`.
+into a `start::Failure`: the root stops on it.
 
 ## 5. Stopping
 
