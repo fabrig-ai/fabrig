@@ -92,6 +92,8 @@ Documents:
 - `adoption.md`: adopting repositories, their rules, workflows and landing branch.
   - `adoption-connection.md`: a forge's connection, access state and removal.
   - `adoption-person.md`: a box's person on its forges.
+- `temper-dir.md`: a repository's `.temper/` read as the project's repository revision, checked before it lands, and the owners' sign-off.
+  - `temper-dir-contracts.md`: the shapes goal W2's changes share, until they land.
 - `keeping-up.md`: the working set, fresh reads and request budget.
 - `effects.md`: effects and recovery across restarts.
 - `writes.md`: the record of temper's own writes, and drift judged against it.

@@ -1,10 +1,10 @@
 # formats: status
 
-2026-11-27. Where the design lags or departs from [formats.md](formats.md).
+2026-11-28. Where the design lags or departs from [formats.md](formats.md).
 
 ## Design lags
 
-- 8: [ways-temper-dir.md](ways-temper-dir.md), 8, gives `.temper/`'s files their formats in the draft. No design document gives them their format yet; ways' W2 designs them by `../protocol/configuration/file-formats.md` ([ways.execution.md](ways.execution.md)).
+None.
 
 ## Design departs
 

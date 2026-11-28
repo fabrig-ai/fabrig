@@ -46,6 +46,7 @@ Kind 4's members, each with its default and the section it serves:
 | `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
 | `repairs`: `repair_goals`, `repair_attempts`, `repair_deadline` and `goal`, the repair goal's shape; refused without `wait: landed` | none; when set 2, 2, 24 hours, `goal` required | `red-repairs.md`, section 7 |
 | `questions_on_forge` | off | `forge/issues.md`, 1 |
+| `temper_dir_sign_off`: whether a change into a landing branch touching temper's method in `.temper/` also waits for one owner's approval on the forge; on is refused where no owner can sign | off | `forge/temper-dir.md`, 5 |
 
 - **What is built:** kind 4's `by`, `batch`, `combine`, `merge_job`,
   `close_job`, `landing_attempts`, `check_timeout`,
