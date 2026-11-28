@@ -9,6 +9,12 @@
 - **Not yet:** 1: `settings show charter` takes no `--project` or
   `--reason`. [in flight: change 22687]
 - **Not yet:** 1: `charter copy`, absent from the table. [in flight: change 22685]
+- **Not yet:** 1: `settings show charter NUMBER --project PROJECT` heads the
+  charter's text with its number and name, but does not say whether the text
+  is the stock's or was set whole, when no project charter binds it, its number
+  is in the stock's range, and its newest setting has no overlay. At a later
+  revision the setting read's document names no origin for that case, so the
+  preview cannot tell the stock's text from a whole replacement.
 
 
 - **Not yet:** 1: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6).
