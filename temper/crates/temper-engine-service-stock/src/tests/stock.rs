@@ -1549,9 +1549,11 @@ fn a_stock_landing_can_start_its_prepare_job() {
     );
     let mut refused = None;
     while let Some(output) = out.pop() {
-        let Out::Ask(connector, ask) = output else { continue };
-        let request = jig_domain_core::engine::bridge_ask(connector, ask);
-        if let jig_domain_core::Request::Ask { ask: jig_domain_core::Ask::StepRefused { why, .. }, .. } = request {
+        if let Out::Ask(
+            _,
+            jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused { why, .. }),
+        ) = output
+        {
             refused = Some(why);
         }
     }
@@ -1560,13 +1562,15 @@ fn a_stock_landing_can_start_its_prepare_job() {
     step(
         &mut jig,
         &env,
-        In::Core(Event::ProcedureHoldings {
-            task,
-            step: number,
-            connector: 1,
-            holdings: Some(Box::new([Box::new([])])),
-            refused: None,
-        }),
+        In::Connector(
+            jig_domain_contract::Connector(1),
+            jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::ProcedureHoldings {
+                task,
+                step: number,
+                holdings: Some(Box::new([Box::new([])])),
+                refused: None,
+            }),
+        ),
         &mut out,
     );
     drop(out);

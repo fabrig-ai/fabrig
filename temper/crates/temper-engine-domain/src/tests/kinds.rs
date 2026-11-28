@@ -5,7 +5,7 @@ use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
 use jig_domain_authority as authority;
 use jig_domain_core::engine::store as engine_store;
-use jig_domain_core::{Event, effects::connector, settings::application};
+use jig_domain_core::{effects::connector, settings::application};
 use skein_lib::Env;
 use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_engine_domain_forge::{self as forge, settings};
@@ -467,11 +467,10 @@ fn a_start_gives_the_forge_its_defaults() {
     assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(2)), "the stored default reached the forge");
     crate::restart::restore_connector_done(&mut domain);
     assert_eq!(domain.engine.core().start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults {
-        connector: 0,
-        defaults,
-        dropped: _,
-    }))) = domain.work.pop()
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(0),
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Defaults { defaults, dropped: _ }),
+    )) = domain.work.pop()
     else {
         panic!("the core receives the defaults before the restore completes");
     };

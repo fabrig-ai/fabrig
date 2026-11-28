@@ -38,7 +38,7 @@ pub(crate) use forge::routing::{
 };
 
 pub(crate) use temper_engine_domain_translate::{CHANGE_CODE, GOAL_BRANCH_SYMBOL, GOAL_CLOSER_CODE};
-use temper_engine_domain_translate::{Holdings, change_llm, in_subtree, resource_report};
+use temper_engine_domain_translate::{Holdings, change_llm, in_subtree};
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
@@ -106,7 +106,7 @@ pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root
 
 /// Report stored adoption facts to jig (jig/docs/design/domain/connectors.md, 12 and 14).
 pub(crate) fn report_adoption(domain: &mut Domain, repository: &forge::Repository) {
-    use jig_domain_core::effects::connector::{AdoptionRole, Event};
+    use lifecycle::AdoptionRole;
     let role = match repository.role {
         forge::Role::Owned => AdoptionRole::Owned,
         forge::Role::Adopted => AdoptionRole::Participant,
@@ -120,12 +120,10 @@ pub(crate) fn report_adoption(domain: &mut Domain, repository: &forge::Repositor
             Box::from(repository.provider.repository.to_be_bytes()),
         ]),
     };
-    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(Event::Adopted {
-        project: repository.project,
-        name,
-        role,
-        home: repository.home,
-    })));
+    super::forge_up(
+        domain,
+        Up::Lifecycle(lifecycle::Up::Adopted { project: repository.project, name, role, home: repository.home }),
+    );
 }
 
 /// The project's role for a collaborator's forge permission (domain/forge/adoption.md).
@@ -5740,9 +5738,31 @@ fn route_resource(
     role: forge::Access,
     hold: forge::resources::HoldKind,
 ) {
-    if let Some(event) = resource_report(domain.config.forge_connector, &env.limits.tasks, project, name, role, hold) {
-        domain.work.push(Work::Core(event));
+    if let Some(up) = resource_report(domain.config.forge_connector, &env.limits.tasks, project, name, role, hold) {
+        super::forge_up(domain, up);
     }
+}
+
+pub(super) fn resource_report(
+    connector: u16,
+    limits: &tasks::Limits,
+    project: u32,
+    name: &forge::Name,
+    role: forge::Access,
+    hold: forge::resources::HoldKind,
+) -> Option<Up> {
+    let name = hub_name(connector, name, limits)?;
+    let role = match role {
+        forge::Access::Owned => resources::ResourceRole::Owned,
+        forge::Access::Participant => resources::ResourceRole::Participant,
+        forge::Access::Context => resources::ResourceRole::Context,
+        forge::Access::Unavailable => resources::ResourceRole::Unavailable,
+    };
+    let hold = match hold {
+        forge::resources::HoldKind::Shared => resources::HoldKind::Shared,
+        forge::resources::HoldKind::Exclusive { wait } => resources::HoldKind::Exclusive { wait },
+    };
+    Some(Up::Resources(resources::Up::Resource { project, name, role, hold }))
 }
 
 /// temper/docs/design/domain/forge/change/README.md, 1: parameter 16 carries canonical commit text.

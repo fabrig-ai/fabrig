@@ -8,30 +8,28 @@ pub mod run_helpers;
 pub mod store_peer;
 pub mod switch_step;
 
-// Direct core fixtures route connector outputs through the same bridge as their root.
-use jig_domain_contract::Connector;
-use jig_domain_core as core;
+use jig_domain_contract::{Connector, Up};
+use jig_domain_core::{
+    self as core,
+    engine::{Engine, In, Out, Peer},
+};
 use skein_lib::{Env, Queue};
 
-#[must_use]
-pub fn bridge(request: core::Request) -> core::Request {
-    match request {
-        core::Request::Ask { connector, ask: core::Ask::Connector(ask) } => {
-            core::engine::bridge_ask(Connector(connector), ask)
-        }
-        core::Request::Held(held) => match *held {
-            core::Held::Connector(connector, released) => core::engine::bridge_released(connector, released),
-            _ => core::Request::Held(held),
-        },
-        other => other,
+/// Answer a connector's ask and collect its continuations alongside direct core requests.
+pub fn answer_connector(engine: &mut Engine, env: &Env<core::Limits>, connector: u16, up: Up) -> Queue<core::Request> {
+    let mut outputs = Queue::uncapped();
+    core::engine::step(engine, env, In::Connector(Connector(connector), up), &mut outputs);
+    let mut requests = Queue::uncapped();
+    while let Some(output) = outputs.pop() {
+        let request = match output {
+            Out::Ask(Connector(connector), ask) => core::Request::Ask { connector, ask: core::Ask::Connector(ask) },
+            Out::Held(Peer::Connector(connector, released)) => {
+                core::Request::Held(Box::new(core::Held::Connector(connector, released)))
+            }
+            Out::Held(Peer::Store(load)) => core::Request::Held(Box::new(core::Held::Store(load))),
+            Out::Core(request) => request,
+        };
+        requests.push(request);
     }
-}
-
-pub fn bridged_step(domain: &mut core::Core, env: &Env<core::Limits>, event: core::Event) -> Queue<core::Request> {
-    let mut native = core::step(domain, env, event);
-    let mut out = Queue::uncapped();
-    while let Some(request) = native.pop() {
-        out.push(bridge(request));
-    }
-    out
+    requests
 }

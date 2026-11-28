@@ -20,7 +20,7 @@ pub(crate) fn connector_ask(connector: u16, ask: jig_domain_contract::Ask) -> Re
 pub(crate) enum Work {
     Event(Event),
     Store(crate::engine::store::In),
-    Connector(Option<u16>, jig_domain_contract::Up),
+    Connector(u16, jig_domain_contract::Up),
     /// Resume a report-ready batch without resetting its first park's deadline.
     Resources(crate::effects::resources::Batch),
     /// A required preparation read or connector section could not be assembled.

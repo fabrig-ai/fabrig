@@ -1022,12 +1022,15 @@ fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
         number: FIRST_CONNECTOR,
         event: connector::Event::Names { task, project: 1, resources: Box::new([resource.clone()]) },
     });
-    world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
-        project: 2,
-        name: tasks::Name { connector: FIRST_CONNECTOR, path: resource.segments().into() },
-        role: core::effects::connector::ResourceRole::Context,
-        hold: core::effects::connector::HoldKind::Exclusive { wait: true },
-    })));
+    world.send(root::Event::connector_up(
+        FIRST_CONNECTOR,
+        jig::Up::Resources(jig::resources::Up::Resource {
+            project: 2,
+            name: tasks::Name { connector: FIRST_CONNECTOR, path: resource.segments().into() },
+            role: core::effects::connector::ResourceRole::Context,
+            hold: core::effects::connector::HoldKind::Exclusive { wait: true },
+        }),
+    ));
     world.send(root::Event::Connector {
         number: FIRST_CONNECTOR,
         event: connector::Event::Adopt {

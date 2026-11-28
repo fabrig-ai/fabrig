@@ -1,5 +1,6 @@
 //! Direct started-start projection rows become ordinary serving feeds.
 use jig_core_world::fixtures::{link, phase};
+use jig_domain_contract as jig;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -87,8 +88,10 @@ fn early_pieces_and_pending_closing_header_become_a_serving_feed() {
     let mut output = core::finish_decision(&mut h.core, &h.env);
     let mut feeds = 0;
     while let Some(request) = output.pop() {
-        if let core::Request::Ask { connector, ask: core::Ask::ProjectGoal { feed } } =
-            jig_core_world::test_support::bridge(request)
+        if let core::Request::Ask {
+            connector,
+            ask: core::Ask::Connector(jig::Ask::Projections(jig::projections::Ask::Project { feed })),
+        } = request
         {
             assert!(pending.contains(&connector));
             let core::ProjectionRecord::GoalHot { goal, .. } = &header else { unreachable!() };

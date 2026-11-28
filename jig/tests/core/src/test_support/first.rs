@@ -30,11 +30,15 @@ pub fn first(config: core::Config, env: &Env<core::Limits>) -> core::Core {
 
 #[must_use]
 pub fn first_with_core(mut core: core::Core, env: &Env<core::Limits>) -> core::Core {
+    open_first(&mut core, env);
+    core
+}
+
+pub fn open_first(core: &mut core::Core, env: &Env<core::Limits>) {
     let mut out = Queue::uncapped();
     let action = core.start_begin(false, env.wall);
-    open(&mut core, env, &mut out, action);
+    open(core, env, &mut out, action);
     assert!(core.start_opened());
-    core
 }
 
 #[must_use]
@@ -43,7 +47,7 @@ pub const fn effect_kind(kind: u16, waits_for_dependencies: bool) -> EffectKind 
 }
 
 #[must_use]
-pub fn with_effects(config: core::Config, limits: &core::Limits, effects: &[EffectKind]) -> core::Core {
+pub fn with_effects(config: core::Config, limits: &core::Limits, effects: &[EffectKind]) -> core::engine::Engine {
     let declarations: Box<[_]> = config
         .connectors
         .iter()
@@ -56,5 +60,5 @@ pub fn with_effects(config: core::Config, limits: &core::Limits, effects: &[Effe
             declaration
         })
         .collect();
-    core::Core::new(config, &declarations, limits).expect("configured core and its effect kinds")
+    core::engine::Engine::new(config, &declarations, limits).expect("configured core and its effect kinds")
 }

@@ -43,7 +43,7 @@ forge runs on its records are `effects.md`, section 2.
   and the goal-branch makings' reads while they are out: a making's
   read waiting for the client's room, or for its forge, is no term
   until it is out again (`branches.md`, 1). They end when every term is
-  empty; the forge then reports `RestartDone { stage: ReadAfresh }`,
+  empty; the forge then reports `lifecycle::Up::Done { stage: ReadAfresh }`,
   and from then on its **fresh reads are in**. Outside a restart they
   are in too. In code, `fresh_reads_in(d)`:
 
@@ -88,7 +88,7 @@ forge runs on its records are `effects.md`, section 2.
   with an attempt by its find, and sends each without one, as at any
   time (skein's `forge/client.md`, 8). Once each restored entry has been
   looked at once, the client answers `OutboxDone`, and the forge reports
-  `RestartDone { stage: Settled }`. An entry's later outcome, made or
+  `lifecycle::Up::Done { stage: Settled }`. An entry's later outcome, made or
   not found and sent again, comes as any entry's does.
 - **Caught up:** both reports made. The core records them by connector
   (jig's `domain/connectors.md`, 14), and the forge clears its

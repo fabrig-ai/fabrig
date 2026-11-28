@@ -179,7 +179,7 @@ fn goal_spec() -> super::tasks::Spec {
 #[test]
 fn a_tracked_task_naming_its_own_goal_branch_holds_g_in_the_home() {
     use super::{Work, tasks};
-    use jig_domain_core::{Event, effects::connector};
+    use jig_domain_core::effects::connector;
     let (mut domain, env) = two_forges();
     let forge_connector = domain.config.forge_connector;
     let holdings = super::task_holdings(
@@ -226,7 +226,15 @@ fn a_tracked_task_naming_its_own_goal_branch_holds_g_in_the_home() {
     let tasks::Holding::Write { resource: goal_resource, .. } = expected_goal else { unreachable!() };
     let mut reported = false;
     while let Some(work) = domain.work.pop() {
-        if let Work::Core(Event::EffectConnector(connector::Event::Resource { project, name, role, hold })) = work
+        if let Work::Connector(
+            _,
+            jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Resource {
+                project,
+                name,
+                role,
+                hold,
+            }),
+        ) = work
             && name == goal_resource
         {
             assert_eq!(project, GOAL_PROJECT);

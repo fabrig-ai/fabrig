@@ -174,26 +174,20 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
         | Event::ProcedureStep { .. }
-        | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
         | Event::Period { .. } => Err(empty()),
         event @ (Event::Settling
         | Event::Fill { .. }
         | Event::Census(..)
-        | Event::Parts { .. }
-        | Event::PartsMarked { .. }
         | Event::Waits { .. }
         | Event::Marked { .. }
         | Event::Read { .. }
         | Event::PublicRead { .. }
-        | Event::PublicAnswered { .. }
         | Event::PublicDurable { .. }
         | Event::ApplicationPart { .. }
-        | Event::ApplicationFinished { .. }
         | Event::ProjectionSettled { .. }
         | Event::EffectStart { .. }
         | Event::SubscribeTopic { .. }
-        | Event::EffectConnector(_)
         | Event::EffectDeadline
         | Event::Unwatch { .. }
         | Event::Delivered { .. }
@@ -209,10 +203,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
         | Event::RefusedPayload { .. }
-        | Event::DelegateHoldings { .. }
         | Event::Brief(_)
-        | Event::Holdings { .. }
-        | Event::ProjectReleased { .. }
         | Event::Account(_)
         | Event::View(_)
         | Event::Notes(_)

@@ -6,8 +6,6 @@ pub use jig_domain_core_vocabulary::engine::*;
 use crate::{Ask, Config, Core, Held, Limits, Request, Timer};
 use jig_domain_contract::{Connector, Declaration, StartProblem};
 
-mod connectors;
-pub use connectors::{bridge_ask, bridge_released};
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// The core behind the functions a root calls.
@@ -90,9 +88,7 @@ pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
             Request::Held(held) => match *held {
                 Held::Store(load) => Out::Held(Peer::Store(load)),
                 Held::Connector(connector, released) => Out::Held(Peer::Connector(connector, released)),
-                Held::MakeEffect { .. }
-                | Held::ConnectorActed { .. }
-                | Held::Acted { .. }
+                Held::Acted { .. }
                 | Held::Drained
                 | Held::Restarting { .. }
                 | Held::ApplicationDelivery { .. }

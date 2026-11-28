@@ -13,7 +13,7 @@ pub use inbox::{CHANGE_RESULT_ENVELOPE_BYTES, inbox_sender, inbox_words, message
 mod resources;
 pub use resources::*;
 mod holdings;
-pub use holdings::{CHANGE_CODE, GOAL_BRANCH_SYMBOL, GOAL_CLOSER_CODE, Holdings, in_subtree, resource_report};
+pub use holdings::{CHANGE_CODE, GOAL_BRANCH_SYMBOL, GOAL_CLOSER_CODE, Holdings, in_subtree};
 mod goals;
 pub use goals::{goal_authority, repair_goal_spec, repair_goal_template, stamp_repair};
 mod parameters;

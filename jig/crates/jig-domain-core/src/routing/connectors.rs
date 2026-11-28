@@ -1,4 +1,4 @@
-//! Core dispatch of the in-process connector port (jig/docs/design/domain/engine/contracts.md, 1).
+//! Core dispatch of the in-process connector port (jig/docs/design/domain/engine/vocabulary.md, 2.5).
 
 use super::{
     Work, application_routes, children, effect::procedure::ProcedureCall, party, run::delegation, stopping, task, view,
@@ -12,19 +12,11 @@ use jig_domain_views as views;
 use skein_lib::{Env, Queue};
 
 #[expect(clippy::too_many_lines, reason = "exhaustive cases route each capability to its owner")]
-pub(super) fn step(
-    core: &mut Core,
-    env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    source: Option<u16>,
-    up: Up,
-) -> Queue<Request> {
+pub(super) fn step(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, source: u16, up: Up) -> Queue<Request> {
     match up {
         Up::Lifecycle(up) => match up {
-            lifecycle::Up::Done { .. } => stopping::empty(), // old unaddressed event; addressed reports go to the start
-            lifecycle::Up::Released { project } => {
-                crate::admission::deletion::released(core, env, addressed(source), project)
-            }
+            lifecycle::Up::Done { .. } => stopping::empty(), // catch-up reports go to the start
+            lifecycle::Up::Released { project } => crate::admission::deletion::released(core, env, source, project),
             lifecycle::Up::Adopted { project, name, role, home } => {
                 assert_resource_phase(core, name.connector);
                 crate::effects::adopted(core, &env.limits, project, name, role, home);
@@ -34,11 +26,11 @@ pub(super) fn step(
         Up::Resources(up) => match up {
             resources::Up::Holdings { request, holdings, refused } => {
                 core.judgements.answered(source, Subject::Holdings(request));
-                party::holdings::route_holdings(core, env, work, request, addressed(source), holdings, refused)
+                party::holdings::route_holdings(core, env, work, request, source, holdings, refused)
             }
             resources::Up::DelegateHoldings { request, holdings, refused } => {
                 core.judgements.answered(source, Subject::DelegateHoldings(request));
-                delegation::delegate_holdings(core, env, work, request, addressed(source), holdings, refused)
+                delegation::delegate_holdings(core, env, work, request, source, holdings, refused)
             }
             resources::Up::ProcedureHoldings { task, step, holdings, refused } => {
                 core.judgements.answered(source, Subject::ProcedureHoldings { task, step });
@@ -49,7 +41,7 @@ pub(super) fn step(
                     core,
                     env,
                     work,
-                    ProcedureCall { task, step, connector: addressed(source) },
+                    ProcedureCall { task, step, connector: source },
                     holdings,
                     refused,
                 )
@@ -86,16 +78,14 @@ pub(super) fn step(
             parts::Up::Made { watcher, outcome } => {
                 view::routes::route_view(core, env, views::Event::Made { watcher, outcome })
             }
-            parts::Up::Lines { token, parts } => {
-                crate::reads::parts::answered(core, env, addressed(source), token, parts)
-            }
+            parts::Up::Lines { token, parts } => crate::reads::parts::answered(core, env, source, token, parts),
             parts::Up::Public { reply, answer } => {
                 let token = reply.into_token();
                 core.judgements.answered(source, Subject::Public(token));
                 crate::public::reads::answered(core, token, answer)
             }
             parts::Up::Marked { tasks } => {
-                view::part_marks::records(core, addressed(source), &tasks);
+                view::part_marks::records(core, source, &tasks);
                 stopping::empty()
             }
         },
@@ -108,20 +98,18 @@ pub(super) fn step(
                     core,
                     env,
                     work,
-                    ProcedureCall { task, step, connector: addressed(source) },
+                    ProcedureCall { task, step, connector: source },
                     code,
                     decision,
                 )
             }
-            procedures::Up::Waits { task, waits } => {
-                crate::runs::waits::report(core, env, addressed(source), task, waits)
-            }
+            procedures::Up::Waits { task, waits } => crate::runs::waits::report(core, env, source, task, waits),
             procedures::Up::Wake { task } => task_event(core, env, work, tasks::Event::WakeProcedure { task }),
         },
         Up::Projections(up) => match up {
-            projections::Up::Settled { goal } => children::route_projection_settled(core, goal, addressed(source)),
+            projections::Up::Settled { goal } => children::route_projection_settled(core, goal, source),
             projections::Up::Outbox { entry, outcome } => {
-                crate::effects::projection_outbox(core, work, addressed(source), entry, outcome);
+                crate::effects::projection_outbox(core, work, source, entry, outcome);
                 stopping::empty()
             }
         },
@@ -135,7 +123,7 @@ pub(super) fn step(
                 super::settings::restore::restored(core, env, work, owner, judged)
             }
             settings::Up::Defaults { defaults, dropped } => {
-                crate::settings::application::defaults(core, addressed(source), defaults, dropped);
+                crate::settings::application::defaults(core, source, defaults, dropped);
                 stopping::empty()
             }
         },
@@ -143,10 +131,10 @@ pub(super) fn step(
             requests::Up::Decided { request, outcome } => {
                 application_routes::finished(core, env, work, request, outcome)
             }
-            requests::Up::Marked { subjects } => view::routes::marked(core, addressed(source), subjects),
+            requests::Up::Marked { subjects } => view::routes::marked(core, source, subjects),
         },
         Up::Act { key, act, carried } => {
-            let key = people::ActKey { connector: addressed(source), key };
+            let key = people::ActKey { connector: source, key };
             if core.stopping {
                 return party::deployment_acts::answer(
                     None,
@@ -175,8 +163,4 @@ fn assert_resource_phase(core: &Core, connector: u16) {
     if let Some(phase) = core.start_phase() {
         assert!(super::takes_connector_resource(phase, connector), "connector resources load before Link");
     }
-}
-
-pub(super) fn addressed(source: Option<u16>) -> u16 {
-    source.expect("addressed connector answer")
 }

@@ -82,7 +82,6 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::Applied { .. }
                 | Held::CarriedUnused { .. }
                 | Held::Delivery { .. }
-                | Held::MakeEffect { .. }
                 | Held::Connector(_, _)
                 | Held::SettledCall { .. }
                 | Held::Assign { .. }
@@ -116,7 +115,6 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::TurnBusy { .. }
                 | Held::StopRun { .. }
                 | Held::NotesWritten { .. }
-                | Held::ConnectorActed { .. }
                 | Held::NotesDeleted { .. } => {}
             },
             Request::Write(..) | Request::Ask { .. } | Request::Now(..) | Request::ProjectMade { .. } => {}

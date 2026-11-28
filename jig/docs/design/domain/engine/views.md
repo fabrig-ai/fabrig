@@ -241,9 +241,9 @@ Nothing the core decides depends on a view arriving.
     ended ones once loaded, and answers at once `Unknown` each part whose
     kind no `PartKind` declares;
   - for each connector the rest belong to, it asks once,
-    `Ask::Parts(PartsAsk { token, party, kinds, rows })`: the kinds with
+    `parts::Ask::Lines(PartsAsk { token, party, kinds, rows })`: the kinds with
     their versions, in the query's order, and the rows' lines as made;
-  - the connector answers `Event::Parts { connector, token, parts }`, a
+  - the connector answers `parts::Up::Lines { token, parts }`, a
     `MadePart` (`Made` with bytes, or `Failed`) for each row, kind by kind,
     in the ask's orders, within the decision or after its own loads;
   - the core keeps the answer pending meanwhile, a read in its `Pending`
@@ -260,8 +260,8 @@ Nothing the core decides depends on a view arriving.
   matches: for `notes`, a note made, edited or deleted in its scope
   (`briefs.md`, section 2); for `delegate_notes`, the same in a delegate's
   scope; for `delegates`, a delegate touched; for `records`, its
-  connector's `Event::PartsMarked { connector, tasks }`, routed by the root
-  from the connector's own mark. Such a touch of a task that has ended
+  connector's `parts::Up::Marked { tasks }`, routed by the root through
+  `In::Connector`. Such a touch of a task that has ended
   grows the ended mark instead (below).
 - **The ended group's mark** (`../../client/domain/contract/parts.md`,
   6): the core keeps, in a bounded table, the commit position at which

@@ -410,7 +410,7 @@ The engine's own enums gain the port (2.2): `In::Connector(Connector, Up)`, the 
   An act a root makes for the application itself still crosses as `In::Core` until the
   operations' milestone.
 - **Released after the commit.** `Released::Make` is an outbox entry to make
-  (`../connectors-effects.md`, 1.2), today's `Held::MakeEffect`, held as any `Peer` output. The
+  (`../connectors-effects.md`, 1.2), held as any `Peer` output. The
   root gives each released one to its connector as `Released`, after the commit
   (`../root.md`, 9).
 - **Admission keeps today's classes.** `In::Connector` is admitted as the event it replaces is

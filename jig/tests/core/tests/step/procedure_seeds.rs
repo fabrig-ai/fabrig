@@ -1,10 +1,11 @@
 //! Deployment procedures spend at the effect (jig/docs/design/domain/authority.md, 6, and jig/docs/design/domain/authority-budgets.md, 1).
-use crate::first_support::{effect_kind, first_with_core, with_effects};
+use crate::first_support::{effect_kind, open_first, with_effects};
 use core::effects::connector;
 use jig_core_world::fixtures::{CONNECTOR, PROJECT};
-use jig_core_world::test_support::bridged_step;
-use jig_core_world::world::fixture;
+use jig_core_world::{test_support::answer_connector, world::fixture};
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
+use jig_domain_contract::{Up, effects};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -21,8 +22,11 @@ const PERIOD_FUNDER: tasks::Funder = tasks::Funder::Period { project: PROJECT, p
 const POOL_FUNDER: tasks::Funder = tasks::Funder::Pool { project: PROJECT, person: PERSON, period: PERIOD };
 const EXECUTOR: tasks::Executor = tasks::Executor::Procedure { connector: CONNECTOR, code: PROCEDURE };
 
-fn outputs(domain: &mut core::Core, env: &Env<core::Limits>, event: core::Event) -> Vec<core::Request> {
-    let mut out = bridged_step(domain, env, event);
+fn outputs(domain: &mut core::engine::Engine, env: &Env<core::Limits>, event: core::Event) -> Vec<core::Request> {
+    collect(core::step(domain.core_mut(), env, event))
+}
+
+fn collect(mut out: Queue<core::Request>) -> Vec<core::Request> {
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);
@@ -30,18 +34,19 @@ fn outputs(domain: &mut core::Core, env: &Env<core::Limits>, event: core::Event)
     requests
 }
 
-fn task_event(domain: &mut core::Core, env: &Env<core::Limits>, event: tasks::Event) -> Vec<core::Request> {
+fn task_event(domain: &mut core::engine::Engine, env: &Env<core::Limits>, event: tasks::Event) -> Vec<core::Request> {
     outputs(domain, env, core::Event::Tasks(event))
 }
 
-fn seeded_core() -> (core::Core, Env<core::Limits>) {
+fn seeded_core() -> (core::engine::Engine, Env<core::Limits>) {
     let (config, limits) = fixture(1900, false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
-    let domain = first_with_core(with_effects(config.core, &env.limits, &[effect_kind(EFFECT_KIND, false)]), &env);
+    let mut domain = with_effects(config.core, &env.limits, &[effect_kind(EFFECT_KIND, false)]);
+    open_first(domain.core_mut(), &env);
     (domain, env)
 }
 
-fn reserved_period(pool: u64) -> (core::Core, Env<core::Limits>) {
+fn reserved_period(pool: u64) -> (core::engine::Engine, Env<core::Limits>) {
     let (mut domain, env) = seeded_core();
     task_event(
         &mut domain,
@@ -78,7 +83,7 @@ fn spec() -> tasks::Spec {
 }
 
 fn admit(
-    domain: &mut core::Core,
+    domain: &mut core::engine::Engine,
     env: &Env<core::Limits>,
     seed: connector::RepairSeed,
     executor: tasks::Executor,
@@ -98,18 +103,18 @@ fn admit(
     number
 }
 
-fn procedure(domain: &mut core::Core, env: &Env<core::Limits>) -> u64 {
-    let seed = domain.procedure_seed(PROJECT).expect("policy and task number exist");
+fn procedure(domain: &mut core::engine::Engine, env: &Env<core::Limits>) -> u64 {
+    let seed = domain.core_mut().procedure_seed(PROJECT).expect("policy and task number exist");
     admit(domain, env, seed, EXECUTOR)
 }
 
 fn step(
-    domain: &mut core::Core,
+    domain: &mut core::engine::Engine,
     env: &Env<core::Limits>,
     task: u64,
     decision: core::ProcedureStep,
 ) -> Vec<core::Request> {
-    let (_, _, step) = domain.tasks.procedure_due(task).expect("procedure is due");
+    let (_, _, step) = domain.core().tasks.procedure_due(task).expect("procedure is due");
     outputs(domain, env, core::Event::ProcedureStep { task, step, connector: CONNECTOR, code: PROCEDURE, decision })
 }
 
@@ -120,16 +125,16 @@ fn numbers(domain: &core::Core, funder: tasks::Funder) -> tasks::Numbers {
 #[test]
 fn a_procedure_task_with_no_agent_is_made_while_the_period_is_reserved_whole() {
     let (mut domain, env) = reserved_period(PERIOD_BUDGET);
-    let before = [numbers(&domain, PERIOD_FUNDER), numbers(&domain, POOL_FUNDER)];
+    let before = [numbers(domain.core(), PERIOD_FUNDER), numbers(domain.core(), POOL_FUNDER)];
     let task = procedure(&mut domain, &env);
-    let row = domain.tasks.task(task).expect("zero-budget procedure admitted");
+    let row = domain.core().tasks.task(task).expect("zero-budget procedure admitted");
     assert_eq!(row.numbers, tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 });
     assert_eq!(row.authority.budget.spend, 0);
     assert_eq!(row.requester, tasks::Party::Deployment { project: PROJECT });
     assert_eq!(row.funder, PERIOD_FUNDER);
     assert_eq!(row.executor, EXECUTOR);
     step(&mut domain, &env, task, core::ProcedureStep::new(core::StepEnd::Wait));
-    assert_eq!(domain.tasks.task(task).expect("waiting procedure").attempt, 1);
+    assert_eq!(domain.core().tasks.task(task).expect("waiting procedure").attempt, 1);
     task_event(&mut domain, &env, tasks::Event::WakeProcedure { task });
     let result = tasks::TaskResult::Report { words: b"done".as_slice().into() };
     step(&mut domain, &env, task, core::ProcedureStep::new(core::StepEnd::Result(result.clone())));
@@ -139,40 +144,40 @@ fn a_procedure_task_with_no_agent_is_made_while_the_period_is_reserved_whole() {
         core::Request::Write(core::Write::Save(core::Record::Tasks(tasks::Stored::Ended(row))))
             if row.number == task && row.phase == tasks::Phase::Ended(tasks::Ending::Done(result.clone()))
     )));
-    assert_eq!([numbers(&domain, PERIOD_FUNDER), numbers(&domain, POOL_FUNDER)], before);
+    assert_eq!([numbers(domain.core(), PERIOD_FUNDER), numbers(domain.core(), POOL_FUNDER)], before);
     assert_eq!(before[0], tasks::Numbers { budget: PERIOD_BUDGET, spent: 0, spent_below: 0, reserved: PERIOD_BUDGET });
 }
 
 #[test]
 fn a_repair_that_runs_an_agent_still_waits_for_unreserved_spend() {
     let (mut domain, _) = reserved_period(PERIOD_BUDGET);
-    assert!(domain.repair_seed(PROJECT).is_none());
+    assert!(domain.core_mut().repair_seed(PROJECT).is_none());
 }
 
 #[test]
 fn a_repair_with_unreserved_spend_keeps_its_funded_budget() {
     let (mut domain, env) = reserved_period(PERIOD_BUDGET - EFFECT_PRICE);
-    let seed = domain.repair_seed(PROJECT).expect("unreserved spend funds a repair");
+    let seed = domain.core_mut().repair_seed(PROJECT).expect("unreserved spend funds a repair");
     let task = admit(&mut domain, &env, seed, EXECUTOR);
-    let row = domain.tasks.task(task).expect("funded repair admitted");
+    let row = domain.core().tasks.task(task).expect("funded repair admitted");
     assert_eq!(row.numbers.budget, EFFECT_PRICE);
     assert_eq!(row.authority.budget.spend, EFFECT_PRICE);
-    assert_eq!(numbers(&domain, PERIOD_FUNDER).reserved, PERIOD_BUDGET);
-    let before = numbers(&domain, PERIOD_FUNDER);
+    assert_eq!(numbers(domain.core(), PERIOD_FUNDER).reserved, PERIOD_BUDGET);
+    let before = numbers(domain.core(), PERIOD_FUNDER);
     let made = effect(&mut domain, &env, task);
     assert!(made.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
-    assert_eq!(domain.tasks.task(task).expect("funded repair").numbers.spent, EFFECT_PRICE);
-    assert_eq!(numbers(&domain, PERIOD_FUNDER), before);
+    assert_eq!(domain.core().tasks.task(task).expect("funded repair").numbers.spent, EFFECT_PRICE);
+    assert_eq!(numbers(domain.core(), PERIOD_FUNDER), before);
 }
 
 #[test]
 fn a_zero_budget_procedure_cannot_delegate_a_run_that_spends() {
     let (mut domain, env) = reserved_period(PERIOD_BUDGET);
     let task = procedure(&mut domain, &env);
-    let mut given = domain.tasks.task(task).expect("procedure").authority.clone();
+    let mut given = domain.core().tasks.task(task).expect("procedure").authority.clone();
     given.budget.spend = EFFECT_PRICE;
     given.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let member = core::Delegate {
@@ -190,12 +195,12 @@ fn a_zero_budget_procedure_cannot_delegate_a_run_that_spends() {
         flags: tasks::Flags::PLAIN,
         budget: people::Budget::Named,
     };
-    let context = domain.tasks.delegation(task).expect("procedure delegation");
+    let context = domain.core().tasks.delegation(task).expect("procedure delegation");
     let mut findings = Queue::uncapped();
-    let mut authority = domain.authority.policy(PROJECT).expect("policy").ceiling.clone();
+    let mut authority = domain.core().authority.policy(PROJECT).expect("policy").ceiling.clone();
     authority.budget.spend = EFFECT_PRICE;
     authority.delegation = authority::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    let checked = domain.connector_batch_admit(
+    let checked = domain.core().connector_batch_admit(
         PROJECT,
         &context.authority,
         context.numbers,
@@ -212,26 +217,30 @@ fn a_zero_budget_procedure_cannot_delegate_a_run_that_spends() {
         std::iter::from_fn(|| findings.pop())
             .any(|finding| matches!(finding, authority::Finding::Spend { source: authority::Source::Task }))
     );
-    let before = numbers(&domain, PERIOD_FUNDER);
+    let before = numbers(domain.core(), PERIOD_FUNDER);
     let requests = step(
         &mut domain,
         &env,
         task,
         core::ProcedureStep { batch: Box::new([member]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
     );
-    assert!(
-        requests.iter().any(|request| matches!(request, core::Request::Ask { ask: core::Ask::StepRefused { .. }, .. }))
-    );
-    assert!(domain.tasks.task(task).expect("procedure").delegates.is_empty());
-    assert_eq!(numbers(&domain, PERIOD_FUNDER), before);
+    assert!(requests.iter().any(|request| matches!(
+        request,
+        core::Request::Ask {
+            ask: core::Ask::Connector(jig::Ask::Procedures(jig::procedures::Ask::StepRefused { .. })),
+            ..
+        }
+    )));
+    assert!(domain.core().tasks.task(task).expect("procedure").delegates.is_empty());
+    assert_eq!(numbers(domain.core(), PERIOD_FUNDER), before);
 }
 
 #[test]
 fn a_procedure_seed_cannot_admit_an_agent_executor() {
     let (mut domain, env) = reserved_period(PERIOD_BUDGET);
-    let seed = domain.procedure_seed(PROJECT).expect("procedure seed");
+    let seed = domain.core_mut().procedure_seed(PROJECT).expect("procedure seed");
     let task = admit(&mut domain, &env, seed, tasks::Executor::Agent { charter: CHARTER });
-    assert!(domain.tasks.task(task).is_none());
+    assert!(domain.core().tasks.task(task).is_none());
 }
 
 fn description() -> connector::EffectDescription {
@@ -252,9 +261,9 @@ fn description() -> connector::EffectDescription {
     }
 }
 
-fn effect(domain: &mut core::Core, env: &Env<core::Limits>, task: u64) -> Vec<core::Request> {
-    let (_, _, step) = domain.tasks.procedure_due(task).expect("effect's procedure is due");
-    let owner = domain.effect_owner();
+fn effect(domain: &mut core::engine::Engine, env: &Env<core::Limits>, task: u64) -> Vec<core::Request> {
+    let (_, _, step) = domain.core().tasks.procedure_due(task).expect("effect's procedure is due");
+    let owner = domain.core_mut().effect_owner();
     outputs(
         domain,
         env,
@@ -264,31 +273,38 @@ fn effect(domain: &mut core::Core, env: &Env<core::Limits>, task: u64) -> Vec<co
             origin: core::EffectOrigin::Procedure { task, step, entry: None },
         },
     );
-    outputs(
+    collect(answer_connector(
         domain,
         env,
-        core::Event::EffectConnector(connector::Event::Described { owner, description: Box::new(description()) }),
-    )
+        CONNECTOR,
+        Up::Effects(effects::Up::Described { owner, description: Box::new(description()) }),
+    ))
 }
 
 #[test]
 fn a_zero_budget_procedures_priced_effect_waits_then_spends_only_the_unreserved_period() {
     let (mut domain, env) = reserved_period(PERIOD_BUDGET);
     let task = procedure(&mut domain, &env);
-    let before = [numbers(&domain, PERIOD_FUNDER), numbers(&domain, POOL_FUNDER)];
+    let before = [numbers(domain.core(), PERIOD_FUNDER), numbers(domain.core(), POOL_FUNDER)];
     let waiting = effect(&mut domain, &env, task);
     assert!(waiting.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(connector::Ask::Drop { answer: authority::Answer::Wait, .. }), .. }
+        core::Request::Ask {
+            ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop {
+                answer: authority::Answer::Wait,
+                ..
+            })),
+            ..
+        }
     )));
     assert!(
         !waiting.iter().any(|request| matches!(
             request,
-            core::Request::Ask { ask: core::Ask::Effect(connector::Ask::Keep { .. }), .. }
+            core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
         )),
         "{waiting:?}"
     );
-    assert_eq!([numbers(&domain, PERIOD_FUNDER), numbers(&domain, POOL_FUNDER)], before);
+    assert_eq!([numbers(domain.core(), PERIOD_FUNDER), numbers(domain.core(), POOL_FUNDER)], before);
     // Free exactly the effect's price; the people's remaining reservation stays intact.
     task_event(
         &mut domain,
@@ -306,12 +322,12 @@ fn a_zero_budget_procedures_priced_effect_waits_then_spends_only_the_unreserved_
     assert!(
         made.iter().any(|request| matches!(
             request,
-            core::Request::Ask { ask: core::Ask::Effect(connector::Ask::Keep { .. }), .. }
+            core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
         )),
         "{made:?}"
     );
     assert_eq!(
-        numbers(&domain, PERIOD_FUNDER),
+        numbers(domain.core(), PERIOD_FUNDER),
         tasks::Numbers {
             budget: PERIOD_BUDGET,
             spent: EFFECT_PRICE,
@@ -320,11 +336,11 @@ fn a_zero_budget_procedures_priced_effect_waits_then_spends_only_the_unreserved_
         }
     );
     assert_eq!(
-        numbers(&domain, POOL_FUNDER),
+        numbers(domain.core(), POOL_FUNDER),
         tasks::Numbers { budget: PERIOD_BUDGET - EFFECT_PRICE, spent: 0, spent_below: 0, reserved: 0 }
     );
     assert_eq!(
-        domain.tasks.task(task).expect("procedure").numbers,
+        domain.core().tasks.task(task).expect("procedure").numbers,
         tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 }
     );
     assert!(
@@ -341,24 +357,24 @@ fn a_procedure_opens_its_period_without_reserving_any_spend() {
     let (mut domain, env) = seeded_core();
     let task = procedure(&mut domain, &env);
     let initial = tasks::Funder::Period { project: PROJECT, period: 0 };
-    assert_eq!(domain.tasks.task(task).expect("admitted procedure").funder, initial);
-    assert_eq!(numbers(&domain, initial), tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 });
+    assert_eq!(domain.core().tasks.task(task).expect("admitted procedure").funder, initial);
+    assert_eq!(numbers(domain.core(), initial), tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 });
 }
 
 #[test]
 fn a_procedure_seed_needs_a_project_policy() {
     const UNKNOWN_PROJECT: u32 = 2; // Only project 1 is configured.
     let (mut domain, _) = seeded_core();
-    assert!(domain.procedure_seed(UNKNOWN_PROJECT).is_none());
+    assert!(domain.core_mut().procedure_seed(UNKNOWN_PROJECT).is_none());
 }
 
 #[test]
 fn a_procedure_seed_needs_an_unused_task_number() {
     let (mut domain, _) = seeded_core();
-    let mut deployment = domain.counters.deployment();
+    let mut deployment = domain.core().counters.deployment();
     deployment.tasks = u64::MAX;
-    domain.counters = core::Counters::new(deployment);
-    assert!(domain.procedure_seed(PROJECT).is_none());
+    domain.core_mut().counters = core::Counters::new(deployment);
+    assert!(domain.core_mut().procedure_seed(PROJECT).is_none());
 }
 
 #[test]
@@ -366,13 +382,19 @@ fn a_priced_procedure_effect_waits_when_one_unit_is_missing() {
     const SHORT_BY: u64 = 1; // The unavailable side of the effect's exact price.
     let (mut domain, env) = reserved_period(PERIOD_BUDGET - EFFECT_PRICE + SHORT_BY);
     let task = procedure(&mut domain, &env);
-    let before = numbers(&domain, PERIOD_FUNDER);
+    let before = numbers(domain.core(), PERIOD_FUNDER);
     let requests = effect(&mut domain, &env, task);
     assert!(requests.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(connector::Ask::Drop { answer: authority::Answer::Wait, .. }), .. }
+        core::Request::Ask {
+            ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop {
+                answer: authority::Answer::Wait,
+                ..
+            })),
+            ..
+        }
     )));
-    assert_eq!(numbers(&domain, PERIOD_FUNDER), before);
+    assert_eq!(numbers(domain.core(), PERIOD_FUNDER), before);
 }
 
 #[test]
@@ -381,10 +403,10 @@ fn a_zero_budget_agent_or_person_seed_cannot_make_a_task_or_open_a_period() {
         [tasks::Executor::Agent { charter: CHARTER }, tasks::Executor::Person(tasks::PersonAddress::Person(PERSON))]
     {
         let (mut domain, env) = seeded_core();
-        let seed = domain.procedure_seed(PROJECT).expect("procedure seed");
+        let seed = domain.core_mut().procedure_seed(PROJECT).expect("procedure seed");
         let task = admit(&mut domain, &env, seed, executor);
-        assert!(domain.tasks.task(task).is_none());
-        assert!(domain.tasks.funding(tasks::Funder::Period { project: PROJECT, period: 0 }).is_none());
+        assert!(domain.core().tasks.task(task).is_none());
+        assert!(domain.core().tasks.funding(tasks::Funder::Period { project: PROJECT, period: 0 }).is_none());
     }
 }
 
@@ -396,14 +418,14 @@ fn a_procedures_effect_checks_both_price_ceilings_before_period_funds() {
     description.effect.price = Some(PERIOD_BUDGET + 1);
     let mut findings = Queue::uncapped();
     assert_eq!(
-        domain.connector_effect_admit(task, &description, env.wall, &[], &mut findings),
+        domain.core().connector_effect_admit(task, &description, env.wall, &[], &mut findings),
         authority::Answer::Refuse
     );
     let findings: Vec<_> = std::iter::from_fn(|| findings.pop()).collect();
     for source in [authority::Source::Project, authority::Source::Deployment] {
         assert!(findings.contains(&authority::Finding::Price { source }), "{findings:?}");
     }
-    assert_eq!(domain.tasks.task(task).expect("procedure").authority.budget.spend, 0);
+    assert_eq!(domain.core().tasks.task(task).expect("procedure").authority.budget.spend, 0);
 }
 
 #[test]
@@ -414,7 +436,7 @@ fn a_procedures_effect_still_needs_a_grant_while_period_funds_are_short() {
     description.effect.kind = EFFECT_KIND + 1;
     let mut findings = Queue::uncapped();
     assert_eq!(
-        domain.connector_effect_admit(task, &description, env.wall, &[], &mut findings),
+        domain.core().connector_effect_admit(task, &description, env.wall, &[], &mut findings),
         authority::Answer::Refuse
     );
     let findings: Vec<_> = std::iter::from_fn(|| findings.pop()).collect();
@@ -427,16 +449,16 @@ fn a_procedures_effect_still_needs_a_grant_while_period_funds_are_short() {
 fn an_unpriced_procedure_effect_needs_no_unreserved_period_spend() {
     let (mut domain, env) = reserved_period(PERIOD_BUDGET);
     let task = procedure(&mut domain, &env);
-    let before = numbers(&domain, PERIOD_FUNDER);
+    let before = numbers(domain.core(), PERIOD_FUNDER);
     let mut description = description();
     description.effect.price = None;
     let mut findings = Queue::uncapped();
     assert_eq!(
-        domain.connector_effect_admit(task, &description, env.wall, &[], &mut findings),
+        domain.core().connector_effect_admit(task, &description, env.wall, &[], &mut findings),
         authority::Answer::Allow
     );
     assert!(findings.is_empty());
-    assert_eq!(numbers(&domain, PERIOD_FUNDER), before);
+    assert_eq!(numbers(domain.core(), PERIOD_FUNDER), before);
 }
 
 #[test]
@@ -444,7 +466,7 @@ fn a_procedures_priced_effect_uses_the_current_period() {
     const NEXT_PERIOD: u64 = PERIOD + 1;
     let (mut domain, env) = reserved_period(PERIOD_BUDGET);
     let task = procedure(&mut domain, &env);
-    let before = numbers(&domain, PERIOD_FUNDER);
+    let before = numbers(domain.core(), PERIOD_FUNDER);
     let opened = task_event(
         &mut domain,
         &env,
@@ -459,13 +481,16 @@ fn a_procedures_priced_effect_uses_the_current_period() {
         core::Request::Write(core::Write::Save(core::Record::Tasks(tasks::Stored::ClosedLedger(row))))
             if row.funder == PERIOD_FUNDER && row.numbers.spent == before.spent
     )));
-    assert!(domain.tasks.funding(PERIOD_FUNDER).is_none());
+    assert!(domain.core().tasks.funding(PERIOD_FUNDER).is_none());
     let made = effect(&mut domain, &env, task);
     assert!(made.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
-    assert_eq!(domain.tasks.task(task).expect("procedure").funder, PERIOD_FUNDER);
-    assert_eq!(numbers(&domain, tasks::Funder::Period { project: PROJECT, period: NEXT_PERIOD }).spent, EFFECT_PRICE);
-    assert_eq!(domain.tasks.task(task).expect("procedure").numbers.spent, 0);
+    assert_eq!(domain.core().tasks.task(task).expect("procedure").funder, PERIOD_FUNDER);
+    assert_eq!(
+        numbers(domain.core(), tasks::Funder::Period { project: PROJECT, period: NEXT_PERIOD }).spent,
+        EFFECT_PRICE
+    );
+    assert_eq!(domain.core().tasks.task(task).expect("procedure").numbers.spent, 0);
 }

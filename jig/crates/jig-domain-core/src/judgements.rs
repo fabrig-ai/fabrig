@@ -46,11 +46,9 @@ impl Pending {
         }
     }
 
-    pub(crate) fn answered(&mut self, connector: Option<u16>, subject: Subject) {
+    pub(crate) fn answered(&mut self, connector: u16, subject: Subject) {
         for (index, &(asked, pending)) in self.asks.iter().enumerate() {
-            // Some old answer variants carry only the question's opaque name.
-            // That name identifies exactly one route, hence its connector too.
-            if subject == pending && (connector.is_none() || connector == Some(asked)) {
+            if subject == pending && connector == asked {
                 let _answered = self.asks.swap_remove(u32::try_from(index).expect("bounded decision routes"));
                 return;
             }

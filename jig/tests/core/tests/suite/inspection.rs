@@ -3,6 +3,7 @@ use jig_core_world::{
     fixtures::{configure_resources, delegate, member, resource_member},
     world::{Setup, World},
 };
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine;
 use jig_domain_tasks as tasks;
@@ -633,12 +634,15 @@ fn a_parked_batch_waits_for_the_missing_connectors_report() {
     });
     configure_resources(&mut world);
     for number in [10_u8, 11] {
-        world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
-            project: 1,
-            name: tasks::Name { connector: 1, path: Box::new([Box::new([number])]) },
-            role: core::effects::connector::ResourceRole::Owned,
-            hold: core::effects::connector::HoldKind::Exclusive { wait: true },
-        })));
+        world.send(root::Event::connector_up(
+            1,
+            jig::Up::Resources(jig::resources::Up::Resource {
+                project: 1,
+                name: tasks::Name { connector: 1, path: Box::new([Box::new([number])]) },
+                role: core::effects::connector::ResourceRole::Owned,
+                hold: core::effects::connector::HoldKind::Exclusive { wait: true },
+            }),
+        ));
     }
     world.domain.delay_holding_reports(1, Box::new([true]));
     let parent = world.assignments[0];

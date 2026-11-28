@@ -540,11 +540,11 @@ fn give_settings_defaults(domain: &mut Domain) {
             .push(jig_domain_core::effects::connector::DroppedDefault { kind, scope, number })
             .expect("one name per dropped forge default");
     }
-    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-        jig_domain_core::effects::connector::Event::SettingsDefaults {
-            connector: domain.config.forge_connector,
+    domain.work.push(Work::Connector(
+        jig_domain_contract::Connector(domain.config.forge_connector),
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Defaults {
             defaults: defaults.into_boxed(),
             dropped: dropped.into_boxed(),
-        },
-    )));
+        }),
+    ));
 }

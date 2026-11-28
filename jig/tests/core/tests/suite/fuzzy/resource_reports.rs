@@ -4,6 +4,7 @@ use jig_core_world::{
     faults::plan_fixture,
     world::{Setup, World},
 };
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, Admit};
 use jig_domain_tasks as tasks;
@@ -47,12 +48,18 @@ fn delegate(world: &mut World, parent: (u64, u64), completion: u32, members: Vec
 }
 
 fn foreign(world: &mut World, number: u64) {
-    world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
-        project: 1,
-        name: tasks::Name { connector: 1, path: Box::new([Box::from(b"z".as_slice()), number.to_be_bytes().into()]) },
-        role: core::effects::connector::ResourceRole::Owned,
-        hold: core::effects::connector::HoldKind::Exclusive { wait: true },
-    })));
+    world.send(root::Event::connector_up(
+        1,
+        jig::Up::Resources(jig::resources::Up::Resource {
+            project: 1,
+            name: tasks::Name {
+                connector: 1,
+                path: Box::new([Box::from(b"z".as_slice()), number.to_be_bytes().into()]),
+            },
+            role: core::effects::connector::ResourceRole::Owned,
+            hold: core::effects::connector::HoldKind::Exclusive { wait: true },
+        }),
+    ));
 }
 
 fn world(seed: u64, capacity: u32, bound: u64) -> (World, root::Limits) {

@@ -283,7 +283,7 @@ pub(crate) fn up(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    source: Option<u16>,
+    source: u16,
     event: contract::effects::Up,
 ) -> Queue<Request> {
     use crate::judgements::Subject;
@@ -343,14 +343,14 @@ pub(crate) fn up(
             complete(core, env, work, &mut out, owner);
         }
         contract::effects::Up::Outbox { entry, task, outcome } => {
-            let connector = source.expect("addressed outbox answer");
+            let connector = source;
             settled(core, work, &mut out, connector, entry, task, outcome);
         }
         contract::effects::Up::Closed { task } => {
-            closed(core, &env.limits, work, task, source.expect("addressed closed answer"));
+            closed(core, &env.limits, work, task, source);
         }
         contract::effects::Up::Start { owner, origin } => {
-            return start(core, env, owner, source.expect("addressed effect start"), origin);
+            return start(core, env, owner, source, origin);
         }
         contract::effects::Up::Released { task } => {
             return crate::routing::connectors::task_event(core, env, work, tasks::Event::Settled { task });

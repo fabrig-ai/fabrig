@@ -6,7 +6,6 @@
 
 pub(crate) mod application_routes;
 pub(crate) mod children;
-mod compatibility;
 pub(crate) mod connectors;
 pub(crate) mod effect;
 pub(crate) mod ended_marks;
@@ -343,8 +342,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
         Event::SettingsCommit { .. } if phase.is_some() => unreachable!("the start commits settings itself"),
         _ => {}
     }
-    let first = compatibility::connector(event);
-    decide(core, env, first)
+    decide(core, env, Work::Event(event))
 }
 
 /// Store completions take the same decision entrance, including during stopping.
@@ -374,7 +372,7 @@ pub(crate) fn step_connector(
     if core.start_failure().is_some() {
         return Queue::uncapped();
     }
-    decide(core, env, Work::Connector(Some(connector), up))
+    decide(core, env, Work::Connector(connector, up))
 }
 
 fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
@@ -750,25 +748,21 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Account(event) => route_account(core, env, work, event),
         Event::View(event) => route_view(core, env, event),
         Event::Notes(event) => route_notes(core, env, work, event),
-        Event::EffectConnector(
-            crate::effects::connector::Event::Procedure { .. }
-            | crate::effects::connector::Event::SectionReady { .. }
-            | crate::effects::connector::Event::WorkspaceReady { .. },
-        ) => stopping::empty(),
-        Event::EffectConnector(_)
-        | Event::ProjectReleased { .. }
-        | Event::Parts { .. }
-        | Event::PartsMarked { .. }
-        | Event::Waits { .. }
-        | Event::Marked { .. }
-        | Event::ApplicationFinished { .. }
-        | Event::ProjectionSettled { .. }
-        | Event::PublicAnswered { .. }
-        | Event::Holdings { .. }
-        | Event::DelegateHoldings { .. }
-        | Event::ProcedureStep { .. }
-        | Event::ProcedureHoldings { .. } => {
-            unreachable!("connector answers enter through the connector route")
+        Event::Waits { connector, task, waits } => crate::runs::waits::report(core, env, connector, task, waits),
+        Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
+        Event::ProjectionSettled { goal, connector } => children::route_projection_settled(core, goal, connector),
+        Event::ProcedureStep { task, step, code, decision, connector } => {
+            if core.settling {
+                return stopping::empty();
+            }
+            run::delegation::procedure_step(
+                core,
+                env,
+                work,
+                effect::procedure::ProcedureCall { task, step, connector },
+                code,
+                decision,
+            )
         }
     }
 }

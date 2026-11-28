@@ -1,15 +1,13 @@
-//! Connector port decisions and the bridge (jig/docs/design/domain/engine/contracts.md, 1 and 3).
+//! Connector port decisions (jig/docs/design/domain/engine/vocabulary.md, 2.5).
 
 use super::*;
-use crate::{Ask, Held, effects::connector, engine::Peer};
+use crate::{Ask, Held, engine::Peer};
 use jig_domain_authority as authority;
 use jig_domain_contract::{
-    self as contract, Connector, Declaration, Released, Up, effects, lifecycle, parts, procedures, projections,
-    requests, resources, settings, topics,
+    self as contract, Connector, Declaration, Released, Up, effects, lifecycle, parts, procedures, resources, topics,
 };
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use jig_domain_views as views;
 use skein_lib::{Journal, Released as JournalRelease};
 
 const DECLARER: Connector = Connector(1);
@@ -61,40 +59,6 @@ fn compare(core: &Core, engine: &Engine, expected: Queue<Request>, actual: Queue
     assert_eq!(hash.hash_one(core), hash.hash_one(engine.core()), "same core state after the decision");
 }
 
-fn answer(up: Up, event: Event) {
-    let (mut core, mut engine, env) = port_twins();
-    let input = In::Connector(DECLARER, up);
-    assert_eq!(input.new_work(), event.new_work(), "the connector keeps today's admission class");
-    let expected = crate::step(&mut core, &env, event);
-    let mut actual = Queue::uncapped();
-    engine::step(&mut engine, &env, input, &mut actual);
-    compare(&core, &engine, expected, actual);
-}
-
-fn ask(old: Ask, expected: contract::Ask) {
-    let mut requests = Queue::uncapped();
-    requests.push(Request::ProjectMade { project: 1 });
-    requests.push(Request::Ask { connector: DECLARER.0, ask: Ask::Connector(expected) });
-    requests.push(Request::Held(Box::new(Held::Drained)));
-    let mut out = Queue::uncapped();
-    engine::append(requests, &mut out);
-    let Some(Out::Core(Request::ProjectMade { project: 1 })) = out.pop() else { panic!("core output first") };
-    let Some(Out::Ask(number, actual)) = out.pop() else { panic!("ask crosses by its port") };
-    assert_eq!(number, DECLARER);
-    assert_bridge(old, actual);
-    let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("held after the ask") };
-    let Held::Drained = *held else { panic!("unchanged held") };
-    assert!(out.is_empty());
-}
-
-fn assert_bridge(old: Ask, ask: contract::Ask) {
-    let hash = BuildHasherDefault::<DefaultHasher>::default();
-    assert_eq!(
-        hash.hash_one(engine::bridge_ask(DECLARER, ask)),
-        hash.hash_one(Request::Ask { connector: DECLARER.0, ask: old }),
-    );
-}
-
 #[test]
 fn lifecycle_port() {
     let (mut core, mut engine, env) = port_twins();
@@ -109,7 +73,6 @@ fn lifecycle_port() {
         }
     }
     assert_eq!(catch_up.as_slice(), [DECLARER, EMPTY]);
-    ask(Ask::Effect(connector::Ask::CatchUp), contract::Ask::Lifecycle(lifecycle::Ask::CatchUp));
     for stage in [lifecycle::RestartStage::ReadAfresh, lifecycle::RestartStage::Settled] {
         core.catch_up_done(EMPTY.0, stage);
         let input = In::Connector(EMPTY, Up::Lifecycle(lifecycle::Up::Done { stage }));
@@ -122,23 +85,6 @@ fn lifecycle_port() {
     assert!(!engine.core().caught_up(DECLARER.0));
 }
 
-#[test]
-fn resources_port() {
-    ask(
-        Ask::Lost { task: TASK, attempt: 1 },
-        contract::Ask::Resources(resources::Ask::Lost { task: TASK, attempt: 1, resources: Box::new([]) }),
-    );
-    let resource = tasks::Name { connector: DECLARER.0, path: Box::new([Box::from(b"live".as_slice())]) };
-    answer(
-        Up::Resources(resources::Up::ReadAfresh { resource: resource.clone() }),
-        Event::Tasks(tasks::Event::ReadAfresh { resource: resource.clone() }),
-    );
-    answer(
-        Up::Resources(resources::Up::PoolSlots { name: resource.clone(), slots: 2 }),
-        Event::EffectConnector(connector::Event::PoolSlots { name: resource, slots: 2 }),
-    );
-}
-
 fn open_period(core: &mut Core, env: &Env<Limits>, project: u32) -> tasks::Funder {
     crate::tests::send_task(
         core,
@@ -149,29 +95,27 @@ fn open_period(core: &mut Core, env: &Env<Limits>, project: u32) -> tasks::Funde
 }
 
 #[test]
-fn a_description_is_outstanding_until_its_owner_answers_on_either_entrance() {
+fn a_description_is_outstanding_until_its_owner_answers() {
     use crate::judgements::Subject;
-    let (mut core, mut engine, env) = port_twins();
-    for core in [&mut core, engine.core_mut()] {
-        let funder = open_period(core, &env, PROJECT);
-        let goal = crate::tests::new_row(core, TASK, funder, Some(1));
-        fixtures::make_batch(core, &env.limits, tasks::Party::Person(1), Box::new([goal]));
-        assert!(core.projections.contains_key(&TASK));
-        drop(crate::finish_decision(core, &env));
-    }
+    let (_, mut engine, env) = port_twins();
+    let core = engine.core_mut();
+    let funder = open_period(core, &env, PROJECT);
+    let goal = crate::tests::new_row(core, TASK, funder, Some(1));
+    fixtures::make_batch(core, &env.limits, tasks::Party::Person(1), Box::new([goal]));
+    assert!(core.projections.contains_key(&TASK));
+    drop(crate::finish_decision(core, &env));
     let owner = core.effect_owner();
-    assert_eq!(engine.core_mut().effect_owner(), owner);
-    let start = || {
-        Up::Effects(effects::Up::Start { owner, origin: effects::EffectOrigin::Projection { goal: TASK, entry: None } })
-    };
+    let start = Up::Effects(effects::Up::Start {
+        owner,
+        origin: effects::EffectOrigin::Projection { goal: TASK, entry: None },
+    });
     let mut out = Queue::uncapped();
-    engine::step(&mut engine, &env, In::Connector(DECLARER, start()), &mut out);
+    engine::step(&mut engine, &env, In::Connector(DECLARER, start), &mut out);
     let Some(Out::Ask(DECLARER, contract::Ask::Effects(effects::Ask::Describe { owner: asked }))) = out.pop() else {
         panic!("effect owner asked")
     };
     assert_eq!(asked, owner);
     assert!(out.is_empty());
-    drop(crate::routing::step_connector(&mut core, &env, DECLARER, start()));
 
     engine::step(&mut engine, &env, In::Connector(DECLARER, Up::Effects(effects::Up::Busy { owner: OWNER })), &mut out);
     assert!(out.is_empty(), "an unasked answer follows its normal route");
@@ -179,68 +123,8 @@ fn a_description_is_outstanding_until_its_owner_answers_on_either_entrance() {
     assert_eq!(engine.core().judgements.outstanding(), Some((DECLARER.0, Subject::Describe(owner))));
 
     engine::step(&mut engine, &env, In::Connector(DECLARER, Up::Effects(effects::Up::Busy { owner })), &mut out);
-    let mut bridged = Engine::from_core(core);
-    let mut expected = Queue::uncapped();
-    engine::step(
-        &mut bridged,
-        &env,
-        In::Core(Event::EffectConnector(connector::Event::DescribeBusy { owner })),
-        &mut expected,
-    );
-    let hash = BuildHasherDefault::<DefaultHasher>::default();
-    assert_eq!(hash.hash_one(&out), hash.hash_one(&expected), "connector and bridge produce the same outputs");
-    assert_eq!(hash.hash_one(engine.core()), hash.hash_one(bridged.core()));
     assert!(engine.core().judgements.outstanding().is_none());
-    let finished = crate::finish_decision(engine.core_mut(), &env);
-    let expected = crate::finish_decision(bridged.core_mut(), &env);
-    assert_eq!(hash.hash_one(&finished), hash.hash_one(&expected));
-}
-
-#[test]
-fn topics_port() {
-    ask(
-        Ask::SubscriptionDone { request: OWNER, key: CALL, subscription: SUBSCRIPTION },
-        contract::Ask::Topics(topics::Ask::Subscribed {
-            request: OWNER,
-            key: CALL,
-            subscription: SUBSCRIPTION,
-            topic: TOPIC,
-        }),
-    );
-    ask(
-        Ask::UnsubscriptionDone { request: OWNER, key: CALL },
-        contract::Ask::Topics(topics::Ask::Unsubscribed {
-            request: OWNER,
-            key: CALL,
-            subscription: SUBSCRIPTION,
-            topic: TOPIC,
-        }),
-    );
-    answer(
-        Up::Topics(topics::Up::News {
-            task: TASK,
-            subscription: 2,
-            topic: 3,
-            class: tasks::NewsClass::Wakes,
-            words: Box::new([]),
-        }),
-        Event::EffectConnector(connector::Event::News {
-            task: TASK,
-            subscription: 2,
-            topic: 3,
-            class: tasks::NewsClass::Wakes,
-            words: Box::new([]),
-        }),
-    );
-}
-
-#[test]
-fn parts_port() {
-    ask(Ask::DropDocument { subject: OWNER }, contract::Ask::Parts(parts::Ask::DropDocument { subject: OWNER }));
-    answer(
-        Up::Parts(parts::Up::Made { watcher: WATCHER, outcome: views::Made::Ready }),
-        Event::View(views::Event::Made { watcher: WATCHER, outcome: views::Made::Ready }),
-    );
+    drop(crate::finish_decision(engine.core_mut(), &env));
 }
 
 #[test]
@@ -259,23 +143,6 @@ fn a_lines_operation_can_end_in_a_later_decision() {
     core.judgements.issued(&asks);
     assert_eq!(core.judgements.outstanding(), None, "a pending lines operation is not a judgement");
     drop(crate::finish_decision(&mut core, &env));
-}
-
-#[test]
-fn procedures_port() {
-    ask(
-        Ask::StepMade { task: TASK, step: 5, first: Some(2), revisions: Box::new([(2, 3)]) },
-        contract::Ask::Procedures(procedures::Ask::StepMade {
-            task: TASK,
-            step: 5,
-            first: Some(2),
-            revisions: Box::new([(2, 3)]),
-        }),
-    );
-    answer(
-        Up::Procedures(procedures::Up::Wake { task: TASK }),
-        Event::Tasks(tasks::Event::WakeProcedure { task: TASK }),
-    );
 }
 
 #[test]
@@ -314,10 +181,6 @@ fn a_procedure_start_names_only_a_direct_person_conversation() {
         };
         assert_eq!(context.task, TASK);
         assert_eq!(*chat, expected, "requester's conversation flag: {parent_conversation:?}");
-        assert_bridge(
-            Ask::StartProcedure { context: context.clone(), step: FIRST_STEP },
-            contract::Ask::Procedures(start),
-        );
     }
 }
 
@@ -349,15 +212,11 @@ fn a_kept_effect_names_its_tasks_project() {
             assert!(kept.replace(keep).is_none(), "one effect kept");
         }
     }
-    let Some(keep @ effects::Ask::Keep { owner: kept_owner, entry, task, key, project }) = kept else {
+    let Some(effects::Ask::Keep { owner: kept_owner, project, .. }) = kept else {
         panic!("keep the effect: {out:?}");
     };
     assert_eq!(*kept_owner, owner);
     assert_eq!(*project, Some(OTHER_PROJECT));
-    assert_bridge(
-        Ask::Effect(connector::Ask::Keep { owner, entry: *entry, task: *task, key: *key }),
-        contract::Ask::Effects(keep.clone()),
-    );
     drop(crate::finish_decision(engine.core_mut(), &env));
 }
 
@@ -401,62 +260,7 @@ fn effect() -> authority::Effect {
 }
 
 #[test]
-fn projections_port() {
-    ask(Ask::ForgetProjection { goal: TASK }, contract::Ask::Projections(projections::Ask::Forget { goal: TASK }));
-    answer(
-        Up::Projections(projections::Up::Settled { goal: TASK }),
-        Event::ProjectionSettled { goal: TASK, connector: DECLARER.0 },
-    );
-}
-
-#[test]
-fn settings_port() {
-    ask(
-        Ask::Effect(connector::Ask::SaveSettingsDefaults { revision: Some(2) }),
-        contract::Ask::Settings(settings::Ask::SaveDefaults { revision: Some(2) }),
-    );
-    let env = environment();
-    let mut config = config(SEED);
-    config.kinds = Box::new([crate::settings::Kind {
-        number: 1,
-        scope: crate::settings::KindScope::Deployment,
-        connector: DECLARER.0,
-        value_bytes: 64,
-        per_scope: 1,
-        charters: 1,
-    }]);
-    let mut core = Core::new(config.clone(), &declarations(), &env.limits).unwrap();
-    let mut engine = Engine::new(config, &declarations(), &env.limits).unwrap();
-    drop(core.start_begin(false, env.wall));
-    drop(engine.core_mut().start_begin(false, env.wall));
-    let expected = crate::step(
-        &mut core,
-        &env,
-        Event::EffectConnector(connector::Event::SettingsDefaults {
-            connector: DECLARER.0,
-            defaults: Box::new([]),
-            dropped: Box::new([]),
-        }),
-    );
-    let input =
-        In::Connector(DECLARER, Up::Settings(settings::Up::Defaults { defaults: Box::new([]), dropped: Box::new([]) }));
-    assert!(!input.new_work());
-    let mut actual = Queue::uncapped();
-    engine::step(&mut engine, &env, input, &mut actual);
-    compare(&core, &engine, expected, actual);
-}
-
-#[test]
-fn requests_port() {
-    ask(Ask::DropApplication { owner: OWNER }, contract::Ask::Requests(requests::Ask::Drop { owner: OWNER }));
-    answer(
-        Up::Requests(requests::Up::Decided { request: OWNER, outcome: Ok(OWNER) }),
-        Event::ApplicationFinished { request: OWNER, outcome: Ok(OWNER) },
-    );
-}
-
-#[test]
-fn released_port_round_trips_both_held_requests() {
+fn held_connector_outputs_reach_the_port_in_order() {
     let outcome = people::Outcome::Again(people::Again::NotReady);
     let mut requests = Queue::uncapped();
     requests.push(Request::Held(Box::new(Held::Connector(DECLARER, Released::Make { entry: ENTRY }))));
@@ -468,13 +272,8 @@ fn released_port_round_trips_both_held_requests() {
     engine::append(requests, &mut out);
     let Some(Out::Held(Peer::Connector(number, make))) = out.pop() else { panic!("held make") };
     assert_eq!((number, &make), (DECLARER, &Released::Make { entry: ENTRY }));
-    let Request::Held(make) = engine::bridge_released(number, make) else { panic!("held request") };
-    let Held::MakeEffect { connector: 1, entry: ENTRY } = *make else { panic!("old make") };
     let Some(Out::Held(Peer::Connector(number, reply))) = out.pop() else { panic!("held act reply") };
     assert_eq!((number, &reply), (EMPTY, &Released::Answered { key: KEY, outcome: outcome.clone() }));
-    let Request::Held(reply) = engine::bridge_released(number, reply) else { panic!("held request") };
-    let Held::ConnectorActed { connector: 2, key: KEY, outcome: received } = *reply else { panic!("connector reply") };
-    assert_eq!(received, outcome);
     assert!(out.is_empty());
 }
 
