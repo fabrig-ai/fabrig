@@ -32,6 +32,9 @@ impl WorkerStand {
             }
             self.below.out.io.push(request);
         }
+        self.drain_submitted();
+    }
+    pub(crate) fn drain_submitted(&mut self) {
         for _ in 0..self.worker.submitted().len() {
             self.below.out.kernel.push(self.worker.submitted().pop().unwrap());
         }

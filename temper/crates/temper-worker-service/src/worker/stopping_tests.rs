@@ -34,8 +34,10 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
         }
         stand.below.script.invocations.push_back(invocation);
     }
-    // The scripted clone leaves a git directory for the check-file operations.
-    stand.below.tree.insert(b"workspaces/0/app/.git".to_vec(), temper_worker_protocol_git_world::io::Node::Directory);
+    // The checkout has a hooks directory but no config.toml to time its hooks.
+    for path in [b"workspaces/0/app/.git".as_slice(), b"workspaces/0/app/.temper", b"workspaces/0/app/.temper/hooks"] {
+        stand.below.tree.insert(path.to_vec(), temper_worker_protocol_git_world::io::Node::Directory);
+    }
     let mut query = Invocation::captured("object-format");
     query.stdout = b"0000000000000000000000000000000000000001\n".as_slice().into();
     stand.below.script.invocations.push_back(query);
@@ -56,7 +58,7 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
         if let Some((owner, _)) = stand.worker.processes.iter().next() {
             let owner = *owner;
-            let peer = AgentPeer::launch(&mut stand.worker, &fixtures::worker_agent(), owner, true);
+            let peer = AgentPeer::launch_on_stand(&mut stand, &fixtures::worker_agent(), owner);
             return (stand, peer, link);
         }
         for _ in 0_u32..16 {
