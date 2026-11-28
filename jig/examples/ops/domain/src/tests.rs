@@ -390,10 +390,11 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                     step(&mut domain, &env, start::page(load, Box::new([]), None));
                 }
                 Output::ConnectorLoad(range) => {
-                    let connector = match range {
-                        crate::Range::Infrastructure => 1,
-                        crate::Range::Observability => 2,
+                    let owner = match range {
+                        crate::Range::Infrastructure => jig_ops_domain_connectors::Connector::Infrastructure,
+                        crate::Range::Observability => jig_ops_domain_connectors::Connector::Observability,
                     };
+                    let connector = jig_ops_domain_connectors::number(owner);
                     loads.push(Phase::RestoreConnector { connector }).expect("the finite start walk");
                     step(&mut domain, &env, start::empty_connector(range));
                 }

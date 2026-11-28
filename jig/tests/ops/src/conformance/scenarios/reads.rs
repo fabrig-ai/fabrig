@@ -106,8 +106,10 @@ pub(crate) fn point(store: &Store, range: &engine_store::Range) -> engine_store:
                 _ => None,
             }
         }
-        engine_store::Range::Start { .. } => unreachable!("the ops root drives its own start"),
-        engine_store::Range::Read(_) | engine_store::Range::Window { .. } | engine_store::Range::Notes(_) => {
+        engine_store::Range::Start { .. }
+        | engine_store::Range::Read(_)
+        | engine_store::Range::Window { .. }
+        | engine_store::Range::Notes(_) => {
             unreachable!("not a point load")
         }
     };
@@ -135,11 +137,6 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
             load: *load,
             result: point(store, range),
         }))),
-        root::Output::Store(
-            engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
-        ) => {
-            unreachable!("the ops root drives its own start")
-        }
         root::Output::ProjectMade { .. }
         | root::Output::ApplicationDocument { .. }
         | root::Output::ApplicationRead { .. }
@@ -156,10 +153,14 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
         | root::Output::Read { .. }
         | root::Output::Agent(_)
         | root::Output::ToChild(_)
-        | root::Output::Store(engine_store::Out::Load {
-            range: engine_store::Range::Window { .. } | engine_store::Range::Notes(_),
-            ..
-        })
+        | root::Output::Store(
+            engine_store::Out::Switch
+            | engine_store::Out::Load {
+                range:
+                    engine_store::Range::Start { .. } | engine_store::Range::Window { .. } | engine_store::Range::Notes(_),
+                ..
+            },
+        )
         | root::Output::Stop => None,
     }
 }

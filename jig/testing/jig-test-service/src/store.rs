@@ -211,6 +211,11 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     engine.store.host.secrets.push(event);
                 }
             }
+            // A source's restore refusal is not a terminal for a start-page load.
+            protocol::Event::PageRefused { owner, failure } if crate::accounts::owns(owner) => {
+                engine.end =
+                    Some(crate::End::Stopped(crate::Stop::StorePage { phase: engine.domain.start_phase(), failure }));
+            }
             protocol::Event::Corrupt { .. } => {
                 unreachable!("the service opens its store in start mode")
             }

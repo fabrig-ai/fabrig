@@ -553,8 +553,9 @@ impl RequestWorld {
         for _ in 0..300 {
             let mut out = skein_lib::Queue::uncapped();
             root::release(&mut self.domain, &self.env, &mut out);
-            if out.is_empty() {
-                assert!(self.domain.quiescent());
+            // Releasing a start continuation can queue the next load or commit
+            // without sending anything out of the root in this pass.
+            if out.is_empty() && self.domain.quiescent() {
                 return reply;
             }
             while let Some(request) = out.pop() {

@@ -1,13 +1,9 @@
-//! Direct core starts and connector recovery (jig/docs/design/domain/engine/restart.md).
-use jig_core_world::fixtures::phase;
+//! Engine starts and connector recovery (jig/docs/design/domain/engine/restart.md, 4).
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_contract as jig;
-use jig_domain_core::engine::{self, Engine, In, Out};
-use jig_domain_core::{
-    self as core,
-    start::{Action, Phase, SweepInput},
-};
+use jig_domain_core::engine::{self, Engine, In, Out, Peer, application, store};
+use jig_domain_core::{self as core, start::Phase};
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -25,6 +21,7 @@ struct Harness {
     connector_env: Env<connector::Limits>,
     system: System,
     records: BTreeMap<connector::RecordKey, connector::Record>,
+    core_rows: BTreeMap<core::Key, core::Record>,
     task: u64,
     resource: tasks::Name,
     outcome: Option<jig::effects::OutboxOutcome>,
@@ -61,11 +58,7 @@ impl Harness {
             hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
         }]);
         let declarations = configuration.declarations();
-        let mut engine = Engine::new(configuration.core, &declarations, &limits.core).expect("configured engine");
-        let core = engine.core_mut();
-        {
-            phase(&core.start_begin(false, env.wall), Phase::LoadCore);
-        }
+        let engine = Engine::new(configuration.core, &declarations, &limits.core).expect("configured engine");
         let mut rows: Vec<_> = source
             .store
             .rows
@@ -85,45 +78,18 @@ impl Harness {
                 _ => {}
             }
         }
-        // The settings range precedes every child row, as it does in the store's live walk.
-        for row in &rows {
-            if let core::Record::Core(row @ (core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_))) = row {
-                assert!(!matches!(core.restore(&env, core::Record::Core(row.clone())), core::Restore::Refused));
-            }
-        }
-        {}
-        rows.sort_by_key(|row| match row {
-            core::Record::Accounts(_) => 0,
-            core::Record::People(_) => 1,
-            core::Record::Tasks(_) => 2,
-            core::Record::Core(_) => 3,
-            core::Record::Notes(_) => 4,
-        });
-        for row in rows {
-            match &row {
-                core::Record::Core(core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_))
-                | core::Record::Notes(_) => continue,
-                core::Record::Tasks(row) if !row.key().live() => continue,
-                core::Record::Core(_)
-                | core::Record::Tasks(_)
-                | core::Record::People(_)
-                | core::Record::Accounts(_) => {}
-            }
-            assert_ne!(core.restore(&env, row), core::Restore::Refused);
-        }
-        let pool = tasks::Stored::Pool(tasks::PoolSlots {
+        rows.push(core::Record::Tasks(tasks::Stored::Pool(tasks::PoolSlots {
             number: 1,
             pool: task_name(&jig_test_connector_kit::path(1, 2)),
             slots: 0,
-        });
-        assert_eq!(core.restore(&env, core::Record::Tasks(pool)), core::Restore::Kept);
-        let writer = tasks::Stored::Writer(tasks::WriterSlot {
+        })));
+        rows.push(core::Record::Tasks(tasks::Stored::Writer(tasks::WriterSlot {
             number: 1,
             resource: resource.clone(),
             writer: tasks::Writer::Effect { entry: ENTRY },
             lost: false,
-        });
-        assert_eq!(core.restore(&env, core::Record::Tasks(writer)), core::Restore::Kept);
+        })));
+        let core_rows = rows.into_iter().map(|row| (row.key(), row)).collect();
         let kind = configuration
             .first
             .kinds
@@ -187,6 +153,7 @@ impl Harness {
             connector_env,
             system,
             records,
+            core_rows,
             task,
             resource,
             outcome: None,
@@ -200,40 +167,34 @@ impl Harness {
     fn connector_up(&mut self, up: jig::Up) {
         let mut out = Queue::uncapped();
         engine::step(&mut self.engine, &self.env, In::Connector(jig::Connector(1), up), &mut out);
-        self.engine_outputs(&mut out);
-    }
-
-    fn outputs(&mut self, requests: &mut Queue<core::Request>) {
-        let mut out = Queue::uncapped();
-        engine::append(std::mem::replace(requests, Queue::uncapped()), &mut out);
-        self.engine_outputs(&mut out);
-    }
-
-    fn engine_outputs(&mut self, out: &mut Queue<Out>) {
         while let Some(output) = out.pop() {
-            match output {
-                Out::Write(_)
-                | Out::Core(core::Request::Ask {
-                    ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),
-                    ..
-                }) => {}
-                Out::Core(core::Request::Now(now)) => {
-                    assert!(self.wires, "no outward output before durable Wires");
-                    assert!(matches!(*now, core::Now::Account(_)));
-                }
-                Out::Core(core::Request::Held(held)) => {
-                    let core::Held::NeedArrived { party, project, task, needs } = *held else {
-                        panic!("idle restored task needs no other external delivery")
-                    };
-                    assert!(self.wires, "a recovery decision follows durable Wires");
-                    self.arrivals.push((party, project, task, needs));
-                }
-                Out::Ask(jig::Connector(connector), jig::Ask::Lifecycle(jig::lifecycle::Ask::CatchUp)) => {
-                    assert!(self.engine.core().start_opened() && self.engine.core().ready());
-                    self.catch_up.push(connector);
-                }
-                other => panic!("unexpected engine output during start: {other:?}"),
+            self.engine_output(output);
+        }
+    }
+
+    fn engine_output(&mut self, output: Out) {
+        match output {
+            Out::Write(_)
+            | Out::Core(core::Request::Ask {
+                ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),
+                ..
+            }) => {}
+            Out::Core(core::Request::Now(now)) => {
+                assert!(self.wires, "no outward output before durable Wires");
+                assert!(matches!(*now, core::Now::Account(_)));
             }
+            Out::Core(core::Request::Held(held)) => {
+                let core::Held::NeedArrived { party, project, task, needs } = *held else {
+                    panic!("idle restored task needs no other external delivery")
+                };
+                assert!(self.wires, "a recovery decision follows durable Wires");
+                self.arrivals.push((party, project, task, needs));
+            }
+            Out::Ask(jig::Connector(connector), jig::Ask::Lifecycle(jig::lifecycle::Ask::CatchUp)) => {
+                assert!(self.engine.core().start_opened() && self.engine.core().ready());
+                self.catch_up.push(connector);
+            }
+            other => panic!("unexpected engine output during start: {other:?}"),
         }
     }
 
@@ -274,10 +235,26 @@ impl Harness {
         assert!(pending.is_empty());
     }
 
-    fn restore_connector(&mut self) {
-        for record in self.records.values().cloned().collect::<Vec<_>>() {
-            self.connector_event(connector::Event::Restore { record });
+    fn restore_connector(&mut self, pending: &mut VecDeque<In>) {
+        let mut out = Queue::uncapped();
+        let ask = jig::Ask::Lifecycle(jig::lifecycle::Ask::Restore);
+        connector::step(&mut self.connector, &self.connector_env, connector::Event::Ask(ask), &mut out);
+        assert!(matches!(out.pop(), Some(connector::Out::LoadLive { after: None })));
+        assert!(out.is_empty(), "the first restore ask only loads the connector's records");
+        let rows = self
+            .records
+            .values()
+            .map(|record| connector::RestoreRow { record: record.clone(), interests: Box::new([]) })
+            .collect();
+        let page = connector::Event::RestoredPage { rows, after: None };
+        connector::step(&mut self.connector, &self.connector_env, page, &mut out);
+        while let Some(output) = out.pop() {
+            let connector::Out::Up(up) = output else { panic!("restore only reports state: {output:?}") };
+            pending.push_back(In::Connector(jig::Connector(1), up));
         }
+    }
+
+    fn check_restored_connector(&self) {
         assert_eq!(self.system.calls(), 1, "restoration made no system call");
         assert_eq!(self.engine.core().tasks.holder(&self.resource), Some(self.task));
         assert_eq!(
@@ -304,44 +281,93 @@ impl Harness {
         assert!(self.complete, "the root advances only after the connector reports settled");
     }
 
-    fn started(&mut self) {
-        let mut out = Queue::uncapped();
-        phase(&self.engine.core_mut().start_done(&self.env, Phase::LoadCore, &mut out), Phase::LoadInbox);
-        phase(
-            &self.engine.core_mut().start_done(&self.env, Phase::LoadInbox, &mut out),
-            Phase::RestoreConnector { connector: 1 },
-        );
-        self.restore_connector();
-        phase(
-            &self.engine.core_mut().start_done(&self.env, Phase::RestoreConnector { connector: 1 }, &mut out),
-            Phase::RestoreConnector { connector: 2 },
-        );
-        phase(
-            &self.engine.core_mut().start_done(&self.env, Phase::RestoreConnector { connector: 2 }, &mut out),
-            Phase::Link,
-        );
-        let action = self.engine.core_mut().start_done(&self.env, Phase::Link, &mut out);
-        match action {
-            Action::Commit(token) => {
-                self.outputs(&mut out);
-                phase(&self.engine.core_mut().start_resume(&self.env, token, &mut out), Phase::Sweep);
+    fn store_answer(&self, out: store::Out) -> store::In {
+        match out {
+            store::Out::Switch => store::In::Switched,
+            store::Out::Load { load, range: store::Range::Start { ranges, after: None } } => {
+                let items = ranges
+                    .iter()
+                    .flat_map(|range| self.core_rows.iter().filter(move |(key, _)| range.admits(key)))
+                    .map(|(_, row)| store::Item::Record(row.clone()))
+                    .collect();
+                store::In::Loaded { load, result: store::Answer::Rows(store::Rows::Start { items, next: None }) }
             }
-            action @ (Action::Step(_) | Action::Idle | Action::Refused(_)) => phase(&action, Phase::Sweep),
+            other @ store::Out::Load { .. } => panic!("unexpected start load: {other:?}"),
         }
-        self.outputs(&mut out);
-        phase(&self.engine.core_mut().start_sweep(&self.env, SweepInput::Finished, &mut out), Phase::Switch);
-        phase(&self.engine.core_mut().start_done(&self.env, Phase::Switch, &mut out), Phase::Wires);
-        let Action::Commit(wires) = self.engine.core_mut().start_done(&self.env, Phase::Wires, &mut out) else {
-            panic!("Wires commits")
-        };
-        self.outputs(&mut out);
-        assert_eq!(self.system.calls(), 1);
-        self.wires = true;
-        phase(&self.engine.core_mut().start_resume(&self.env, wires, &mut out), Phase::AdoptRuns);
-        self.outputs(&mut out);
-        phase(&self.engine.core_mut().start_done(&self.env, Phase::AdoptRuns, &mut out), Phase::Open);
-        assert!(matches!(self.engine.core_mut().start_done(&self.env, Phase::Open, &mut out), Action::Idle));
-        self.outputs(&mut out);
+    }
+
+    fn start_ports(&mut self) {
+        let mut pending = VecDeque::from([In::Store(store::In::Opened { pending: false })]);
+        let mut phases = Vec::new();
+        for _ in 0..64 {
+            let Some(input) = pending.pop_front() else { break };
+            let mut out = Queue::uncapped();
+            engine::step(&mut self.engine, &self.env, input, &mut out);
+            let mut writes = false;
+            let mut wires = false;
+            while let Some(output) = out.pop() {
+                match output {
+                    Out::Now(Peer::Application(application::Out::Start { phase })) => phases.push(phase),
+                    Out::Now(Peer::Application(application::Out::Numbered { commits })) => {
+                        let header = &self.core_rows[&core::Key::Core(core::CoreKey::Deployment)];
+                        let core::Record::Core(core::CoreRecord::Deployment(header)) = header else {
+                            panic!("deployment header")
+                        };
+                        assert_eq!(commits, header.commits);
+                    }
+                    Out::Held(Peer::Store(request)) => pending.push_back(In::Store(self.store_answer(request))),
+                    Out::Ask(jig::Connector(1), jig::Ask::Lifecycle(jig::lifecycle::Ask::Restore)) => {
+                        self.restore_connector(&mut pending);
+                    }
+                    Out::Ask(number @ jig::Connector(2), jig::Ask::Lifecycle(jig::lifecycle::Ask::Restore)) => {
+                        self.check_restored_connector();
+                        pending.push_back(In::Connector(
+                            number,
+                            jig::Up::Lifecycle(jig::lifecycle::Up::Done {
+                                stage: jig::lifecycle::RestartStage::Restored,
+                            }),
+                        ));
+                    }
+                    Out::Write(write) => {
+                        writes = true;
+                        wires |= matches!(write, store::Write::Wires);
+                    }
+                    Out::Held(Peer::Resume(resume)) => {
+                        assert!(writes, "a start continuation belongs to a writing decision");
+                        assert!(out.is_empty(), "release the continuation after the decision's writes");
+                        if wires {
+                            assert_eq!(self.system.calls(), 1);
+                            assert!(!self.engine.core().start_opened(), "Wires has not yet resumed");
+                            self.wires = true;
+                        }
+                        pending.push_back(In::Resume(resume));
+                    }
+                    other => self.engine_output(other),
+                }
+            }
+        }
+        assert!(pending.is_empty(), "the port-driven start settles");
+        assert!(self.wires, "Wires committed before opening");
+        assert_eq!(
+            phases,
+            [
+                Some(Phase::LoadCore),
+                Some(Phase::LoadInbox),
+                Some(Phase::RestoreConnector { connector: 1 }),
+                Some(Phase::RestoreConnector { connector: 2 }),
+                Some(Phase::Link),
+                Some(Phase::Sweep),
+                Some(Phase::Switch),
+                Some(Phase::Wires),
+                Some(Phase::AdoptRuns),
+                Some(Phase::Open),
+                None,
+            ]
+        );
+    }
+
+    fn started(&mut self) {
+        self.start_ports();
         assert_eq!(self.catch_up, [1, 2]);
         assert_eq!(self.engine.core().start_phase(), None);
         assert!(self.engine.core().ready() && self.engine.core().start_opened());

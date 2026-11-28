@@ -314,7 +314,11 @@ mod tests {
     fn link_calls_are_new_work_and_new_work_waits_at_the_watermark() {
         let env = fixtures::env();
         let mut domain = fixtures::domain();
-        fixtures::fill_to_watermark(&mut domain, &env);
+        let commits = fixtures::fill_to_watermark(&mut domain, &env);
+        // These synthetic commits stand in for decisions that saved their headers.
+        for _ in 0..commits {
+            domain.engine.core_mut().counters.next_commit();
+        }
         let event = Event::Core(core::Event::People(people::Event::Ask {
             models: Box::new([]),
             reply_to: ReplyTo::new(Token::new(7)),

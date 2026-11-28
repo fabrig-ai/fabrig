@@ -102,9 +102,9 @@ pub(crate) fn connector(core: &mut Core, env: &Env<Limits>, number: Connector, u
                 drive(core, env, action, out);
             }
         }
-        Up::Resources(resources::Up::Resource { project, name, role, .. }) if restoring => {
+        Up::Resources(resources::Up::Resource { project, name, role, hold }) if restoring => {
             if name.connector == number.0 {
-                let _restored = core.restore_resource_role(env, project, name, role);
+                crate::effects::resources::restore_report(core, env, project, name, role, hold);
             }
         }
         Up::Lifecycle(lifecycle::Up::Adopted { project, name, role, home }) if restoring => {

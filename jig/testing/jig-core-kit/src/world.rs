@@ -779,7 +779,7 @@ impl World {
                 && (!self.store.loading() || held_restore)
                 && (self.domain.quiescent()
                     || held_restore
-                    || self.hold_switch
+                    || self.switch_held
                     || !self.store.held.is_empty()
                     || self.reads.as_ref().is_some_and(crate::reads::Parties::paused))
                 && self.watches.as_ref().is_none_or(crate::peers::WatchParties::quiescent)

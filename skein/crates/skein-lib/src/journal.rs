@@ -288,7 +288,8 @@ impl<W: Hash, O: Hash> Hash for Journal<W, O> {
         self.held.hash(state);
         self.now.hash(state);
         self.open.hash(state);
-        self.numbered.hash(state);
+        // `numbered` only guards the owner's precondition for restoring numbering;
+        // a journal at the same durable prefix emits the same work after a restart.
         self.last_number.hash(state);
         self.sent.hash(state);
         self.durable.hash(state);
