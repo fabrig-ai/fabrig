@@ -22,6 +22,36 @@ use temper_protocol_worker_wire::v1::{self as worker_wire, Record as WorkerRecor
 #[path = "restarts.rs"]
 pub mod restarts;
 
+// The world models one reconnecting peer. Its declaration survives the engine,
+// but its hosted attempts are taken from the current cut, not the old hello.
+struct OraclePeer {
+    channel: Token,
+    worker: u32,
+    hello: jig_domain_link::Hello,
+}
+
+impl OraclePeer {
+    fn reconnect(&self, hosting: Box<[jig_domain_link::Hosting]>) -> engine::Event {
+        engine::Event::Worker(engine::WorkerInput::Link {
+            channel: self.channel,
+            link: engine::Link::Hello { worker: self.worker, hello: reconnect_hello(&self.hello, hosting) },
+        })
+    }
+}
+
+fn reconnect_hello(hello: &jig_domain_link::Hello, hosting: Box<[jig_domain_link::Hosting]>) -> jig_domain_link::Hello {
+    jig_domain_link::Hello {
+        jobs: hello.jobs.clone(),
+        reads_usage: hello.reads_usage,
+        bounds: hello.bounds.clone(),
+        stop_bound: hello.stop_bound,
+        slots: hello.slots,
+        workstreams: hello.workstreams.clone(),
+        hosting,
+        fresh: false,
+    }
+}
+
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
 
@@ -101,7 +131,6 @@ pub struct World {
     /// Seeded engine faults; absent in all existing stories.
     pub restarts: Option<restarts::Injector>,
     pub(crate) workload_deadlines: Option<crate::outcome::Deadlines>,
-    pub(crate) workload_worker: Option<(jig_domain_link::Bounds, Box<[jig_domain_link::JobBound]>, u32)>,
     restart_calls: Option<Vec<(fake::Event, fake::Config)>>,
     checks: crate::checks::Checks,
     /// Optional bounds sweep, sampled at every checked quiet point.
@@ -122,7 +151,7 @@ pub struct World {
     oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,
-    oracle_peer: Option<(Token, u32, u32)>,
+    oracle_peer: Option<OraclePeer>,
     creating: jig_test_profile::fixtures::Creating,
     pub root: engine::Domain,
     pub env: Env<engine::Limits>,
@@ -1787,7 +1816,6 @@ impl World {
         Self {
             restarts: None,
             workload_deadlines: None,
-            workload_worker: None,
             restart_calls: None,
             checks,
             bounds: None,
@@ -2460,21 +2488,23 @@ impl World {
     }
 
     pub fn send(&mut self, event: engine::Event) {
+        if let engine::Event::Worker(engine::WorkerInput::Link { channel, link: engine::Link::Hello { worker, hello } }) =
+            &event
+            && self.oracle_peer.as_ref().is_none_or(|peer| peer.channel != *channel)
+        {
+            // A channel's repeated hello is dropped by the fleet; it does
+            // not replace the declaration its worker opened with.
+            self.oracle_peer =
+                Some(OraclePeer { channel: *channel, worker: *worker, hello: reconnect_hello(hello, Box::new([])) });
+        }
+        if let engine::Event::Worker(engine::WorkerInput::Link { channel, link: engine::Link::Lost }) = &event
+            && self.oracle_peer.as_ref().is_some_and(|peer| peer.channel == *channel)
+        {
+            self.oracle_peer = None;
+        }
         if crate::waits_for_start(&self.root, &event) {
             self.events.push_back(event);
             return;
-        }
-        if let engine::Event::Worker(engine::WorkerInput::Link {
-            channel,
-            link: engine::Link::Hello { worker, hello },
-        }) = &event
-        {
-            self.oracle_peer = Some((*channel, *worker, hello.slots));
-        }
-        if let engine::Event::Worker(engine::WorkerInput::Link { channel, link: engine::Link::Lost }) = &event
-            && self.oracle_peer.is_some_and(|(peer, _, _)| peer == *channel)
-        {
-            self.oracle_peer = None;
         }
         self.immediate.push_back(event);
         self.flush();
@@ -2653,31 +2683,21 @@ impl World {
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
         if self.oracle_peer.is_some() || !self.assigned.is_empty() || !self.jobs.is_empty() {
-            let mut bounds = protocol::bounds();
-            bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
-            let mut hello = protocol::hello_with(
-                Token::new(7),
-                0,
-                self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
-                bounds,
-                self.assigned
-                    .iter()
-                    .map(|run| (run.task, run.attempt))
-                    .chain(self.jobs.iter().map(|job| (job.run.raw(), job.attempt.raw())))
-                    .filter(|&(task, attempt)| self.hosted_attempt(task, attempt))
-                    .map(|(task, attempt)| protocol::hosting(task, attempt, jig_domain_link::Phase::Active))
-                    .collect(),
-            );
-            if let Some(worker) = &self.workload_worker
-                && let engine::Event::Worker(engine::WorkerInput::Link {
-                    link: engine::Link::Hello { hello, .. }, ..
-                }) = &mut hello
-            {
-                hello.bounds = worker.0.clone();
-                hello.jobs.clone_from(&worker.1);
-                hello.slots = worker.2;
-                hello.fresh = false;
-            }
+            let hosting = self
+                .assigned
+                .iter()
+                .map(|run| (run.task, run.attempt))
+                .chain(self.jobs.iter().map(|job| (job.run.raw(), job.attempt.raw())))
+                .filter(|&(task, attempt)| self.hosted_attempt(task, attempt))
+                .map(|(task, attempt)| protocol::hosting(task, attempt, jig_domain_link::Phase::Active))
+                .collect();
+            let hello = if let Some(peer) = &self.oracle_peer {
+                peer.reconnect(hosting)
+            } else {
+                let mut bounds = protocol::bounds();
+                bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
+                protocol::hello_with(Token::new(7), 0, if with_change { 2 } else { 1 }, bounds, hosting)
+            };
             self.events.push_back(hello);
         }
     }
@@ -4405,9 +4425,8 @@ impl World {
         self.ends.restarted(self.env.now);
         self.period = Some(1);
         self.events.push_back(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
-        if let Some((channel, worker, slots)) = self.oracle_peer {
-            self.events.push_back(protocol::hello_at(
-                channel, worker, slots,
+        if let Some(peer) = &self.oracle_peer {
+            self.events.push_back(peer.reconnect(
                 self.assigned.iter().filter(|assignment| {
                     matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))),
                         Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))))

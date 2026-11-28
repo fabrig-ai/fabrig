@@ -1007,6 +1007,25 @@ impl Domain {
         crate::room::ask(self, env, out);
     }
 
+    /// The highest candidate still held by a change gathering or waiting for fresh facts.
+    #[must_use]
+    pub fn last_change_candidate(&self, through: u64) -> u64 {
+        let mut last = 0;
+        for (_, step) in &self.steps {
+            if step.entry <= through {
+                last = last.max(step.entry);
+            }
+        }
+        for (_, step) in &self.fresh_steps {
+            if let FreshStep::Gather(step) = step
+                && step.entry <= through
+            {
+                last = last.max(step.entry);
+            }
+        }
+        last
+    }
+
     /// Check the forge end of the root's staged goal projection (domain/forge/room.md, 2.2).
     pub fn assert_projection_reservation(&self, entry: u64, goal: u64) {
         assert!(
@@ -5153,7 +5172,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     if let Some(owner) = owner {
         let mut pending = d.steps.remove(&owner).expect("found pending step");
         // Entries hand off in number order (skein's forge/client-effects.md, 1.2);
-        // the newest wake reserves the restart's entry and reads jig's current kept answer.
+        // the newest wake supplies the candidate for the new gather and jig's current kept answer.
         pending.entry = entry;
         pending.heard.delegate = heard.delegate;
         pending.heard.delegate_running = heard.delegate_running;

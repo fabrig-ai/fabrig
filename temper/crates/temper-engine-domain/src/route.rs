@@ -714,6 +714,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ChangeFromLoaded { task, row } => crate::changes_from::loaded(domain, env, decision, task, row),
         }
     }
+    // Every synchronous projection has now answered. Only the change gathers
+    // still in flight can use candidates from this decision.
+    let counters = &mut domain.engine.core_mut().counters;
+    if let Some(ceiling) = counters.connector_candidate_ceiling() {
+        counters.retain_connector_candidates(domain.forge.last_change_candidate(ceiling));
+    }
 }
 
 /// One activation’s step, with the root’s readiness.

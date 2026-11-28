@@ -84,9 +84,12 @@ pub enum Family {
 
 /// Deployment numbers retained by the core.
 #[derive(Hash, Debug)]
+#[expect(clippy::partial_pub_fields, reason = "the journal sees the header, but only the allocator edits candidates")]
 pub struct Counters {
     pub deployment: Deployment,
     pub header: Header,
+    // The ordered connector gathers may still decline to make a row.
+    connector_candidates: u64,
 }
 
 #[derive(Hash, Debug)]
@@ -117,7 +120,7 @@ impl Counters {
             restart_wait_ms: None,
             wait_floors: None,
         };
-        Counters { deployment, header: Header::Dirty }
+        Counters { deployment, header: Header::Dirty, connector_candidates: 0 }
     }
 
     /// A loaded header names the last fully applied commit. It is durable; outstanding answers from
@@ -125,7 +128,7 @@ impl Counters {
     /// validated startup bounds; construction emits no effect.
     #[must_use]
     pub const fn new(deployment: Deployment) -> Counters {
-        Counters { deployment, header: Header::Clean }
+        Counters { deployment, header: Header::Clean, connector_candidates: 0 }
     }
 
     /// Pure snapshot of allocated counters, which may run ahead of the durable store until its
@@ -167,6 +170,42 @@ impl Counters {
         }
     }
 
+    /// The next connector number, including the candidates holding places ahead of it.
+    #[must_use]
+    pub fn next_connector_candidate(&self) -> Option<u64> {
+        if self.loading() {
+            return None;
+        }
+        self.deployment.connector_rows.max(self.connector_candidates).checked_add(1)
+    }
+
+    /// Reserve a candidate in connector order without writing the deployment header.
+    pub fn reserve_connector_candidate(&mut self) -> Option<u64> {
+        let next = self.next_connector_candidate()?;
+        self.connector_candidates = next;
+        Some(next)
+    }
+
+    /// Take a candidate in the decision that admits it as a connector effect.
+    pub fn keep_connector_candidate(&mut self, number: u64) {
+        if number <= self.connector_candidates && number > self.deployment.connector_rows {
+            self.deployment.connector_rows = number;
+            self.header = Header::Dirty;
+        }
+    }
+
+    /// The reserved ceiling, when there are candidates above the allocated numbers.
+    #[must_use]
+    pub fn connector_candidate_ceiling(&self) -> Option<u64> {
+        if self.connector_candidates > self.deployment.connector_rows { Some(self.connector_candidates) } else { None }
+    }
+
+    /// At the end of routing, keep only the ceiling of the candidates still in flight.
+    pub fn retain_connector_candidates(&mut self, ceiling: u64) {
+        assert!(ceiling <= self.connector_candidates, "retaining connector candidates already reserved");
+        self.connector_candidates = ceiling;
+    }
+
     /// Number the decision's one commit and return its header for the store.
     pub fn next_commit(&mut self) -> Deployment {
         match self.header {
@@ -205,7 +244,8 @@ pub fn fresh(counters: &mut Counters, family: Family) -> Option<u64> {
         Family::ConnectorRow => &mut counters.deployment.connector_rows,
         Family::Application => &mut counters.deployment.applications,
     };
-    let next = counter.checked_add(1)?;
+    let mark = if family == Family::ConnectorRow { (*counter).max(counters.connector_candidates) } else { *counter };
+    let next = mark.checked_add(1)?;
     *counter = next;
     counters.header = Header::Dirty;
     Some(next)
@@ -234,6 +274,25 @@ mod tests {
         let mut counters = Counters::new(header);
         assert_eq!(fresh(&mut counters, Family::Project), Some(6));
         assert_eq!(counters.next_commit().projects, 6);
+    }
+
+    #[test]
+    fn connector_candidates_keep_their_order_without_allocating_on_a_wait() {
+        let mut counters = Counters::new(Counters::bootstrap([1; 16]).deployment());
+        assert_eq!(counters.reserve_connector_candidate(), Some(1));
+        assert_eq!(counters.reserve_connector_candidate(), Some(2));
+        assert_eq!(counters.deployment().connector_rows, 0);
+        assert!(!counters.dirty());
+
+        counters.retain_connector_candidates(1);
+        assert_eq!(fresh(&mut counters, Family::ConnectorRow), Some(2));
+        counters.keep_connector_candidate(1);
+        assert_eq!(counters.next_commit().connector_rows, 2);
+
+        assert_eq!(counters.reserve_connector_candidate(), Some(3));
+        counters.keep_connector_candidate(3);
+        assert!(counters.dirty());
+        assert_eq!(counters.next_commit().connector_rows, 3);
     }
 
     #[test]

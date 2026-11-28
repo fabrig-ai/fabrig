@@ -95,6 +95,60 @@ fn a_close_job_waits_for_a_worker_with_enough_time() {
     finish_with_covering_worker(world, goal, change, job);
 }
 
+#[test]
+fn a_close_job_wait_survives_a_cold_restart() {
+    let short = JobBound { deadline: SHORT_DEADLINE, ..close_bound() };
+    let Close { mut world, goal, change, job } = closing(Box::new([short]));
+    let before = refused_close_wait(&mut world, job);
+    let snapshot = temper_engine_domain_world::oracle::Snapshot::new(&waiting_rows(&world, job), world.env.wall);
+
+    world.restart_same();
+    assert_eq!(refused_close_wait(&mut world, job), before);
+    snapshot.compare_rows(&waiting_rows(&world, job)).unwrap_or_else(|finding| panic!("{finding}"));
+
+    finish_with_covering_worker(world, goal, change, job);
+}
+
+// The ancestor procedures re-step on restart. Compare the deployment and
+// the waiting job here; finish_with_covering_worker runs the full oracle.
+fn waiting_rows(world: &World, job: u64) -> std::collections::BTreeMap<Key, engine::Record> {
+    use jig_domain_core::{CoreKey, Key as CoreRowKey};
+    world
+        .store
+        .rows
+        .iter()
+        .filter(|(key, _)| match key {
+            Key::Core(CoreRowKey::Core(CoreKey::Deployment)) => true,
+            Key::Core(
+                CoreRowKey::Core(CoreKey::RunProof(task) | CoreKey::Terminal { task, .. })
+                | CoreRowKey::Tasks(
+                    tasks::Key::Live(task)
+                    | tasks::Key::LiveCold(task)
+                    | tasks::Key::Ended(task)
+                    | tasks::Key::Attempt { task, .. },
+                ),
+            ) => *task == job,
+            _ => false,
+        })
+        .map(|(key, row)| (key.clone(), row.clone()))
+        .collect()
+}
+
+fn refused_close_wait(world: &mut World, job: u64) -> documents::TaskRunWait {
+    world.oracle_settle();
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task: job }) else {
+        panic!("close job document")
+    };
+    let documents::Document::Task(task) = *document else { panic!("task document") };
+    assert_eq!(task.chip.phase, documents::PhaseLine::Active(tasks::Active::Due));
+    assert!(attempts(world, job).is_empty(), "no close job attempt was committed");
+    assert!(world.jobs.is_empty(), "no assignment while waiting");
+    let Some(wait @ documents::TaskRunWait::Refused(_)) = task.run_wait else {
+        panic!("close job refusal: {:?}", task.run_wait)
+    };
+    wait
+}
+
 fn finish_with_covering_worker(mut world: World, goal: u64, change: u64, job: u64) {
     hello_goal_worker(
         &mut world,
