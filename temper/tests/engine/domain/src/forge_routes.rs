@@ -4455,7 +4455,7 @@ impl World {
         self.idle_revision = None;
         self.checked_quiet = None;
         self.out = Queue::uncapped();
-        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.events.clear();
         self.drained = None;
         self.ends.restarted(self.env.now);
         self.period = Some(1);
@@ -4469,6 +4469,8 @@ impl World {
                 }).map(|assignment| protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)).collect(),
             ));
         }
+        // Start the cold open before draining its terminals and the queued reconnects.
+        self.send(engine::Event::Restart { pending: self.store.pending_generation });
         self.oracle_settle();
         snapshot.compare_rows_after_restart(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::compare_forges(forges, self.root.forges()).unwrap_or_else(|finding| panic!("{finding}"));
