@@ -1,7 +1,9 @@
 # The file, `temper.toml`
 
 Provisional, 2026-11-19, from `../../draft/config.md`, section 4
-(`../../draft/config.execution.md`, N6). What a person writes to run
+(`../../draft/config.execution.md`, N6), revised 2026-11-27 from
+`../../draft/formats.md` (`../../draft/formats.execution.md`, V1) for
+its format (`file-formats.md`). What a person writes to run
 temper: a few lines of TOML, one file per binary, read by the `toml`
 crate's parser through one table, which help, the `configuration` page
 and `init` are rendered from. The file gives the start the document its
@@ -28,6 +30,10 @@ document wins.
   out-of-bounds value refuses the start as
   `temper.toml:LINE: KEY: WORDS`, as smith's `config.toml` does (smith's
   `shell/settings.md`, 1.3).
+- **Its format** (`file-formats.md`): `format = N` in its top table,
+  absent 1; this release reads format 1 alone. A newer format is
+  refused by name; an older one's keys are moved to the newest as they
+  are read, each said on stderr (section 6).
 - **One table declares every key** (section 3), in
   `temper-config-shell`: its set (public, internal, test), its shapes,
   its form and bound, its default, a line, and the start's members it
@@ -71,6 +77,8 @@ document wins.
   | What | Its line |
   |---|---|
   | TOML that doesn't parse | `temper.toml:LINE: WORDS`, the parser's message |
+  | a newer format (`file-formats.md`, 5) | `temper.toml: format 2; this temper-box reads format 1: upgrade it, or write the file at format 1`, the binary's own name |
+  | `format` that isn't a whole number from 1 | `temper.toml:LINE: format: a whole number from 1` |
   | an unknown key | `temper.toml:LINE: KEY: unknown; temper-box help config lists the keys`, the binary's own name |
   | another shape's key | `temper.toml:LINE: KEY: a key of temper-engine's file, not temper-worker's`, with the binaries that read it and this one |
   | a moved name (3.3) | `temper.toml:LINE: KEY: moved: WORDS` |
@@ -82,7 +90,15 @@ document wins.
   KEY is the key's dotted path, an array's entry by its index from 0:
   `sign_in.google.client`, `sign_in.members[1].login`. A problem the
   start finds elsewhere, in a secret's file, the store or the agent's
-  configuration, prints as it does today.
+  configuration, prints as it does today. A newer format, or a `format`
+  refused, is refused alone: no other key is checked.
+- **Notices,** one line each on stderr, for each key that a later
+  format's move touched in a file at an older one (`file-formats.md`, 3
+  and 4): `temper.toml:LINE: KEY: format 1; format 2 writes it as
+  WORDS`; `temper.toml:LINE: KEY: ignored; RELEASE took it away`; and
+  for a key moved out, `temper.toml:LINE: KEY: moved: WORDS; this start
+  seeded it` or `temper.toml:LINE: KEY: ignored; moved: WORDS`. The
+  command goes on.
 - **It holds no secret.** A secret is a file a key names, in the data
   directory, at mode 0600 (`README.md`, section 5).
 - **It's written once:** `init` writes the box's (section 7); nothing
@@ -102,6 +118,7 @@ Help lists these.
 
 | Key | Shapes | Form and bound | Default | What it says |
 |---|---|---|---|---|
+| `format` | S E W | a whole number from 1 to the newest format the binary reads, 1 in this release | `1` | the format the file is written in (`file-formats.md`), written only above 1 |
 | `listen` | S E | a socket address on loopback | `"127.0.0.1:7100"` | the clients' listener |
 | `public` | S E | an origin, as `application.clients.public` takes it (`engine.md`) | none: the listener's origin | the address people reach, through a proxy that holds its TLS |
 | `webhooks` | S E | a socket address on loopback | `listen`'s address, its port plus 1; port 0 where `listen`'s is 0; none where `listen`'s is 65535, refused as `temper.toml: webhooks (its default): listen uses port 65535; give webhooks explicitly` | the forge's webhooks' listener |
@@ -165,6 +182,11 @@ refused with words saying where it went, each at most 120 bytes:
 | `demo`, `llm` | `LLM providers are settings; see them with temper ctl settings show provider` |
 | `owners` | `the first owner is owner; later owners are the store's` |
 | `clients`, `hosts`, `application` | `temper.toml is flat; temper-box help config lists its keys`, the binary's own name |
+
+These names stay refused at every format: none was a key of any format
+of `temper.toml`, so none is an older file's key (`file-formats.md`, 4,
+step 3). A key that a format's move takes out of the file is that
+move's (`file-formats.md`, 3).
 
 ## 4. What a file gives
 
@@ -277,6 +299,17 @@ pub fn reference() -> Box<[u8]>;                       // the `configuration` pa
 - **One row per key,** each with its key, set, shapes, form and bound,
   default, line, and the start's members it gives, which `reference`
   renders and `Keys` reads. A row's line is at most 120 bytes.
+- **`Read`'s format and notices:** `Read` also holds the file's format
+  as written, 1 where absent, and its notices (section 2), in the
+  file's order, which whoever reads prints (section 6).
+- **The moves** (`file-formats.md`, 3): a table beside the rows holding
+  the newest format, 1, and each move, none in this release, which the
+  reader, `render` and the pages read; `render` writes `format` first
+  only where the newest is above 1. The reader's and the renderer's
+  tests also read through a table of their own, a format 2 over these
+  rows (section 10). A key moved out goes, with its value and line, to
+  its home's seeding, which comes with the first key moved there
+  (`file-formats.md`, 4).
 
 ## 6. Reading
 
@@ -285,7 +318,8 @@ its binary's shape: `serve` of each binary; `temper-box`'s own run,
 `program-login`, `upgrade`, `checkpoint`, `restore`, the fake forge's
 check and the fake backends' import; `temper-engine`'s `forge`
 commands that read it, `upgrade`, `checkpoint` and `restore`;
-`temper-worker program-login`. In order:
+`temper-worker program-login`; and each binary's `config upgrade`
+(section 7). In order:
 
 1. **`temper.json` refused:** a `temper.json` in the configuration
    directory, whatever else is there, refuses the command:
@@ -295,7 +329,10 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
 2. **`temper.toml` absent:** `temper.toml: absent; temper-box init
    writes one` from `temper-box`, and `temper.toml: absent; write it
    from temper-engine help config` from the other two.
-3. **Parsed and checked** against the binary's table (section 2).
+3. **Parsed and checked** against the binary's table (section 2): its
+   format read first, a newer one refused before any key is checked,
+   and at an older one each key a later format moved taken to the
+   newest format, with its notice (`file-formats.md`, 4).
 4. **The start's document** built (section 4), and read by the start as
    `README.md`, section 2 gives, every problem it finds printed through
    `Keys`.
@@ -306,6 +343,10 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
   (`../../draft/deployment-binaries.md`, section 4).
 - **`init`'s refusal** names `temper.toml` or `temper.json`, whichever
   the configuration directory holds (`../setup/init.md`, 5).
+- **Notices print** on stderr, one line each, as each command above
+  reads, before it goes on. `serve`'s stderr is its log: the box keeps
+  it in its serve log, and whatever runs an engine or a worker alone
+  keeps theirs.
 
 ## 7. Rendered from the table
 
@@ -313,15 +354,19 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
   `temper-worker help config` print the binary's page, `help(shape)`:
   the file's public keys for that shape, each its key, default and
   line, then an example file, the box's of `../../draft/config.md`, 4.2,
-  and the engine's and worker's of its 4.3. It is answered from the
-  table as `help commands` is (`../../cli/README.md`, 5), and needs no
-  deployment.
+  and the engine's and worker's of its 4.3; then its formats: `Format 1
+  is the newest temper-box reads; a file without format is format 1.`,
+  the newest and the binary's own name, and for each later format a
+  line per move, `format 2: KEY: WORDS`, WORDS `renamed NEW`,
+  `converted to NEW: WORDS`, `moved out: WORDS` or `gone in RELEASE`
+  (`file-formats.md`, 3). It is answered from the table as `help
+  commands` is (`../../cli/README.md`, 5), and needs no deployment.
 - **The `configuration` page** (`../documentation.md`, section 8),
   `reference()`: every key of every shape and set, each marked with its
   shapes and set, its form and bound, its default and its line; then
   each member of `temper.json` and where it went: a key, by the rows'
-  members, or `moved.md`, section 3's words; then `The merge command`,
-  as today. It replaces the pages `configuration` and
+  members, or `moved.md`, section 3's words; then `Formats`, help's
+  lines of formats for every shape; then `The merge command`, as today. It replaces the pages `configuration` and
   `configuration-engine`, and `configuration-engine` goes.
 - **`init`** (`../setup/init.md`, 5 and 6) writes `render` of a `File`
   holding `listen`, the port it chose, and `webhooks` only where the
@@ -334,6 +379,15 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
 
   listen = "127.0.0.1:7100"   # where the client connects
   ```
+- **`config upgrade`:** `temper-box config upgrade`, `temper-engine
+  config upgrade` and `temper-worker config upgrade`, with the
+  directories' flags the binary's other commands take, read the
+  configuration directory's file through `read` at the binary's shape,
+  as section 6 gives, print its notices on stderr and `render` of its
+  `File` on stdout, and exit 0 (`file-formats.md`, 6). A refusal prints
+  as `serve`'s does, exit 1. None writes a file, starts anything, or
+  makes a directory. Each is a row of its binary's commands, `print
+  temper.toml at the newest format`.
 
 ## 8. The check
 
@@ -414,6 +468,12 @@ the user's yes, each value from today's member in its `temper.json`:
 After landing, a fresh `temper-box init --box` writes its one line and
 the box starts.
 
+**Formats** (`file-formats.md`, 9): every file this release reads is
+format 1, the format of every file written before it, so nothing a
+deployment runs changes at its redeploy, and nothing this release
+writes names `format`. A file that names `format = 1` is refused as an
+unknown key by a build before it.
+
 ## 10. Testing
 
 Focused, with fuzzy where it says; the slow tiers' stories that change
@@ -435,6 +495,19 @@ are written and compiled, and run after landing.
   `parse` of `render` gives it back.
 - **The pages:** `help` of each shape and `reference` equal the
   checked-in renderings (8).
+- **Formats** (`file-formats.md`, 8): format 1's frozen fixtures, each
+  shape's, read to the start's document their rendering gives; at the
+  tests' table of format 2, each move's notice names its line, a name a
+  move took is unknown at format 2, an unknown key at format 1 is
+  refused, format 3 is refused by name before any key is checked, and a
+  `format` that isn't a whole number from 1 is refused alone; `format =
+  1` reads as the same file without it; help and the reference list the
+  test table's moves. **Fuzzy:** for any `File` of a shape, its file at
+  the test table's format 1 converts, renders at format 2 and parses
+  back to it.
+- **`config upgrade`:** each binary prints its file's `render` on
+  stdout and its notices on stderr, exits 0, writes nothing, and
+  refuses as `serve` does, exit 1.
 - **`init`:** `temper-box init --box` writes the one line of section 7,
   and a box starts from it.
 - **The check** (8).

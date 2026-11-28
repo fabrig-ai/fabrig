@@ -17,8 +17,8 @@
 //!   case, under the counting allocator (testing/simulator.md, 5), and once
 //!   settled checks that every process holds
 //!   nothing and the simulator nothing in flight;
-//! - [`inspect`]: frozen component records and shared checks for live wakes
-//!   and bounded tables, filled by each component's own inspection adapter;
+//! - [`inspect`]: frozen records filled by each component's own adapter,
+//!   with shared checks for live wakes, bounded tables and cross-component relations;
 //! - [`real`]: the same processes and referee in one loop over the real
 //!   shared ring, hosting spawns over real pipes with per-service signals,
 //!   on the real clock (testing-strategy.md, 2.8).

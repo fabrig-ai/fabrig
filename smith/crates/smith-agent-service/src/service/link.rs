@@ -99,6 +99,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
             | smith_domain::Lower::CancelIo { .. }
             | smith_domain::Lower::Read { .. }
             | smith_domain::Lower::Probe { .. }
+            | smith_domain::Lower::ProbeHooks { .. }
             | smith_domain::Lower::Check { .. }
             | smith_domain::Lower::Abort { .. },
         )
@@ -263,6 +264,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
             | smith_domain::Lower::CancelIo { .. }
             | smith_domain::Lower::Read { .. }
             | smith_domain::Lower::Probe { .. }
+            | smith_domain::Lower::ProbeHooks { .. }
             | smith_domain::Lower::Check { .. }
             | smith_domain::Lower::Abort { .. },
         ) => unreachable!("lower requests are dispatched before the framed face"),

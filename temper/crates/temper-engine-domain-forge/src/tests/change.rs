@@ -1,10 +1,12 @@
 use super::*;
 
 mod amended_review;
+mod close;
 mod empty_repair;
 mod execution;
 mod fence;
 mod flake;
+mod gather_retry;
 mod no_test;
 mod released_resolution;
 pub(super) mod waits;
@@ -411,6 +413,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the connection wait and resumed stall share one read session")]
 fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
     use skein_forge::api::{Answer, Ci, Error};
     use temper_engine_domain_forge_change as c;
@@ -508,7 +511,14 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
             let mut decided = false;
             for request in &out {
                 decided |= *request
-                    == Request::ChangeDecision { task: fixtures::CHANGE, decision, entry: None, evidence: None };
+                    == Request::ChangeDecision {
+                        task: fixtures::CHANGE,
+                        decision,
+                        entry: None,
+                        evidence: None,
+                        close_at: None,
+                        close_refusal: None,
+                    };
             }
             assert!(decided, "{out:?}");
             assert_eq!(d.change(fixtures::CHANGE).expect("change").change.since, since);
@@ -966,6 +976,8 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
             decision: change::Decision::Ready,
             entry: None,
             evidence: None,
+            close_at: None,
+            close_refusal: None,
         }),
         "the newest wake unkeeps the change: {finished:?}"
     );
@@ -982,6 +994,8 @@ fn a_lower_chain_waiting_without_an_entry_releases_the_later_entry() {
             decision: temper_engine_domain_forge_change::Decision::Wait { until: Some(WAIT_UNTIL) },
             entry: None,
             evidence: None,
+            close_at: None,
+            close_refusal: None,
         }),
         "lower wait: {waited:?}"
     );
@@ -1046,7 +1060,7 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
         [
             Request::Save { .. },
             Request::Marked { tasks },
-            Request::ChangeDecision { task, decision, entry, evidence },
+            Request::ChangeDecision { task, decision, entry, evidence, .. },
             Request::Waits { .. },
         ],
     ) = tail
@@ -1078,6 +1092,8 @@ fn an_unwoken_chain_finishes_with_its_single_decision() {
             decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
             entry: None,
             evidence: None,
+            close_at: None,
+            close_refusal: None,
         }
     );
     assert_eq!(ready(&mut d).as_ref(), &[]);
@@ -1407,6 +1423,8 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
                 decision: change::Decision::Wait { until: Some(until) },
                 entry: None,
                 evidence: None,
+                close_at: None,
+                close_refusal: None,
             }),
             "watch {watch:?}, compared {compared}: the pull wake replaces complete gathers, with a deadline: {finished:?}"
         );
@@ -1643,6 +1661,8 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
                 decision,
                 entry: None,
                 evidence: None,
+                close_at: None,
+                close_refusal: None,
             }),
             "title wait: {finished:?}"
         );
@@ -1857,6 +1877,8 @@ fn a_producer_title_wait_past_the_stall_waits_for_dependencies() {
             decision: change::Decision::Wait { until: None },
             entry: None,
             evidence: None,
+            close_at: None,
+            close_refusal: None,
         }),
         "{finished:?}"
     );
@@ -1866,23 +1888,30 @@ fn a_producer_title_wait_past_the_stall_waits_for_dependencies() {
 }
 
 #[test]
-fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending() {
+fn unknown_catch_up_retries_at_backoff_even_with_pending_dependencies() {
     use temper_engine_domain_forge_change as change;
+    let clock = fixtures::gather_clock();
+    let mut out = Queue::uncapped();
     let mut d = delegate_waiting(change::State::Producing { requested: false }, change::Delegate::Produce);
     d.changes.get_mut(&fixtures::CHANGE).expect("change").catch_up = Some(fixtures::HEAD);
     let since = d.change(fixtures::CHANGE).expect("change").change.since;
-    outputs(&mut d, dependency_step());
-    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
-    fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
-    let finished =
-        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true }));
-    let retry = Wall::from_nanos(env().wall.as_nanos() + 1_000_000_000);
+    step(&mut d, &clock, dependency_step(), &mut out);
+    fixtures::answer_next_at(&mut d, &clock, Err(skein_forge::api::Error::Missing));
+    fixtures::answer_next_at(&mut d, &clock, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
+    let finished = fixtures::answer_next_at(
+        &mut d,
+        &clock,
+        Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true }),
+    );
+    let retry = fixtures::wall_after(&clock, fixtures::GATHER_BACKOFF);
     assert!(
         finished.contains(&Request::ChangeDecision {
             task: fixtures::CHANGE,
             decision: change::Decision::Wait { until: Some(retry) },
             entry: None,
             evidence: None,
+            close_at: None,
+            close_refusal: None,
         }),
         "{finished:?}"
     );
@@ -1949,6 +1978,8 @@ fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
                 decision: change::Decision::EndHold,
                 entry: None,
                 evidence: None,
+                close_at: None,
+                close_refusal: None,
             }),
             end
         );
@@ -1988,7 +2019,9 @@ fn a_live_producer_title_wait_rearms_the_stall() {
             task: fixtures::CHANGE,
             decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
         }),
         "{finished:?}"
     );
@@ -2020,7 +2053,9 @@ fn a_delegate_result_starts_the_stall_at_its_end_but_a_gate_does_not() {
         task: fixtures::CHANGE,
         decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
+        close_refusal: None,
     }));
     fixtures::missing_pull(&mut d);
     fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
@@ -2092,7 +2127,9 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
                 task: fixtures::CHANGE,
                 decision: change::Decision::EndHold,
                 entry: None,
-                evidence: None
+                evidence: None,
+                close_at: None,
+                close_refusal: None,
             }),
             ends
         );
@@ -2154,7 +2191,9 @@ fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
         task: fixtures::CHANGE,
         decision: change::Decision::EndHold,
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
+        close_refusal: None,
     }));
     assert_eq!(
         d.change(fixtures::CHANGE).expect("change").change.state,
@@ -2165,7 +2204,9 @@ fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
         task: fixtures::CHANGE,
         decision: change::Decision::NoChange,
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
+        close_refusal: None,
     }));
 }
 
@@ -2192,7 +2233,9 @@ fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
             task: fixtures::CHANGE,
             decision: change::Decision::EndHold,
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
         }));
         let row = d.change(fixtures::CHANGE).expect("change");
         assert_eq!(row.change.state, held);
@@ -2449,6 +2492,8 @@ fn a_let_go_update_is_decided_again() {
                 decision: temper_engine_domain_forge_change::Decision::None,
                 entry: None,
                 evidence: None,
+                close_at: None,
+                close_refusal: None,
             }));
             decide_update_again(&mut d, preparing, 2);
         }
@@ -2610,11 +2655,17 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
             task: fixtures::CHANGE,
             child: 90,
             kind: change::Delegate::Resolve { base: fixtures::BASE },
+            close_at: None,
         },
     );
     outputs(
         &mut d,
-        Event::Delegated { task: fixtures::CHANGE, child: 52, kind: change::Delegate::Repair(change::Repair::Gate(1)) },
+        Event::Delegated {
+            task: fixtures::CHANGE,
+            child: 52,
+            kind: change::Delegate::Repair(change::Repair::Gate(1)),
+            close_at: None,
+        },
     );
     let row = d.changes.get_mut(&fixtures::CHANGE).expect("live change");
     row.change.repairs = 1;
@@ -2633,13 +2684,20 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
             task: fixtures::CHANGE,
             decision: change::Decision::Delegate(change::Delegate::Repair(change::Repair::Gate(1))),
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
         }),
         "{made:?}"
     );
     outputs(
         &mut d,
-        Event::Delegated { task: fixtures::CHANGE, child: 53, kind: change::Delegate::Repair(change::Repair::Gate(1)) },
+        Event::Delegated {
+            task: fixtures::CHANGE,
+            child: 53,
+            kind: change::Delegate::Repair(change::Repair::Gate(1)),
+            close_at: None,
+        },
     );
     let row = d.change(fixtures::CHANGE).expect("second repair");
     assert_eq!(row.change.repairs, 2);
@@ -3378,6 +3436,8 @@ fn only_a_live_askers_question_exempts_a_title_wait() {
                 decision: expected,
                 entry: None,
                 evidence: None,
+                close_at: None,
+                close_refusal: None,
             }),
             "live={live}: {finished:?}"
         );
@@ -3494,7 +3554,7 @@ fn a_capacity_refusal_retries_only_the_unanswered_read_and_keeps_the_gather() {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change as change;
     let mut d = pull_refused_for_capacity();
-    let mut clock = env();
+    let mut clock = fixtures::gather_clock();
     assert!(fixtures::advance(&mut d, &mut clock, Duration::from_millis(999)).is_empty());
     fixtures::advance(&mut d, &mut clock, Duration::from_millis(1));
     let (pull, op) = fixtures::next_at(&mut d, &clock);

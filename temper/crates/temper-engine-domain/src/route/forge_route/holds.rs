@@ -11,6 +11,7 @@ use alloc::boxed::Box;
 mod change;
 pub(super) use change::{
     account as change_account, fallback as change_fallback, fallback_reason as change_fallback_reason,
+    questions_account, replay as replay_judgement,
 };
 
 pub(super) fn source(domain: &Domain, entry: Option<u64>, words: Box<[u8]>) -> tasks::HoldSource {

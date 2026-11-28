@@ -30,7 +30,7 @@ fn failed_round(why: change::Repair) -> Domain {
 }
 
 fn delegate(d: &mut Domain, kind: change::Delegate) {
-    outputs(d, Event::Delegated { task: fixtures::CHANGE, child: CHILD, kind });
+    outputs(d, Event::Delegated { task: fixtures::CHANGE, child: CHILD, kind, close_at: None });
 }
 
 fn seed(saved: bool) -> items::Seed {

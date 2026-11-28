@@ -36,6 +36,15 @@ enum State {
     Closed,
 }
 
+impl Relay {
+    pub(crate) fn inspection_open(&self) -> Option<&CallName> {
+        match self.state {
+            State::Sending { .. } | State::Withdrawing { .. } => Some(&self.name),
+            State::Backoff { .. } | State::Closed => None,
+        }
+    }
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "host admission checks the owning conversation and immutable call fields"

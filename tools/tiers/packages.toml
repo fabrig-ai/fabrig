@@ -14,15 +14,84 @@ browser-temper = [
     "temper-client-browser-world",
 ]
 
+campaign-hearth = [
+    "hearth-accounts-world",
+    "hearth-builder-world",
+    "hearth-config-world",
+    "hearth-git-world",
+    "hearth-mmdebstrap-world",
+    "hearth-render-world",
+    "hearth-template-world",
+    "hearth-tree-world",
+]
+
+campaign-jig = [
+    "jig-accounts-world",
+    "jig-brief-world",
+    "jig-channel-world",
+    "jig-client-protocol-http",
+    "jig-client-protocol-world",
+    "jig-client-views-world",
+    "jig-client-wire-world",
+    "jig-client-world",
+    "jig-conformance-world",
+    "jig-core-world",
+    "jig-engine-clients-world",
+    "jig-engine-workers-world",
+    "jig-fleet-world",
+    "jig-host-world",
+    "jig-notes-world",
+    "jig-one-process-world",
+    "jig-ops-world",
+    "jig-people-world",
+    "jig-protocol-accounts-world",
+    "jig-store-codecs-world",
+    "jig-store-world",
+    "jig-tasks-world",
+    "jig-test-connector-world",
+    "jig-worker-link-world",
+    "jig-worker-wire-world",
+]
+
+campaign-skein = [
+    "skein-browser-world",
+    "skein-channel-world",
+    "skein-codec-tests",
+    "skein-conformance-sim",
+    "skein-deflate",
+    "skein-echo-world",
+    "skein-fake-checkout-tests",
+    "skein-fake-peers-tests",
+    "skein-forge-client-world",
+    "skein-forge-dialect-tests",
+    "skein-forge-protocol-world",
+    "skein-forge-setup-world",
+    "skein-http-world",
+    "skein-io-world",
+    "skein-json-world",
+    "skein-kv-tests",
+    "skein-lib-tests",
+    "skein-llm-connection-world",
+    "skein-llm-world",
+    "skein-oauth-accounts-world",
+    "skein-oauth-issuer-world",
+    "skein-oauth-world",
+    "skein-protocol-world",
+    "skein-sim-tests",
+    "skein-world-tests",
+]
+
 campaign-smith = [
     "smith-agent-world",
     "smith-run-world",
+    "smith-session-world",
     "smith-tools-world",
 ]
 
 campaign-temper = [
     "temper-engine-domain-world",
     "temper-engine-forge-world",
+    "temper-system-world",
 ]
 
 conformance-hearth = [
@@ -138,6 +207,9 @@ browser-temper = [
     { package = "temper-box", bin = "temper-box" },
     { package = "temper-playground-serve", bin = "temper-playground-serve" },
 ]
+campaign-hearth = []
+campaign-jig = []
+campaign-skein = []
 campaign-smith = []
 campaign-temper = []
 conformance-hearth = []

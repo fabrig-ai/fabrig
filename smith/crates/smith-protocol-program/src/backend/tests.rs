@@ -69,6 +69,7 @@ fn command_keeps_the_inline_schema_in_one_argument() {
     let arguments = super::start::arguments(
         b"chosen-model",
         Some(b"high"),
+        None,
         b"/run/instructions.md",
         b"/run/mcp.json",
         br#"{"type":"object","description":"spaces stay inline"}"#,
@@ -85,6 +86,35 @@ fn command_keeps_the_inline_schema_in_one_argument() {
     assert_eq!(arguments[flag + 1].as_ref(), b"high");
     let flag = arguments.iter().position(|argument| argument.as_ref() == b"--tools").expect("tools flag");
     assert!(arguments[flag + 1].is_empty());
+}
+
+#[test]
+fn a_fast_program_launch_keeps_settings_in_one_argument_for_main_and_child() {
+    use smith_domain::llm::Asker;
+    use smith_protocol_llm::FromDomain;
+
+    for (asker, thread) in [(Asker::Main, 0), (Asker::Child, 1)] {
+        for fast in [false, true] {
+            let mut backend = fixtures::resumable();
+            fixtures::new_window([0; 16], &mut backend);
+            let mut request = fixtures::request(&backend);
+            let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
+            prompt.asker = asker;
+            prompt.affinity.thread = thread;
+            prompt.speed = fast.then(|| b"fast".as_slice().into());
+            fixtures::claim_completion(fixtures::COMPLETION, &mut backend);
+            fixtures::retain_request(request, &mut backend);
+            let spawn = backend.launch_spec().expect("launch");
+            let flags: Box<[_]> =
+                spawn.args.iter().enumerate().filter(|(_, arg)| arg.as_ref() == b"--settings").collect();
+            if fast {
+                let [(flag, _)] = flags.as_ref() else { panic!("one settings flag") };
+                assert_eq!(spawn.args[flag + 1].as_ref(), br#"{"fastMode": true}"#);
+            } else {
+                assert!(flags.is_empty(), "no settings at default speed");
+            }
+        }
+    }
 }
 
 #[test]

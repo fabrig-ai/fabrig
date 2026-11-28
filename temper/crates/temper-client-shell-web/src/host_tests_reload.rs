@@ -13,7 +13,7 @@ fn starting() -> Host {
 
 fn adopting() -> Host {
     let mut host = starting();
-    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
     // Give `me` a project so the view draws the adoption sheet, not the no-project screen.
     let frame = temper_client_view_kit::fixture_me(b"Shop");
     host.client(jig_client::Event::Up {
@@ -28,12 +28,12 @@ fn adopting() -> Host {
 }
 
 fn refuse_link(host: &mut Host) {
-    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } });
+    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: false } });
 }
 
 fn refuse_forge(host: &mut Host) {
     host.client(jig_client::Event::Up {
-        up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None, served: false },
+        up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, served: false },
     });
 }
 

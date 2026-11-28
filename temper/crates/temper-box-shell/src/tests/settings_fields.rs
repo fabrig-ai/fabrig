@@ -54,6 +54,8 @@ fn llm() -> jig_protocol_config::Llm {
             price_unit: 1000,
             efforts: Box::new([]),
             effort: None,
+            speeds: Box::default(),
+            speed: None,
         }]))
         .into_iter()
         .enumerate()

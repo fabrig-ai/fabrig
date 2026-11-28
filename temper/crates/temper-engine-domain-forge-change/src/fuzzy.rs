@@ -174,7 +174,7 @@ impl Forge {
                 self.heard.effect = EffectResult::Failed;
             }
             (Phase::Producing, Cause::CloseRefused) => {
-                let tips = CloseAt { branch: head, landing: BASE, asked: true, refused: None };
+                let tips = CloseAt { branch: head, landing: BASE, asked: true, refused: None, outdated: None };
                 self.facts.close = true;
                 self.facts.close_tips = Some(tips);
                 self.facts.close_at = Some(CloseAt { refused: Some(CloseRefused { counts: None }), ..tips });
@@ -208,6 +208,7 @@ impl Forge {
 
     fn answer(&mut self, decision: Decision) {
         match decision {
+            Decision::ReadMerge { .. } => unreachable!("this forge has merge jobs disabled"),
             Decision::Effect(effect) => {
                 let head = self.facts.branch;
                 match effect {
@@ -253,6 +254,7 @@ impl Forge {
             | Decision::NoChange
             | Decision::Cancel
             | Decision::Hold(_)
+            | Decision::ReplayJudgement(_)
             | Decision::Failed
             | Decision::QueueRepair => {}
         }

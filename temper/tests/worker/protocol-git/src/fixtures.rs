@@ -213,6 +213,15 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             query.identity = false;
             query
         }),
+        ("read-message", {
+            let mut query = scenario(
+                git::Op::Message { at: at(), commit: SEVEN },
+                &["read-message"],
+                Expected::done(git::Done::Message { message: Some(b"Fixture\n\nOne parent.\n".as_slice().into()) }),
+            );
+            query.identity = false;
+            query
+        }),
         ("standalone-ancestry", {
             let mut query = scenario(
                 git::Op::IsAncestor { at: at(), ancestor: TWO, commit: SIX },

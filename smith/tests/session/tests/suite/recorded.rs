@@ -250,6 +250,7 @@ fn closing_preserves_withdrawn_and_late_answers_and_provider_completions() {
     world.close();
 }
 
+// The park story for a host call whose result was committed before restore.
 #[test]
 fn committed_call_results_after_a_yield_are_restored_without_tickets() {
     let mut world = Scripted::new(7);
@@ -938,6 +939,7 @@ fn dropped_reasoning_has_one_fact_per_item_and_never_enters_history() {
     world.step(session::Event::Completed {
         owner: world.completing.expect("pending completion"),
         completion: llm::Completion {
+            served: smith_domain::llm::ServedSpeed::Unreported,
             reasoning_dropped: sizes.clone(),
             content: said(b"answer"),
             stop: llm::Stop::EndTurn,
@@ -1121,6 +1123,7 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
     world.close();
 }
 
+// The park story for a withheld wait: restore supplies just its missing result.
 #[test]
 fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
     use smith_domain_tools::Effect;

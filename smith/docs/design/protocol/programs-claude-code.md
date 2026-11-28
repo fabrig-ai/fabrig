@@ -8,6 +8,7 @@
 |---|---|
 | the charter's instructions and brief | `--system-prompt-file`, replacing Claude Code's own prompt by default; `--append-system-prompt-file` when `programs.claude_code.keep_program_prompt` is true (below) |
 | the main LLM's model and effort | `--model`, `--effort` |
+| the main LLM's speed, `fast` | `--settings '{"fastMode": true}'`; nothing at the standard speed (below) |
 | host tools, `finish`, `deliver` and `wait` | the agent's own MCP server (1.3), given with `--mcp-config` and `--strict-mcp-config` |
 | the result contract | `--json-schema`, the outcome read from `structured_output` when no `finish` was accepted (1.5) |
 | policy on each call | `--permission-prompt-tool`, naming the agent's prompt tool (1.4); `--tools`, for the built-in tools the charter grants (1.3) |
@@ -22,6 +23,14 @@
 - **`--setting-sources user`,** with the source's configuration
   directory, so that only the settings the agent wrote apply, and no
   settings, hooks or `.mcp.json` servers of the run's workspace.
+- **Fast mode** (`charter.md`, section 2): an LLM at the speed `fast`
+  starts its program with `--settings '{"fastMode": true}'`, the way
+  Claude Code's non-interactive mode takes it, and Claude Code then asks
+  for that speed on each of its requests; an LLM with no speed adds
+  nothing. Main's program, its summary session's, each child's of that
+  LLM (1.10) and a resume start so. Past fast mode's own limit Claude
+  Code falls back to the standard speed by itself; its completions are
+  then charged as its stream reports them (1.7).
 - **The default permission mode,** never `dontAsk`, which turns each
   prompt into a denial, nor `bypassPermissions`.
 - **Where it runs:** in main's working directory, the start's first
@@ -357,7 +366,9 @@
 
 - **Spend is the agent's measure:** each completion's usage, as its
   assistant message reports it, priced at the charter's prices for the
-  main model (../domain/session.md, section 6). Claude Code's own
+  main model (../domain/session.md, section 6), by the speed that usage
+  names (`speed`, `fast` or `standard`, where it names one) as an API's
+  completion is: none named, on an LLM at `fast`, is charged at `fast`. Claude Code's own
   estimate, `total_cost_usd`, is in dollars, not the host's unit, and is
   neither used nor given as `--max-budget-usd`.
 - **No completion is reserved before it is made,** since the program
@@ -522,7 +533,7 @@ backend.
   | The child's | Claude Code |
   |---|---|
   | brief, with `## Your share` (../domain/run.md, 5.3) | `--system-prompt-file` by default, or `--append-system-prompt-file` when keeping the program prompt (1.1), in a private directory of its own |
-  | LLM, the one the call names or main's | `--model`, `--effort` |
+  | LLM, the one the call names or main's | `--model`, `--effort`, and fast mode's `--settings` for an LLM at `fast` (1.1) |
   | inspect | `--tools Read,Glob,Grep`, each call asking at the prompt (1.4) |
   | served tools: none | the agent's server for it lists the prompt tool alone: no host tool, no `finish`, `deliver`, `wait` or `remove`, and no `sub_agent`, since a child opens no children |
   | no result contract | no `--json-schema`: its answer is its last text |

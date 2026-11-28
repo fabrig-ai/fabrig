@@ -153,7 +153,13 @@ pub(crate) fn run(
         tooling::Event::Run {
             owner,
             kind,
-            spec: tooling::Spec { command: spec.command, request: spec.request, refusal: spec.refusal },
+            spec: tooling::Spec {
+                command: spec.command,
+                request: spec.request,
+                refusal: spec.refusal,
+                result: spec.result,
+                outdated: spec.outdated,
+            },
             deadline,
             directory: path.finish(),
         },
@@ -198,8 +204,8 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, owner: Token, event:
 
 pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: tooling::Request, out: &mut Queue<Request>) {
     let event = match request {
+        op @ tooling::Request::Spawn { .. } => return spawn(domain, env, op, out),
         op @ (tooling::Request::Write { owner, .. }
-        | tooling::Request::Spawn { owner, .. }
         | tooling::Request::Kill { owner }
         | tooling::Request::Read { owner, .. }) => return out.push(Request::Job { owner, op }),
         tooling::Request::Started { owner } => host::FromJob::Started { owner },
@@ -230,6 +236,31 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: tooling::Reque
         }
     };
     route::host_step(domain, env, host::Event::Job(event));
+}
+
+fn spawn(domain: &mut Domain, env: &Env<Limits>, op: tooling::Request, out: &mut Queue<Request>) {
+    let (owner, program, dir) = match &op {
+        tooling::Request::Spawn { owner, program, dir, .. } => (*owner, program, dir),
+        tooling::Request::Write { .. }
+        | tooling::Request::Kill { .. }
+        | tooling::Request::Read { .. }
+        | tooling::Request::Started { .. }
+        | tooling::Request::StartRefused { .. }
+        | tooling::Request::Ended { .. }
+        | tooling::Request::Gone { .. } => unreachable!("called for a job's spawn request"),
+    };
+    if let Some(workspace) = domain.jobs.get(&owner)
+        && let Some(path) = program.strip_prefix(dir.as_ref())
+        && let Some(command) = path.strip_prefix(b"/")
+        && let Some((repository, hook)) = tooling::hook_path(command)
+        && let Some(why) = workspace::job_hook_conflict(domain, *workspace, repository, hook)
+    {
+        let tail = tooling::hook_failure(hook, why);
+        step(domain, env, tooling::Event::Exited { owner, exit: tooling::Exit::NotRun, tail });
+        step(domain, env, tooling::Event::Gone { owner });
+    } else {
+        out.push(Request::Job { owner, op });
+    }
 }
 
 fn delivery(domain: &Domain, owner: Token, detail_bytes: u32) -> Result<Box<[u8]>, Box<[u8]>> {

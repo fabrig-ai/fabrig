@@ -343,6 +343,7 @@ fn agent_terminal(domain: &mut Domain, env: &Env<Limits>, agent: Token, terminal
         | smith_inline_agent::Below::Done { .. }
         | smith_inline_agent::Below::Read { .. }
         | smith_inline_agent::Below::Probed { .. }
+        | smith_inline_agent::Below::HooksProbed { .. }
         | smith_inline_agent::Below::Checked { .. }
         | smith_inline_agent::Below::Aborted { .. }
         | smith_inline_agent::Below::ReadVersion { .. }
@@ -415,6 +416,7 @@ fn route_agent(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
                 | smith_inline_agent::Lower::CancelIo { .. }
                 | smith_inline_agent::Lower::Read { .. }
                 | smith_inline_agent::Lower::Probe { .. }
+                | smith_inline_agent::Lower::ProbeHooks { .. }
                 | smith_inline_agent::Lower::Check { .. }
                 | smith_inline_agent::Lower::Abort { .. }
                 | smith_inline_agent::Lower::Yield { .. }
@@ -652,6 +654,7 @@ fn held_completion(domain: &Domain, owner: Token) -> bool {
             | smith_inline_agent::Below::Done { .. }
             | smith_inline_agent::Below::Read { .. }
             | smith_inline_agent::Below::Probed { .. }
+            | smith_inline_agent::Below::HooksProbed { .. }
             | smith_inline_agent::Below::Checked { .. }
             | smith_inline_agent::Below::Aborted { .. }
             | smith_inline_agent::Below::ReadVersion { .. }

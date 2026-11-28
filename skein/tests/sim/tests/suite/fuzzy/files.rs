@@ -1,17 +1,20 @@
-//! Files under chaos, over many seeds (testing/simulator.md, 6): a workload of
-//! every operation on files through the machine seam, every completion
-//! checked by the simulator, each process settled at the end, and every
-//! fault of files fell.
+//! A file workload through the machine seam under chaos (skein/docs/design/testing/simulator.md, 6).
+//! Each case checks completions, contents and teardown; the gate checks reach
+//! across its seeds (skein/docs/design/testing/sweeps.md, 4).
 
 use std::collections::BTreeSet;
+use std::convert::Infallible;
 
 use skein_fake_machine::Item;
 use skein_io::kernel::{Complete, Done, Entry, Error, Fd, Op, OpenHow};
-use skein_sim::{Config, Event, Fault, Pid, Summary};
+use skein_sim::{Config, Event, Fault, Faults, Pid, Summary};
 use skein_sim_tests::World;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
 
 /// Submits `op` and lets time pass until it completes; one that hangs, with
-/// nothing due, is cancelled, as io's deadline would.
+/// nothing due, is cancelled, as io's deadline would. The cancel's completion
+/// can arrive later.
 fn settle(world: &mut World, pid: Pid, op: Op) -> Complete {
     let token = world.submit(pid, op);
     loop {
@@ -135,10 +138,43 @@ fn workload(seed: u64) -> World {
         let remove = Op::Remove { dir: root, name: name.into(), directory };
         let _ = settle(&mut world, pid, remove);
     }
-    let _ = settle(&mut world, pid, Op::Close { fd: root });
-    world.settled(pid);
-    assert_eq!(world.machine.open_handles(), 0, "seed {seed}: every handle closed");
+    close_root(&mut world, pid, root);
     world
+}
+
+fn close_root(world: &mut World, pid: Pid, root: Fd) {
+    let _ = settle(world, pid, Op::Close { fd: root });
+    // Drain late cancel completions here without changing when file operations are submitted.
+    while world.sim.advance() {
+        for complete in world.reap(pid) {
+            assert!(matches!(complete.kind, Op::Cancel { .. }), "only cancels can outlast the final close");
+        }
+    }
+    world.settled(pid);
+    assert_eq!(world.machine.open_handles(), 0, "seed {}: every handle closed", world.sim.seed());
+}
+
+#[test]
+fn files_at_full_width_seed_drain_a_cancel_that_outlasts_the_final_close() {
+    let seed = u64::MAX;
+    assert_eq!(workload(seed).sim.seed(), seed, "the simulator takes the full case seed");
+
+    // Force a hung Sync. At this seed its cancel completion is due after the
+    // target completion and the undelayed root close.
+    let faults = Faults { hung: 1000, latency: 500, latency_max: Faults::CHAOS.latency_max, ..Faults::NONE };
+    let mut world = World::new(seed, Config { faults, ..Config::chaos() });
+    let pid = world.spawn();
+    let root = world.root(pid, &[]);
+    assert_eq!(settle(&mut world, pid, Op::Sync { fd: root }).result, Err(Error::Cancelled));
+    assert_eq!(world.sim.in_flight(pid), 1, "the cancel completion is still due");
+    close_root(&mut world, pid, root);
+    assert!(
+        matches!(
+            world.sim.trace().last().map(|entry| &entry.event),
+            Some(Event::Complete { kind: Summary::Cancel { .. }, .. })
+        ),
+        "the cancel was reaped after the close"
+    );
 }
 
 #[test]
@@ -147,8 +183,13 @@ fn files_under_chaos_keep_the_contract_and_every_fault_falls() {
     let mut errors = BTreeSet::new();
     let mut append_faults = BTreeSet::new();
     let mut lock_no_buffer = false;
-    for seed in 0..200_u64 {
+    let at_gate = gate();
+    let test = this_test!("files_under_chaos_keep_the_contract_and_every_fault_falls");
+    cases::<_, Infallible, _>(test, 0..200, |seed| {
         let world = workload(seed);
+        if !at_gate {
+            return Ok(());
+        }
         let mut appending = false;
         let mut locking = false;
         for entry in world.sim.trace() {
@@ -170,6 +211,11 @@ fn files_under_chaos_keep_the_contract_and_every_fault_falls() {
                 Event::Complete { .. } | Event::Digest(_) => {}
             }
         }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if !at_gate {
+        return;
     }
     assert!(lock_no_buffer, "some Lock completed with NoBufferSpace");
     for fault in [

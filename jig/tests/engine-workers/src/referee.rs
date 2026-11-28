@@ -24,6 +24,7 @@ pub fn judge(root: &[Request]) -> Result<(), &'static str> {
             | Request::Told { .. }
             | Request::Unsent { .. }
             | Request::Unread { .. }
+            | Request::Convert
             | Request::Ended { .. }
             | Request::Opened { .. }
             | Request::Refused { .. } => {}

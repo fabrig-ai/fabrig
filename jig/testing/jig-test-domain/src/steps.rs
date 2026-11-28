@@ -227,7 +227,8 @@ fn job(domain: &Domain, task: u64, kind: u32, spec: Box<[u8]>, deadline: skein_l
                 asks: false,
                 job: Some(Box::new(tasks::JobSpec { bytes: spec, deadline })),
             },
-            contract: tasks::Contract::Job { bytes: 0 },
+            // The fixture's declared kind 7 takes a 32-byte result.
+            contract: tasks::Contract::Job { bytes: 32 },
             authority,
             llm: None,
             symbolic_grants: Box::new([]),

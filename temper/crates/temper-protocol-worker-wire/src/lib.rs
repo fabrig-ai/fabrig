@@ -19,6 +19,11 @@ use alloc::boxed::Box;
 use skein_lib::Secret;
 use v1::Record;
 
+/// The result limit supplied by the layout when a peer lacks `JobSpec.result` (protocol/wires.md, 8).
+pub const DEFAULT_JOB_RESULT_BYTES: u32 = 512;
+/// The result a close job can return (domain/worker/jobs.md, 2).
+pub const CLOSE_RESULT_BYTES: u32 = 8_192;
+
 /// Domain bounds shared by both sides of the channel (protocol/channel.md,
 /// section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -193,7 +198,7 @@ fn author(text: &[u8]) -> bool {
 }
 
 mod application;
-pub use application::{application, spoken};
+pub use application::{application, convert, spoken};
 
 #[cfg(test)]
 mod tests;

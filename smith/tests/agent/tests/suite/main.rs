@@ -12,6 +12,7 @@ mod host_delivery;
 mod host_messages;
 mod host_tools;
 mod initial_merge;
+mod inspection;
 mod memory_returns;
 mod messages;
 mod messages_referee;
@@ -29,6 +30,7 @@ mod fuzzy {
     mod faults;
     mod memory;
     mod messages;
+    mod parks;
     mod simulation;
 
     #[test]

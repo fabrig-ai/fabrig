@@ -10,6 +10,11 @@ use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Rng, Token, Wall};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
+use std::convert::Infallible;
 
 fn member(authority: &tasks::Authority, resource: u64) -> core::Delegate {
     let mut authority = authority.clone();
@@ -161,8 +166,7 @@ fn outcome(world: &World, seed: u64, first: u64, count: u64, live: u64, capacity
 #[test]
 fn full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline() {
     let mut outcomes = [0_u32; 3];
-    for seed in 301..=316 {
-        eprintln!("resource reports seed {seed}");
+    cases(this_test!("full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline"), 301..=316, |seed| {
         let mut rng = Rng::new(seed);
         let capacity = u32::try_from(2 + rng.below(7)).unwrap();
         let live = rng.below(u64::from(capacity.min(4)));
@@ -233,6 +237,10 @@ fn full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline() {
         assert_eq!(world.answers.len(), answers + 1, "seed {seed}: every call answers");
         let outcome = outcome(&world, seed, first, count, live, capacity, &missing);
         outcomes[outcome] += 1;
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if gate() {
+        assert!(outcomes.iter().all(|count| *count > 0), "all terminal outcomes exercised: {outcomes:?}");
     }
-    assert!(outcomes.iter().all(|count| *count > 0), "all terminal outcomes exercised: {outcomes:?}");
 }

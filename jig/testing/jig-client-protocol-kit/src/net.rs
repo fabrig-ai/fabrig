@@ -173,8 +173,11 @@ impl Net {
             socket.fail = true;
         }
     }
+    pub(crate) fn has_open_stream(&self, client: ClientId) -> bool {
+        self.sockets.values().any(|socket| !socket.closed && cuttable_stream(socket, client))
+    }
     pub fn cut_stream(&mut self, client: ClientId) {
-        for socket in self.sockets.values_mut().filter(|s| s.client == client && stream(s) && !s.broken) {
+        for socket in self.sockets.values_mut().filter(|socket| cuttable_stream(socket, client)) {
             socket.broken = true;
             socket.fail = true;
         }
@@ -363,6 +366,9 @@ impl Net {
         }
         (events, clients, changed)
     }
+}
+fn cuttable_stream(socket: &Socket, client: ClientId) -> bool {
+    socket.client == client && stream(socket) && !socket.broken
 }
 fn stream(socket: &Socket) -> bool {
     socket.shell.received.starts_with(b"GET /jig/v1/stream ")

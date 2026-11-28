@@ -1,3 +1,7 @@
+//! Each GitHub setup case includes both reconciliations (skein/docs/design/testing/sweeps.md, 4.2).
+
+use std::convert::Infallible;
+
 use skein_forge_setup::{
     github::manifest::Target,
     host::Plan,
@@ -11,10 +15,12 @@ use skein_forge_setup_world::{
     },
 };
 use skein_lib::Rng;
+use skein_world::{sweep::cases, this_test};
 
 #[test]
 fn seeded_github_setups_converge_and_then_write_nothing() {
-    for seed in [7, 19, 43, 101] {
+    let test = this_test!("seeded_github_setups_converge_and_then_write_nothing");
+    cases(test, [7, 19, 43, 101], |seed| -> Result<(), Infallible> {
         let mut rng = Rng::new(seed);
         let hook = if rng.below(2) == 0 { HOOK } else { b"https://wrong.test/" };
         let mut world =
@@ -87,5 +93,7 @@ fn seeded_github_setups_converge_and_then_write_nothing() {
         assert!(writes(&world, needs).is_empty(), "seed {seed}");
         assert!(mutations(&world, requests).is_empty(), "seed {seed}");
         closed(&mut world);
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

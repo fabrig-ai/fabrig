@@ -1,4 +1,4 @@
-//! Counts and repository setup from render session 30's test shapes.
+//! Render's fixed fleets and repository sweep (hearth/docs/design/testing/README.md, 4.5).
 use crate::{
     parent::Run,
     repositories::{self, Edit, Generated, Shape},
@@ -6,6 +6,8 @@ use crate::{
 use hearth_domain_render::{errors::Error, vocabulary::Answer};
 use hearth_lib::encode::Digest;
 use skein_lib::Rng;
+use skein_world::sweep::{Test, cases as sweep_cases};
+use std::convert::Infallible;
 /// Six miniature fleets retain two cases in each determinism batch.
 pub const CASES: core::ops::Range<u64> = 0..6;
 /// The generated-repository sweep's 750 rounds (30.1).
@@ -21,7 +23,11 @@ pub const SEED: u64 = 0x0030_0000;
 pub const REPRESENTATIONS: &[Edit] = &[Edit::Note, Edit::Reorder, Edit::Respace];
 #[must_use]
 pub fn generated(case: u64) -> Generated {
-    repositories::generate(&mut Rng::new(SEED + case), Shape::SMALL)
+    repositories::generate(&mut case_rng(case), Shape::SMALL)
+}
+
+fn case_rng(case: u64) -> Rng {
+    Rng::new(SEED.wrapping_add(case))
 }
 /// Check each focused case once at its seed.
 pub fn cases(mut check: impl FnMut(u64, Generated)) {
@@ -84,13 +90,13 @@ pub fn deterministic(batch: u64) {
     }
 }
 /// One of ruling 195's fifteen `generated_repositories_and_edits_keep_every_property_<k>` batches.
-pub fn sweep(batch: u64) {
+pub fn sweep(test: Test, batch: u64) {
     let start = batch * ROUNDS_PER_BATCH;
     let mut mutations = skein_checks::MutationBatch::default();
-    for case in start..start + ROUNDS_PER_BATCH {
+    sweep_cases(test, start..start + ROUNDS_PER_BATCH, |case| {
         let generated = generated(case);
         let digests = self::digests(&run(&generated, case));
-        let mut rng = Rng::new(SEED + case);
+        let mut rng = case_rng(case);
         let edits = edits();
         let index = usize::try_from(rng.below(u64::try_from(edits.len()).expect("edits"))).expect("edit");
         let edit = &edits[index];
@@ -104,9 +110,10 @@ pub fn sweep(batch: u64) {
         mutations.judge(repositories::mutate(&mut rng, &isolated), |mutated| {
             mutation_property(&isolated, &mutated, case);
         });
-    }
+        Ok::<(), Infallible>(())
+    })
+    .expect("repository properties checked");
     mutations.finish();
-    skein_checks::count("seed", ROUNDS_PER_BATCH);
 }
 
 /// Named parties of 30.2's production and environment edits.
@@ -154,7 +161,7 @@ pub fn mutations(case: u64) -> (Generated, skein_checks::Mutation<Generated>) {
 /// Ruling 197 isolates base-file faults from the separate peer-export property.
 #[must_use]
 pub fn isolated(generated: &Generated, case: u64) -> Generated {
-    repositories::without_peers(&mut Rng::new(SEED + case), generated)
+    repositories::without_peers(&mut case_rng(case), generated)
 }
 #[must_use]
 pub fn errors(run: &Run) -> Vec<&Error> {

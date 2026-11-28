@@ -1,4 +1,4 @@
-use skein_channel::{Direction, Kind, Limits, Role, Schema, Version, frame_writer};
+use skein_channel::{Direction, Kind, Limits, Role, Schema, frame_writer};
 use skein_lib::List;
 
 use super::ScriptedPeer;
@@ -15,9 +15,7 @@ fn schema() -> Schema {
     let mut kinds = List::with_capacity(2);
     kinds.push(Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 12 }).expect("room");
     kinds.push(Kind { kind: 0x0101, direction: Direction::FromResponder, largest: 12 }).expect("room");
-    let mut versions = List::with_capacity(1);
-    versions.push(Version { version: 3, kinds }).expect("room");
-    Schema { magic: *b"fake", versions }
+    Schema { magic: *b"fake", version: 3, kinds }
 }
 
 fn limits() -> Limits {
@@ -27,8 +25,8 @@ fn limits() -> Limits {
 #[test]
 fn peers_open_in_arbitrary_cuts_then_play_and_check_frames() {
     let mut initiator =
-        ScriptedPeer::new(schema(), Role::Initiator, limits(), 3, Box::from(b"secret".as_slice())).expect("initiator");
-    let mut responder = ScriptedPeer::new(schema(), Role::Responder, limits(), 3, Box::from([])).expect("responder");
+        ScriptedPeer::new(schema(), Role::Initiator, limits(), Box::from(b"secret".as_slice())).expect("initiator");
+    let mut responder = ScriptedPeer::new(schema(), Role::Responder, limits(), Box::from([])).expect("responder");
 
     for _ in 0..4 {
         pump(&mut initiator, &mut responder);

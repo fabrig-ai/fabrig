@@ -2,8 +2,8 @@
 #![forbid(unsafe_code)]
 pub mod frame_reads;
 pub mod model;
-pub mod patches;
 pub mod referee;
 pub mod root;
+pub mod upgrade_fixtures;
 pub mod world;
 pub use world::{Restored, World};

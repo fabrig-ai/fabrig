@@ -3,12 +3,12 @@
 //! (domain/root.md, 3–4; skein's `programming-model.md`, 7.2).
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
+use jig_domain_contract::StartProblem;
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use jig_domain_link::Bounds;
-use jig_domain_link::{Hello, Problem};
+use jig_domain_link::{Bounds, Hello};
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::{Decision, Env, Journal, Queue, Token, length::len_u64};
@@ -89,8 +89,8 @@ impl Domain {
     /// Construct without issuing a request; the caller supplies the first input.
     ///
     /// # Errors
-    /// The core's configured workers exceed the priced membership bounds.
-    pub fn new(config: Config, limits: &Limits) -> Result<Self, Problem> {
+    /// The engine refuses its worker membership or connector declarations.
+    pub fn new(config: Config, limits: &Limits) -> Result<Self, StartProblem> {
         assert!(limits.routes > 0, "nonempty route");
         assert!(config.environment_close_grace <= limits.core.tasks.grace, "environment close grace bound");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");

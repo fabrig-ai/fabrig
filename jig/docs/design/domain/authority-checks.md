@@ -75,7 +75,9 @@ past; the run's spend, its task's share for a run (`authority-budgets.md`, secti
 task has left, half of it where the task may start a delegate and that
 half is above the deployment's minimum for a run, capped per run by the
 deployment), is above the deployment's minimum for a run and holds its
-reserve and one more of its main model's most costly completions, and
+reserve and one more of its main model's most costly completions, each
+at the prices of the speed its charter runs the model at (engine/executors.md,
+1), the dearest a completion of it may be charged, and
 on a program backend one more again (`authority-budgets.md`, section 1); the accounts its check
 chooses each have a source usable on a host with room (accounts-uses.md,
 1.3), from runtime accounts and their restored source rows, never an

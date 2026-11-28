@@ -212,7 +212,8 @@ own, never a change's:
   goal closes once that change has landed it (`branches.md`); otherwise
   kept as the goal closes. A goal takes the base only by a catch-up
   (`updates.md`, section 1) for one of its changes that needs what the
-  base gained since its branch was made, never to stay current
+  base gained since its branch was made, or by its closer's for a close
+  found outdated (2, *A close found outdated*), never to stay current
   (`../../draft/squash-in.md`, 4): its landing takes the base at the
   front of the base's queue, as any change does (`change/README.md`,
   2), and a conflict goes to the merge job and a resolution
@@ -243,20 +244,33 @@ comes and lands its branch, and the report carries what the run said
   task's number as a change's is, and restored with it (`effects.md`, section 2).
 - **Its steps, in order,** each a change of its own, made as its
   delegate and waited for:
-  1. **Close,** where the goal holds a goal branch and its project names
-     a `close_job` (`../../protocol/configuration/engine.md`): a change
+  1. **Close,** where the goal holds a goal branch whose tip has a close
+     command: its `.temper/hooks/close`, or, where the tip holds no
+     `.temper/hooks/`, its project's `close_job`
+     (`../../protocol/hooks.md`, 4.2 and 5;
+     `../../protocol/configuration/engine.md`). Once nothing is pending
+     and the goal's landed changes have not been closed, the closer reads
+     `.temper/hooks/` at the goal's branch's tip, its tip read first; a
+     read with no answer leaves the closer waiting, and it reads again,
+     never skipping the step for it. The step is a change
      into the goal's branch whose producer is the close job, kind 4
      (`../worker/jobs.md`), as a catch-up's is the merge job: its bytes
      parameter 17 the close request (`../../protocol/tooling.md`, 4.2),
+     and, where the closer found the hook, its bytes parameter 20 the
+     hook's path (`change/README.md`, 1),
      naming the goal and each change of the goal's tree whose landing
      branch is the goal's branch, with how each ended, the closer's own
      changes left out; its words `Settle goal G's status.` The change
      makes its branch at the goal's branch's tip, its producer the job,
      no agent, and lands as any change into the branch does; nothing
      staged ends it with no change. A refusal of the close's check holds
-     it at once, and a check that broke holds it once its job's tries are
-     spent (`change/repairs-releases.md`, 1). Where the project names none, or the
-     goal holds no goal branch, this step is skipped.
+     it at once, a check that broke holds it once its job's tries are
+     spent, and a check that found the goal outdated ends it with no
+     change (`change/repairs-releases.md`, 1), for the closer to catch
+     the goal up from main and close again (*A close found outdated*,
+     below). Where the tip has no close command, or the goal holds no
+     goal branch, this step is skipped. A close step superseded by more
+     landed changes reads again for its new change.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held
      branch into its base, as the goal's `"branch": "mine"` would make
@@ -291,7 +305,9 @@ comes and lands its branch, and the report carries what the run said
     each as the client takes them (`../agent/agents.md`, 3): the last
     line whose start, past spaces, is `Left: `, its words past that,
     trimmed. No such note, or none with a `Left:` line, passes, so a
-    charter that asks for no report meets no check. A read that fails
+    charter that asks for no report meets no check. The same read takes
+    the note's `Asked:` block (`../agent/agents.md`, 3, *What its request
+    asked for in its result*), for the report alone: it holds nothing. A read that fails
     is made again after a wait, as an unknown containment is (below).
   - *Held:* a `Left:` line no release has passed holds the closer,
     before it makes any step, its words `the goal's report leaves work
@@ -307,7 +323,8 @@ comes and lands its branch, and the report carries what the run said
     life; it still reads the line before each step new work makes, for
     its report. One release, final, keeps the goal's word its own and
     the closer out of a loop over wording.
-  - *On its row:* the line it last read, none where it read none, and
+  - *On its row:* the line and the `Asked:` block it last read, each
+    none where it read none, and
     where its check stands, unread, held or released, so that a restart
     neither holds again past a release nor loses what its report
     names. They are added fields of the closer's row in `temper-store`,
@@ -553,8 +570,49 @@ comes and lands its branch, and the report carries what the run said
     so nothing reopened it once the repair landed, and a release made a
     fresh job at once with the old request, at a branch the repair had
     not reached.
-- **Never a catch-up:** the closer makes none; a goal it ends makes
-  one only for a change that needs it (1).
+- **A close found outdated** (`change/repairs-releases.md`, 1,
+  *Outdated*) is no attempt. With no new work pending or landed since
+  its close step (else the close step is made again for it, as ever),
+  the closer catches the goal up from main, once per close request:
+  - *The catch-up:* a change into the goal's branch made as a goal's
+    catch-up is (`updates.md`, 1), its commit main's tip as the close's
+    change read it (`CloseAt`'s landing commit), its words `Catch goal G
+    up from main at M.`, questions `up`, funded as the other steps are,
+    one attempt left. Landed, or ended with no change, it makes the
+    close step again at once, with the same request.
+  - *Held at once,* `ClosingStep` on the step and its change, escalating
+    to the goal, its words cut to the hold's bytes, G and M 12 hex
+    digits, F the close's finding as its words give it:
+    - found outdated again after the catch-up, same request: `the close
+      step's change TN found the goal's branch at G outdated again, after
+      its catch-up from main at M, change TK, landed: F. Catch the goal up
+      from main with a change naming main's tip and release the closer,
+      or release it to close again as it stands.`;
+    - the catch-up ended without landing: `the catch-up from main at M,
+      change TK, ended WHY, after the close step's change TN found the
+      goal's branch at G outdated: F. Catch the goal up from main with a
+      change naming main's tip and release the closer, or release it to
+      catch up again.`, WHY as the other holds word an ending (*Attempts,
+      and the project's bound*, above);
+    - none it can make: `the close step's change TN found the goal's
+      branch at G outdated: F; the closer can't catch it up from main:
+      WHY. Merge main into the goal's branch and release the closer to
+      close again.`, WHY `the project names no merge_job` or `its
+      authority does not delegate to the merge job`.
+  - *Released,* the held step's change is made again, after any new
+    work: the close, which holds at once again if outdated for a request
+    already caught up, or the catch-up.
+  - *Kept* on its row: the request it last caught up for (`Closer`'s
+    `caught_up`) and its catch-up changes, its own and out of the goal's
+    changes; fields added with defaults, so no version moves. Per
+    request, not per tip, since the catch-up moves the tip itself.
+  - *Why* (2026-11-27, `../../draft/test-budgets.md`, 3): the update the
+    check asks for is one the closer can make on a goal's own catch-up
+    path, so no one waits for it; a second finding, or a catch-up that
+    can't land, is past what another update mends.
+- **A catch-up only for its close:** the closer makes one only for a
+  close found outdated (above); a goal it ends makes one only for a
+  change that needs it (1).
 - **Whether the base holds the goal's tip** is read afresh before a land
   step is made and before the closer reports: the goal branch's tip, or
   the merge a squash landing recorded for it, against the base's tip,
@@ -579,6 +637,8 @@ Landed:
   LINE
 Ended without landing:
 - TN TITLE: WHY
+Asked: WORDS
+  LINE
 Left by the goal: WORDS
 The landing: pull request #P, merged into BASE as COMMIT; repairs TN, TN; resolutions TN.
 CI selection:
@@ -604,6 +664,12 @@ The goal's finish:
   closer's own left out, ascending: why, `cancelled`,
   `failed: ` then its failure's first line, or `no change: ` then its
   result's first line. The part is left out where none did.
+- **What the goal's request asked for in its result:** the `Asked:`
+  block its report last read (*What its goal's report leaves holds it
+  first*, above): its first line from `Asked: `, then each later line
+  as written, indented two spaces, as a change's `Left` section's are.
+  The part is left out where it read none, so a goal whose report
+  answers nothing reports as it would without the part.
 - **What the goal left:** the `Left:` line its report last read
   (*What its goal's report leaves holds it first*, above), its words
   whole, on one line; left out where it read none.
@@ -636,10 +702,11 @@ The goal's finish:
 - **Cut to the contract's bound** as any report is: where the whole
   passes the contract's words bound, the changes' `Left` sections are
   cut first, from the last change's back, each cut one replaced by `  Left: [N
-  bytes cut]`, the goal's own line never among them; then, if it still passes, the report keeps its first
+  bytes cut]`, the goal's own line and its `Asked:` block never among them; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
   N what it dropped, so that the goal's finish, the last part, loses
-  its end first.
+  its end first, and the `Asked:` block, behind only the heading and
+  the changes, loses its end only once every part after it is gone.
 
 ## 3. A goal's design writers
 

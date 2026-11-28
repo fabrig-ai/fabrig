@@ -628,7 +628,40 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   party's chat (the engine's references admit its requester, its
   delegates and those it was introduced to), and the world wires no
   introduction for it.
-- **Its streams:** the workload from `Workload`; the acts from `Parties`;
+- **Drawn stretches** (`../draft/misbehaving-agents.md`, 5.2): each
+  producer plays a stretch before it delivers and another before it
+  parks or finishes (skein's `testing/fakes/drawn-agent.md`, 5), with
+  two rounds per stretch and one call per round. Draws use only
+  `read_task`, `message` and `mark_read`, through either provider: the
+  typed one and `temper-fake` (`../protocol/setup/playground.md`, 9)
+  each take the menu and the round count. The menu's slots name the
+  tasks its creation replies and reads show, its inbox labels'
+  questions paired with their askers, a foreign one by its weight,
+  and the messages it sent. The goals' expectations stay; a stretch
+  adds that each drawn call is answered once, and counts each refusal
+  its draws reach: a read or message naming a task the producer holds
+  no reference to, a `mark_read` naming a message it never sent, or a
+  message to an ended recipient. A stretch can't reach an answered
+  question: the scripted parties report on person tasks, no
+  task-question label reaches a producer, and drawn words and questions
+  go only to the producer's own delegates, never to a scripted agent.
+  Its sweep counts the shapes its cases reached in the shapes' shared
+  vocabulary (`../draft/misbehaving-agents.md`, 8), beside its sample's
+  size.
+- **Parks against wakes** (`jig/docs/design/domain/testing-cells.md`):
+  the composed world's driver draws, from `Faults`, part `cells`, a
+  producer eligible for `JOB_RUNNING_PARKS_ON_NOTHING`, a change's
+  producer that doesn't ask, and arms both halves: its first activation
+  starts a yielding shell and calls `wait` with nothing queued before
+  its work, so it parks with its job running and nothing to await; jig
+  wakes it with Nothing left to await's notice; its resumed activation
+  names the old job, refused as unknown, then works, delivers and
+  finishes. The driver keys the park by the producer's task, its attempt
+  and park 1, feeds smith's half, seen in the activation's turns and its
+  parked answer, and jig's, seen when the task's next attempt starts with
+  the notice, to a `jig_core_kit::cells::Pairing`, and checks the cell's
+  expectation. Its goal expects `Ends`; the park spends one run try. A
+  case with no eligible producer records the cell ineligible, as any kind. the workload from `Workload`; the acts from `Parties`;
   the world's scheduling from `Scheduling`, part `system`; each injector
   from its `Faults` part.
 - **Its checks:** the engine's world kit and `Ends` at its ticks and quiet
@@ -638,6 +671,50 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   fall (`checks.md`, 6.3).
 - **`acts::Watch`** of 4.1 over the composed world's store, each act fired
   through the composed world's routes for people.
+- **Every seed a valid case** (`skein/docs/design/testing/sweeps.md`,
+  4.5): the composed world runs the draw of any `u64` seed, and the
+  gate's seeds draw as before. A draw it can't run is its own to make
+  valid, never failed as the product's:
+  - **Each kind strikes a goal eligible for it:** `MOVED_BASE` a train
+    goal; `HEAD_BEHIND` and `JOB_LOG` a goal with a `red_once` change;
+    `DELIVERED_THEN_PARKED` a goal with a change that doesn't ask; 8.2's
+    other kinds any goal. The catalogue's kinds name theirs
+    (`composed-catalogue.md`, 2).
+  - **No goal eligible:** the kind isn't planned for the case, its
+    ledger records it ineligible (`FaultLedger::ineligible`, sweeps.md,
+    4.1), and the case goes on, its sweep's reach counting it. Its place
+    in its part spends the draws an eligible kind's spends, so that no
+    other kind's draw moves. A kind the sweep doesn't configure spends
+    its place and is never planned, whether a goal is eligible for it or
+    not.
+  - **A hold has its release:** where the parties' draw holds a member
+    and doesn't release it, the composed world adds the release, by the
+    same party on the same member, its `after` drawn from
+    `Stream::Parties`, part `release`. A draw that releases its hold is
+    as before, seed 6's among them. `temper_workload::parties::draw` is
+    unchanged, since the engine's domain world judges a hold never
+    released as `Waits` (6.2).
+  - **An act at its moment:** an act is sent only while its target is
+    as its moment says, read from the store as it falls: a hold while its
+    member is in a live landing, neither left nor landed; a release while
+    its member is held. One whose target has moved on by then, a member
+    landed before its hold falls, isn't sent: its ledger records it
+    ineligible, with the release that would have followed it. An act sent
+    at its moment that the engine refuses is a finding, as before.
+  - **A held member lands after its release:** a member held while its
+    train lands leaves its landing and keeps its place
+    (`temper/docs/design/domain/landing.md`, 4.3). The train's oracle
+    takes every member landed once: those never held in the train's row,
+    and one that left on its hold in a later row, after its release. Its
+    goal expects `Ends` past the release (6.2).
+  - **A fault whose moment has gone** is skipped and recorded ineligible
+    the same way: a park whose producer, resumed, never runs its park
+    script; a reopen of a pull the forge has retired by then. Where two
+    faults overlap in a case, each judge charges its fault with what that
+    fault caused alone: the account runs' judge, with the attempts the
+    provider's fault failed.
+  - **The seed itself** takes no arithmetic but `seed % 3`, which any
+    `u64` keeps.
 
 ## 6. People's actions and runs that park, resume and move
 
@@ -790,6 +867,8 @@ all and the fewest seeds make each fall:
 | worker | `temper_worker_inspect::faults::DISK_FULL` | `Faults`, `worker` |
 | people and parties | `HOLDS_A_MEMBER` and `RELEASES_A_MEMBER`, on the train | `Parties` |
 | runs that park, resume and move | `DELIVERED_THEN_PARKED` | `Faults`, `worker` |
+| a session's state at a park | `smith_faults::parks::JOB_RUNNING` | `Faults`, `cells`, armed with the cell |
+| parks against wakes | `jig_core_kit::cells::JOB_RUNNING_PARKS_ON_NOTHING` | `Faults`, `cells` |
 | the engine's own bounds | `FORGE_READ_ADMISSIONS` | observed (2.4) |
 | restarts | `ENGINE_CRASH_MID_TURN` | `Faults`, `restarts` |
 
@@ -814,6 +893,12 @@ all and the fewest seeds make each fall:
 - **The kinds are a list the caller gives,** and each family's draw keeps
   a fixed place in its part, so that leaving one kind out moves no other
   kind's draw.
+- **The two halves' kinds of the cell** are recorded as they fall: smith's
+  `JOB_RUNNING` is its family's kind here, and jig's `PARKS_ON_NOTHING`
+  falls beside `DELIVERED_THEN_PARKED`, which stays its family's kind. The
+  cell is the production incident's (`../draft/misbehaving-agents.notes.md`,
+  *The incident and its fix*), and is configured only where the gate's
+  seed shows it falls (`../draft/misbehaving-agents.execution.md`, 4).
 - **3.3 for runs** holds where the provider's fault falls, by the account
   runs' judge (`checks.md`, 6.3); 3.3 for gates where CI's falls, by
   `temper_blame` (`blame.md`).
@@ -900,6 +985,44 @@ gate each does the work it did before:
   `refusals_keep_the_batches_invariants` script what their seeds were
   chosen to show. A campaign runs them as the gate does.
 
+The composed workload's two sweeps, `every_family_falls_in_the_composed_workload`
+and `a_restart_changes_no_composed_outcome`, take their cases from the
+seam too, now that its draws are valid at any seed (section 5), and
+`campaign-temper` lists their binary, `temper-system-world::suite`:
+
+- **Their gate seeds** as before, 6 for the mixed sweep and 0 and 29 for
+  the comparison, each case's checks those of 8.2 and section 7, its
+  `Ends` and its oracle.
+- **More cases in a campaign** (sweeps.md, 4.2), since seeds aren't
+  scarce there (the draft, 6): the mixed sweep asks 16 and the
+  comparison 8, each of the comparison's cases two runs. A count whose
+  cases, at the gate case's measured time, would pass 400 s, half the
+  pair's backstop of 810 s, halves until they fit.
+- **Its catalogue in a campaign:** where `gate()` holds, the mixed sweep
+  configures 8.2's kinds; otherwise those and its catalogue's (8.6).
+- **Its counts:** each case one `seed` check. The mixed sweep counted
+  its seed twice, by `each_seed` and by `Sweep::ran` outside a case, and
+  counts it once: the lost check takes a `duplicate` reason
+  (`tools/tiers/budgets.md`, 13), as smith's run world's did. The
+  comparison counted each seed once, by `Sweep::ran`, and counts the
+  same.
+- **The binary's other fuzzy tests,** the accounts', the seeded system
+  runs', the green light's, the repair's and the mid-turn restarts', take
+  no case yet and run in a round as the gate runs them, each named with
+  its time (`tools/tiers/campaign.md`, 3). The composed sweeps' cases are
+  the bulk of the binary's round; should a round's times show the others
+  outweighing them, those move to the seam or to a binary of their own
+  (section 11).
+
+### 8.6 The composed sweep's catalogue
+
+In a campaign, `every_family_falls_in_the_composed_workload` configures
+more kinds than 8.2's one a family: its catalogue, a kind at a time as
+the composed world learns to inject it, give it an eligible target,
+exclude what its open problems need and say what each goal expects of
+it (the draft, 6). The catalogue, its draws and its kinds are
+`composed-catalogue.md`. The gate's list doesn't change.
+
 ## 9. Testing
 
 Focused and fuzzy suites only.
@@ -921,6 +1044,11 @@ Focused and fuzzy suites only.
   of each adapter's table name gives its constant.
 - **`saturation`** (skein-world's step tests,
   `skein/docs/design/testing/sweeps.md`, 6).
+- **The composed draws** (`temper-system-world`'s step tests, with no
+  world): over a range of seeds and at `u64::MAX`, each configured kind
+  strikes a goal eligible for it or is recorded ineligible, and each hold
+  is released by its party on its member; seed 6's draw is as before,
+  pinned by a digest of its plans and acts.
 - **`Watch` and `read`** (the engine's domain world's focused suite): an
   act due only once its moment holds and its steps have passed, and once;
   an outcome read from a run of one goal that lands, and one cancelled.
@@ -947,6 +1075,5 @@ Focused and fuzzy suites only.
   composed workload (the draft, 12).
 - The composed workload at more goals than its shape's fewest, as the
   system layer's room allows.
-- The engine domain world's other sweeps taking their cases from the
-  seam (8.5), and the composed workload's once its draws are total
-  (`temper/docs/design/draft/fuzzy-campaigns.md`, 9).
+- The engine domain world's other sweeps, and the system world's other
+  seeded tests, taking their cases from the seam (8.5).

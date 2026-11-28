@@ -67,7 +67,13 @@ fn shell_capture(environment: &temper_qa_tool::faces::EnvironmentEntry) -> bool 
     environment.0.as_ref() == b"PATH" && environment.1.as_ref() == b"/qa/test-bin"
 }
 
-fn programs(world: &World, place: &PlacePaths, setups: &Path, walk_exit: i32) -> Agents {
+fn programs(
+    world: &World,
+    place: &PlacePaths,
+    setups: &Path,
+    walk_exit: i32,
+    recipe_file: Option<(&'static str, &'static [u8])>,
+) -> Agents {
     let mut agents = world.agents();
     let paths = place.clone();
     let setups = setups.to_path_buf();
@@ -88,7 +94,16 @@ fn programs(world: &World, place: &PlacePaths, setups: &Path, walk_exit: i32) ->
             }
             "hash" => {
                 assert_eq!(args[3..], [OsStr::new("--setups"), setups.as_os_str()]);
-                assert!(files.exists(setups.join(args[2]).join("recipe")));
+                let recipe = setups.join(args[2]);
+                assert!(files.exists(recipe.join("recipe")));
+                if let Some((name, bytes)) = recipe_file
+                    && !files.read(&recipe.join("files").join(name)).is_ok_and(|copied| copied == bytes)
+                {
+                    return Ok(temper_qa_tool::faces::ProcessOutput {
+                        stderr: format!("files/{name}: missing or different settings file\n").into_bytes(),
+                        ..output(1, b"")
+                    });
+                }
                 output(0, format!("{HASH}\n"))
             }
             "walk" => {
@@ -182,7 +197,7 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
         b"temper-qa: TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session\n"
     );
     assert_eq!(missing.stdout, b"");
-    let stopped = run_at(&world, programs(&world, &place, &setups, 5), &["pass", "setup", "welcome"]);
+    let stopped = run_at(&world, programs(&world, &place, &setups, 5, None), &["pass", "setup", "welcome"]);
     assert_eq!(stopped.code, 5, "{stopped:?}");
     assert_eq!(stopped.stderr, b"", "{stopped:?}");
     assert!(String::from_utf8_lossy(&stopped.stdout).contains("stopped at welcome:2: missing Work"));
@@ -201,7 +216,7 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
     files.directory(&place.scratch.join("data"), DirectoryMode::One).expect("stale box");
     put(&mut files, &place.scratch.join("data/stale"), b"not in copy");
 
-    let restored = run_at(&world, programs(&world, &place, &setups, 0), &["pass", "setup", "added"]);
+    let restored = run_at(&world, programs(&world, &place, &setups, 0, None), &["pass", "setup", "added"]);
     assert_eq!(restored.code, 0, "{restored:?}");
     assert_eq!(restored.stderr, b"", "{restored:?}");
     assert!(
@@ -211,11 +226,45 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
     assert_eq!(files.read_to_string(&place.setup).expect("setup"), format!("added {HASH}\n"));
 
     put(&mut files, &world.home.directory.join("recipe.json"), RECIPE);
-    let rewritten = run_at(&world, programs(&world, &place, &setups, 0), &["pass", "recipe", "added", "recipe.json"]);
+    let rewritten =
+        run_at(&world, programs(&world, &place, &setups, 0, None), &["pass", "recipe", "added", "recipe.json"]);
     assert_eq!(rewritten.code, 0, "{rewritten:?}");
     assert_eq!(rewritten.stderr, b"", "{rewritten:?}");
     assert_eq!(files.read(&added.join("README.md")).expect("rewritten recipe"), b"An added state.\n");
     assert_eq!(files.read(&world.home.ledger).expect("unchanged ledger"), before);
+}
+
+#[test]
+fn pass_recipe_keeps_the_file_named_by_settings_apply() {
+    const PROVIDER: &str = "provider.json";
+    const SETTINGS: &[u8] = br#"{"provider":"example"}"#;
+    const UNNAMED: &str = "unnamed.json";
+    const INPUT: &[u8] = br#"{"after":"fresh","lines":["ctl settings apply provider.json","check","ctl settings show"],"readme":"A provider setting."}"#;
+    let (world, place, setups) = pass_home(Kind::Box, COMMIT);
+    let mut files = world.files();
+    let pass_files = world.home.directory.join("passes/1/files");
+    files.directory(&pass_files, DirectoryMode::Parents).expect("pass files");
+    put(&mut files, &pass_files.join(PROVIDER), SETTINGS);
+    put(&mut files, &pass_files.join(UNNAMED), b"{}");
+    put(&mut files, &world.home.directory.join("recipe.json"), INPUT);
+
+    let agents = programs(&world, &place, &setups, 0, Some((PROVIDER, SETTINGS)));
+    let added = run_at(&world, agents, &["pass", "recipe", "added", "recipe.json"]);
+    assert_eq!(added.code, 0, "{added:?}");
+    assert_eq!(added.stderr, b"", "{added:?}");
+    assert!(
+        String::from_utf8_lossy(&added.stdout)
+            .lines()
+            .any(|line| line == "recipe added walked from fresh: 111111111111"),
+        "{added:?}"
+    );
+    let recipe = setups.join("added");
+    assert_eq!(files.read(&recipe.join("files").join(PROVIDER)).expect("copied settings"), SETTINGS);
+    assert!(!files.exists(recipe.join("files").join(UNNAMED)));
+    assert_eq!(
+        files.read(&recipe.join("recipe")).expect("recipe"),
+        b"recipe 1\nctl settings apply provider.json\ncheck\nctl settings show\n"
+    );
 }
 
 #[test]

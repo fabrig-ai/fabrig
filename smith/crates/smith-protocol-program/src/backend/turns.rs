@@ -21,6 +21,7 @@ pub(super) struct Message {
     received: u32,
     blocks: List<llm::Said>,
     usage: llm::Usage,
+    served: llm::ServedSpeed,
     bytes: u64,
     raw: u32,
 }
@@ -45,6 +46,12 @@ struct AssemblyBounds {
 }
 
 impl Message {
+    fn report_speed(&mut self, document: &Document, usage: Option<u32>) {
+        if let Some(field) = json::field_in(document, usage, b"speed") {
+            self.served = serving_speed(json::text_in(document, Some(field)));
+        }
+    }
+
     fn content(
         &mut self,
         document: &Document,
@@ -207,6 +214,7 @@ impl Turns {
             received: 0,
             blocks: List::with_capacity(self.blocks),
             usage: llm::Usage::NONE,
+            served: llm::ServedSpeed::Unreported,
             bytes: 0,
             raw: 0,
         });
@@ -217,10 +225,14 @@ impl Turns {
         match json::text_in(document, json::field(document, event, b"type")).ok_or(Rejection::Malformed)? {
             b"message_start" => {
                 self.close(true)?;
-                let id =
-                    json::text_in(document, json::field_in(document, json::field(document, event, b"message"), b"id"))
-                        .ok_or(Rejection::Malformed)?;
-                self.begin(id, true)
+                let value = json::field(document, event, b"message").ok_or(Rejection::Malformed)?;
+                let id = json::text_in(document, json::field(document, value, b"id")).ok_or(Rejection::Malformed)?;
+                self.begin(id, true)?;
+                self.message
+                    .as_mut()
+                    .ok_or(Rejection::Boundary)?
+                    .report_speed(document, json::field(document, value, b"usage"));
+                Ok(())
             }
             b"content_block_start" => {
                 let index = number(document, json::field(document, event, b"index")).ok_or(Rejection::Malformed)?;
@@ -248,7 +260,9 @@ impl Turns {
                 // The block records repeat the initial usage; the final delta
                 // supplies the message's total, including its thinking tokens.
                 if let Some(tokens) = json::field(document, event, b"usage") {
-                    self.message.as_mut().ok_or(Rejection::Boundary)?.usage = usage(document, Some(tokens));
+                    let message = self.message.as_mut().ok_or(Rejection::Boundary)?;
+                    message.usage = usage(document, Some(tokens));
+                    message.report_speed(document, Some(tokens));
                 }
                 Ok(())
             }
@@ -286,7 +300,9 @@ impl Turns {
             AssemblyBounds { blocks: self.blocks, raw: self.maximum_raw, bytes: self.maximum, input: maximum },
             &mut self.finish,
         )?;
-        message.usage = usage(document, json::field(document, value, b"usage"));
+        let tokens = json::field(document, value, b"usage");
+        message.usage = usage(document, tokens);
+        message.report_speed(document, tokens);
         if !message.framed {
             message.stopped = true;
             message.expected = message.received;
@@ -329,6 +345,7 @@ impl Turns {
             content: message.blocks.into_boxed(),
             stop: if calls { llm::Stop::ToolUse } else { llm::Stop::EndTurn },
             usage: message.usage,
+            served: message.served,
         });
         Ok(())
     }
@@ -352,6 +369,7 @@ impl Turns {
                 content: Box::default(),
                 stop: llm::Stop::EndTurn,
                 usage: llm::Usage::ZERO,
+                served: llm::ServedSpeed::Unreported,
             });
         }
         Ok(())
@@ -468,6 +486,7 @@ impl Turns {
                 content: Box::new([finish_block(input)]),
                 stop: llm::Stop::ToolUse,
                 usage: llm::Usage::ZERO,
+                served: llm::ServedSpeed::Unreported,
             };
             completion_fits(&completion, self.maximum_raw, self.maximum)?;
             self.closed = self.closed.checked_add(1).ok_or(Rejection::Overflow)?;
@@ -563,6 +582,21 @@ pub(super) fn number(document: &Document, index: Option<u32>) -> Option<u64> {
         return None;
     }
     skein_lib::bytes::decimal(document.text(record)?)
+}
+
+fn serving_speed(report: Option<&[u8]>) -> llm::ServedSpeed {
+    let Some(name) = report else {
+        return llm::ServedSpeed::Unreported;
+    };
+    if name.is_empty() || name.len() > 32 {
+        return llm::ServedSpeed::Unreported;
+    }
+    for &byte in name {
+        if !(byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-' || byte == b'_') {
+            return llm::ServedSpeed::Unreported;
+        }
+    }
+    if name == b"standard" { llm::ServedSpeed::Standard } else { llm::ServedSpeed::Named(name.into()) }
 }
 
 fn usage(document: &Document, index: Option<u32>) -> llm::Usage {

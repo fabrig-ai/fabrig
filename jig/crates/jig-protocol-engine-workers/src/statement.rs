@@ -5,7 +5,7 @@ use jig_protocol_worker_wire::{
     self as wire, Credential, Root, Spoken,
     layouts::{Gap, Peer, Plans, Theirs},
 };
-use skein_channel::{Role, Term, Version};
+use skein_channel::{Kind, Role, Term};
 use skein_lib::{Decimal, List, bytes};
 
 /// A wire as the worker stated it.
@@ -42,7 +42,7 @@ pub fn judge(
     limits: &wire::v22::Limits,
     statement: &Statement,
 ) -> Result<List<Box<str>>, Unfit> {
-    let mut plans = match plans(spoken, roots) {
+    let mut plans = match plans(spoken, roots, &List::uncapped()) {
         Ok(plans) => plans,
         Err(text) => return Err(Unfit::Wires(text)),
     };
@@ -66,7 +66,7 @@ pub fn gaps(
     limits: &wire::v22::Limits,
     stated: &List<Stated>,
 ) -> Result<List<Gap>, Unfit> {
-    let mut plans = match plans(spoken, roots) {
+    let mut plans = match plans(spoken, roots, &List::uncapped()) {
         Ok(plans) => plans,
         Err(text) => return Err(Unfit::Wires(text)),
     };
@@ -76,17 +76,25 @@ pub fn gaps(
     }
 }
 
-pub(crate) fn plans(spoken: &List<Spoken>, roots: &List<Root>) -> Result<Plans, Box<[u8]>> {
+pub(crate) fn plans(
+    spoken: &List<Spoken>,
+    roots: &List<Root>,
+    application: &List<wire::Written>,
+) -> Result<Plans, Box<[u8]>> {
     let mut texts = List::with_capacity(spoken.len());
     for wire in spoken {
         texts.push(wire.text).expect("one text per wire");
     }
-    Plans::new(texts.as_slice(), roots)
+    let mut written = wire::written();
+    for entry in application {
+        written.push(*entry).expect("uncapped written entries");
+    }
+    Plans::with_written(texts.as_slice(), roots, &written)
 }
 
 pub(crate) struct Fitted {
     pub peer: Peer,
-    pub table: Version,
+    pub table: List<Kind>,
     pub converted: List<Box<str>>,
 }
 
@@ -128,8 +136,8 @@ pub(crate) fn output(room: u32, stated: u32) -> Result<(), Box<[u8]>> {
     if stated == room { Ok(()) } else { Err(crate::opening::output_room_words(room, stated)) }
 }
 
-pub(crate) fn terms(table: &Version, terms: &List<Term>) -> Result<(), Box<[u8]>> {
-    match wire::terms_gap_at(table, Role::Responder, terms) {
+pub(crate) fn terms(table: &List<Kind>, terms: &List<Term>) -> Result<(), Box<[u8]>> {
+    match wire::terms_gap(table, Role::Responder, terms) {
         Some(kind) => Err(kind_words(kind)),
         None => Ok(()),
     }

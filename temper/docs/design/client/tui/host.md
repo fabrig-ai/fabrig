@@ -230,10 +230,11 @@ The TUI's host and seam are split from [the TUI](README.md).
   | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 6): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
   | `EndWalk` | Esc on the walk's prompt: the walk ends |
 
-  `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS`,
-  `/talk WORDS` and
-  `/chats N` before the root's commands (`pages/README.md`, 2, *The TUI's own
-  commands*), and, with the walk's question set aside, answers it in
+  `Send` on the launchpad also takes `/draft WORDS`, `/change WORDS`,
+  `/ask WORDS` and `/talk WORDS` before the root's commands
+  (`pages/README.md`, 2, *The TUI's own commands*), and no other
+  command's name with words after it (`pages/README.md`, 2, *Words
+  after a command that takes none*), and, with the walk's question set aside, answers it in
   the box's words as a chat's question's are, then marks it shown. On
   the launchpad, a chat and a talk it takes `/tell WORDS` before them
   too, and on a talk it sends the box's other words as the talk's

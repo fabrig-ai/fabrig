@@ -8,11 +8,13 @@ use skein_codec::schema::Schema;
 use skein_lib::{Buffer, Reader};
 mod back;
 mod edges;
+mod older;
 mod prepared;
 mod restoring;
 mod retired;
 mod settling;
 mod unplanned;
+mod written;
 
 const FAMILY: KeptFamily = KeptFamily {
     retired: &[],
@@ -754,6 +756,7 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
             assert_eq!(layout.root.as_ref(), "Growing");
             assert_eq!(layout.variant, None);
             assert_eq!(layout.text.as_ref(), KEPT.as_bytes());
+            assert_eq!(layout.mode, skein_codec::layout::Mode::Read);
             assert!(layout.held.is_empty());
             assert!(!page.end);
         } else {

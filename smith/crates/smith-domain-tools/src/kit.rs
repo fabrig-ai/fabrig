@@ -45,8 +45,9 @@ use crate::limits::Limits;
 use crate::path::{self, Path};
 use crate::window::Span;
 
+/// The tools and job cells kept for one session.
 #[derive(Debug)]
-pub(crate) struct Kit {
+pub struct Kit {
     /// The session's token, echoed when the kit closes.
     session: Token,
     pub(crate) working: Working,
@@ -64,6 +65,29 @@ enum State {
     Closing,
     /// Terminal: retired, until the reclaim point frees it.
     Closed,
+}
+
+impl Kit {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_session(&self) -> Token {
+        self.session
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_closed(&self) -> bool {
+        match self.state {
+            State::Closed => true,
+            State::Open | State::Closing => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_jobs(&self) -> &crate::jobs::Jobs {
+        &self.jobs
+    }
 }
 
 pub(crate) fn open(

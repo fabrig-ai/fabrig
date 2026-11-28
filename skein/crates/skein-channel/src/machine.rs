@@ -23,9 +23,9 @@ use skein_lib::{List, Queue, Token, bytes, stream, usize_of};
 
 use super::boundary::{Closed, Event, Lower, LowerEvent, ReadWait, Request, Room, Unsent, Waiting, WriteWait};
 use super::frame::{Control, Frame, Header, Term, control_frame, decode_control, parse_header};
-use super::opening::{accept_open, check_terms, local_terms, offers_version, table_words};
+use super::opening::{check_terms, local_terms, table_words};
 use super::read::{ReadKind, classify};
-use super::schema::{Limits, Role, Schema, SchemaError, Version};
+use super::schema::{Kind, Limits, Role, Schema, SchemaError};
 use super::write::admit;
 use Phase::{Finished, Ready, Refusing, WaitAccept, WaitOpen, WaitOwner, WaitTerms};
 
@@ -33,12 +33,12 @@ use Phase::{Finished, Ready, Refusing, WaitAccept, WaitOpen, WaitOwner, WaitTerm
 enum Phase {
     Idle,
     WaitOpen,
-    WaitOwner { lowest: u16, highest: u16 },
+    WaitOwner,
     WaitAccept,
-    WaitTerms { version: u16, own: OwnTerms, peer: Option<List<Term>> },
-    Ready { version: u16, peer: List<Term> },
+    WaitTerms { own: OwnTerms, peer: Option<List<Term>> },
+    Ready { peer: List<Term> },
     Refusing { why: Closed, finish: Finish },
-    Finished { version: u16, finish: Finish },
+    Finished { finish: Finish },
     Closing { why: Closed },
     Closed,
 }
@@ -49,7 +49,7 @@ impl Phase {
             Self::Closing { .. } | Self::Closed => true,
             Self::Idle
             | Self::WaitOpen
-            | Self::WaitOwner { .. }
+            | Self::WaitOwner
             | Self::WaitAccept
             | Self::WaitTerms { .. }
             | Self::Ready { .. }
@@ -244,8 +244,8 @@ impl Machine {
     pub fn down(&mut self, request: Request, up: &mut Queue<Event>, below: &mut Queue<Lower>) {
         match request {
             Request::Open { credential } => self.open(credential),
-            Request::Accept { version } => self.accept(version, None),
-            Request::AcceptWith { table } => self.accept(table.version, Some(table)),
+            Request::Accept => self.accept(None),
+            Request::AcceptWith { table } => self.accept(Some(table)),
             Request::Refuse { reason, text } => self.refuse(reason, text, Closed::RefusedHere(reason)),
             Request::Read => self.read(up),
             Request::Send { token, frame } => self.send(token, frame, up),
@@ -294,7 +294,7 @@ impl Machine {
             WaitOpen | WaitAccept | WaitTerms { .. } => ReadWait::Opening,
             Ready { .. } | Finished { .. } if self.read_credit() => ReadWait::Frame,
             Phase::Idle
-            | WaitOwner { .. }
+            | WaitOwner
             | Finished { .. }
             | Phase::Closing { .. }
             | Phase::Closed
@@ -306,19 +306,17 @@ impl Machine {
         Waiting { read, write }
     }
 
-    /// The selected version after the opening, if ready.
-    #[must_use]
-    pub fn version(&self) -> Option<u16> {
+    fn opened(&self) -> bool {
         match self.phase {
-            Ready { version, .. } | Finished { version, .. } => Some(version),
+            Ready { .. } | Finished { .. } => true,
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Refusing { .. }
             | Phase::Closing { .. }
-            | Phase::Closed => None,
+            | Phase::Closed => false,
         }
     }
 
@@ -335,8 +333,13 @@ impl Machine {
         if self.role != Role::Initiator || self.phase != Phase::Idle {
             return;
         }
-        let (lowest, highest) = self.schema.range().expect("validated versions");
-        let control = Control::Open { magic: self.schema.magic, lowest, highest, features: 0, credential };
+        let control = Control::Open {
+            magic: self.schema.magic,
+            lowest: self.schema.version,
+            highest: self.schema.version,
+            features: 0,
+            credential,
+        };
         match control_frame(&control, &self.limits) {
             Ok(frame) => {
                 self.queue(frame, QueueTag::Control);
@@ -347,36 +350,24 @@ impl Machine {
         }
     }
 
-    fn accept(&mut self, version: u16, table: Option<Version>) {
-        let allowed = match self.phase {
-            WaitOwner { lowest, highest } => version >= lowest && version <= highest,
-            Phase::Idle
-            | WaitOpen
-            | WaitAccept
-            | WaitTerms { .. }
-            | Ready { .. }
-            | Refusing { .. }
-            | Finished { .. }
-            | Phase::Closing { .. }
-            | Phase::Closed => false,
-        };
-        if !allowed {
+    fn accept(&mut self, table: Option<List<Kind>>) {
+        if self.phase != WaitOwner {
             return;
         }
         if let Some(table) = table
-            && let Err(error) = self.schema.install_version(table, self.role, &self.limits)
+            && let Err(error) = self.schema.install_kinds(table, self.role, &self.limits)
         {
             let text = table_words(error);
             self.refuse(2, text, Closed::RefusedHere(2));
             return;
         }
-        let answer = Control::Accept { version, features: 0 };
+        let answer = Control::Accept { version: self.schema.version, features: 0 };
         let frame = control_frame(&answer, &self.limits).expect("fixed Accept fits");
         self.queue(frame, QueueTag::Control);
-        let terms = local_terms(&self.schema, self.role, version, &self.limits);
+        let terms = local_terms(&self.schema, self.role, &self.limits);
         let frame = control_frame(&Control::Terms { entries: terms }, &self.limits).expect("checked Terms fit");
         self.queue(frame, QueueTag::Terms);
-        self.phase = WaitTerms { version, own: OwnTerms::Due, peer: None };
+        self.phase = WaitTerms { own: OwnTerms::Due, peer: None };
         self.read = ReadState::Header { first: None };
     }
 
@@ -384,7 +375,7 @@ impl Machine {
         let finish = match self.phase {
             Finished { finish, .. } => finish,
             Phase::Closing { .. } | Phase::Closed | Refusing { .. } => return,
-            Phase::Idle | WaitOpen | WaitOwner { .. } | WaitAccept | WaitTerms { .. } | Ready { .. } => Finish::Due,
+            Phase::Idle | WaitOpen | WaitOwner | WaitAccept | WaitTerms { .. } | Ready { .. } => Finish::Due,
         };
         if self.right.failed() {
             self.closing(Closed::Stream, OutputFate::Keep);
@@ -393,6 +384,7 @@ impl Machine {
             }
             return;
         }
+        assert!(reason != 1, "the legacy version refusal is receive-only");
         assert!(text.len() <= 256, "refusal text is at most 256 bytes");
         self.clear_output();
         self.terminal_text.clone_from(&text);
@@ -410,7 +402,7 @@ impl Machine {
             Finished { .. } => self.mode == StreamMode::Two,
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Refusing { .. }
@@ -433,7 +425,7 @@ impl Machine {
 
     fn ping(&mut self) {
         let may_send = match self.phase {
-            WaitOwner { .. } | WaitAccept | WaitTerms { .. } | Ready { .. } => true,
+            WaitOwner | WaitAccept | WaitTerms { .. } | Ready { .. } => true,
             Phase::Idle | WaitOpen | Refusing { .. } | Finished { .. } | Phase::Closing { .. } | Phase::Closed => false,
         };
         if may_send && !self.queued(QueueTag::Ping) && !self.right.failed() {
@@ -443,11 +435,11 @@ impl Machine {
     }
 
     fn send(&mut self, token: Token, frame: Frame, above: &mut Queue<Event>) {
-        let (version, terms) = match self.phase {
-            Ready { version, ref peer } if !self.right.failed() => (version, peer),
+        let terms = match self.phase {
+            Ready { ref peer } if !self.right.failed() => peer,
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Refusing { .. }
@@ -459,7 +451,7 @@ impl Machine {
                 return;
             }
         };
-        match admit(&self.schema, self.role, version, terms, self.room(), &frame) {
+        match admit(&self.schema, self.role, terms, self.room(), &frame) {
             Ok(()) => {
                 self.used_bytes = self.used_bytes.checked_add(frame.wire_len()).expect("admission checked byte room");
                 self.used_frames = self.used_frames.checked_add(1).expect("admission checked frame room");
@@ -472,10 +464,10 @@ impl Machine {
 
     fn finish(&mut self) {
         match self.phase {
-            Ready { version, .. } => self.phase = Finished { version, finish: Finish::Due },
+            Ready { .. } => self.phase = Finished { finish: Finish::Due },
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Refusing { .. }
@@ -557,7 +549,7 @@ impl Machine {
             }
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Ready { .. }
@@ -568,7 +560,7 @@ impl Machine {
     }
 
     fn read_credit(&self) -> bool {
-        self.version().is_some()
+        self.opened()
             && match self.read {
                 ReadState::Header { .. }
                 | ReadState::Body { .. }
@@ -624,7 +616,7 @@ impl Machine {
                         WaitTerms { own, .. } => *own = OwnTerms::Sent,
                         Phase::Idle
                         | WaitOpen
-                        | WaitOwner { .. }
+                        | WaitOwner
                         | WaitAccept
                         | Ready { .. }
                         | Finished { .. }
@@ -713,7 +705,7 @@ impl Machine {
             Refusing { .. } => self.closing(Closed::Stream, OutputFate::Keep),
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Ready { .. }
@@ -745,7 +737,7 @@ impl Machine {
                     | ReadState::Skipped { .. } => true,
                     ReadState::Header { first: Some(_) } | ReadState::Body { .. } | ReadState::Skip { .. } => false,
                 };
-                if self.version().is_some() && between_frames {
+                if self.opened() && between_frames {
                     if self.read_credit() {
                         above.push(Event::Ended);
                     }
@@ -836,15 +828,12 @@ impl Machine {
     }
 
     fn begin_body(&mut self, header: Header, above: &mut Queue<Event>) {
-        let kind = match self.version() {
-            Some(version) => classify(&self.schema, self.role, &self.limits, version, header),
-            None => {
-                if self.header_allowed(header) {
-                    Some(ReadKind::Control)
-                } else {
-                    None
-                }
-            }
+        let kind = if self.opened() {
+            classify(&self.schema, self.role, &self.limits, header)
+        } else if self.header_allowed(header) {
+            Some(ReadKind::Control)
+        } else {
+            None
         };
         match kind {
             Some(ReadKind::Control | ReadKind::Body) => {
@@ -904,10 +893,6 @@ impl Machine {
     }
 
     #[expect(clippy::manual_let_else, reason = "step code uses exhaustive matches instead of let-else")]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the control variants keep their opening and terminal transitions together"
-    )]
     fn received(&mut self, kind: u16, body: Box<[u8]>, above: &mut Queue<Event>) {
         self.record_read = true;
         if kind >= 0x0100 {
@@ -922,24 +907,14 @@ impl Machine {
             }
         };
         match control {
-            Control::Open { magic, lowest, highest, features, credential } => match self.phase {
-                WaitOpen => match accept_open(&self.schema, magic, lowest, highest, features) {
-                    Ok((lowest, highest)) => {
-                        self.phase = WaitOwner { lowest, highest };
-                        above.push(Event::Opening { credential, lowest, highest });
-                    }
-                    Err(reason) => {
-                        if reason == 1 {
-                            let ours = self.schema.range().expect("validated versions");
-                            let text = super::opening::version_words(ours, (lowest, highest));
-                            self.refuse(reason, text, Closed::RefusedHere(reason));
-                        } else {
-                            self.auto_refuse(reason);
-                        }
-                    }
-                },
-                Phase::Idle
-                | WaitOwner { .. }
+            Control::Open { magic, lowest: _, highest: _, features, credential } => match self.phase {
+                WaitOpen if magic == self.schema.magic && features == 0 => {
+                    self.phase = WaitOwner;
+                    above.push(Event::Opening { credential });
+                }
+                WaitOpen
+                | Phase::Idle
+                | WaitOwner
                 | WaitAccept
                 | WaitTerms { .. }
                 | Ready { .. }
@@ -950,9 +925,9 @@ impl Machine {
                     self.framing_error();
                 }
             },
-            Control::Accept { version, features } => {
-                if self.phase == WaitAccept && features == 0 && offers_version(&self.schema, version) {
-                    self.phase = WaitTerms { version, own: OwnTerms::Due, peer: None };
+            Control::Accept { version: _, features } => {
+                if self.phase == WaitAccept && features == 0 {
+                    self.phase = WaitTerms { own: OwnTerms::Due, peer: None };
                     self.read = ReadState::Header { first: None };
                 } else {
                     self.framing_error();
@@ -964,11 +939,11 @@ impl Machine {
                 self.closing(Closed::RefusedPeer(reason), OutputFate::Drop);
             }
             Control::Terms { entries } => {
-                let (version, peer) = match &mut self.phase {
-                    WaitTerms { version, peer, .. } => (*version, peer),
+                let peer = match &mut self.phase {
+                    WaitTerms { peer, .. } => peer,
                     Phase::Idle
                     | WaitOpen
-                    | WaitOwner { .. }
+                    | WaitOwner
                     | WaitAccept
                     | Ready { .. }
                     | Refusing { .. }
@@ -979,13 +954,13 @@ impl Machine {
                         return;
                     }
                 };
-                if !check_terms(&self.schema, self.role, version, &entries) {
+                if !check_terms(&self.schema, self.role, &entries) {
                     self.framing_error();
                     return;
                 }
                 *peer = Some(entries);
                 if self.role == Role::Initiator {
-                    let terms = local_terms(&self.schema, self.role, version, &self.limits);
+                    let terms = local_terms(&self.schema, self.role, &self.limits);
                     let frame =
                         control_frame(&Control::Terms { entries: terms }, &self.limits).expect("checked Terms fit");
                     self.queue(frame, QueueTag::Terms);
@@ -993,7 +968,7 @@ impl Machine {
             }
             Control::Ping => match self.phase {
                 Ready { .. } | Finished { .. } => above.push(Event::Ping),
-                WaitOwner { .. } | WaitAccept | WaitTerms { .. } => {
+                WaitOwner | WaitAccept | WaitTerms { .. } => {
                     above.push(Event::Ping);
                     self.read = ReadState::Header { first: None };
                 }
@@ -1007,7 +982,7 @@ impl Machine {
                 }
                 Phase::Idle
                 | WaitOpen
-                | WaitOwner { .. }
+                | WaitOwner
                 | WaitAccept
                 | WaitTerms { .. }
                 | Refusing { .. }
@@ -1017,26 +992,21 @@ impl Machine {
         }
     }
 
-    fn auto_refuse(&mut self, reason: u16) {
-        let why = if reason == 3 { Closed::Framing } else { Closed::RefusedHere(reason) };
-        self.refuse(reason, Box::from([]), why);
-    }
-
     fn framing_error(&mut self) {
-        self.auto_refuse(3);
+        self.refuse(3, Box::from([]), Closed::Framing);
     }
 
     fn maybe_ready(&mut self, above: &mut Queue<Event>) {
         let phase = mem::replace(&mut self.phase, Phase::Idle);
         self.phase = match phase {
-            WaitTerms { version, own: OwnTerms::Sent, peer: Some(peer) } => {
-                above.push(Event::Ready { version, terms: peer.clone() });
+            WaitTerms { own: OwnTerms::Sent, peer: Some(peer) } => {
+                above.push(Event::Ready { terms: peer.clone() });
                 self.read = ReadState::Idle;
-                Ready { version, peer }
+                Ready { peer }
             }
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Ready { .. }
@@ -1059,15 +1029,15 @@ impl Machine {
                 }
                 self.closing(why, OutputFate::Keep);
             }
-            Finished { version, finish: Finish::Due } => {
+            Finished { finish: Finish::Due } => {
                 if self.mode == StreamMode::One && (self.demand == Demand::Out || self.read_credit()) {
                     return;
                 }
-                self.phase = Finished { version, finish: Finish::Sent };
+                self.phase = Finished { finish: Finish::Sent };
             }
             Phase::Idle
             | WaitOpen
-            | WaitOwner { .. }
+            | WaitOwner
             | WaitAccept
             | WaitTerms { .. }
             | Ready { .. }

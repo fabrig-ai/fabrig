@@ -17,7 +17,7 @@ pub(crate) mod relays;
 pub(crate) mod resources;
 
 use crate::{
-    Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, PendingCall, Record,
+    Ask, CallHolder, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record,
     Request, ToolKind, Write, fresh,
     routing::{Work, effect::procedure::ProcedureCall, run::Proposing},
 };
@@ -60,6 +60,19 @@ pub(crate) struct Flight {
     description: Option<Box<connector::EffectDescription>>,
     judges: List<authority::Judge>,
     given: List<authority::Given>,
+}
+
+impl Flight {
+    pub(crate) fn inspection_owner(&self) -> Option<u64> {
+        match self.origin {
+            // Final projection effects can outlive the goal they describe.
+            EffectOrigin::Projection { .. } => None,
+            EffectOrigin::Call { .. }
+            | EffectOrigin::Propose { .. }
+            | EffectOrigin::Accept { .. }
+            | EffectOrigin::Procedure { .. } => Some(self.origin.task()),
+        }
+    }
 }
 
 #[derive(Hash, Debug)]
@@ -171,7 +184,7 @@ pub(crate) fn start(
                 }
                 None => {}
             }
-            if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, PendingCall::Routed) {
+            if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, CallHolder::Routed) {
                 out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
                 drop_staged(core, &mut out, number, owner);
                 return out;
@@ -215,7 +228,7 @@ pub(crate) fn start(
 
 fn begin_acceptance(core: &mut Core, key: Option<CallKey>, proposal: &tasks::Proposal) -> bool {
     if let Some(key) = key
-        && core.pending_calls.get(&key) != Some(&PendingCall::Routed)
+        && core.pending_calls.get(&key) != Some(&CallHolder::Routed)
     {
         return false;
     }
@@ -246,7 +259,7 @@ fn propose_start(
         drop_staged(core, &mut out, number, owner);
         return out;
     }
-    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, PendingCall::Routed) {
+    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, CallHolder::Routed) {
         out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
         drop_staged(core, &mut out, number, owner);
         return out;
@@ -1447,6 +1460,12 @@ fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>
 }
 
 impl Core {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_effect_reply(&self, entry: u64) -> Option<CallKey> {
+        Some(self.effect_replies.get(&entry)?.key)
+    }
+
     /// Earliest absolute wall time among retained effect reply rights
     /// (`domain/engine/vocabulary.md`, 1.4). Stale rights remain visible until the
     /// existing effect-deadline event consumes them; this query changes nothing.

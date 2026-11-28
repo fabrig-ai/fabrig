@@ -344,7 +344,10 @@ impl skein_sim_world::Machine for Machine {
                 *from_dir = self.resolve(*from_dir);
                 *to_dir = self.resolve(*to_dir);
             }
-            Ask::Remove { dir, .. } | Ask::MakeDirectory { dir, .. } | Ask::List { dir, .. } => {
+            Ask::ReadLink { dir, .. }
+            | Ask::Remove { dir, .. }
+            | Ask::MakeDirectory { dir, .. }
+            | Ask::List { dir, .. } => {
                 *dir = self.resolve(*dir);
             }
             Ask::Lock { file }

@@ -9,7 +9,7 @@ pub(super) const VERSION: &[u8] = b"0.0.0 (b948f40d6df1)";
 
 pub(super) fn root() -> Domain {
     let mut root = f::signed_out();
-    f::client(&mut root, Event::Up { up: Up::Served { served: false, versions: None } });
+    f::client(&mut root, Event::Up { up: Up::Served { served: false } });
     root
 }
 
@@ -35,9 +35,9 @@ fn a_build_refused_replaces_every_page_without_bindings_or_a_tick() {
                 &mut root,
                 Event::Up {
                     up: if family {
-                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None, served: false }
+                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, served: false }
                     } else {
-                        Up::Served { served: false, versions: None }
+                        Up::Served { served: false }
                     },
                 },
             );

@@ -1269,3 +1269,76 @@ fn saving_preserves_host_feedback_and_a_stale_branch_ends_the_run() {
         }
     }
 }
+
+#[test]
+fn deliver_and_finish_use_only_their_own_check_in_each_directory() {
+    use crate::{Hook, Hooks};
+
+    for (hooks, deliver_path, finish_path) in [
+        (
+            Some(Hooks { deliver: Hook::Executable, finish: Hook::Executable }),
+            b".temper/hooks/deliver".as_slice(),
+            Some(b".temper/hooks/finish".as_slice()),
+        ),
+        (Some(Hooks { deliver: Hook::Executable, finish: Hook::Missing }), b".temper/hooks/deliver".as_slice(), None),
+        (None, b".temper/pre-pr".as_slice(), Some(b".temper/pre-pr".as_slice())),
+    ] {
+        let (mut harness, conversation) = hook_run(hooks);
+        let mut deliver = mid_ask(conversation, 1);
+        let Event::Delegated { ask, .. } = &mut deliver else { unreachable!("delivery fixture") };
+        *ask = Ask::Deliver { change: change() };
+        let requested = harness.step(deliver);
+        let owner = settle_selected_check(&mut harness, &requested, Some(deliver_path));
+        let mid = harness.step(Event::Delivered { owner, delivery: delivered() });
+        assert_eq!(mid.as_ref(), &[returned(50, Returned::Delivered(receipts()))]);
+
+        let requested = harness.step(finish(conversation, 7, Declared::Change(change())));
+        let owner = settle_selected_check(&mut harness, &requested, finish_path);
+        let closed = harness.step(Event::Delivered { owner, delivery: delivered() });
+        assert_eq!(closed.as_ref(), &[returned(7, Returned::Delivered(receipts())), Request::Close { peer: PEER }]);
+    }
+}
+
+fn hook_run(hooks: Option<crate::Hooks>) -> (Harness, Token) {
+    let mut harness = Harness::new(LIMITS);
+    let mut checkout = coding_workspace();
+    checkout.directories[0].name = bytes(b"work");
+    checkout.directories[1].writable = false;
+    let mut policy = coding();
+    policy.grants.deliver = policy.outcome.change.clone();
+    policy.conventions.as_mut().expect("selected conventions").hooks = Some(bytes(b".temper/hooks"));
+    let requests = harness.start_workspace(1, policy, Some(checkout));
+    let [Request::Admitted { run, .. }, Request::Read { .. }] = &*requests else { panic!("admitted: {requests:?}") };
+    let run = *run;
+    let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+    let [Request::ProbeHooks { owner, at, .. }] = &*requests else { panic!("hooks first: {requests:?}") };
+    assert_eq!((*owner, at.root, at.path.as_ref()), (run, Token::new(900), b".temper/hooks".as_slice()));
+    let mut requested = harness.step(Event::HooksProbed { owner: run, hooks });
+    if hooks.is_none() {
+        let [Request::Probe { owner, at, .. }] = &*requested else { panic!("fallback: {requested:?}") };
+        assert_eq!((*owner, at.root, at.path.as_ref()), (run, Token::new(900), b".temper/pre-pr".as_slice()));
+        requested = harness.step(Event::Probed { owner: run, executable: true });
+    }
+    let [Request::Read { at, .. }] = &*requested else { panic!("read second guide, not legacy: {requested:?}") };
+    assert_eq!(at.root, Token::new(901));
+    let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+    let [Request::Open { conversation, .. }] = &*requests else { panic!("no readonly probe: {requests:?}") };
+    drop(harness.step(Event::Started { conversation: *conversation, peer: PEER }));
+    (harness, *conversation)
+}
+
+fn settle_selected_check(harness: &mut Harness, requested: &[Request], selected: Option<&[u8]>) -> Token {
+    let checked;
+    let landing = if let Some(path) = selected {
+        let [Request::Check { owner, program, .. }, Request::Checking { .. }] = requested else {
+            panic!("one check at {path:?}: {requested:?}");
+        };
+        assert_eq!((program.root, program.path.as_ref()), (Token::new(900), path));
+        checked = harness.step(pass_checks(*owner));
+        checked.as_ref()
+    } else {
+        requested
+    };
+    let [Request::Deliver { owner, .. }] = landing else { panic!("one submission, no second check: {landing:?}") };
+    *owner
+}

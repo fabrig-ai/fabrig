@@ -620,10 +620,17 @@ impl World {
     }
 }
 
-/// Drive independent obligation checks over seeded asks, envelopes and restarts.
-/// Returns a trace fingerprint for replay checks; panics on a broken promise.
+/// Check a fixed stream of asks, envelopes and restarts, including its reach.
+/// Returns a trace fingerprint for replay checks.
 #[must_use]
 pub fn check(seed: u64, rounds: u32) -> u64 {
+    check_with_reach(seed, rounds, true)
+}
+
+/// Check every step and settlement, with optional reach assertions over the stream.
+/// Returns a trace fingerprint for replay checks.
+#[must_use]
+pub fn check_with_reach(seed: u64, rounds: u32, check_reach: bool) -> u64 {
     let mut rng = Rng::new(seed);
     let mut coverage = Coverage::default();
     let mut trace = 0_u64;
@@ -698,7 +705,7 @@ pub fn check(seed: u64, rounds: u32) -> u64 {
         world.settle(&mut coverage);
         trace = trace.rotate_left(1) ^ world.digest;
     }
-    if rounds >= 64 {
+    if check_reach && rounds >= 64 {
         assert!(coverage.asks > 0 && coverage.refused > 0 && coverage.saves > 0 && coverage.sends > 0);
         assert!(coverage.envelopes.iter().all(|count| *count > 0), "all envelope transitions covered: {coverage:?}");
         assert!(coverage.progress_owners.iter().all(|count| *count > 0), "every owner gets progress: {coverage:?}");

@@ -82,6 +82,55 @@ fn an_unframed_assistant_is_complete_on_receipt() {
     assert_eq!(turns.ready.len(), 1);
 }
 #[test]
+fn an_assistant_reports_its_usage_speed_on_its_own_completion() {
+    use smith_domain::llm::ServedSpeed;
+
+    let mut turns = turns();
+    for (id, speed, served) in [
+        ("first", Some("fast"), ServedSpeed::Named(b"fast".as_slice().into())),
+        ("second", Some("standard"), ServedSpeed::Standard),
+        ("third", None, ServedSpeed::Unreported),
+    ] {
+        let mut record = assistant(json!([call()]));
+        record["message"]["id"] = json!(id);
+        if let Some(speed) = speed {
+            record["message"]["usage"]["speed"] = json!(speed);
+        }
+        feed(&mut turns, record).expect("assistant with usage");
+        let completion = turns.ready.pop().expect("one completion per assistant message");
+        assert_eq!(completion.served, served);
+    }
+}
+
+#[test]
+fn framed_usage_updates_speed_only_when_a_patch_reports_it() {
+    use smith_domain::llm::ServedSpeed;
+
+    for (initial, delta_speed, expected) in [
+        ("fast", None, ServedSpeed::Named(b"fast".as_slice().into())),
+        ("fast", Some(json!("standard")), ServedSpeed::Standard),
+        ("standard", Some(Value::Null), ServedSpeed::Unreported),
+    ] {
+        let mut turns = turns();
+        let mut start = partial("message_start");
+        start["event"]["message"]["usage"] = json!({"speed":initial});
+        feed(&mut turns, start).expect("framed message starts with speed");
+        feed(&mut turns, partial("content_block_start")).expect("one block");
+        feed(&mut turns, assistant(json!([call()]))).expect("content without a repeated speed report");
+        let mut delta = partial("message_delta");
+        delta["event"]["usage"] = json!({"input_tokens":13_u64,"output_tokens":9_u64});
+        if let Some(speed) = delta_speed {
+            delta["event"]["usage"]["speed"] = speed;
+        }
+        feed(&mut turns, delta).expect("framed final usage");
+        feed(&mut turns, partial("message_stop")).expect("framed message ends");
+        let completion = turns.ready.pop().expect("one completion");
+        assert_eq!(completion.served, expected);
+        assert_eq!(completion.usage.output_tokens, Some(9));
+    }
+}
+
+#[test]
 fn a_fifth_waiting_completion_is_refused() {
     let mut turns = turns();
     for _ in 0_u32..4 {

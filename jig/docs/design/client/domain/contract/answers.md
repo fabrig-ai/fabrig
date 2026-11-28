@@ -148,7 +148,8 @@ Every request has one answer, of one of these kinds:
 - **signed out:** the sign-in has ended; sign in, then send it again;
 - **version not served:** the engine does not serve the version the
   request's owner is encoded in. Nothing was read, made or kept. It
-  names the owner and the ranges the engine serves (`README.md`, section 6).
+  names the owner, its ranges keeping their bytes, which no client
+  reads (`README.md`, section 6).
 
 A client hears one more, which no engine sends: **no answer**, when the
 connection failed before one came; whether the engine has the request is

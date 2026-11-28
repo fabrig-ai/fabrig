@@ -9,6 +9,7 @@ pub struct CloserRow {
     pub closer: Closer,
     pub making: Option<Step>,
     pub close_changes: Box<[u64]>,
+    pub catch_up_changes: Box<[u64]>,
     pub superseded: Box<[u64]>,
     pub landing_changes: Box<[u64]>,
     pub done: bool,

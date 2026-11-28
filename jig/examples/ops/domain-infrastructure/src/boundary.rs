@@ -151,7 +151,7 @@ pub enum Backend {
     NoOperationIds,
 }
 
-/// A infrastructure effect.
+/// An infrastructure effect.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
     /// Restart once by operation ID where supported.
@@ -197,10 +197,6 @@ pub struct Description {
     pub resources: Box<[Resource]>,
     /// Whether the system checks the starting state when applying.
     pub condition: bool,
-    /// Creation, transition or set.
-    pub form: Form,
-    /// Recovery offered by this backend.
-    pub recovery: Recovery,
     /// Maximum cost, if this is priced.
     pub price: Option<u64>,
     /// State the requirement judges are asked about.
@@ -618,7 +614,7 @@ pub enum Request {
     /// A fact changed and procedures should step again.
     Changed { resource: Resource },
     /// Description for the core's authority check.
-    Described { token: Token, description: Description, waits_for_dependencies: bool },
+    Described { token: Token, description: Description },
     /// An invalid effect was refused before authority.
     Refused { token: Token },
     /// A committed outbox entry ready to make after release.

@@ -420,6 +420,48 @@ table's words, its rule the table's:
   never evicted (`people/acts.md`, 1); the draft's eviction is a
   connector's own.
 
+**Placements and flights** (`temper/docs/design/draft/misbehaving-agents.md`,
+7), which `core` reads beside the task child:
+
+- **`placements`:** each attempt the fleet places on a host's channel,
+  keyed `run R attempt A` by the fleet's numbers, its capacity the
+  fleet's bound on attempts, its rule `its attempt's end`: pending while
+  its attempt is live, due once its attempt has ended and the fleet
+  still places it.
+- **`flights`:** each flight the core keeps while a child's reply is
+  owed, keyed by its kind and its task in the core's words, its capacity
+  the core's bound on flights, its rule `its reply`: pending while its
+  task lives, due once its task has ended and the flight is still kept.
+
+**Relations** (`skein/docs/design/testing/inspection.md`, 4.3), jig's,
+since jig may name smith and its host: each a `jig_inspect` constant,
+its words agreed with smith's adapter (`smith/docs/design/testing.md`, 6)
+and with a composed world's links.
+
+| Relation | Key | Sides | Matched |
+|---|---|---|---|
+| `HOST_CALLS`, `a run's host calls` | `task T attempt A completion C position P`, jig's call key | `smith`: `an open call`; `jig`: `a call record`, `an answer retained for replay`, `a cancelled run's call`, `a relay in flight`; `jig host`: `a relay in flight`; `links`: `a relay in flight` | each open call by a call record, an answer retained for replay, or a relay in flight; each call record by an open call or a relay in flight |
+| `PLACEMENTS`, `a run's placement` | `run R attempt A`, the fleet's numbers | `jig`: `a placement`; `jig host`: `a hosted slot`, `a terminal awaiting its acknowledgement`; `links`: `a relay in flight` | each placement by a hosted slot, a terminal awaiting its acknowledgement, or a relay in flight; each hosted slot by a placement or a relay in flight |
+
+- **jig's records,** written by `core`: each call of a live attempt the
+  core holds unsettled, `a call record`; each settled call it keeps for
+  its task's next attempt (`engine/decisions.md`, 1.4), `an answer
+  retained for replay`; each call of an attempt its task's cancel ended,
+  `a cancelled run's call`; each call the fleet relays between a host and
+  the core, by the key its smith call name decodes to under its attempt,
+  `a relay in flight`; each attempt the fleet places, `a placement`.
+- **The host's records,** written by `jig_inspect::host` over a host's
+  hub, component `jig host`: each run it hosts unanswered, `a hosted
+  slot`; each terminal it keeps until the root acknowledges it, `a
+  terminal awaiting its acknowledgement`; each call it relays, `a relay
+  in flight`.
+- **The skews,** sides no rule must match, each a valid quiet point's
+  state by name: an answer retained for replay, a cancelled run's call, a
+  terminal awaiting its acknowledgement, and a relay in flight.
+- **A valid state the relations don't name,** found by a sweep, is asked
+  up before a skew is added for it: an equality that fails a valid state
+  is the relation's defect, an orphan in a valid state the product's.
+
 **Records** (`temper/docs/design/draft/bounded-waits.md`, 12): beside
 the waits above, jig's own check, `jig_inspect::records`, reads each live
 task's waits as the core computes them (`engine/waits.md`) and judges:
@@ -484,6 +526,14 @@ checks' form, and fails the driver as theirs do.
   are not moved past by the driver's own iterations. The core world's
   `joint_clock::restart_and_advance_keep_the_implicit_clock_at_their_boundary`
   pins this rule.
+- **The relations** are checked where a world runs all of a relation's
+  components: temper's composed world, over its smiths, its engine's
+  core, its lanes' hubs and its links
+  (`temper/docs/design/testing/checks.md`, 6.1). The core kit's worlds
+  hold no smith and no hub beside the core, and jig's one-process world
+  runs them inside its service's processes, which no quiet point borrows
+  (`skein/docs/design/testing/inspection.md`, 8): jig's worlds read
+  `placements` and `flights` with `core`, and check no relation.
 - **The engine-clients world:** `jig_engine_clients_kit::Peer` calls both
   over `jig_inspect::engine_clients` where its pump finds nothing left to
   do; its moment is the peer's seed, its time and a count of its passes.

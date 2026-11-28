@@ -39,7 +39,7 @@ pub struct Joint {
     last_client: Option<ClientId>,
     last_watch: Option<(ClientId, Token)>,
     last_attempt: Option<(ClientId, Token)>,
-    version_fault: Option<jig_client_domain::contract::VersionRange>,
+    version_fault: Option<bool>,
     restart_configuration: Option<fn() -> jig_test_domain::Config>,
     busy_pressure: Option<fn() -> jig_fake_parties::Party>,
     not_ready_restore: Option<(fn() -> jig_test_domain::Config, Duration)>,
@@ -91,23 +91,14 @@ impl Joint {
     }
 
     /// Poll original core callbacks for an unlinked client with the supplied owners.
-    /// This front serves Jig; undeclared family ranges are never invented.
+    /// This front serves Jig by default and serves no application owners.
     pub fn up(&mut self, now: Time, wall: Wall, owners: &[jig_client::Spoken]) -> Vec<(ClientId, jig_client::Up)> {
         let mut up = Vec::new();
         for (client, event) in Front::<Test>::poll(self, now, wall) {
-            if let Event::Client {
-                event: jig_client::Event::Up { up: jig_client::Up::Served { served, versions: None } },
-            } = &event
-            {
-                up.push((
-                    client,
-                    jig_client::Up::Served { served: *served, versions: Some(self.session.driver.transport.served()) },
-                ));
+            if let Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served } } } = &event {
+                up.push((client, jig_client::Up::Served { served: *served }));
                 for owner in owners {
-                    up.push((
-                        client,
-                        jig_client::Up::FamilyServed { family: owner.family, versions: None, served: false },
-                    ));
+                    up.push((client, jig_client::Up::FamilyServed { family: owner.family, served: false }));
                 }
             } else {
                 let callback = super::transport::contract_event(&event).expect("original contract transport callback");
@@ -123,9 +114,9 @@ impl Joint {
         self.unsigned_on_bind = true;
     }
 
-    /// Configure the actual incompatible served range for a version fault.
-    pub fn version_fault(&mut self, versions: jig_client_domain::contract::VersionRange) {
-        self.version_fault = Some(versions);
+    /// Supply the layout verdict for a version fault.
+    pub fn version_fault(&mut self, served: bool) {
+        self.version_fault = Some(served);
     }
 
     /// Supply the scenario's actual cold-root configuration independently of
@@ -193,10 +184,10 @@ impl Joint {
                 self.observations.push(Observed::Reachable { live: false });
             }
             FrontFault::Versions => {
-                let Some(versions) = self.version_fault else {
+                let Some(served) = self.version_fault else {
                     return Err(FaultInvalid::Pending(PendingFault::Versions));
                 };
-                self.session.versions(versions);
+                self.session.set_served(served);
             }
             FrontFault::ObjectGone => return Err(FaultInvalid::Pending(PendingFault::ObjectGone)),
         }
@@ -654,7 +645,14 @@ mod tests {
         assert_eq!(front.session.driver.world.store.applied, applied + 1);
         assert_eq!(front.session.driver.world.commits.len(), commits + 1);
         Front::<Test>::sign_in(&mut front, ClientId(0), later, clock(later));
-        assert!(take_signed_in(ClientId(0), poll(&mut front, later, clock(later))).is_empty());
+        let callbacks = take_signed_in(ClientId(0), poll(&mut front, later, clock(later)));
+        assert!(matches!(
+            callbacks.as_slice(),
+            [(
+                ClientId(0),
+                Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } }
+            )]
+        ));
         assert!(front.session.driver.transport.sign_in(ClientId(0)).is_some());
         assert_eq!(front.session.sign_in_again(ClientId(0)), None);
         assert!(front.session.driver.world.store.applied > applied);
@@ -739,26 +737,23 @@ mod tests {
     }
 
     #[test]
-    fn the_real_front_version_fault_uses_the_supplied_whole_protocol_range_independently_of_business_frames() {
+    fn the_real_front_version_fault_uses_the_layout_verdict_independently_of_business_frames() {
         let mut front = front();
         Front::<Test>::bind(&mut front, ClientId(0), 1);
         let _ = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let _ = Front::<Test>::observed(&mut front);
         let rows = front.session.driver.world.store.rows.clone();
-        let supplied = client::VersionRange { first: u32::MAX, last: u32::MAX };
-        front.version_fault(supplied);
+        front.version_fault(false);
         Front::<Test>::fault(&mut front, Time::ZERO, FrontFault::Versions);
         let callbacks = poll(&mut front, Time::ZERO, clock(Time::ZERO));
         assert!(matches!(
             callbacks.as_slice(),
             [(
                 ClientId(0),
-                Event::Client {
-                    event: jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } }
-                }
+                Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: false } } }
             )]
         ));
-        assert_eq!(front.session.driver.transport.hello(), jig_client::Up::Served { served: false, versions: None });
+        assert_eq!(front.session.driver.transport.hello(), jig_client::Up::Served { served: false });
         assert_eq!(front.session.driver.world.store.rows, rows);
         assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
     }

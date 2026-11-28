@@ -56,6 +56,8 @@ pub use brief_words::{BriefFate, BriefUnread};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::brief_words;
 mod capabilities;
+mod hooks;
+pub use hooks::{CLOSE_HOOK, Hooks};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod workflows;
 pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};
@@ -66,7 +68,6 @@ mod execution;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::commit;
 mod connect;
-pub mod member_message;
 pub use closer::{CloserPark, CloserRow};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod status;
@@ -194,6 +195,7 @@ mod topics;
 mod verification;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
+pub use domain::full::Reservation as RoomReservation;
 pub use domain::{
     DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, StartLink, TaskHold, fire, resume, step, tag, untag, writer,
 };
@@ -206,6 +208,7 @@ pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
     PanelSource, PanelStands, PanelStep, PanelUsed, PanelWait, ReviewFacts, ReviewRead, UnmappedReview,
 };
+pub use room::Waiter as RoomWaiter;
 pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
 pub use temper_engine_domain_forge_landing::{
     Combine as LandingCombine, GateReport, Hold as LandingHold, Leave as LandingLeave, Phase as LandingPhase,

@@ -12,6 +12,7 @@ S: `temper-box`; E: `temper-engine`; W: `temper-worker`. Help lists public keys 
 
 | Key | Shapes | Set | Form and bound | Default | What it says |
 |---|---|---|---|---|---|
+| `format` | S E W | public | a whole number from 1 to the newest format | 1 | the format the file is written in (written only above 1) |
 | `listen` | S E | public | a socket address on loopback, such as "127.0.0.1:7100" | 127.0.0.1:7100 | where the client connects |
 | `public` | S E | public | an origin within 267 bytes; the start checks its form | the listener's origin | where people reach it |
 | `webhooks` | S E | public | a socket address on loopback, such as "127.0.0.1:7100" | listen's next port (0 stays 0) | the forge's webhooks' listener |
@@ -139,9 +140,17 @@ S: `temper-box`; E: `temper-engine`; W: `temper-worker`. Help lists public keys 
 - `workers[].secret`: a worker's secret is secrets/worker.secret in the data directory.
 - `workers[].agent`: temper writes the agent's configuration from the engine's figures.
 
+## Formats
+
+Format 1 is the newest temper-box reads; a file without format is format 1.
+
+Format 1 is the newest temper-engine reads; a file without format is format 1.
+
+Format 1 is the newest temper-worker reads; a file without format is format 1.
+
 ## The merge command
 
-`merge_job` names this command, a path in the repository being merged. It settles the conflicts its project's rules know, with no model, before an agent is asked. temper takes it from the merge in progress: a command file left in conflict, or absent from the merge, is its failure.
+The command is the repository's `.temper/hooks/merge`, or the project's `merge_job` in a repository without `.temper/hooks/`. It settles the conflicts its project's rules know, with no model, before an agent is asked. temper takes it from the merge in progress: a command file left in conflict, or absent from the merge, is its failure.
 
 - **What it is given:** its arguments, `merge` and the path of `request.json`, which holds `{"version":1,"head":"HEAD","base":"BASE"}`: the head merged into, and the commit merged in. Its environment is `PATH` (`/usr/local/bin:/usr/bin:/bin`), `LANG` (`C.UTF-8`), and `HOME` and `TEMPER_JOB`, both the job's directory, which is its working directory too. No credential reaches it. It has 600 seconds.
 - **Where it works:** the repository is the directory of its own name under `TEMPER_JOB`, at the head with the base merged in and not committed; the conflicting files are marked and unmerged in the index (`git diff --name-only --diff-filter=U`).

@@ -185,7 +185,8 @@ fn opened_rehearsal() -> World {
                 && !crate::upgrade::phase::ready(&hosted.component)
             {
                 snapshot_yields = snapshot_yields.checked_add(1).unwrap();
-                if let Some(crate::upgrade::phase::Patching::Jobs(_)) = crate::directory::patching(&hosted.component) {
+                if let Some(crate::upgrade::phase::Upgrading::Jobs(_)) = crate::directory::upgrading(&hosted.component)
+                {
                     job_snapshot_yields = job_snapshot_yields.checked_add(1).unwrap();
                 }
             }

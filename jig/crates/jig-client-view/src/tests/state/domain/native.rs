@@ -72,7 +72,7 @@ fn signed_out_shows_the_sign_in_page_and_keeps_the_place() {
 fn out_of_date_shows_its_page_and_sends_nothing() {
     let mut goldens = Goldens::new("state/domain/native/out_of_date");
     let (mut fixture, _) = ready(&LIMITS);
-    drive(&mut fixture, Time::ZERO, Up::Served { served: false, versions: None });
+    drive(&mut fixture, Time::ZERO, Up::Served { served: false });
     assert_eq!(fixture.page(), &Page::OutOfDate);
     assert!(
         drive(&mut fixture, Time::ZERO, Event::Act { action: Act::Go { address: Address::task(TASK) } }).is_empty()

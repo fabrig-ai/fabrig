@@ -118,8 +118,10 @@ fn make_change(
             resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
         },
         tasks::Parameter::Bytes { name: 2, value: branch.into() },
-        tasks::Parameter::Bytes { name: 17, value: request.into() },
     ];
+    if !request.is_empty() {
+        parameters.push(tasks::Parameter::Bytes { name: 17, value: request.into() });
+    }
     if let Some(extra) = extra {
         parameters.push(extra);
     }
@@ -162,22 +164,35 @@ fn finish_with_on(world: &mut World, channel: Token, job: &host::JobAssignment, 
 }
 
 pub(super) const CLOSE_COUNTS: [u8; 32] = [0x33; 32];
+pub(super) const CLOSE_FAILURE: &str = "test A::rules rule_00";
 
 pub(super) fn check_refusal(head: [u8; 32], base: [u8; 32]) -> Box<[u8]> {
-    refusal_with(head, base, r#""test A::rules rule_00""#)
+    refusal_with(head, Some((base, CLOSE_COUNTS)), &[CLOSE_FAILURE], 0)
 }
 
-pub(super) fn refusal_with(head: [u8; 32], base: [u8; 32], failures: &str) -> Box<[u8]> {
-    let head = forge_top::commit_text(&head);
-    let base = forge_top::commit_text(&base);
-    let counts = forge_top::commit_text(&CLOSE_COUNTS);
-    let head = core::str::from_utf8(&head).expect("head hex");
-    let base = core::str::from_utf8(&base).expect("base hex");
-    let counts = core::str::from_utf8(&counts).expect("counts hex");
+pub(super) fn refusal_with(
+    head: [u8; 32],
+    against: Option<([u8; 32], [u8; 32])>,
+    failures: &[&str],
+    more: usize,
+) -> Box<[u8]> {
+    let head = refusal_commit(head);
+    let (base, counts) = match against {
+        Some((base, counts)) => (refusal_commit(base), refusal_commit(counts)),
+        None => ("null".to_owned(), "null".to_owned()),
+    };
     let tree = "2222222222222222222222222222222222222222";
-    format!(r#"{{"refused":{{"head":"{head}","tree":"{tree}","base":"{base}","counts":"{counts}","failures":[{failures}]}}}}"#)
+    let failures = serde_json::to_string(failures).expect("failure names as JSON");
+    let more = if more == 0 { String::new() } else { format!(",\"more\":{more}") };
+    format!("{{\"refused\":{{\"head\":{head},\"tree\":\"{tree}\",\"base\":{base},\"counts\":{counts},\"failures\":{failures}{more}}}}}\n")
         .into_bytes()
         .into_boxed_slice()
+}
+
+fn refusal_commit(commit: [u8; 32]) -> String {
+    let hex = forge_top::commit_text(&commit);
+    let hex = core::str::from_utf8(&hex).expect("commit hex");
+    format!("\"{hex}\"")
 }
 
 #[test]
@@ -332,6 +347,36 @@ fn a_malformed_close_request_refuses_the_start() {
         (REQUEST, Some(tasks::Parameter::Bytes { name: 3, value: b"temper/handed".as_slice().into() })),
     ] {
         refused(true, true, request, extra, b"malformed close request parameter 17.");
+    }
+}
+
+#[test]
+fn a_close_change_checks_and_uses_its_hook_parameter_without_a_setting() {
+    use temper_protocol_worker_wire::v1::{self, Record};
+    let (mut world, goal, branch, _) = goal_world(false, true);
+    let parameter = tasks::Parameter::Bytes { name: 20, value: forge_top::CLOSE_HOOK.into() };
+    let task = make_change(&mut world, &goal, &branch, REQUEST, Some(parameter));
+    let job = next_job(&mut world, task);
+    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/close");
+    world.close();
+
+    let long = vec![b'x'; 4097];
+    for (request, path) in [
+        (REQUEST, b"".as_slice()),
+        (REQUEST, b"/close".as_slice()),
+        (REQUEST, b"hooks/../close".as_slice()),
+        (REQUEST, b"close\0more".as_slice()),
+        (REQUEST, long.as_slice()),
+        (b"".as_slice(), forge_top::CLOSE_HOOK),
+    ] {
+        refused(
+            true,
+            true,
+            request,
+            Some(tasks::Parameter::Bytes { name: 20, value: path.into() }),
+            b"malformed close hook parameter 20.",
+        );
     }
 }
 
@@ -571,7 +616,7 @@ fn measuring_a_refused_close_runs_one_fresh_job_at_unchanged_tips() {
     assert_eq!((accepted.revision, accepted.measure), (revision, true));
     assert_eq!(
         row.close_at,
-        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None })
+        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None, outdated: None })
     );
     finish_job(&mut world, &fresh);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
@@ -600,6 +645,7 @@ fn moving_main_alone_rechecks_a_refused_close() {
             landing: translate::commit(landing),
             asked: true,
             refused: None,
+            outdated: None,
         })
     );
     finish_job(&mut world, &fresh);

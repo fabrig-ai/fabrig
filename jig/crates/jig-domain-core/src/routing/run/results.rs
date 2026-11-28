@@ -403,7 +403,7 @@ fn discard_party(core: &mut Core, replay: Replay) {
             drop(core.land_kind(request, crate::routing::flight::Kind::Party));
         }
         Replay::Agent { key, .. } => {
-            if core.pending_calls.get(&key) == Some(&crate::PendingCall::Routed) {
+            if core.pending_calls.get(&key) == Some(&crate::CallHolder::Routed) {
                 core.release_pending_call(key);
             }
         }

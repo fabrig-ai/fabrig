@@ -42,6 +42,7 @@ mod limits;
 mod pieces;
 mod respond;
 mod slots;
+mod stretches;
 mod take;
 #[cfg(test)]
 mod tests;

@@ -1,13 +1,16 @@
-//! Jig's waits and bounded tables (jig/docs/design/domain/testing-fakes.md, 1.1).
+//! Jig's waits, bounded tables and relations (jig/docs/design/domain/testing-fakes.md, 1.1).
 //! These reads run at a world's quiet point and change none of the inspected state.
 mod engine_clients;
 pub use engine_clients::{ENGINE_CLIENTS_KINDS, engine_clients};
 
 mod records;
+mod relations;
+mod runs;
 mod tables;
 mod waits;
 
 pub use records::{check_records, records};
+pub use relations::{HOST_CALLS, PLACEMENTS, host};
 
 use jig_domain_core::Core;
 use jig_domain_tasks::Domain;
@@ -81,4 +84,7 @@ pub fn core(core: &Core, into: &mut Inspection) {
         }
     }
     tables::answers(core, into);
+    runs::placements(core, into);
+    runs::flights(core, into);
+    runs::host_calls(core, into);
 }

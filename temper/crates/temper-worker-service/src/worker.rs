@@ -1369,7 +1369,7 @@ impl Worker {
             Ok(()) => return Ok(()),
             Err(complete) => complete,
         };
-        let complete = match self.job_complete(complete) {
+        let complete = match self.job_complete(now, complete) {
             Ok(()) => return Ok(()),
             Err(complete) => complete,
         };
@@ -1535,7 +1535,7 @@ mod prepared_tests {
         let accept = skein_channel::control_frame(&skein_channel::Control::Accept { version, features: 0 }, &channel)
             .expect("accept frame");
         let mut entries = List::uncapped();
-        for kind in &schema.version(version).expect("current version").kinds {
+        for kind in &schema.kinds {
             if kind.direction == skein_channel::Direction::FromInitiator {
                 entries.push(skein_channel::Term { kind: kind.kind, largest: kind.largest }).expect("uncapped terms");
             }
@@ -1680,10 +1680,7 @@ mod prepared_tests {
         assert_eq!(opening(&mut worker, &link_limits, &table), expected);
 
         let mut prepared = crate::worker_settings::prepare(&settings, &agent, &limits).expect("prepared bounds");
-        let last = prepared.schema.versions.len().checked_sub(1).expect("nonempty table");
-        let current = prepared.schema.versions.get_mut(last).expect("current table");
-        for index in 0..current.kinds.len() {
-            let kind = current.kinds.get_mut(index).expect("kind in table");
+        for kind in prepared.schema.kinds.iter_mut() {
             if kind.direction == skein_channel::Direction::FromResponder {
                 kind.largest = kind.largest.checked_sub(1).expect("nonempty body");
                 break;
@@ -1732,7 +1729,7 @@ mod merge_tests {
             panic!("ready declares capabilities");
         };
         let close =
-            JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
+            JobBound { kind: JobKind(4), spec: 16_384, result: 8_192, deadline: skein_lib::Duration::from_secs(600) };
         assert!(hello.jobs.contains(&close));
         assert_eq!(hello.jobs.len(), 3, "the refusal ask is not a new kind");
         let kinds = crate::worker_settings::job_kinds();

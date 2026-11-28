@@ -1,6 +1,10 @@
 //! Whole fake-machine roots, including empty directories and their permissions.
+//! Kept copies carry the frame registry of jig/docs/design/protocol/store/transcripts.md, 6.
+//! Their deployment headers keep the commit number (jig/docs/design/protocol/store/commits.md, 1).
 use skein_fake_machine::{How, Is, Item, Machine, Opened};
+use skein_kv::Op;
 use std::{fmt::Write as _, os::unix::fs::PermissionsExt, path::Path};
+use temper_deployment_fixtures::log;
 
 const ROOTS: [&str; 4] = ["state", "worker", "client", "setup"];
 
@@ -128,6 +132,14 @@ pub(crate) fn load(directory: &Path) -> Machine {
     disk
 }
 
+/// Give the kept floor and dev copies the two frame layouts from dev's registry.
+pub(crate) fn load_kept(directory: &Path) -> Machine {
+    let mut disk = load(directory);
+    assert_eq!(active(&mut disk), b"1\n", "kept source generation");
+    edit_log(&mut disk, temper_deployment_fixtures::frame_registry_commit);
+    disk
+}
+
 pub(crate) fn active(disk: &mut Machine) -> Vec<u8> {
     let root = disk.reopen_root(0);
     let opened = disk.open(root, b"active", How::ReadNoFollow).expect("active file");
@@ -137,33 +149,28 @@ pub(crate) fn active(disk: &mut Machine) -> Vec<u8> {
     bytes
 }
 
-/// Append one valid map commit only in the loaded copy; the fixture stays byte-for-byte.
 pub(crate) fn change_record(disk: &mut Machine, key: &[u8], value: Option<&[u8]>) {
-    let active = active(disk);
-    let active = std::str::from_utf8(&active).expect("active text").trim();
+    let key = key.into();
+    let op = match value {
+        Some(value) => Op::Put { key, value: value.into() },
+        None => Op::Erase { key },
+    };
+    edit_log(disk, |bytes| {
+        let (frames, used) = log::frames(bytes, 0);
+        assert_eq!(used, bytes.len(), "whole golden log");
+        let number = frames.last().expect("kept commits").0 + 1;
+        log::commit(number, &[op])
+    });
+}
+
+/// Append a map commit only in the loaded copy; the fixture stays byte-for-byte.
+fn edit_log(disk: &mut Machine, commit: impl FnOnce(&[u8]) -> Box<[u8]>) {
+    let path = log::initial_path(&active(disk));
     let root = disk.reopen_root(0);
-    let path = format!("generations/{active}/store/log-00000000000000000001");
-    let log = disk.open(root, path.as_bytes(), How::WriteNoFollow).expect("floor log");
+    let log = disk.open(root, path.as_bytes(), How::WriteNoFollow).expect("golden log");
     let size = u32::try_from(disk.stat(log).size).expect("small log");
     let bytes = disk.read(log, 0, size).expect("log bytes");
-    let (frames, used) = crate::referee::durable::frames(&bytes, 0);
-    assert_eq!(used, bytes.len(), "whole golden log");
-    let number = frames.last().expect("kept commits").0 + 1;
-    let mut body = vec![if value.is_some() { 1 } else { 2 }];
-    body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
-    body.extend(key);
-    if let Some(value) = value {
-        body.extend(u32::try_from(value.len()).expect("value length").to_be_bytes());
-        body.extend(value);
-    }
-    let mut frame = b"SKVC".to_vec();
-    frame.extend(1_u16.to_be_bytes());
-    frame.extend(number.to_be_bytes());
-    frame.extend(1_u32.to_be_bytes());
-    frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
-    frame.extend(body);
-    frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
-    disk.append(log, &frame).expect("copy's test commit");
+    disk.append(log, &commit(&bytes)).expect("copy's test commit");
     disk.sync(log);
     disk.close(log);
     disk.close(root);
@@ -233,7 +240,7 @@ pub(crate) fn unchanged(before: &Image, after: &Image) {
 /// A refusal preserves the copy, apart from recovery's two empty next segments.
 pub(crate) fn refused(before: &Image, disk: &mut Machine) {
     let mut after = image(disk);
-    for path in ["generations/1/store/log-00000000000000000102", "generations/1/secrets/log-00000000000000000014"] {
+    for path in ["generations/1/store/log-00000000000000000103", "generations/1/secrets/log-00000000000000000014"] {
         let (facts, bytes) = after.remove(&(0, path.as_bytes().to_vec())).expect("recovery's next empty log");
         assert_eq!(facts.is, Is::File);
         assert_eq!(facts.size, 0, "{path}");

@@ -5,7 +5,7 @@ use core::mem;
 
 use super::{
     Block, Box, Call, Conversation, Decoded, Descriptor, End, Entry, Failure, Limits, Outcome, Problem, Queue, Request,
-    Returned, Slot, Spending, ToolChoice, Usage, blocks_fit, choice_bytes, chosen, compaction, history,
+    Returned, ServedSpeed, Slot, Spending, ToolChoice, Usage, blocks_fit, choice_bytes, chosen, compaction, history,
     receiving_reserve, size_of, tools,
 };
 
@@ -16,7 +16,7 @@ pub(super) fn reservation(
     max_tokens: u32,
 ) -> Option<u64> {
     let input_tokens = input_bytes.checked_add(allowance)?;
-    let prices = conversation.spending.prices;
+    let prices = conversation.spending.reservation_prices();
     let prices = crate::record::Prices { input: prices.reserved_input(), ..prices };
     let most = prices.price(Usage {
         input_tokens: Some(input_tokens),
@@ -30,11 +30,15 @@ pub(super) fn reservation(
     Some(most)
 }
 
-pub(super) fn completion_price(spending: &Spending, usage: Usage) -> Option<u64> {
+pub(super) fn completion_price(spending: &Spending, usage: Usage, served: &ServedSpeed) -> Option<u64> {
     if usage.input_tokens.is_none() || usage.output_tokens.is_none() {
         return spending.reservation;
     }
-    spending.prices.price(usage)
+    let prices = match served {
+        ServedSpeed::Standard => spending.prices,
+        ServedSpeed::Named(_) | ServedSpeed::Unreported => spending.reservation_prices(),
+    };
+    prices.price(usage)
 }
 
 /// The shared admission result used before decoding calls and when accepting them.
@@ -47,8 +51,8 @@ pub(super) struct Accepted {
     turns: u32,
 }
 
-pub(super) fn accepted(conversation: &Conversation, usage: Usage) -> Result<Accepted, End> {
-    let price = completion_price(&conversation.spending, usage).ok_or(End::PriceOverflow)?;
+pub(super) fn accepted(conversation: &Conversation, usage: Usage, served: &ServedSpeed) -> Result<Accepted, End> {
+    let price = completion_price(&conversation.spending, usage, served).ok_or(End::PriceOverflow)?;
     Ok(Accepted {
         price,
         own: conversation.spending.own.checked_add(price).ok_or(End::PriceOverflow)?,
@@ -60,8 +64,13 @@ pub(super) fn accepted(conversation: &Conversation, usage: Usage) -> Result<Acce
 }
 
 /// Counts a completion that came back, and tells the opener.
-pub(super) fn used(conversation: &mut Conversation, usage: Usage, out: &mut Queue<Request>) -> Result<(), End> {
-    let Accepted { price, own, inclusive, cumulative, reported, turns } = accepted(conversation, usage)?;
+pub(super) fn used(
+    conversation: &mut Conversation,
+    usage: Usage,
+    served: &ServedSpeed,
+    out: &mut Queue<Request>,
+) -> Result<(), End> {
+    let Accepted { price, own, inclusive, cumulative, reported, turns } = accepted(conversation, usage, served)?;
     conversation.turns = turns;
     conversation.usage = cumulative;
     conversation.reported = reported;

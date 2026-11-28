@@ -28,6 +28,23 @@ pub fn wire_setting_model(value: &c::SettingModel) -> w::SettingModel {
     for item in &value.efforts {
         efforts.push(bytes::copy_of(item.bytes())).expect("same capacity");
     }
+    let mut speeds = List::with_capacity(value.speeds.len());
+    for speed in &value.speeds {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(bytes::copy_of(name.bytes())).expect("same capacity");
+        }
+        speeds
+            .push(w::SettingSpeed {
+                name: bytes::copy_of(speed.name.bytes()),
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
+    }
     w::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -52,12 +69,34 @@ pub fn wire_setting_model(value: &c::SettingModel) -> w::SettingModel {
             Some(item) => Some(bytes::copy_of(item.bytes())),
             None => None,
         },
+        speeds,
+        speed: match &value.speed {
+            Some(name) => Some(bytes::copy_of(name.bytes())),
+            None => None,
+        },
     }
 }
 pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel, w::Problem> {
     let mut efforts = List::with_capacity(value.efforts.len());
     for item in &value.efforts {
         efforts.push(text(item, 32)?).expect("same capacity");
+    }
+    let mut speeds = List::with_capacity(value.speeds.len());
+    for speed in &value.speeds {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(text(name, 32)?).expect("same capacity");
+        }
+        speeds
+            .push(c::SettingSpeed {
+                name: text(&speed.name, 32)?,
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
     }
     Ok(c::SettingModel {
         provider: value.provider,
@@ -81,6 +120,11 @@ pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel,
         efforts,
         effort: match &value.effort {
             Some(item) => Some(text(item, 32)?),
+            None => None,
+        },
+        speeds,
+        speed: match &value.speed {
+            Some(name) => Some(text(name, 32)?),
             None => None,
         },
     })

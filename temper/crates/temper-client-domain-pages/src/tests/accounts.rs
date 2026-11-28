@@ -59,7 +59,7 @@ fn setup(uses: Option<List<c::AccountUse>>) -> (Client, c::Me, pages::Pages) {
     for event in [
         Event::StartUnlinked { kept: List::uncapped() },
         Event::SignIn { with: jig_client::With::Transport },
-        Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        Event::Up { up: jig_client::Up::Served { served: true } },
         Event::Watch { handle: pages::me_handle(), subject: Watchable::Jig(c::Subject::Me) },
     ] {
         client_event(&mut client, event);

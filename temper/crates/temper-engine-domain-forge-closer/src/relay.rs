@@ -6,6 +6,10 @@ use skein_lib::{Decimal, List, Wall, bytes};
 pub const FALLBACK: &[u8] =
     b"This question reached no one: the goal's closer decides nothing and relays only the questions its open steps ask.";
 
+// The fresh close's failure list is addressed to the goal, not an ordinary relayed account.
+pub const CLOSE_REFUSED_AT: &[u8] = b"the close check refused the goal's branch at ";
+pub const CLOSE_FAILURES: &[u8] = b"; every failure its result names, in the check's order: ";
+
 const NO_WORDS: &[u8] = b"This closer takes no words: it relays its open steps' questions and their answers alone. To answer, message form=answer with the question's number.";
 
 /// Feedback for both relays (temper/docs/design/domain/forge/change/notices.md, 3).
@@ -207,7 +211,9 @@ pub fn take(
             push(relay, Message { target: from, form: Form::Words, words });
         }
         Form::Words => {
-            if step.is_some() {
+            if step == Some(Step::Close) && close_failure_list(words) {
+                push(relay, Message { target: goal, form: Form::Words, words: words.into() });
+            } else if step.is_some() {
                 let mut text = prefix(from);
                 append(&mut text, b": ");
                 append(&mut text, words);
@@ -219,6 +225,16 @@ pub fn take(
     }
     false
 }
+fn close_failure_list(words: &[u8]) -> bool {
+    // The close change already fitted this list to the inbox bound with `...`.
+    let prefix = words.strip_suffix(b"...").unwrap_or(words);
+    let Some(tail) = prefix.strip_prefix(CLOSE_REFUSED_AT) else {
+        return words.ends_with(b"...") && CLOSE_REFUSED_AT.starts_with(prefix);
+    };
+    let Some(list) = tail.get(12..) else { return words.ends_with(b"...") };
+    list.starts_with(CLOSE_FAILURES) || (words.ends_with(b"...") && CLOSE_FAILURES.starts_with(list))
+}
+
 fn push(relay: &mut Relay, message: Message) {
     let replies = core::mem::replace(&mut relay.replies, Box::new([]));
     // Retained messages are bounded at the task inbox, not by a relay allowance.
@@ -284,6 +300,7 @@ pub fn relay(state: &Relay, goal: u64, ended: bool, room: Room, bound: u32, at: 
                     match open.step {
                         Step::Close => b"status settlement",
                         Step::Land => b"landing",
+                        Step::CatchUp => b"catch-up",
                     },
                 );
                 append(&mut text, b", asks:\n\n");

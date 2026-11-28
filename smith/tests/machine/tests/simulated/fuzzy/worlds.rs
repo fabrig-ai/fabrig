@@ -21,6 +21,7 @@ fn load(world: &mut World, owner: Token) -> tools::Version {
         other @ (ToDomain::Done { .. }
         | ToDomain::Read { .. }
         | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
         | ToDomain::Checked { .. }
         | ToDomain::Aborted { .. }) => panic!("seeded load: {other:?}"),
     }

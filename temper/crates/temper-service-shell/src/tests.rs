@@ -12,9 +12,8 @@ fn scripted_serve<T>(
     prepare: impl FnOnce(&[u8], &temper_config_shell::Programs) -> Result<T, String>,
 ) -> Result<T, String> {
     let facts = temper_config_shell::Facts { login: "tester".into(), hostname: "fixture".into(), provider_key: false };
-    let temper_config_shell::Read { file, document, keys } =
-        temper_config_shell::parse(text, shape, &facts).expect("fixture document");
-    let read = super::configuration::Read { file, document, keys };
+    let read =
+        super::configuration::Read::from(temper_config_shell::parse(text, shape, &facts).expect("fixture document"));
     let programs = read.programs_with(is_executable).expect("fixture programs");
     super::prepare_serve(&read, &programs, prepare).map_err(|why| super::serve_error(binary, &why))
 }

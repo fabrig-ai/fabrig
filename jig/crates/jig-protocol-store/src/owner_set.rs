@@ -1,0 +1,502 @@
+//! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening-owners.md, 1).
+use crate::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
+
+/// The store's part of jig's owner set; accounts adds its kept family.
+pub const JIG_STORE_SET: OwnerSet = OwnerSet {
+    jobs: &[Job {
+        name: "escalation-deciders",
+        keys: &[KeyRange { from: &[1, 1, 0], to: &[1, 1, 1] }],
+        converts: None,
+        counts: &["tasks"],
+    }],
+    owner: Owner::Jig,
+    name: "jig",
+    level: Some(6),
+    families: &STORE_FAMILIES,
+};
+
+pub(crate) const CHANGED_SETTINGS: u16 = 1;
+
+/// Every store-owned family, in owner-set order.
+#[expect(
+    clippy::disallowed_macros,
+    reason = "value types name the binary's generated schema texts (protocol/store/layouts.md, 2)"
+)]
+pub const STORE_FAMILIES: [KeptFamily; 10] = [
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/component-v3.schema"),
+        types: &[],
+        name: "jig-store-component",
+        map: KeptMap::Store,
+        keys: &[
+            Keys { from: &[0, 1], to: &[0, 2], root: "Transcript" },
+            Keys { from: &[0, 2], to: &[0, 3], root: "Attempt" },
+        ],
+        frames: None,
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/openings-v3.schema"),
+        types: &[],
+        name: "jig-store-openings",
+        map: KeptMap::Store,
+        keys: &[Keys { from: &[0, 5], to: &[0, 6], root: "WorkerOpening" }],
+        frames: None,
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/registry-v1.schema"),
+        types: &[],
+        name: "jig-store-registry",
+        map: KeptMap::Store,
+        keys: &[
+            Keys { from: &[0, 6], to: &[0, 7], root: "Layout" },
+            Keys { from: &[0, 7], to: &[0, 8], root: "Text" },
+            Keys { from: &[0, 8], to: &[0, 9], root: "Job" },
+            Keys { from: &[0, 14], to: &[0, 15], root: "Order" },
+        ],
+        frames: None,
+    },
+    {
+        let core = include_str!("../schema/core-v6.schema");
+        KeptFamily {
+            retired: &[],
+            current: core,
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Row",
+                    variant: Some("deployment"),
+                    keys: &[KeyRange { from: &[1, 0, 0], to: &[1, 0, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("projection"),
+                    keys: &[KeyRange { from: &[1, 0, 1], to: &[1, 0, 2] }],
+                },
+                ValueType {
+                    number: 2,
+                    root: "Row",
+                    variant: Some("run_proof"),
+                    keys: &[KeyRange { from: &[1, 0, 2], to: &[1, 0, 3] }],
+                },
+                ValueType {
+                    number: 3,
+                    root: "Row",
+                    variant: Some("call"),
+                    keys: &[KeyRange { from: &[1, 0, 3], to: &[1, 0, 4] }],
+                },
+                ValueType {
+                    number: 4,
+                    root: "Row",
+                    variant: Some("turn"),
+                    keys: &[KeyRange { from: &[1, 0, 4], to: &[1, 0, 5] }],
+                },
+                ValueType {
+                    number: 5,
+                    root: "Row",
+                    variant: Some("terminal"),
+                    keys: &[KeyRange { from: &[1, 0, 5], to: &[1, 0, 6] }],
+                },
+                ValueType {
+                    number: 6,
+                    root: "Row",
+                    variant: Some("proposal_decision"),
+                    keys: &[KeyRange { from: &[1, 0, 6], to: &[1, 0, 7] }],
+                },
+                ValueType {
+                    number: 7,
+                    root: "Row",
+                    variant: Some("escalation_decision"),
+                    keys: &[KeyRange { from: &[1, 0, 7], to: &[1, 0, 8] }],
+                },
+                ValueType {
+                    number: 8,
+                    root: "Row",
+                    variant: Some("part"),
+                    keys: &[KeyRange { from: &[1, 0, 10], to: &[1, 0, 11] }],
+                },
+            ],
+            name: "jig-store-core",
+            map: KeptMap::Store,
+            keys: &[
+                Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" },
+                Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" },
+            ],
+            frames: Some(crate::Frames { root: "TurnRecord", number: 9 }),
+        }
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/tasks-v13.schema"),
+        types: &[
+            ValueType { number: 0, root: "Row", variant: None, keys: &[KeyRange { from: &[1, 1], to: &[1, 1, 1] }] },
+            ValueType {
+                number: 1,
+                root: "Row",
+                variant: Some("stub"),
+                keys: &[KeyRange { from: &[1, 1, 1], to: &[1, 1, 2] }],
+            },
+            ValueType {
+                number: 2,
+                root: "Row",
+                variant: Some("ledger"),
+                keys: &[KeyRange { from: &[1, 1, 2], to: &[1, 1, 3] }],
+            },
+            ValueType {
+                number: 3,
+                root: "Row",
+                variant: Some("writer"),
+                keys: &[KeyRange { from: &[1, 1, 3], to: &[1, 1, 4] }],
+            },
+            ValueType {
+                number: 4,
+                root: "Row",
+                variant: Some("pool"),
+                keys: &[KeyRange { from: &[1, 1, 4], to: &[1, 1, 5] }],
+            },
+            ValueType {
+                number: 5,
+                root: "Row",
+                variant: Some("person_proposal"),
+                keys: &[KeyRange { from: &[1, 1, 5], to: &[1, 1, 6] }],
+            },
+            ValueType { number: 6, root: "Row", variant: None, keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }] },
+            ValueType {
+                number: 7,
+                root: "Row",
+                variant: Some("closed_ledger"),
+                keys: &[KeyRange { from: &[1, 1, 7], to: &[1, 1, 8] }],
+            },
+            ValueType {
+                number: 8,
+                root: "Row",
+                variant: Some("decided_proposal"),
+                keys: &[KeyRange { from: &[1, 1, 8], to: &[1, 1, 9] }],
+            },
+            ValueType {
+                number: 9,
+                root: "Row",
+                variant: Some("history"),
+                keys: &[KeyRange { from: &[1, 1, 9], to: &[1, 1, 10] }],
+            },
+            ValueType {
+                number: 11,
+                root: "Row",
+                variant: Some("activity"),
+                keys: &[KeyRange { from: &[1, 1, 11], to: &[1, 1, 12] }],
+            },
+            ValueType {
+                number: 12,
+                root: "Row",
+                variant: Some("update"),
+                keys: &[KeyRange { from: &[1, 1, 12], to: &[1, 1, 13] }],
+            },
+            ValueType {
+                number: 13,
+                root: "Row",
+                variant: Some("result"),
+                keys: &[KeyRange { from: &[1, 1, 13], to: &[1, 1, 17] }],
+            },
+            ValueType {
+                number: 14,
+                root: "Row",
+                variant: Some("ended_delegate"),
+                keys: &[KeyRange { from: &[1, 1, 17], to: &[1, 1, 18] }],
+            },
+            ValueType {
+                number: 15,
+                root: "Row",
+                variant: Some("delegate"),
+                keys: &[KeyRange { from: &[1, 1, 18], to: &[1, 1, 19] }],
+            },
+            ValueType {
+                number: 16,
+                root: "Row",
+                variant: Some("ended_by_party"),
+                keys: &[KeyRange { from: &[1, 1, 19], to: &[1, 1, 20] }],
+            },
+            ValueType {
+                number: 17,
+                root: "Row",
+                variant: Some("ended_by_project"),
+                keys: &[KeyRange { from: &[1, 1, 20], to: &[1, 1, 21] }],
+            },
+            ValueType {
+                number: 18,
+                root: "Row",
+                variant: Some("placed_hold"),
+                keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 1, 22] }],
+            },
+            ValueType {
+                number: 19,
+                root: "Row",
+                variant: Some("attempt"),
+                keys: &[KeyRange { from: &[1, 1, 22], to: &[1, 1, 23] }],
+            },
+            ValueType {
+                number: 20,
+                root: "Row",
+                variant: Some("hold"),
+                keys: &[KeyRange { from: &[1, 1, 23], to: &[1, 1, 24] }],
+            },
+            ValueType {
+                number: 21,
+                root: "Row",
+                variant: Some("live_cold"),
+                keys: &[KeyRange { from: &[1, 1, 24], to: &[1, 1, 30] }],
+            },
+            ValueType {
+                number: 22,
+                root: "Row",
+                variant: Some("summary"),
+                keys: &[KeyRange { from: &[1, 1, 30], to: &[1, 1, 31] }],
+            },
+            ValueType {
+                number: 23,
+                root: "Row",
+                variant: Some("retention"),
+                keys: &[KeyRange { from: &[1, 1, 31], to: &[1, 2] }],
+            },
+        ],
+        name: "jig-store-tasks",
+        map: KeptMap::Store,
+        keys: &[
+            Keys { from: &[1, 1], to: &[1, 1, 10], root: "Row" },
+            Keys { from: &[1, 1, 11], to: &[1, 2], root: "Row" },
+        ],
+        frames: None,
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/people-v17.schema"),
+        types: &[
+            ValueType {
+                number: 0,
+                root: "Row",
+                variant: Some("person"),
+                keys: &[KeyRange { from: &[1, 2], to: &[1, 2, 1] }],
+            },
+            ValueType {
+                number: 1,
+                root: "Row",
+                variant: Some("read_results"),
+                keys: &[KeyRange { from: &[1, 2, 1], to: &[1, 2, 2] }],
+            },
+            ValueType {
+                number: 2,
+                root: "Row",
+                variant: Some("read_conversation"),
+                keys: &[KeyRange { from: &[1, 2, 2], to: &[1, 2, 3] }],
+            },
+            ValueType {
+                number: 3,
+                root: "Row",
+                variant: Some("sign_in"),
+                keys: &[KeyRange { from: &[1, 2, 3], to: &[1, 2, 4] }],
+            },
+            ValueType {
+                number: 4,
+                root: "Row",
+                variant: Some("roles"),
+                keys: &[KeyRange { from: &[1, 2, 4], to: &[1, 2, 5] }],
+            },
+            ValueType {
+                number: 5,
+                root: "Row",
+                variant: Some("policy"),
+                keys: &[KeyRange { from: &[1, 2, 5], to: &[1, 2, 6] }],
+            },
+            ValueType {
+                number: 6,
+                root: "Row",
+                variant: Some("answer"),
+                keys: &[KeyRange { from: &[1, 2, 6], to: &[1, 2, 7] }],
+            },
+            ValueType {
+                number: 7,
+                root: "Row",
+                variant: Some("ended_read"),
+                keys: &[KeyRange { from: &[1, 2, 7], to: &[1, 2, 8] }],
+            },
+            ValueType {
+                number: 8,
+                root: "Row",
+                variant: Some("acted"),
+                keys: &[KeyRange { from: &[1, 2, 8], to: &[1, 2, 9] }],
+            },
+            ValueType {
+                number: 9,
+                root: "Row",
+                variant: Some("deletion"),
+                keys: &[KeyRange { from: &[1, 2, 9], to: &[1, 2, 10] }],
+            },
+            ValueType {
+                number: 10,
+                root: "Row",
+                variant: Some("public"),
+                keys: &[KeyRange { from: &[1, 2, 10], to: &[1, 2, 11] }],
+            },
+            ValueType {
+                number: 11,
+                root: "Row",
+                variant: Some("deleted"),
+                keys: &[KeyRange { from: &[1, 2, 11], to: &[1, 3] }],
+            },
+        ],
+        name: "jig-store-people",
+        map: KeptMap::Store,
+        keys: &[Keys { from: &[1, 2], to: &[1, 3], root: "Row" }],
+        frames: None,
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/notes-v1.schema"),
+        types: &[
+            ValueType {
+                number: 0,
+                root: "Row",
+                variant: Some("entry"),
+                keys: &[KeyRange { from: &[1, 3], to: &[1, 3, 1] }],
+            },
+            ValueType {
+                number: 1,
+                root: "Row",
+                variant: Some("line"),
+                keys: &[KeyRange { from: &[1, 3, 1], to: &[1, 4] }],
+            },
+        ],
+        name: "jig-store-notes",
+        map: KeptMap::Store,
+        keys: &[Keys { from: &[1, 3], to: &[1, 4], root: "Row" }],
+        frames: None,
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/accounts-v2.schema"),
+        types: &[
+            ValueType {
+                number: 0,
+                root: "Row",
+                variant: Some("next"),
+                keys: &[KeyRange { from: &[1, 4, 0], to: &[1, 4, 1] }],
+            },
+            ValueType {
+                number: 1,
+                root: "Row",
+                variant: Some("account"),
+                keys: &[KeyRange { from: &[1, 4, 1], to: &[1, 4, 2] }],
+            },
+            ValueType {
+                number: 2,
+                root: "Row",
+                variant: Some("source"),
+                keys: &[KeyRange { from: &[1, 4, 2], to: &[1, 4, 3] }],
+            },
+            ValueType {
+                number: 3,
+                root: "Row",
+                variant: Some("issued"),
+                keys: &[KeyRange { from: &[1, 4, 4], to: &[1, 4, 5] }],
+            },
+            ValueType {
+                number: 4,
+                root: "Row",
+                variant: Some("facts"),
+                keys: &[KeyRange { from: &[1, 4, 5], to: &[1, 4, 6] }],
+            },
+        ],
+        name: "jig-store-accounts",
+        map: KeptMap::Store,
+        keys: &[
+            Keys { from: &[1, 4, 0], to: &[1, 4, 3], root: "Row" },
+            Keys { from: &[1, 4, 4], to: &[1, 4, 6], root: "Row" },
+        ],
+        frames: None,
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/settings-v3.schema"),
+        types: &[
+            ValueType {
+                number: 0,
+                root: "Default",
+                variant: None,
+                keys: &[KeyRange { from: &[1, 0, 8, 0], to: &[1, 0, 8, 1] }],
+            },
+            ValueType {
+                number: CHANGED_SETTINGS,
+                root: "Changed",
+                variant: None,
+                keys: &[
+                    KeyRange { from: &[1, 0, 8, 1, 0], to: &[1, 0, 8, 1, 4] },
+                    KeyRange { from: &[1, 0, 8, 1, 5], to: &[1, 0, 8, 2] },
+                ],
+            },
+            ValueType {
+                number: 2,
+                root: "ApplicationState",
+                variant: None,
+                keys: &[KeyRange { from: &[1, 0, 8, 1, 4], to: &[1, 0, 8, 1, 5] }],
+            },
+            ValueType {
+                number: 3,
+                root: "Revision",
+                variant: None,
+                keys: &[
+                    KeyRange { from: &[1, 0, 8, 2], to: &[1, 0, 8, 3] },
+                    KeyRange { from: &[1, 0, 9], to: &[1, 0, 10] },
+                ],
+            },
+            ValueType {
+                number: 4,
+                root: "CharterVersion",
+                variant: None,
+                keys: &[KeyRange { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4] }],
+            },
+            ValueType {
+                number: 5,
+                root: "Proposal",
+                variant: None,
+                keys: &[KeyRange { from: &[1, 0, 8, 4], to: &[1, 0, 8, 5] }],
+            },
+            ValueType {
+                number: 6,
+                root: "Extent",
+                variant: None,
+                keys: &[KeyRange { from: &[1, 0, 8, 5], to: &[1, 0, 8, 6] }],
+            },
+        ],
+        name: "jig-store-settings",
+        map: KeptMap::Store,
+        keys: &[
+            Keys { from: &[1, 0, 8, 0], to: &[1, 0, 8, 1], root: "Default" },
+            Keys { from: &[1, 0, 8, 1, 0], to: &[1, 0, 8, 1, 4], root: "Changed" },
+            Keys { from: &[1, 0, 8, 1, 4], to: &[1, 0, 8, 1, 5], root: "ApplicationState" },
+            Keys { from: &[1, 0, 8, 1, 5], to: &[1, 0, 8, 2], root: "Changed" },
+            Keys { from: &[1, 0, 8, 2], to: &[1, 0, 8, 3], root: "Revision" },
+            Keys { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4], root: "CharterVersion" },
+            Keys { from: &[1, 0, 8, 4], to: &[1, 0, 8, 5], root: "Proposal" },
+            Keys { from: &[1, 0, 8, 5], to: &[1, 0, 8, 6], root: "Extent" },
+            Keys { from: &[1, 0, 9], to: &[1, 0, 10], root: "Revision" },
+        ],
+        frames: None,
+    },
+    KeptFamily {
+        retired: &[],
+        current: include_str!("../schema/secrets-v1.schema"),
+        types: &[],
+        name: "jig-store-secrets",
+        map: KeptMap::Secrets,
+        keys: &[
+            Keys { from: &[1, 0], to: &[1, 2], root: "Digest" },
+            Keys { from: &[2, 0, 0x80], to: &[2, 0, 0xc0], root: "Carried" },
+            Keys { from: &[2, 1], to: &[2, 2], root: "NextCarried" },
+            Keys { from: &[3, 0], to: &[3, 1], root: "Source" },
+            Keys { from: &[4, 0], to: &[4, 1], root: "Source" },
+        ],
+        frames: None,
+    },
+];

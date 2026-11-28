@@ -121,6 +121,10 @@ with product or build inputs also run the regular Gate. A failed replay is red.
 18. **The merge job's tests:** `python3 -I -B tools/merge/test_merge.py`,
     its one test with the real generator building `skein-codegen`. Rules:
     `tools/merge/README.md` and `temper/docs/design/protocol/tooling.md`, 4.1.
+19. **The released format fixtures' check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `temper/docs/design/protocol/configuration/file-formats.md`, 7,
+    and `tests/boundary/tests/formats.rs`: each fixture in the landing base stays at its path with the
+    same bytes. New files and directories pass.
 
 ## The gate's lists
 
@@ -155,9 +159,10 @@ Each list has one entry per line; `#` starts a comment line.
   tier with its prerequisites; `tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]`
   accounts it against `tools/tiers/budgets.toml`. The hyphenated profiles in
   `.config/nextest.toml` are `browser-skein`, `live-skein`, `real-skein`, `live-smith`,
-  `real-smith`, `campaign-smith`, `live-jig`, `browser-jig`, `real-jig`, `process-temper`,
-  `live-temper`, `browser-temper`, `real-temper`, `campaign-temper`, `conformance-hearth`
-  and `real-hearth`. Never in the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
+  `real-smith`, `campaign-smith`, `live-jig`, `browser-jig`, `real-jig`, `campaign-jig`,
+  `process-temper`, `live-temper`, `browser-temper`, `real-temper`, `campaign-temper`,
+  `conformance-hearth`, `real-hearth`, `campaign-hearth` and `campaign-skein`.
+  Never in the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
   `skein/docs/foundation/testing-strategy.md`, 8.1.
 - **The real loop and end to end:** `tools/tiers/run TREE real`, for each of
   skein, smith, jig, temper and hearth, runs the pair `real-TREE`: the tree's
@@ -177,7 +182,7 @@ Each list has one entry per line; `#` starts a comment line.
   (`tools/tiers/budgets.md`, 4.2). Campaigns run once a day, on a builder apart
   from the gate (the user, 11-26), and by hand until a runner runs them; never
   in the gate, where `tools/tiers/one-process` removes the campaign's variables
-  (`tools/tiers/design.md`, 11.5). temper and smith have campaign pairs.
+  (`tools/tiers/design.md`, 11.5). temper, smith, hearth, skein and jig have campaign pairs.
 - **The after-landing tier:** after each landing on main, the five real
   pairs above, once its runner lists them;
   `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing-tiers.md`, 3),
@@ -207,16 +212,20 @@ Each list has one entry per line; `#` starts a comment line.
 
 ## The repository's hooks and fixture readers
 
-- **`.temper/pre-pr`** checks the delivery in the worker workspace using the
-  changed packages, their immediate consumers and named integration targets.
+- **`.temper/hooks/deliver`** checks the delivery in the worker workspace using
+  the changed packages, their immediate consumers and named integration
+  targets. `.temper/hooks/finish` links to `deliver`.
   A checker-only Gate runs the checker's Python suite. Explicit diagnostic
   dispatch can check an accumulated goal using `.temper/goal-pre-pr HEAD DESTINATION`
   (`tools/pre-pr/design.md`, 1).
 
-- **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
+- **`.temper/hooks/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
-- **`.temper/close`:** fabrig's close command, `tools/close/close.py`
+- **`.temper/hooks/close`:** fabrig's close command, which settles status with
+  `tools/close/close.py` and then checks the goal
   (`temper/docs/design/protocol/tooling.md`, 4.2).
+- **Compatibility wrappers:** `.temper/pre-pr` runs `deliver`, `.temper/merge`
+  runs `merge`, and `.temper/close` and `.temper/checked-close` run `close`.
 - **`.config/fixture-readers.toml`:** the readers and generators of every tracked
   `**/fixtures/**` file (`tools/tiers/design.md`, 9;
   `skein/docs/foundation/testing-strategy.md`, 8).

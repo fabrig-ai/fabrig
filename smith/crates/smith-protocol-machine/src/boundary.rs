@@ -20,6 +20,8 @@ pub enum FromDomain {
     Read { owner: Token, at: run::Place, max: u32, deadline: Time },
     /// Check whether one root-relative path names an executable file.
     Probe { owner: Token, at: run::Place, deadline: Time },
+    /// Find a writable directory's delivery hooks, ending in `HooksProbed`.
+    ProbeHooks { owner: Token, at: run::Place, deadline: Time },
     /// Run the selected check executable and retain its output tail.
     Check { owner: Token, program: run::Place, results: Option<Box<[u8]>>, bound: Duration, cap: Time, tail: u32 },
     /// Stop one running check; its terminal remains owed.
@@ -35,6 +37,8 @@ pub enum ToDomain {
     Read { owner: Token, read: run::Read },
     /// A check path's single executable probe terminal.
     Probed { owner: Token, executable: bool },
+    /// A hooks directory probe's terminal, after its descriptors close.
+    HooksProbed { owner: Token, hooks: Option<run::Hooks> },
     /// One check process's terminal, after its pipes and child close.
     Checked { owner: Token, ran: run::Ran },
     /// A stopped check's terminal, after the process is gone.

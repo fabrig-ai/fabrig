@@ -280,7 +280,8 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   (`tui/whole-story/launchpad.html` and `pair/` beside it): the brief
   and `/brief`, *Where you left off* with a goal among its rows, each
   mark under Needs you and its walk by `/needs` and from a need's row, `/change` and
-  `/ask` with words, `/chats N`, and `/open` opening the browser on the
+  `/ask` with words, Up from the box to a chat's row and Enter opening
+  it, and `/open` opening the browser on the
   page in focus; and a reply's views printed in a chat beside the web's
   drawing of them (`../../draft/surfaces.md`, 11.1, 11.4 and 11.5). The
   user takes the recorded frames, `launchpad-drawn`'s among them, and

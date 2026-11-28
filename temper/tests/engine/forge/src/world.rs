@@ -2355,11 +2355,12 @@ impl World {
                     self.owed.insert(task);
                     self.seen.push(other).expect("world output capacity");
                 }
-                other @ (top::Request::ChangeDecision { task, .. } | top::Request::CloseDecision { task, .. }) => {
+                other @ (top::Request::ChangeDecision { task, .. } | top::Request::ReplayJudgement { task, .. }) => {
                     self.owed.insert(task);
                     self.seen.push(other).expect("world output capacity");
                 }
                 other @ (top::Request::Bound { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
                 | top::Request::LinkDisagreed { .. }

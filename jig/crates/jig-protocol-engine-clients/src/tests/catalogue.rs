@@ -33,6 +33,8 @@ fn entry(number: u32, name: Box<[u8]>) -> CatalogueModel {
         price_unit: 1_000_000,
         efforts: Box::new([]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     };
     CatalogueModel {
         first_read: None,

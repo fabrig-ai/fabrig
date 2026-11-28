@@ -1,4 +1,4 @@
-//! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
+//! Held engine cursors, with owner keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
 use crate::cursor_v2::{self as c, CEILINGS as C};
 use crate::generated::cursor as map;
 use alloc::boxed::Box;
@@ -21,6 +21,13 @@ pub(crate) fn encode_tree(value: &documents::Cursor, task: u64, window: u32, lim
     let tree = c::Tree { task, window, after: map::document_cursor_to_record(value) };
     write(c::Form::Tree(tree), limit)
 }
+/// Encode an application's document position for a read or watch window's `after`.
+/// Returns none if the held cursor does not fit `limit` bytes.
+#[must_use]
+pub fn encode_window(after: &documents::Cursor, limit: u32) -> Option<Box<[u8]>> {
+    let window = c::Window { after: map::document_cursor_to_record(after) };
+    write(c::Form::Window(window), limit)
+}
 fn write(form: c::Form, limit: u32) -> Option<Box<[u8]>> {
     let held = c::Held { layout: c::LAYOUT, form };
     let measured = held.measure(&C).ok()?;
@@ -32,6 +39,19 @@ fn write(form: c::Form, limit: u32) -> Option<Box<[u8]>> {
     Some(writer.finish())
 }
 pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
+    match read_form(bytes)? {
+        c::Form::Owner(owner) => map::cursor_to_domain(owner.cursor).ok(),
+        c::Form::Tree(_) | c::Form::Window(_) => None,
+    }
+}
+/// Decode one document continuation carried by a family window.
+pub(crate) fn decode_window(bytes: &[u8]) -> Option<documents::Cursor> {
+    match read_form(bytes)? {
+        c::Form::Window(window) => Some(map::document_cursor_to_domain(window.after)),
+        c::Form::Owner(_) | c::Form::Tree(_) => None,
+    }
+}
+fn read_form(bytes: &[u8]) -> Option<c::Form> {
     if bytes.len() > skein_lib::length::usize_of(super::w::CEILINGS.cursor_value) {
         return None;
     }
@@ -41,15 +61,7 @@ pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
         return None;
     }
     let held = c::Held::decode(&C, &mut Reader::new(bytes)).ok()?;
-    let owner = match held.form {
-        c::Form::Owner(owner) => owner,
-        c::Form::Tree(_) => return None,
-    };
-    map::cursor_to_domain(owner.cursor).ok()
-}
-/// Decode one document continuation carried by a family window.
-pub(crate) fn decode_window(bytes: &[u8]) -> Option<documents::Cursor> {
-    Some(map::document_cursor_to_domain(c::DocumentCursor::decode(&C, &mut Reader::new(bytes)).ok()?))
+    Some(held.form)
 }
 
 pub(crate) fn scope_to_record(value: &reads::Scope) -> Result<c::Scope, c::Problem> {

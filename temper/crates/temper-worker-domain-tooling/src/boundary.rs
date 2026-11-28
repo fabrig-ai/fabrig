@@ -24,6 +24,10 @@ pub struct Spec {
     pub request: Box<[u8]>,
     /// Whether to ask the command for a typed refusal.
     pub refusal: bool,
+    /// The engine’s limit on a typed refusal result.
+    pub result: u32,
+    /// Whether to ask the command for an outdated finding.
+    pub outdated: bool,
 }
 
 /// Parent to capability.
@@ -75,7 +79,9 @@ pub enum Event {
 pub enum Exit {
     Code(u8),
     Signal,
-    /// The protocol layer killed the process group at its deadline.
+    /// A check of the command failed before it could be spawned. The tail is the failure line.
+    NotRun,
+    /// The protocol layer reached the command's deadline.
     Deadline,
 }
 

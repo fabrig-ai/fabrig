@@ -224,10 +224,11 @@ stand two columns in:
   18:40" in the week, the date before), then " · " and its state as
   Home's Chats row words it (the view's `shared::chat_state`), what is
   open in it, all but the title in `tui-hint`;
-- *no number* (the user's word of 2026-11-27): a chat's place among the
-  section's chats, 1 the newest, is what `/chats N` opens (`README.md`,
-  *The TUI's own commands*), and no row draws it. The row's words are
-  cut at a word with "…" at the row's end.
+- *no number* (the user's word of 2026-11-27): no row draws its place
+  among the section's rows, and no command takes it, since it moves as
+  rows come and go: Up from the box reaches the rows and Enter opens one
+  (below; `README.md`, 2, *Words after a command that takes none*). The
+  row's words are cut at a word with "…" at the row's end.
 
 Left out with no such conversation, and while neither read has
 answered. A chat that writes a draft and is no design session says ", a

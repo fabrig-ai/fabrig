@@ -58,14 +58,12 @@ impl Protocol {
             settings.served = jig_client_kit::test::list([
                 jig_protocol_engine_clients::Served {
                     family: None,
-                    first: u32::MAX,
-                    last: u32::MAX,
+                    version: u32::MAX,
                     layout: jig_client_protocol_wire::LAYOUT,
                 },
                 jig_protocol_engine_clients::Served {
                     family: Some(1),
-                    first: 2,
-                    last: 2,
+                    version: 2,
                     layout: jig_client_test_protocol_wire::LAYOUT,
                 },
             ]);
@@ -82,6 +80,11 @@ impl Protocol {
         if self.restart.is_some_and(|until| until <= now) {
             self.restart = None;
         }
+    }
+    /// Whether the client has an open stream a dropped-watch fault can cut.
+    #[must_use]
+    pub fn can_drop_watch(&self, client: ClientId) -> bool {
+        self.net.has_open_stream(client)
     }
     pub fn select_stream(&mut self, client: ClientId) {
         self.last_client = Some(client);

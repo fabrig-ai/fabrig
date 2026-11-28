@@ -4,7 +4,9 @@ use crate::testing::init_fixtures::{directories, environment, scratch};
 use skein_fake_machine::Item;
 use std::fs;
 
-use super::startup::{Effect, ListenerScript, Startup};
+use super::startup::{Effect, KernelScript, Startup};
+
+mod publication;
 
 #[test]
 fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
@@ -26,7 +28,7 @@ fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
 fn taken_webhooks_ports_get_distinct_kernel_ports() {
     let preferred_port = 7101;
     let preferred = [0, preferred_port];
-    let mut io = ListenerScript::ports([(0, 7100), (preferred_port, 7102)]);
+    let mut io = KernelScript::ports([(0, 7100), (preferred_port, 7102)]);
     let held = deployment_ports(&mut io, &preferred).expect("reserved ports");
     let chosen = held.iter().map(|(_, port)| *port).collect::<Vec<_>>();
     assert_ne!(chosen[1].get(), preferred_port);
@@ -82,7 +84,7 @@ fn boxed_deployment(
     (git, claude): (bool, bool),
     row: &str,
 ) -> [u16; 2] {
-    let script = ListenerScript::ports([(preferred[0], bound[0]), (preferred[1], bound[1])]);
+    let script = KernelScript::ports([(preferred[0], bound[0]), (preferred[1], bound[1])]);
     let mut startup = Startup::with_listeners(items, Some(script));
     let written = startup.init_with_preferred(true, None, preferred).expect("boxed init");
     let root = Path::new("/fixture");
@@ -166,7 +168,7 @@ fn init_renders_only_listen_unless_its_next_port_is_taken() {
         let port = 7100;
         let next = port + 1;
         let webhooks = if taken { 7102 } else { next };
-        let script = ListenerScript::ports([(port, port), (next, webhooks)]);
+        let script = KernelScript::ports([(port, port), (next, webhooks)]);
         let mut startup = Startup::with_listeners(&[], Some(script));
         let written = startup.init_with_preferred(boxed, None, [port, 0]).expect("init");
         assert_eq!(written.listeners[0].1.get(), port, "{row}");

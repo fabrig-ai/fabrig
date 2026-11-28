@@ -1,15 +1,11 @@
-//! The client's machine world, swept (testing-strategy.md, 8; http.md, 6):
-//! many connections of generated exchanges, valid and mutated, and the
-//! transcripts, cut and mutated, under limits and neighbours drawn from
-//! each seed, each exchange checked against the reference reader. This
-//! stands in for the fuzz target, which waits for a nightly toolchain.
-//!
-//! Prefix sweeps also compare each transcript cut short with the reference.
-//! Their cuts are injected directly, so they fall without a fault tally.
-//!
-//! A sweep asserts that what it injects fell (testing-strategy.md, 3): each
-//! way an exchange can fail, each way a stream can end or fail, a close in
-//! each state, and every refusal of the side above's.
+//! The client's machine world, swept (`skein/docs/design/net/http/testing.md`, 6).
+//! Each case checks generated or transcript exchanges against the reference
+//! reader, with limits and neighbours drawn from its seed. Each prefix case
+//! checks a cut of every transcript; these cuts need no fault tally.
+//! The gate checks outcomes, refusals and neighbour reach across its seeds
+//! (`skein/docs/design/testing/sweeps.md`, 4).
+
+use std::convert::Infallible;
 
 use super::super::transcripts::{exchange, transcripts};
 
@@ -19,6 +15,8 @@ use skein_http_world::reference::Outcome;
 use skein_http_world::{generate, transcript};
 use skein_lib::Rng;
 use skein_protocol_kit::seen::Seen;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
 
 const ROUNDS: u64 = 20_000;
 const PREFIX_SEEDS: u64 = 4;
@@ -148,8 +146,10 @@ fn scenario(rng: &mut Rng, count: usize) -> (Vec<Exchange>, Vec<u8>) {
 fn generated_and_mutated_exchanges_read_as_the_reference_reads_them_whatever_the_neighbours() {
     let mut tally = Seen::default();
     let mut mutations = generate::MutationBatch::default();
-    for round in 0..ROUNDS {
-        let seed = 0x0070_0000 + round;
+    let at_gate = gate();
+    let base = 0x0070_0000;
+    let test = this_test!("generated_and_mutated_exchanges_read_as_the_reference_reads_them_whatever_the_neighbours");
+    cases::<_, Infallible, _>(test, base..base + ROUNDS, |seed| {
         let mut rng = Rng::new(seed);
         let count = usize::try_from(rng.between(1, 4)).unwrap();
         let (exchanges, server) = scenario(&mut rng, count);
@@ -163,11 +163,17 @@ fn generated_and_mutated_exchanges_read_as_the_reference_reads_them_whatever_the
         let limits = client_world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, server.input().len());
         let run = mutations.judge(server, |server| client_world::check(&exchanges, &server, &settings, seed));
-        record(&mut tally, &run, &settings);
-    }
+        if at_gate {
+            record(&mut tally, &run, &settings);
+        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
-    tally.assert_fell(&EVERY_OUTCOME);
-    tally.assert_fell(&EVERY_NEIGHBOUR);
+    if at_gate {
+        tally.assert_fell(&EVERY_OUTCOME);
+        tally.assert_fell(&EVERY_NEIGHBOUR);
+    }
 }
 
 #[test]
@@ -175,8 +181,10 @@ fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
     let transcripts = transcript::all();
     let mut tally = Seen::default();
     let mut mutations = generate::MutationBatch::default();
-    for round in 0..TRANSCRIPT_ROUNDS {
-        let seed = 0x0071_0000 + round;
+    let at_gate = gate();
+    let base = 0x0071_0000;
+    let test = this_test!("transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them");
+    cases::<_, Infallible, _>(test, base..base + TRANSCRIPT_ROUNDS, |seed| {
         let mut rng = Rng::new(seed);
         let transcript = &transcripts[usize::try_from(rng.below(transcripts.len() as u64)).unwrap()];
         let server = transcript.bytes.clone();
@@ -184,25 +192,35 @@ fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
         let exchanges = [Exchange { call: transcript.call(), upload: Vec::new() }];
         let settings = Settings::chaotic(&mut rng, transcript.limits, server.input().len());
         let run = mutations.judge(server, |server| client_world::check(&exchanges, &server, &settings, seed));
-        record(&mut tally, &run, &settings);
-    }
+        if at_gate {
+            record(&mut tally, &run, &settings);
+        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
-    tally.assert_fell(&[
-        "Done(Keep)",
-        "Failed(Truncated { answered: true })",
-        "failed Stream",
-        "closed before the outcome",
-    ]);
+    if at_gate {
+        tally.assert_fell(&[
+            "Done(Keep)",
+            "Failed(Truncated { answered: true })",
+            "failed Stream",
+            "closed before the outcome",
+        ]);
+    }
 }
 
 #[test]
 fn a_transcript_cut_short_anywhere_decodes_as_the_reference_reads_its_prefix() {
-    for transcript in transcripts() {
-        for seed in 0..PREFIX_SEEDS {
+    let transcripts = transcripts();
+    let test = this_test!("a_transcript_cut_short_anywhere_decodes_as_the_reference_reads_its_prefix");
+    cases::<_, Infallible, _>(test, 0..PREFIX_SEEDS, |seed| {
+        for transcript in &transcripts {
             let mut rng = Rng::new(seed);
             let cut = usize::try_from(rng.below(transcript.bytes.len() as u64 + 1)).unwrap();
             let settings = Settings { cut: Some(cut), ..Settings::calm(&mut rng, transcript.limits) };
-            let _ = client_world::check(&exchange(&transcript), &transcript.bytes, &settings, seed);
+            let _ = client_world::check(&exchange(transcript), &transcript.bytes, &settings, seed);
         }
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

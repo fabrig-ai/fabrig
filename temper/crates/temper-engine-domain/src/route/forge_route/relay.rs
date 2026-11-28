@@ -1,8 +1,6 @@
 //! The root's half of a change's relay (temper/docs/design/domain/forge/change/questions.md, 1).
 pub(super) use super::forge::relay_route::questions_held;
-use super::forge::relay_route::{
-    asking_delegate, find_question, has_ask, hold_words, left_words, question_words, word_message,
-};
+use super::forge::relay_route::{asking_delegate, find_question, has_ask, left_words, question_words, word_message};
 use super::forge::routing::answer_refusal;
 use super::forge::text::fit;
 use super::{
@@ -196,7 +194,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                     domain,
                     env,
                     task,
-                    hold_words(&relayed.questions, env.limits.forge.change_policy.questions),
+                    holds::questions_account(Some(&relayed.questions), env.limits.forge.change_policy.questions),
                 );
                 decision.end = held.end;
                 decision.batch = Box::new([]);

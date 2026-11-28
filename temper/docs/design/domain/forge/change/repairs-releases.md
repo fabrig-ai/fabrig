@@ -176,9 +176,9 @@ whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
 
-A close job ends one of three ways, as the close check's verdict does
+A close job ends one of four ways, as the close check's verdict does
 (`../../../protocol/tooling.md`, 4.2; `../../../draft/whose-red.md`, 4),
-since 2026-11-25:
+since 2026-11-25, and outdated since 2026-11-27:
 
 - **Settled:** it finished with `settled`. A head pushed opens the pull
   request, and nothing staged ends the change with no change.
@@ -196,13 +196,45 @@ since 2026-11-25:
   name as the refusal lists it, `and N more` present where the refusal
   or the bytes left some out (N the refusal's `more` and those cut).
   The change keeps the refusal's counts beside the tips it read (below).
+  On the fresh refusal it also sends the goal one `Words` message, via
+  its closer's relay where the closer requested the change: `the close
+  check refused the goal's branch at G; every failure its result names,
+  in the check's order: F1, F2, …, F9.` The names are joined by `, `,
+  and ` and N more` comes before the period if the result says `more: N`.
+  The message fits `tasks.message_bytes`, ending in `...` if cut. The
+  hold account remains 512 bytes. Neither a restart nor a release on
+  unchanged tips resends the list. The requester decided on 2026-11-27
+  that the goal should hear all the failures a result can carry for one
+  repair, keeping 512-byte workers eligible and taking up to 8,192 bytes
+  from newer ones.
+- **Outdated:** it finished with the close check's finding that it could
+  not judge the goal against main's published counts: the goal's branch
+  holds none of the commits their window covers (`window`), or its
+  checkout's ancestry was too incomplete to tell (`ancestry`)
+  (`tools/pre-pr/design.md`, 4.1; `../../../protocol/tooling.md`, 4.2).
+  It is taken as one only where its job asked for a typed refusal, its
+  `head` is the commit the job's checkout started at, and nothing was
+  pushed, as a refusal is: every close job this build makes asks for
+  both, and one an earlier build made asked for the refusal alone, its
+  command never told of the finding. The job finishes, spending no try
+  of its class, and the change ends at once with no change, holding and
+  escalating nothing, its words `The close check didn't judge the goal's
+  branch at G: F; it asks for the goal's catch-up from main.`, G the
+  head's first 12 hex digits, F `it holds none of the commits main's
+  published counts cover` or `its ancestry was incomplete`. The change
+  keeps the finding beside the tips it read (below), and its closer,
+  reading its end, catches the goal up from main and closes again, once
+  (`../branches.md`, 2, *A close found outdated*). A close run by a
+  worker that can't carry the ask (`../../../protocol/wires.md`, 8) has
+  its command not told, and breaks as before.
 - **Broke:** the close check didn't judge the goal. A job that fails for
   good, its command having exited otherwise, past its deadline, or
   with a result missing or past its bound, has been tried within the
   run's class by jig; and a job that finished with any other result (one
-  neither `settled` nor this job's refusal, a refusal its job didn't ask
-  for among them) is the command's failure at once, since a finished
-  job has no tries left and the same command gives the same result.
+  neither `settled`, this job's refusal nor its outdated finding, a
+  refusal or a finding its job didn't ask for among them) is the
+  command's failure at once, since a finished job has no tries left and
+  the same command gives the same result.
   Either way the change holds at producing, its cause `failed`, its words `the close check
   broke and didn't judge the goal: R; its release runs it again.`, R the
   job's failure words, or `it finished with ` and the result's first 64
@@ -261,6 +293,16 @@ A close change never asks an agent producer: a head on its branch at
 producing, which only a close job's success pushes, opens its pull
 request as that job's push does.
 
+The two commits reach the root on the change's own decision, the one
+that makes its close job, and come back on that job's admission, as any
+delegate's admission comes back, for its row to keep (2026-11-27): the
+forge's change decision and its delegate's admission each carry them as
+an optional member, none for any other delegate and none where the
+decision read no pair. Neither is stored or sent on a wire: both live
+within the engine's own steps. Turned down: a close decision and a close
+admission of their own, each the change's with the commits added, two
+names for one thing.
+
 The two commits a close change read as it made its last close job are
 stored with its row, as `ChangeHot`'s `close_at`, a `CloseAt` of the
 goal branch's and the landing branch's commits, a field of the store's
@@ -274,7 +316,12 @@ the refusal's `counts`, none where it named none. A broke end clears
 `refused`. Both fields are added with defaults, so no version moves: a
 `CloseAt` stored before reads as not asked and not refused, so a
 refusal its job made by exit 3 is the command's failure, and its
-release makes a fresh job, which asks.
+release makes a fresh job, which asks. Beside them, `outdated`, an
+`option CloseOutdated` defaulting to none, set when that job's end was
+outdated: `enum CloseOutdated { window, ancestry }`, the finding's
+`why`. An outdated end clears `refused`, and a refused or broke end
+clears `outdated`. It is added with its default, so no version moves,
+and a `CloseAt` stored before reads as not outdated.
 
 *Why* (2026-11-25, `../../../draft/whose-red.md`, 4): goals 15519 and
 15520's close checks refused on test failures and each ran three more
@@ -287,6 +334,21 @@ checks a refusal against its attempt: the engine never sees the tree
 settlement makes. Turned down: a new job kind for the ask, which every
 project's policy would have to grant before any close could run
 (`../../../protocol/wires.md`, 8).
+
+*Why* (2026-11-27, `../../../draft/test-budgets.md`, 3): a goal that
+holds none of main's last twenty landings can't be judged against main's
+published counts, and its close check broke at once asking for an update
+from main, as the draft says it should be asked once. Nothing read the
+ask: the job was tried again in its class, broke the same way, and held
+for a person, as two goals on the reference deployment did at 15:19Z
+and 15:23Z that day. A typed finding lets the closer make the update the
+check asks for. Turned down: reading the check's words, which a
+project's command chooses and no contract fixes; a refusal, which
+judges the goal's own failures and holds until its branch or main moves,
+which here only the catch-up would do; holding for the goal to catch
+up, which is the person's wait again, one level lower; and an ask a
+worker of an earlier build can't keep, whose closes would wait for a
+newer worker rather than run as before.
 
 *Why* (2026-11-24): goals on the lean template spent 28% of their agent
 time closing, seven of them 16 to 52 close jobs each, every one
@@ -315,7 +377,7 @@ A held change keeps one record (`../../../draft/whose-red.md`, 6.1), written in 
 
 - **the step it held at,** its state as it held, kept whole beneath the hold, which its release re-enters from (3);
 - **its cause,** one of fifteen, each of one of four kinds (below);
-- **its words,** its account (1, *Every hold reaches its task*), made in the decision that holds from the facts that hold it, within jig's `HOLD_ACCOUNT_BYTES`, and stored with it, so that a change found held again holds its task with the same words, byte for byte, never with words made again from what its row still keeps;
+- **its words,** its account (1, *Every hold reaches its task*), made in the decision that holds from the facts that hold it, within jig's `HOLD_ACCOUNT_BYTES`, and stored with it, so that a change found held again holds its task with the same words, byte for byte, never with words made again from what its row still keeps. The root makes them, in one place for every cause, a judgement held again among them (4): the change's step and the forge decide the hold and keep the facts it is made from (its cause, a judgement's inputs, the account a red, a refusal or a failed delegate leaves on the row, a read's evidence), and write no words of their own;
 - **its since,** the instant of the decision that holds it.
 
 Its **way out** follows from its cause, as the table says, and its words name it; every hold's way out includes a cancel. The task's hold carries the words as its account, and its revision is the one a release names (jig's `domain/tasks/lifecycle-holds.md`, 3).
@@ -337,7 +399,7 @@ Its **way out** follows from its cause, as the table says, and its words name it
 - **Held once.** A held change takes no step that writes, and a cause found while it is held changes nothing in its record: what that cause would hold for is found again from fresh facts after the release. A change ending while held keeps its cause as its ending's (`../branches.md`, 2).
 - **Projected:** the panel names the step and the cause (`../../../client/forge/records.md`, 4). The client's and the public wire read `runner`, `red_stands` and `close_refused` as `failed`, their account saying which (`../../../protocol/wires.md`, 9).
 
-*Why* (`../../../draft/whose-red.md`, 6): fourteen hold arms each grew a release of its own, and blocked changes were cancelled and cut again by hand. A cause of a kind keeps the differences in data (what a release resets, whether it judges), not in code paths. The words are kept, not made again, because what made them (a read's evidence, a delegate's failure) is gone by a later step, and words rebuilt from what survived could say less. One record, not a stack: a release reads every fact afresh, so a second cause found while held is found again, and a stack only made one release lift one cause to show the next. Turned down: storing the way out, which the cause gives; and the kind as a type each cause nests in, which every reader would match twice.
+*Why* (`../../../draft/whose-red.md`, 6): fourteen hold arms each grew a release of its own, and blocked changes were cancelled and cut again by hand. A cause of a kind keeps the differences in data (what a release resets, whether it judges), not in code paths. The words are kept, not made again, because what made them (a read's evidence, a delegate's failure) is gone by a later step, and words rebuilt from what survived could say less. They are made in one place, the root's, which reads every fact they name (a read's evidence, the row's accounts, the bounds), since words composed in the change's step, the forge and the root apart said the same judgement three ways (2026-11-27). One record, not a stack: a release reads every fact afresh, so a second cause found while held is found again, and a stack only made one release lift one cause to show the next. Turned down: storing the way out, which the cause gives; and the kind as a type each cause nests in, which every reader would match twice.
 
 ## 3. One release
 
@@ -363,7 +425,7 @@ One function releases a held change, whatever its cause and whoever releases it:
 
 ## 4. Judgements and fresh measurements
 
-- **A judgement released with nothing changed holds again at once** (`../../../draft/whose-red.md`, 6.3), a new hold of the same cause, its words saying it was not measured again and what it judged, a blank line, then the held words, cut to the hold's bytes:
+- **A judgement released with nothing changed holds again at once** (`../../../draft/whose-red.md`, 6.3), a new hold of the same cause, its words saying it was not measured again and what it judged, a blank line, then the judgement's own account, cut to the hold's bytes: the red's or the refusal's, as the row keeps it, or the rejection's, as its first hold said it; never the words of the hold it follows, so that every release with nothing changed, however many, holds with the same words:
   - `close_refused`: the goal's branch's tip and main's tip, compared as 1, *A refusal where nothing it judged has moved*, says.
   - `red_stands`: the head its repair left and the change's spec revision, both kept with the hold. With its head moved, it re-enters at checking (3); amended since it held, it asks a fresh repair at its head, with the amended spec and its reason, counted against the repairs taken; with neither, and its one check of the same content taken (`repairs.md`, 1), it holds again, its words `not measured again: its red at H stands at the same content and spec; amend this change to ask a fresh repair, measure it again, or cancel it.`, H the head's first 12 hex digits. With its check still owed (none could be made, or a previous build's hold read so: 5), the release takes it, as `repairs.md`, 1 does, and holds at once where it still can't be made.
   - `rejected`: the person's verdict at the change's head, read afresh as gating reads it (`gates.md`, 1). While it stands, the change holds again at once, whoever released it; once its person has answered their gate again, the release goes on. No engine release and no forge read ends it.
@@ -374,7 +436,7 @@ One function releases a held change, whatever its cause and whoever releases it:
   - any other cause: the measurement is the release it carries, since its re-entry reads afresh anyway; a person's rejection still holds again while it stands.
 - **`task release --again`** stays jig's, for an effect held uncertain alone; a change refuses it, as a procedure with no run of its own to repeat (1).
 
-*Why* (`../../../draft/whose-red.md`, 6.3): re-measuring the same inputs gives the same verdict where checks replay, as fabrig's do, so a release that ran the check again spent a worker's minutes to say the same thing; a project whose checks can flake has its decider's act instead, revisioned so that one request takes one measurement. A red that stands has two ways on without one: new content (its head moved) or new instructions (an amendment, so a fresh repair isn't the same brief again). A person's rejection is theirs, so only their own answer lifts it. A measurement is a release asking one check more, so whoever may release the task may take it, and so may a person an escalation passed up to, who decides it without the task in their tree.
+*Why* (`../../../draft/whose-red.md`, 6.3): re-measuring the same inputs gives the same verdict where checks replay, as fabrig's do, so a release that ran the check again spent a worker's minutes to say the same thing; a project whose checks can flake has its decider's act instead, revisioned so that one request takes one measurement. A red that stands has two ways on without one: new content (its head moved) or new instructions (an amendment, so a fresh repair isn't the same brief again). A person's rejection is theirs, so only their own answer lifts it. A judgement held again says its own account, not the words it held with, since those carry the line of the release before: a red's account behind three such lines was cut away by the fourth release (2026-11-27). A measurement is a release asking one check more, so whoever may release the task may take it, and so may a person an escalation passed up to, who decides it without the task in their tree.
 
 ## 5. Stored, and the previous build's holds
 
@@ -386,7 +448,7 @@ One function releases a held change, whatever its cause and whoever releases it:
 
 All in the focused suites, but the property, which is the change policy's fuzzy sweep:
 
-- **The record:** each cause holds with its words and since stored and kept across a restart; a change found held again holds its task with the same words; a cause found while held changes nothing; a close's refusal holds `close_refused` and its broken check `failed`.
+- **The record:** each cause holds with its words and since stored and kept across a restart; a change found held again holds its task with the same words; a cause found while held changes nothing; a close's refusal holds `close_refused` and its broken check `failed`; its outdated finding, asked, unpushed and at its job's head, ends it with no change and keeps the finding, across a restart, and one unasked, pushed or at another head is the command's failure.
 - **One release:** for each cause, a release from each step it can hold at settles what is owed first (a kept result, a landing's ask, an uncertain write read back), re-enters where 3 says and resets its cause's allowance alone; the engine's three releases go through it, and the task's release that follows takes nothing again.
 - **Judgements:** each released with nothing changed holds again at once, saying so; a `red_stands` re-enters at a moved head and asks a fresh repair once amended; a person's rejection survives the forge agreeing and every release while it stands.
 - **A measurement:** refused at a moved revision and to a party who may neither release the task nor decide its escalation; accepted, one check of a red that stands and one close job of a refused close, none again across a restart or a second delivery; on any other cause, a release.

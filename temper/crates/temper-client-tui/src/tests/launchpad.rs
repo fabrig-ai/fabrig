@@ -191,7 +191,7 @@ fn home_team(
         &mut root,
         Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
     );
-    append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+    append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true } }));
     let me_opened = {
         let mut me = me();
         if across {
@@ -555,7 +555,7 @@ fn the_launchpad_says_each_state() {
     let (mut offline, watch) = f::live(Some(f::me(&[b"Hello"])));
     f::client(&mut offline, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
     let (mut stale, _) = f::live(Some(f::me(&[b"Hello"])));
-    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false, versions: None } });
+    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false } });
     let signed_out = f::signed_out();
     let mut unkept = Tui::new(f::ADDRESS);
     unkept.step(Told::Kept { written: false });
@@ -1127,35 +1127,48 @@ fn rows_keep_their_hint_in_the_room() {
 }
 
 #[test]
-fn a_chat_closed_here_is_skipped_before_the_bound_and_numbers() {
+fn a_chat_closed_here_is_skipped_before_the_bound() {
+    const CLOSED: u64 = 12;
+    const SECOND: u64 = 8;
+    const THIRD: u64 = 9;
+    const FOURTH: u64 = 10;
+    let shown = [SECOND, THIRD, FOURTH];
     let root = home(
         None,
         &[
-            line(12, b"Away mode", 5, false),
-            line(8, b"Second", 3, false),
-            line(9, b"Third", 2, false),
-            line(10, b"Fourth", 1, false),
+            line(CLOSED, b"Away mode", 5, false),
+            line(SECOND, b"Second", 3, false),
+            line(THIRD, b"Third", 2, false),
+            line(FOURTH, b"Fourth", 1, false),
         ],
     );
     let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::Closed { task: 12 });
+    tui.step(Told::Closed { task: CLOSED });
     tui.step(Told::Went);
     let part = launchpad::read(&root, &tui, &f::words(), NOW);
     assert_eq!(part.left_off.len(), 3);
-    for (row, task) in part.left_off.iter().zip([8, 9, 10]) {
+    for (row, task) in part.left_off.iter().zip(shown) {
         assert_eq!(row.task, task);
         assert_eq!(row.kind, launchpad::LeftKind::Chat { session: false });
     }
     let view = build(&root, &tui);
+    assert_eq!(displayed_chats(&view).as_slice(), shown);
     let lines = left_off_lines(&view);
     assert_eq!(lines.len(), 3);
-    for (line, (title, number, task)) in
-        lines.iter().zip([(b"Second".as_slice(), 1, 8), (b"Third", 2, 9), (b"Fourth", 3, 10)])
-    {
+    for (line, title) in lines.iter().zip([b"Second".as_slice(), b"Third", b"Fourth"]) {
         assert_eq!(f::text(view.tree(), f::find(view.tree(), Role::Text, title)).as_ref(), title);
         assert!(skein_lib::bytes::find(line, b"/chats ").is_none());
-        assert_eq!(crate::chat_number(&view, number), Some(task));
     }
+}
+
+fn displayed_chats(view: &crate::View) -> List<u64> {
+    let mut chats = List::with_capacity(view.rows().len());
+    for row in view.rows() {
+        if let crate::Row::Chat { task } = row {
+            chats.push(*task).expect("at most one chat per row");
+        }
+    }
+    chats
 }
 
 fn left_off_lines(view: &crate::View) -> List<Box<[u8]>> {
@@ -1498,10 +1511,6 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
     use crate::Own;
     let mut ordinary = Tui::new(f::ADDRESS);
     let root = home(None, &[line(OLDER_CHAT, b"Older", 1, false), line(CHAT, b"Newest", 2, false)]);
-    let view = build(&root, &ordinary);
-    for (number, expected) in [(0, None), (1, Some(CHAT)), (2, Some(OLDER_CHAT)), (3, None)] {
-        assert_eq!(crate::chat_number(&view, number), expected, "chat {number}");
-    }
     for (name, page, selected, expected) in [
         (
             "chat selected",
@@ -1530,6 +1539,7 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
     }
     let tui = Tui::new(f::ADDRESS);
     let mut view = build(&root, &tui);
+    assert_eq!(displayed_chats(&view).as_slice(), [CHAT, OLDER_CHAT]);
     for (name, page, expected) in [
         (
             "brief and need",
@@ -1551,7 +1561,7 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
     // Facts used by the keys and focus are replaced when a view is reused.
     crate::build(&mut view, &tui, &f::signed_out(), NOW, &mut Queue::uncapped());
     assert_eq!(crate::focus(&view), None);
-    assert_eq!(crate::chat_number(&view, 2), None);
+    assert!(displayed_chats(&view).is_empty());
 }
 
 #[derive(Clone, Copy)]
