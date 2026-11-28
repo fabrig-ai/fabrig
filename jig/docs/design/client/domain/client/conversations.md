@@ -77,6 +77,16 @@ for any presentation of a chat or of any agent task's activity.
   answered. `JobsFull` and `UnknownJob` read as invalid calls. A call
   not run reads with its why: stopped, outside the choice, or after a
   failed write. The turn's count of jobs is not shown.
+- **A call's answer kind,** beside its outcome and its failed flag: the
+  word smith's shapes vocabulary gives its stored result
+  (`smith/docs/design/shapes.md`, 3), by what came of the call, done,
+  refused by the tools, invalid or not run by the session, as smith's
+  worlds class the same result; `delegated` for a text its host
+  answered, whose failed flag stays all the turn says of how it went;
+  none where the turn holds no result for the call. `jig-protocol-transcript`
+  classes the stored result as it decodes the turn; the wire carries the
+  turn's bytes as before. The word stands outside the `turn_text`
+  budget, as `llm` does, and is never cut.
 - **A turn that does not decode** reaches the application as such, with
   why: another version of smith's transcript (naming the one found),
   malformed, or past the client's bounds (`../../../protocol/client/wire.md`,
