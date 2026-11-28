@@ -1,7 +1,11 @@
 # root: status
 
-2026-11-27. Where jig's code lags or departs from [root.md](root.md).
+2026-11-28. Where jig's code lags or departs from [root.md](root.md).
 
+- **Not yet:** 3, 5, 7 and 14: `ops`'s root and the test root answering none of a run's brief,
+  and putting its sections in the assignment from the prepared run.
+- **Not yet:** 3, 5, 7 and 14: temper's root answering none of a run's brief, and taking its
+  forge sections from the forge as it puts the assignment together.
 
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside

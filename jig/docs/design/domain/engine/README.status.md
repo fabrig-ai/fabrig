@@ -1,7 +1,9 @@
 # engine: status
 
-2026-11-26. Where jig's code lags or departs from [README.md](README.md).
+2026-11-28. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** what it holds: the preparations waiting for their connectors' plans, and a brief
+  complete until its run is prepared.
 
 `executors.md`, section 5's failed-job cause accompanies its retry class through the hub
 link and terminal proof into the task's notice and exhausted hold. The

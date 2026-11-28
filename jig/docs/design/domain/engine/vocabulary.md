@@ -380,7 +380,8 @@ The engine's own enums gain the port (2.2): `In::Connector(Connector, Up)`, the 
   - an **operation that ends later**, answered by an `Up` naming it whenever it ends, in any
     later decision, the engine keeping the state that waits for it across a restart too, as it
     does today (catching up, releasing a deleted project, settling a closing task's effects,
-    projecting a goal, gathering a party's document or a task line's parts, which a connector may
+    projecting a goal, planning a run's brief and gathering or cutting its sections
+    (`briefs.md`, 1.4), gathering a party's document or a task line's parts, which a connector may
     read from its store first, the core keeping the watcher or the read that waits for them, as
     `temper/docs/design/draft/jig-domain-api.md`, 6.3 has it; deciding an application's
     request, which may need held work first, a load, a setup or a forge read, the core keeping
@@ -393,7 +394,8 @@ The engine's own enums gain the port (2.2): `In::Connector(Connector, Up)`, the 
   today: its route judges it, keeping or dropping it.
 - **Asked only about what it declared.** Lifecycle is asked of every connector. An ask the core
   makes of every connector goes only to those that declare the capability: resources' (a
-  resource kind), effects' (an effect kind) and projections' (`projects_goals`). Every other ask
+  resource kind), effects' (an effect kind), projections' (`projects_goals`) and a brief's plan
+  (`sections`). Every other ask
   goes to the connector its subject names: a settings kind's, a part kind's, a requirement's
   judge, a resource's or an effect's owner, a procedure's executor, a topic subscription's
   connector, an application request's. So a connector that declares no kind of a capability and
@@ -419,8 +421,8 @@ The engine's own enums gain the port (2.2): `In::Connector(Connector, Up)`, the 
   (`temper/docs/design/draft/jig-domain-api.md`, 4.4).
 - **What still crosses as `In::Core` and `Out::Core`,** for the milestones that reshape it
   (section 3): the application's own asks, its admission table, providers and models' catalogue;
-  a run's preparation, its briefs' gathers, cuts and drops, a workspace, a claim and a job
-  claimed, with their answers; the start's restore of a connector's records; and a connector's
+  a run's preparation past its brief, a workspace, a claim and a job claimed, with their
+  answers; the start's restore of a connector's records; and a connector's
   operations on jig's work (subscribing, cancelling, holding or releasing a task, a repair or a
   person's task seeded by the core, an application request's core part), which each root
   translates until the operations come.
@@ -456,9 +458,9 @@ The engine's own enums gain the port (2.2): `In::Connector(Connector, Up)`, the 
 - **What still crosses outside the connectors' port** (2.5), each with its milestone of
   `temper/docs/design/draft/jig-domain-api.execution.md`: the application's admission table,
   providers and models' catalogue, with the application's port
-  (`temper/docs/design/draft/jig-domain-api.md`, 5.5); a run's preparation, its briefs' gathers,
-  cuts and drops and their answers, a workspace, a claim and a job claimed, with a run's brief
-  and its workspace and claim (`temper/docs/design/draft/jig-domain-api.md`, 6.6); a connector's
+  (`temper/docs/design/draft/jig-domain-api.md`, 5.5); a run's preparation past its brief, a
+  workspace, a claim and a job claimed, with a run's workspace and claim
+  (`temper/docs/design/draft/jig-domain-api.md`, 6.6); a connector's
   restore and the start's defaults, with the start through the ports
   (`temper/docs/design/draft/jig-domain-api.md`, 5.1); a connector's operations on jig's work,
   the application's own acts and an application request's core part, with the operations

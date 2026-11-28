@@ -1,6 +1,9 @@
 # vocabulary: status
 
-2026-11-27. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+2026-11-28. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+
+- **Not yet:** 2.5 and 3: a run's brief planned, gathered and cut through the connectors' port,
+  and its gathers, cuts and drops gone from `Out::Core` and `In::Core`.
 
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.

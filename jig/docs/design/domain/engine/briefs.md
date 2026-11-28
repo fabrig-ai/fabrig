@@ -45,18 +45,18 @@ whom; its delegates, their states, and the
   needs sign-in (../accounts-sources.md, 2), so that a planning agent gives each
   task it delegates the LLM choice its work needs, by capability and
   cost (../tasks/README.md, section 4).
-- **Its charter's documents' (`settings.md`, 9),** gathered by the connector that
-  owns each document's resource as it is when the run is prepared,
-  each optional, titled by the document, after the core's sections and
-  before the task's resources', for every run whatever its charter's
-  parts.
-- **Its connectors',** which it plans by kind, priority and budget but
-  never holds (../model.md, section 5): for each resource the task names, and
-  for each dependency or input whose result is a connector's, the
-  connector gathers the section, keeps it, and says its size; the brief
-  child decides what fits, asks for cuts by size, and, when the brief is
-  complete, the root takes each section from its connector to put the
-  assignment together (../connectors.md, section 9).
+- **Its charter's documents' (`settings.md`, 9),** planned and gathered by the
+  connector that owns each document's resource as it is when the run is
+  prepared, each optional, titled by the document, after the core's
+  sections and before the task's resources', for every run whatever its
+  charter's parts.
+- **Its connectors',** which the engine asks each connector that serves
+  sections to plan, then places by priority and budget but never holds
+  (../model.md, section 5; 1.4): for what the task names of its system,
+  the connector plans its sections, gathers each, keeps it, and says its
+  size; the brief child decides what fits, asks for cuts by size, and,
+  once the run is prepared, the root takes each section from its
+  connector to put the assignment together (../connectors.md, section 9).
 
 A section is loaded or read as it is cut, asking for no more than it
 keeps. The host's protocol layer renders the whole as text, in order.
@@ -76,9 +76,8 @@ cut as the section's other text is.
 and its cuts, and every section that can be cut is cut in time, never
 late:
 
-- **Its owner learns the time it has.** The root, which makes the plan,
-  gives each connector the brief's deadline with each gather it asks
-  for. A connector section that reads in several reads (pages, one log
+- **Its owner learns the time it has.** The engine gives each connector
+  the brief's deadline with each gather it asks for (1.4). A connector section that reads in several reads (pages, one log
   after another) ends ahead of that deadline, at a cutoff of its owner's
   choosing that leaves the brief time to cut: it completes with what it
   has gathered, its read still unanswered left and its late answer
@@ -108,8 +107,8 @@ Nor has it a section for its charter's parts: they are its instructions
 ### 1.1 A brief that fails
 
 A brief fails whole: a required section is missing, the brief child
-refuses its plan, or the core or the root cannot make or put together
-its parts. Every such failure carries a **failure**: how it counts, and
+refuses its plan, a required section a connector planned has no slot
+(1.4), or the core cannot make its parts. Every such failure carries a **failure**: how it counts, and
 why, as a section's name and fixed words. Both name and words are
 fixed in the code, so a reason cannot carry a run's words or a
 secret; the one thing a reason may carry beside them is a task's
@@ -154,7 +153,7 @@ Which is which, by what `executors.md`, 1 prepares:
 | a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
 | a plan the brief child refuses: more sections than a brief holds, a budget past the limit, a core text past it, a section planned twice, a deadline passed | permanent | `brief: ...`, naming which; for a core text, `SECTION: its text is past the brief's limit` |
 | a connector says its system answered wrongly, or will not answer | permanent | the connector's |
-| the root cannot put the brief together: a section's owner lost it, or no room for a required section | permanent | the application's |
+| no slot for the required sections the connectors planned, with no optional core section left to displace (1.4) | permanent | `brief: no room for its required sections` |
 | a core section the core cannot read within its bounds | permanent | `task: ...`, `results: ...`, `transcript: ...` |
 | a brief's notes index refused for any reason but room | permanent | `notes: the index could not be read` |
 | no attempt number left | permanent | `run: no attempt number is left` |
@@ -268,6 +267,146 @@ something to go on, every brief shows them:
   message is.
 - **Its words.** The kept `Word`'s, read from the task's record with no
   store read.
+
+### 1.4 Planned with its connectors
+
+The engine plans a run's brief with the connectors that serve
+sections, places what they would give within the brief's slots, then
+gathers and cuts what it placed, through the connectors' port
+(`vocabulary.md`, 2.5; `temper/docs/design/draft/jig-domain-api.md`, 6.6). No root
+takes part until the run is prepared and its assignment put together
+(../root.md, section 7).
+
+```rust
+// jig-domain-contract's parts, beside a document's, a read's, lines' and a public document's asks
+pub struct Preparation {
+    pub task: u64,
+    pub project: u32,
+    pub requester: ops::Party,        // a task requester is the task's parent
+    pub root: u64,                    // the root of the task's tree
+    pub documents: Box<[Document]>,   // its charter's documents with a slot, in the charter's order
+    pub core: Box<[Claim]>,           // the core's own sections, in the brief's order
+    pub slots: u32,                   // sections left beside the core's and the documents'
+    pub budget: u32,                  // the brief's bytes
+}
+pub struct Claim { pub size: u32, pub limit: u32, pub priority: u16, pub required: bool }
+pub struct Document { pub connector: u16, pub name: effects::Name,      // settings.md, 9
+                      pub path: Box<[u8]>, pub heading: Option<Box<[u8]>> }
+pub struct Section {
+    pub token: Token,                 // its connector's own, unique among the sections it holds
+    pub kind: u16,                    // its connector's own numbering, carried to the assignment
+    pub name: &'static [u8],          // its fixed name in a failure (1.1)
+    pub size: u32,                    // what it expects to gather, 0 when it can't tell
+    pub limit: u32,                   // the most it may keep after cuts
+    pub priority: u16,                // a lower one keeps room first
+    pub required: bool,
+    pub document: Option<u16>,        // the document it reads, by its place in `documents`
+}
+pub struct Failure { pub fate: Fate, pub section: &'static [u8], pub words: Box<[u8]> }   // 1.1
+pub enum Fate { Capacity, Transient, Infrastructure, Permanent }
+pub const DOCUMENT_PRIORITY: u16 = 5;
+
+pub enum Ask {
+    Plan(Box<Preparation>),                                             // ▷ Up::Planned
+    Abandon { task: u64 },                                              // · forget a plan still being made
+    Gather { task: u64, section: Token, budget: u32, deadline: Time },  // ▷ Up::Sized or Up::Failed
+    Cut { task: u64, section: Token, size: u32 },                       // ▷ Up::Sized or Up::Failed
+    Drop { task: u64, section: Token },                                 // · release it, planned or held
+}
+pub enum Up {
+    Planned { task: u64, sections: Box<[Section]> },
+    Sized { task: u64, section: Token, size: u32 },     // gathered or cut, and held
+    Failed { task: u64, section: Token, failure: Failure },
+}
+```
+
+`Document`, `Failure` and `Fate` move down from the core's vocabulary and the brief
+child, each still named along its old path, and `DOCUMENT_PRIORITY` with them.
+
+- **Asked of each connector that serves sections.** A connector says it
+  serves them in its declaration (`sections`, ../connectors.md, section 2). Once the
+  core's own sections are planned and its notes index read (1), the
+  engine asks each such connector, in its number's order, `Plan` with
+  the run's preparation context. A brief is named by its task's number,
+  since a task prepares one run at a time. What a task names of a
+  connector's system (its project's home, its parent's change, a
+  document of its charter) is the connector's to know (../connectors.md,
+  section 9), so each connector judges it, and answers with no sections
+  where there is none.
+- **The context** is what the brief stands on, in values: the task, its
+  project, its requester, its tree's root, the documents of its
+  charter's revision whose connectors serve sections, while a slot is
+  left for them (`settings.md`, 9), the core's own
+  sections' claims in the brief's order, the slots left after them and
+  the documents, and the brief's bytes (`brief.brief_bytes`). A
+  connector reads its own records beside it, never the core's.
+- **A plan may end later.** A connector answers `Up::Planned` in the
+  step it is asked or a later one, once what it waits on is taken
+  (temper's forge waits for a goal's workspace). The engine waits for
+  every connector it asked, with no deadline of its own: the task stays
+  preparing, as it does for a load. Its wait is kept with the
+  preparation's context, bounded by the live tasks as the wait for notes
+  is (2.2), and takes no brief slot.
+- **Placed by the engine,** once every plan is in, in this order: the
+  core's sections, in its order; each document's section, in the
+  charter's order; then every other section, by connector number and in
+  each plan's order. The core's sections and the documents planned have
+  their slots of the brief's `brief.sections`. A required section takes a
+  slot left, or else displaces the last optional core section, then the
+  one before it, and a displaced section is left out with no marker.
+  With none left to displace, the brief fails, permanently, `brief: no
+  room for its required sections` (1.1), and every section planned is
+  dropped. An optional section takes a slot left after the required
+  ones, or is dropped. A document no connector planned is not in the
+  brief.
+- **A plan out of bounds** is taken as no plan, and each of its
+  sections dropped: more sections than a brief holds, a token named
+  twice, a document that is not its own in the context or is planned
+  twice, or a document's section planned required. The engine tells the
+  connector nothing more (3).
+- **Gathered and cut by the brief child** (1): the placed sections, the
+  brief's bytes and its deadline, `brief.gather` after placing. Each
+  connector section is asked `Gather`, with the read bound
+  (`brief.read_bytes`) and the deadline, and answers `Sized` or
+  `Failed`; once all are in or the settle point passes, the child allots
+  sizes by priority and asks `Cut` to a smaller size, answered the same,
+  or `Drop` of an optional section without room. A section is named by
+  its connector and its token together: two connectors' tokens may be
+  equal. *Within the deadline* (1) and 1.1 hold as they are.
+- **Kept until the run is prepared.** A brief complete goes on to the
+  run's workspace in the same decision, and the engine keeps its placed
+  sections, each connector's still held by it, until the run is
+  prepared: they go to the root with it (`Now::RunPrepared`), and the
+  root takes each from its connector as it puts the assignment together
+  (../root.md, section 7). A section its connector no longer holds then goes in
+  as missing, its why `Failed`.
+- **Abandoned** when the preparation ends before its run is prepared:
+  stale, failed, its claim refused or its task ended. The engine asks
+  `Abandon` of each connector whose plan it still awaits, and `Drop` of
+  each section planned, gathering or held, as a brief that fails drops
+  its sections (1.1). While the engine stops, a brief completes but its
+  preparation goes no further. Nothing of a brief outlives a restart: a
+  preparation there begins again.
+- **Answers that name nothing awaited** are taken as the core takes
+  them (`vocabulary.md`, 2.5): a plan from a connector the engine awaits
+  no plan from for that task has each of its sections dropped; a size or
+  a failure for a section no brief awaits is dropped.
+- **Why the engine plans:** the roots planned briefs three ways, two of
+  them with fixed answers (../root.md, section 14), and what fits a brief is the
+  brief child's to judge. A connector knows what its system holds for a
+  task; the engine knows the brief's slots and budget. The context
+  carries the second to the first, and the plan the first to the second.
+- **Why a plan ends later,** where the draft's capabilities' table
+  makes it a judgement: the same draft has each connector answer once
+  the holds it waits on are taken, and temper's forge plans only once a
+  goal's workspace is ready.
+- **Why every connector that serves sections is asked,** not only those
+  the task names: the core does not know what a task names of a
+  system, its project's home or its parent's change, and a connector
+  with nothing for it says so in one empty answer.
+- **Why a cut is answered,** where the draft's table has a notification:
+  the size a connector's own rules cut to is what the brief holds, and a
+  cut unanswered by the deadline keeps failing as 1.1 says.
 
 ## 2. Notes
 
@@ -457,3 +596,21 @@ does not fail:
   preparation as capacity, `notes: no room for the index` (1.1), and is
   due again after a backoff with no try spent. Its activation's reasons
   and its inbox stay with the tasks child, so nothing is lost.
+
+## 3. Later
+
+- **The rest of the preparation context** the draft gives
+  (`temper/docs/design/draft/jig-domain-api.md`, 6.6): the run's attempt,
+  its spec, its saved resources and what it may modify, with a run's
+  workspace items planned in the same plan, with the milestone of a
+  run's workspace and claim
+  (`temper/docs/design/draft/jig-domain-api.execution.md`). Until then a
+  connector reads what it needs of them as it does today.
+- **A plan's own deadline.** A connector that never answers `Plan`
+  keeps its task preparing until the task moves or ends.
+- **Section kinds declared** (`temper/docs/design/draft/jig-domain-api.md`, 6.2), each
+  with its fixed name, in place of the declaration's `sections`; and one
+  way to name a part a connector keeps (`PartRef`, 6.6 there) in place
+  of a section's connector and token.
+- **A plan refused with why** (`temper/docs/design/draft/jig-domain-api.md`, 6.4),
+  told to the connector whose plan was out of bounds.
