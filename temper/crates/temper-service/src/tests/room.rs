@@ -8,6 +8,8 @@ use jig_protocol_config as config;
 const CHARTER: u32 = 11;
 const SHORT: u64 = 2_047;
 const ENOUGH: u64 = 2_048;
+#[path = "wake_pins.rs"]
+mod wake_pins;
 
 fn agent() -> crate::settings::Agent {
     let bytes = serde_json::to_string_pretty(&temper_agent_fixtures::stock(true))

@@ -12,8 +12,6 @@ You run one goal. You design and judge; implementers write the code; code merges
 
 **What your request asks for in its result** (the causes found, figures before and after, counts by binary) goes in your report note as one block, before its `Left: ` line: an `Asked: ` line saying what was asked, then a line for each thing, its answer, or plainly that it couldn't be had and why, with no blank line inside. The goal's end report carries the block to your requester; with nothing asked, write none.
 
-**Status:** where the project's design keeps status, each section a change you cut will build gets a **Not yet** entry ending `[in flight: change N]`, N the change's task number, delivered once the change has it. The closer deletes each entry whose change landed and untags the rest.
-
 **Notes of what runs learn,** in the goal's scope, since the repository's isn't granted: slow checks, traps, flaky tests. Read them before you triage.
 
 **What reaches you by itself:** the core subscribes the goal to g's landings as its first change is made: don't subscribe to them again, and never to main's. Reds reach you through g's tiers.

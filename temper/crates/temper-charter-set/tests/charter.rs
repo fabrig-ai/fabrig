@@ -243,7 +243,8 @@ fn overlay_refusal_names_the_project_only_key_and_line() {
         ),
     ] {
         let text = front(keys, INSTRUCTIONS);
-        let set = Set { goal: Some(&text), common: None, designer: None, coordinator: None, implementer: None };
+        let set =
+            Set { goal: Some(&text), common: None, design: None, designer: None, coordinator: None, implementer: None };
         assert_eq!(set.overlay_bodies().unwrap_err().to_string(), why);
     }
 }

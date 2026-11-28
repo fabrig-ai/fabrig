@@ -20,6 +20,7 @@ const CHARTER_BYTES: u32 = 65_536;
 pub enum File {
     Common,
     Goal,
+    Design,
     Designer,
     Coordinator,
     Implementer,
@@ -30,6 +31,7 @@ impl File {
         match self {
             Self::Common => "common.md",
             Self::Goal => "goal.md",
+            Self::Design => "design.md",
             Self::Designer => "designer.md",
             Self::Coordinator => "coordinator.md",
             Self::Implementer => "implementer.md",
@@ -38,12 +40,13 @@ impl File {
 }
 /// Identify a directory entry without reading it.
 /// # Errors
-/// Refuses a Markdown name outside the five files.
+/// Refuses a Markdown name outside the six files.
 #[expect(clippy::case_sensitive_file_extension_comparisons, reason = "the set recognizes names ending .md exactly")]
 pub fn file(name: &str) -> Result<Option<File>, Refusal> {
     let value = match name {
         "common.md" => File::Common,
         "goal.md" => File::Goal,
+        "design.md" => File::Design,
         "designer.md" => File::Designer,
         "coordinator.md" => File::Coordinator,
         "implementer.md" => File::Implementer,
@@ -55,6 +58,7 @@ pub fn file(name: &str) -> Result<Option<File>, Refusal> {
 pub struct Set<'a> {
     pub common: Option<&'a str>,
     pub goal: Option<&'a str>,
+    pub design: Option<&'a str>,
     pub designer: Option<&'a str>,
     pub coordinator: Option<&'a str>,
     pub implementer: Option<&'a str>,
@@ -145,7 +149,7 @@ pub fn goal_agent<R>(set: &Set<'_>, reason: impl Fn(&str) -> Option<R>) -> Resul
     if let Some(reasons) = current {
         assert!(parts.push(part(reasons, coordinator, start, coordinator.len())).is_ok(), "part count fits u32");
     }
-    Ok(GoalAgent { instructions: joined(set.common, set.goal), parts: parts.into_boxed() })
+    Ok(GoalAgent { instructions: joined(&[set.common, set.goal, set.design]), parts: parts.into_boxed() })
 }
 #[expect(clippy::disallowed_types, reason = "the caller's reason map is the assembly boundary")]
 fn reasons<R>(names: &str, line: usize, reason: &impl Fn(&str) -> Option<R>) -> Result<Box<[R]>, Refusal> {
@@ -200,20 +204,33 @@ fn trim_text(text: &str) -> &str {
 /// Assemble the implementer's instructions; absent and blank files contribute nothing.
 #[must_use]
 pub fn implementer(set: &Set<'_>) -> Box<[u8]> {
-    joined(set.common, set.implementer)
+    joined(&[set.common, set.implementer])
 }
 fn trimmed(text: Option<&str>) -> &str {
     trim_text(text.unwrap_or(""))
 }
-fn joined(first: Option<&str>, second: Option<&str>) -> Box<[u8]> {
-    let first = trimmed(first);
-    let second = trimmed(second);
-    let separator = if first.is_empty() || second.is_empty() { b"".as_slice() } else { BLANK_LINE.as_bytes() };
-    let length = first.len().checked_add(separator.len()).expect("first and separator length");
-    let length = length.checked_add(second.len()).expect("joined text length");
+fn joined(files: &[Option<&str>]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for file in files {
+        let file = trimmed(*file);
+        if !file.is_empty() {
+            if length != 0 {
+                length = length.checked_add(BLANK_LINE.len()).expect("separator length");
+            }
+            length = length.checked_add(file.len()).expect("joined text length");
+        }
+    }
     let mut text = Writer::new(length);
-    text.put(first.as_bytes()).expect("first counted");
-    text.put(separator).expect("separator counted");
-    text.put(second.as_bytes()).expect("second counted");
+    let mut first = true;
+    for file in files {
+        let file = trimmed(*file);
+        if !file.is_empty() {
+            if !first {
+                text.put(BLANK_LINE.as_bytes()).expect("separator counted");
+            }
+            text.put(file.as_bytes()).expect("file counted");
+            first = false;
+        }
+    }
     text.finish()
 }

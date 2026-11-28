@@ -171,7 +171,8 @@ In order, for every file of section 2:
   an item of every kind a settings file sets, an edit `removed` and
   `reset`, and an overlay of each form, one naming the charter files of
   the same format as `../../charters/F`; for charter files, a set of the
-  five names (`../../client/ctl/overlays.md`, 2). Format 1's name no
+  names its format's release read, so format 1's holds five, without
+  `design`, which an overlay may leave out (`../../client/ctl/overlays.md`, 2). Format 1's name no
   `format`, as no file written before this design does.
 - **Never edited after its release:** a focused check in
   `tests/boundary/` refuses a tree in which a file under

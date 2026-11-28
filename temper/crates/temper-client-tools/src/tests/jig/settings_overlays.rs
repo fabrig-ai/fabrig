@@ -76,10 +76,24 @@ fn overlay_directories_assemble_in_order() {
     );
 }
 #[test]
+fn overlay_design_is_appended_to_the_goal_but_not_the_implementer() {
+    for (charter, instructions) in [
+        (5, b"Common overlay instructions.\n\nGoal overlay instructions.\n\nDesign overlay instructions.".as_slice()),
+        (2, b"Common overlay instructions.\n\nImplementer overlay instructions."),
+    ] {
+        let bytes = file(charter, r#"{"charters":["with-design"]}"#);
+        let (root, call) = submit(vec![input("settings.json", &bytes, vec![fixture("", "with-design")])]);
+        let value = overlay(change(&root, call).items.get(0).expect("overlay"));
+        assert_eq!(value.instructions.bytes(), instructions, "charter {charter}");
+        assert!(value.parts.is_empty());
+    }
+}
+#[test]
 fn format_one_overlays_assemble_like_unversioned_overlays() {
     let plain = [
         ("common.md", "Common text.\n"),
         ("goal.md", "Goal text.\n"),
+        ("design.md", "Design text.\n"),
         ("designer.md", "Designer text.\n"),
         ("coordinator.md", "## part, on: first\nCoordinator text.\n"),
         ("implementer.md", "Implementer text.\n"),
@@ -109,14 +123,16 @@ fn overlay_formats_refuse_without_sending() {
         ("+++\nformat = 0\n+++\n", "format: a whole number from 1"),
         ("+++\nformat = x\n+++\n", "format: a whole number from 1"),
     ] {
-        // Charter 2 doesn't take goal.md, but still refuses its format.
-        let directory = directory("set", &[("goal.md", text)]);
-        let (mut root, call) = submit(vec![input("settings.json", &bytes, vec![directory])]);
-        assert!(root.sends.is_empty());
-        let answer = root.answer(call).expect("refused before sending");
-        let stderr = core::str::from_utf8(&answer.stderr).expect("words");
-        assert_eq!(answer.status, 1);
-        assert_eq!(stderr.trim_end(), format!("settings file item 1: overlay.charters[0]: goal.md: {expected}"));
+        // Charter 2 doesn't take these files, but still refuses their formats.
+        for name in ["goal.md", "design.md"] {
+            let directory = directory("set", &[(name, text)]);
+            let (mut root, call) = submit(vec![input("settings.json", &bytes, vec![directory])]);
+            assert!(root.sends.is_empty());
+            let answer = root.answer(call).expect("refused before sending");
+            let stderr = core::str::from_utf8(&answer.stderr).expect("words");
+            assert_eq!(answer.status, 1);
+            assert_eq!(stderr.trim_end(), format!("settings file item 1: overlay.charters[0]: {name}: {expected}"));
+        }
     }
 }
 #[test]

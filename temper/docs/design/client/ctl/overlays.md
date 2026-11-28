@@ -55,9 +55,11 @@ setting's value kept over a charter's default, is jig's
   relative, and standard input has no directory; name it absolutely`.
 - **What is read:** each Markdown file in the directory, by name, not
   below it; a file of another extension, the settings file among them,
-  is no part of the set. A set's five names are `common`, `goal`,
-  `designer`, `coordinator` and `implementer`, each optional in an
-  overlay (`../../draft/stock-charters.md`, 2). A directory missing or
+  is no part of the set. A set's six names are `common`, `goal`,
+  `design`, `designer`, `coordinator` and `implementer`, each optional in
+  an overlay (`../../draft/stock-charters.md`, 2;
+  `../../draft/any-project.md`, 4.2), so that a directory without
+  `design.md` applies as it did before the set had one. A directory missing or
   unreadable, an unknown Markdown name, text in `coordinator` before its
   first section, and a section whose reasons are empty, repeated or
   unknown are refused, naming the item, the directory and the file, in
@@ -81,9 +83,9 @@ setting's value kept over a charter's default, is jig's
   stock's set (`../../domain/agent/charter.md`, 1) has none.
 - **Assembled for its charter** by the rule the stock's set is
   (`../../domain/agent/charter.md`, 1): charter 5 takes `common`, `goal`,
-  `designer` and `coordinator`, its instructions `common` then `goal`
-  and its parts `designer`, on `first`, then each section of
-  `coordinator`; charter 2 takes `common` then `implementer` as its
+  `design`, `designer` and `coordinator`, its instructions `common`,
+  `goal` then `design` and its parts `designer`, on `first`, then each
+  section of `coordinator`; charter 2 takes `common` then `implementer` as its
   instructions, with no parts. A file its charter doesn't take is read
   and checked all the same, so one directory serves both charters. An
   overlay of any other charter naming `charters` is refused, naming the
