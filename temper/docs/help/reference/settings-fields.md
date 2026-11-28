@@ -626,36 +626,38 @@ How trains combine changes.
 - other:`merge|squash`;? default squash.
 
 ## repository-gates
-A repository's test gates and tiers.
-- forge:u16;! the adopted repository.
-- repository:u32;! the adopted repository.
+Test gates and tiers.
+- forge:u16;! adopted repo.
+- repository:u32;! adopted repo.
 - gates:[1114240] gate-check;? <=forge.gates.
 - tiers:[1114240] tier-check;? <=forge.tiers.tiers.
 
 ## gate-check
-A workflow gate proving a landing.
-- name:t[32];! letters/digits/-/_; unique per repository.
-- workflow:t[255];! workflow file, no slash.
+Landing gate.
+- name:t[32];! letters/digits/-/_; unique per repo.
+- workflow:t[255];! workflow file without /.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
 - blocking:bool;! blocks landing.
-- base:bool;? reads base; default false.
-- report:gate-report;? artifact holding failed test ids.
+- base:bool;? read base (default false).
+- report:gate-report;? failed test ids.
 
 ## gate-report
-Failed tests uploaded by a gate.
-- artifact:t[32];! artifact, no slash.
-- format:choice;! `junit`: JUnit report. `lines`: One test id per line.
-- fuzzy:t[64];? nonempty fuzzy-test name prefix.
+Uploaded failed tests. Prefix and labels: nonempty UTF-8, no control bytes.
+- artifact:t[32];! name without /.
+- format:choice;! `junit`: JUnit. `lines`: One test id per line.
+- fuzzy:t[64];? test name prefix.
+- matched:t[64];? label for matches.
+- rest:t[64];? label for other tests.
 
 ## tier-check
-A slow workflow and the branch it follows.
-- name:t[32];! letters/digits/-/_; unique per repository.
-- workflow:t[255];! workflow file, no slash.
+Slow workflow on a branch.
+- name:t[32];! letters/digits/-/_; unique per repo.
+- workflow:t[255];! workflow file without /.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
-- artifact:t[32];! artifact, no slash.
-- format:choice;! `junit`: JUnit report. `lines`: One test id per line.
+- artifact:t[32];! name without /.
+- format:choice;! `junit`: JUnit. `lines`: One test id per line.
 - branch:t[1048576];? default landing branch; `goal`: goal branches.
-- span_ms:u64;? ms between starts; default 0, no span.
+- span_ms:u64;? ms between starts; 0 default, no span.
 - description:t[120];? nonempty UTF-8, no controls.
 
 ## project-areas

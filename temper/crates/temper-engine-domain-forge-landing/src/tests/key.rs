@@ -207,7 +207,18 @@ fn a_base_definition_appends_only_the_true_flag() {
 #[test]
 fn a_report_definition_follows_the_optional_base_flag() {
     let mut gate = gate();
-    gate.report = Some(crate::GateReport { artifact: copy_of(b"failed"), format: crate::Format::Junit, fuzzy: None });
+    gate.report = Some(crate::GateReport {
+        artifact: copy_of(b"failed"),
+        format: crate::Format::Junit,
+        fuzzy: None,
+        matched: None,
+        rest: None,
+    });
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x02\0\x06failed\0");
+    let report = gate.report.as_mut().expect("report");
+    report.fuzzy = Some(copy_of(b"slow::"));
+    report.matched = Some(copy_of(b"slow"));
+    report.rest = Some(copy_of(b"quick"));
     assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x02\0\x06failed\0");
     gate.base = true;
     gate.report.as_mut().expect("report").format = crate::Format::Lines;

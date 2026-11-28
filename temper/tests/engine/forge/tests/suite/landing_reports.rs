@@ -11,7 +11,7 @@ use temper_engine_forge_world::{
     landings::{self, CHANGE, LANDING, PROJECT},
 };
 
-fn world(reports: bool, fault: bool, contents: &[u8], limit: u32) -> World {
+fn world(reports: bool, fault: bool, contents: &[u8], limit: u32, report: landing::GateReport) -> World {
     let workflow = raw::Workflow {
         requirements: Box::new([]),
         fails: Box::new([]),
@@ -44,11 +44,7 @@ fn world(reports: bool, fault: bool, contents: &[u8], limit: u32) -> World {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
-                report: Some(landing::GateReport {
-                    artifact: b"failed".as_slice().into(),
-                    format: landing::Format::Lines,
-                    fuzzy: None
-                }),
+                report: Some(report),
             }]),
         }]),
     ));
@@ -64,6 +60,16 @@ fn world(reports: bool, fault: bool, contents: &[u8], limit: u32) -> World {
     world
 }
 
+fn gate_report() -> landing::GateReport {
+    landing::GateReport {
+        artifact: b"failed".as_slice().into(),
+        format: landing::Format::Lines,
+        fuzzy: None,
+        matched: None,
+        rest: None,
+    }
+}
+
 #[test]
 fn gate_receipts_read_reports_only_for_failed_workflow_steps() {
     let ids = Failures::Tests(Box::new([b"suite.first".as_slice().into(), b"suite.second".as_slice().into()]));
@@ -74,7 +80,7 @@ fn gate_receipts_read_reports_only_for_failed_workflow_steps() {
         (true, false, b"".as_slice(), 2, None),
         (true, true, b"suite.first\n".as_slice(), 2, None),
     ] {
-        let mut world = world(reports, fault, contents, limit);
+        let mut world = world(reports, fault, contents, limit, gate_report());
         let mut terminal = None;
         for entry in 100..180 {
             let decision = landings::step_landing(&mut world, LANDING, entry);
@@ -136,5 +142,51 @@ fn gate_receipts_read_reports_only_for_failed_workflow_steps() {
                 }))
             );
         }
+    }
+}
+
+#[test]
+fn a_landing_repair_names_failed_tests_with_their_receipts_labels() {
+    for (matched, rest, expected) in [
+        (
+            Some("slow"),
+            Some("quick"),
+            ["Failed test: test binary b (quick)", "Failed test: test binary slow::a (slow)"],
+        ),
+        (None, None, ["Failed test: test binary b", "Failed test: test binary slow::a"]),
+        (Some("slow"), None, ["Failed test: test binary b", "Failed test: test binary slow::a (slow)"]),
+    ] {
+        let mut world = world(
+            true,
+            false,
+            b"test binary slow::a\ntest binary b\n",
+            2,
+            landing::GateReport {
+                fuzzy: Some(b"slow::".as_slice().into()),
+                matched: matched.map(|label| label.as_bytes().into()),
+                rest: rest.map(|label| label.as_bytes().into()),
+                ..gate_report()
+            },
+        );
+        let (gate, candidate) = (100..180)
+            .find_map(|entry| {
+                if let landing::Decision::Leave { why: landing::Leave::Failed { gate, .. }, .. } =
+                    landings::step_landing(&mut world, LANDING, entry)
+                {
+                    Some((gate, world.landing(LANDING).landing.members[0].candidate.expect("failed candidate")))
+                } else {
+                    None
+                }
+            })
+            .expect("the report refuses the candidate");
+        let why = change::Repair::LandingAt { gate, candidate, below: None };
+        assert_eq!(
+            changes::change_step_task(&mut world, CHANGE, 300, change::Status::Passed, Box::new([]), false, false),
+            change::Decision::Delegate(change::Delegate::Repair(why)),
+        );
+        let words = world.repair_words(CHANGE, why);
+        let lines: Vec<_> =
+            std::str::from_utf8(&words).unwrap().lines().filter(|line| line.starts_with("Failed test: ")).collect();
+        assert_eq!(lines, expected);
     }
 }

@@ -1159,6 +1159,8 @@ impl World {
                                                     artifact: b"failed".as_slice().into(),
                                                     format: temper_engine_domain_forge_tiers::Format::Lines,
                                                     fuzzy: None,
+                                                    matched: None,
+                                                    rest: None,
                                                 }
                                             }),
                                         }])

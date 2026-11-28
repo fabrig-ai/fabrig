@@ -123,7 +123,7 @@ fn gather(
     (decision.expect("report gather decides"), history.into_boxed())
 }
 
-fn gather_requests(d: &mut Domain, run: &api::Run, report: Result<Answer, api::Error>) -> Box<[Request]> {
+pub(super) fn gather_requests(d: &mut Domain, run: &api::Run, report: Result<Answer, api::Error>) -> Box<[Request]> {
     let mut requests = List::uncapped();
     for _ in 0..32_u32 {
         let (call, op) = fixtures::next_call(d);
@@ -450,7 +450,11 @@ fn a_reported_red_stands_beside_another_jobs_setup_fault() {
         &d,
         &key,
         decision,
-        &ReceiptReport::Tests(Box::new([ReceiptTest { key: b"test binary broken".as_slice().into(), fuzzy: false }])),
+        &ReceiptReport::Tests(ReceiptTests {
+            tests: Box::new([ReceiptTest { key: b"test binary broken".as_slice().into(), matched: false }]),
+            matched: None,
+            rest: None,
+        }),
     );
 }
 
@@ -496,7 +500,9 @@ fn stored_gate(report: ReceiptReport) -> (Domain, ReceiptKey, api::Run) {
 
 #[test]
 fn a_retained_gate_receipt_naming_nothing_is_erased_and_redispatched() {
-    for report in [ReceiptReport::Tests(Box::new([])), ReceiptReport::Unread] {
+    for report in
+        [ReceiptReport::Tests(ReceiptTests { tests: Box::new([]), matched: None, rest: None }), ReceiptReport::Unread]
+    {
         let (mut d, key, run) = stored_gate(report);
         let requests = gather_requests(&mut d, &run, Err(api::Error::Missing));
         let mut erased = false;

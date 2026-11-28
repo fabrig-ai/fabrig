@@ -8,6 +8,7 @@ use temper_client_protocol_wire::v1::Record;
 mod repairs;
 const MOST: u32 = jig_client_protocol_wire::CEILINGS.application_value_bytes;
 const HOOK_TIMEOUT_MAX_DEFAULT: u32 = 3_600;
+const REPORT_TEXT: &[u8] = b"must be 1 to 64 bytes of text with no control character";
 fn number(d: &Decoder<'_>, fields: &Fields, name: &[u8], default: u64) -> Result<u64, Error> {
     match optional(fields, name) {
         Some(at) => match d.number(at) {
@@ -172,12 +173,14 @@ fn format(d: &Decoder<'_>, f: &Fields) -> Result<w::SettingsReportFormat, Error>
     }
 }
 fn report(d: &Decoder<'_>, at: u32) -> Result<w::SettingsGateReport, Error> {
-    let f = d.object(at, &[b"artifact", b"format", b"fuzzy"])?;
+    let f = d.object(at, &[b"artifact", b"format", b"fuzzy", b"matched", b"rest"])?;
     Ok({
         let value = w::SettingsGateReport {
             artifact: required_text(d, &f, b"artifact")?,
             format: format(d, &f)?,
             fuzzy: text(d, &f, b"fuzzy")?,
+            matched: text(d, &f, b"matched")?,
+            rest: text(d, &f, b"rest")?,
         };
         match value.encode(&d.kinds) {
             Ok(_) => value,
@@ -188,7 +191,10 @@ fn report(d: &Decoder<'_>, at: u32) -> Result<w::SettingsGateReport, Error> {
 fn gate(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
     let f = d.object(at, &[b"name", b"workflow", b"ignored", b"blocking", b"base", b"report"])?;
     let report = match optional(&f, b"report") {
-        Some(at) => Some(report(d, at)?),
+        Some(at) => match report(d, at) {
+            Ok(value) => Some(value),
+            Err(why) => return Err(why.at(b"report")),
+        },
         None => None,
     };
     let r = {
@@ -457,6 +463,12 @@ fn render_gates_checked(v: &w::ProjectGates, out: &mut Encoder) -> Option<()> {
                 if let Some(fuzzy) = &report.fuzzy {
                     string(out, b"fuzzy", fuzzy);
                 }
+                if let Some(label) = &report.matched {
+                    string(out, b"matched", label);
+                }
+                if let Some(label) = &report.rest {
+                    string(out, b"rest", label);
+                }
                 out.object_end();
             }
             out.object_end();
@@ -511,7 +523,11 @@ fn record_bound(why: w::Problem) -> Error {
     } else if why.path == w::paths::SETTINGS_GATE_REPORT_ARTIFACT || why.path == w::paths::SETTINGS_TIER_ARTIFACT {
         b"artifact"
     } else if why.path == w::paths::SETTINGS_GATE_REPORT_FUZZY {
-        b"fuzzy"
+        return error(b"fuzzy", REPORT_TEXT);
+    } else if why.path == w::paths::SETTINGS_GATE_REPORT_MATCHED {
+        return error(b"matched", REPORT_TEXT);
+    } else if why.path == w::paths::SETTINGS_GATE_REPORT_REST {
+        return error(b"rest", REPORT_TEXT);
     } else if why.path == w::paths::SETTINGS_TIER_DESCRIPTION {
         b"description"
     } else if why.path == w::paths::REPOSITORY_GATES_GATES {

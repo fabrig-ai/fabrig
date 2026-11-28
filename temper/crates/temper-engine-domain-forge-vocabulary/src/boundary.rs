@@ -1864,12 +1864,19 @@ pub enum ReceiptReport {
     Unset,
     Unread,
     Many { bound: u32 },
-    Tests(Box<[ReceiptTest]>),
+    Tests(ReceiptTests),
+}
+/// A failed report's tests and the labels in use when it was read.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ReceiptTests {
+    pub tests: Box<[ReceiptTest]>,
+    pub matched: Option<Box<[u8]>>,
+    pub rest: Option<Box<[u8]>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReceiptTest {
     pub key: Box<[u8]>,
-    pub fuzzy: bool,
+    pub matched: bool,
 }
 
 /// A failed gate job, retained for `read_job` (domain/landing-proof.md, 1.2).

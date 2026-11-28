@@ -226,7 +226,11 @@ fn a_second_red_reads_new_attempts_and_repairs_without_a_third_run() {
     assert_eq!(receipt.jobs[0].attempt, 3);
     assert_eq!(
         receipt.report,
-        ReceiptReport::Tests(Box::new([ReceiptTest { key: b"test a::t y".as_slice().into(), fuzzy: false }]))
+        ReceiptReport::Tests(ReceiptTests {
+            tests: Box::new([ReceiptTest { key: b"test a::t y".as_slice().into(), matched: false }]),
+            matched: None,
+            rest: None
+        })
     );
     assert_eq!(
         decision,
@@ -405,7 +409,7 @@ fn gate_flakes_match_each_test_at_the_bound_and_choose_each_finding_once() {
         tests
             .push(ReceiptTest {
                 key: skein_lib::bytes::concat(&[b"test binary ", skein_lib::Decimal::of(u64::from(number)).as_bytes()]),
-                fuzzy: false,
+                matched: false,
             })
             .unwrap();
     }

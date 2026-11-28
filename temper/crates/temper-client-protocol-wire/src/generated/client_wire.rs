@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0x0f, 0x9e, 0x9f, 0x38, 0x23, 0x4c, 0x02, 0x18, 0x6b, 0x74, 0x8b, 0xea, 0xf0, 0xb8, 0x4c, 0xc9, 0x6b, 0x5d, 0x90,
-    0x47, 0xf7, 0xae, 0xc1, 0xe2, 0xfd, 0x62, 0x3f, 0x65, 0xbb, 0x66, 0x57, 0xc0,
+    0x46, 0x02, 0x41, 0xcd, 0xa1, 0xe4, 0x34, 0xe3, 0xad, 0x8f, 0x41, 0xd7, 0xc8, 0x0f, 0xe3, 0x78, 0x26, 0x60, 0x1b,
+    0x1a, 0x9a, 0x34, 0xf5, 0xf4, 0x5d, 0xf5, 0x3e, 0x14, 0xfa, 0x81, 0xbc, 0xf9,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -287,6 +287,8 @@ pub struct Limits {
     pub project_landing_close_job_some: u32,
     pub settings_gate_report_artifact: u32,
     pub settings_gate_report_fuzzy_some: u32,
+    pub settings_gate_report_matched_some: u32,
+    pub settings_gate_report_rest_some: u32,
     pub settings_gate_name: u32,
     pub settings_gate_workflow: u32,
     pub settings_gate_ignored: u32,
@@ -615,6 +617,8 @@ pub const CEILINGS: Limits = Limits {
     project_landing_close_job_some: 4_096,
     settings_gate_report_artifact: 32,
     settings_gate_report_fuzzy_some: 64,
+    settings_gate_report_matched_some: 64,
+    settings_gate_report_rest_some: 64,
     settings_gate_name: 32,
     settings_gate_workflow: 255,
     settings_gate_ignored: 1_114_240,
@@ -943,6 +947,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "project_landing_close_job_some",
     "settings_gate_report_artifact",
     "settings_gate_report_fuzzy_some",
+    "settings_gate_report_matched_some",
+    "settings_gate_report_rest_some",
     "settings_gate_name",
     "settings_gate_workflow",
     "settings_gate_ignored",
@@ -1275,6 +1281,8 @@ impl Limits {
             self.project_landing_close_job_some,
             self.settings_gate_report_artifact,
             self.settings_gate_report_fuzzy_some,
+            self.settings_gate_report_matched_some,
+            self.settings_gate_report_rest_some,
             self.settings_gate_name,
             self.settings_gate_workflow,
             self.settings_gate_ignored,
@@ -1608,6 +1616,8 @@ impl Limits {
             project_landing_close_job_some: self.project_landing_close_job_some.min(most),
             settings_gate_report_artifact: self.settings_gate_report_artifact.min(most),
             settings_gate_report_fuzzy_some: self.settings_gate_report_fuzzy_some.min(most),
+            settings_gate_report_matched_some: self.settings_gate_report_matched_some.min(most),
+            settings_gate_report_rest_some: self.settings_gate_report_rest_some.min(most),
             settings_gate_name: self.settings_gate_name.min(most),
             settings_gate_workflow: self.settings_gate_workflow.min(most),
             settings_gate_ignored: self.settings_gate_ignored.min(most),
@@ -1938,6 +1948,8 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PROJECT_LANDING_CLOSE_JOB,
     paths::SETTINGS_GATE_REPORT_ARTIFACT,
     paths::SETTINGS_GATE_REPORT_FUZZY,
+    paths::SETTINGS_GATE_REPORT_MATCHED,
+    paths::SETTINGS_GATE_REPORT_REST,
     paths::SETTINGS_GATE_NAME,
     paths::SETTINGS_GATE_WORKFLOW,
     paths::SETTINGS_GATE_IGNORED,
@@ -3461,6 +3473,8 @@ pub mod paths {
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
     pub const SETTINGS_GATE_REPORT_FORMAT: Path = Path::new("SettingsGateReport.format");
     pub const SETTINGS_GATE_REPORT_FUZZY: Path = Path::new("SettingsGateReport.fuzzy");
+    pub const SETTINGS_GATE_REPORT_MATCHED: Path = Path::new("SettingsGateReport.matched");
+    pub const SETTINGS_GATE_REPORT_REST: Path = Path::new("SettingsGateReport.rest");
     pub const SETTINGS_GATE_REPORT_TAIL: Path = Path::new("SettingsGateReport (tail)");
     pub const SETTINGS_GATE_NAME: Path = Path::new("SettingsGate.name");
     pub const SETTINGS_GATE_WORKFLOW: Path = Path::new("SettingsGate.workflow");
@@ -31955,6 +31969,8 @@ pub struct SettingsGateReport {
     pub artifact: Box<[u8]>,
     pub format: SettingsReportFormat,
     pub fuzzy: Option<Box<[u8]>>,
+    pub matched: Option<Box<[u8]>>,
+    pub rest: Option<Box<[u8]>>,
 }
 
 // Record: SettingsGateReport.
@@ -31964,11 +31980,15 @@ impl SettingsGateReport {
         skein_codec::bounds::Node::Named("SettingsReportFormat"),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, settings_gate_report_fuzzy_some) },
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, settings_gate_report_matched_some) },
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, settings_gate_report_rest_some) },
+        skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 10;
+    pub const ENCODED_AT_ZERO: u64 = 20;
 }
 
 impl Record for SettingsGateReport {
@@ -31996,6 +32016,8 @@ impl Record for SettingsGateReport {
         field::write(field::Bytes { limit: limits.settings_gate_report_artifact.min(CEILINGS.settings_gate_report_artifact) }, &self.artifact, limits, out, paths::SETTINGS_GATE_REPORT_ARTIFACT)?;
         field::write(field::Nested, &self.format, limits, out, paths::SETTINGS_GATE_REPORT_FORMAT)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.settings_gate_report_fuzzy_some.min(CEILINGS.settings_gate_report_fuzzy_some) } }, &self.fuzzy, limits, out, paths::SETTINGS_GATE_REPORT_FUZZY)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.settings_gate_report_matched_some.min(CEILINGS.settings_gate_report_matched_some) } }, &self.matched, limits, out, paths::SETTINGS_GATE_REPORT_MATCHED)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.settings_gate_report_rest_some.min(CEILINGS.settings_gate_report_rest_some) } }, &self.rest, limits, out, paths::SETTINGS_GATE_REPORT_REST)?;
         Ok(())
     }
 
@@ -32004,6 +32026,8 @@ impl Record for SettingsGateReport {
             artifact: field::read(field::Bytes { limit: limits.settings_gate_report_artifact.min(CEILINGS.settings_gate_report_artifact) }, limits, reader, paths::SETTINGS_GATE_REPORT_ARTIFACT)?,
             format: field::read(field::Nested, limits, reader, paths::SETTINGS_GATE_REPORT_FORMAT)?,
             fuzzy: field::read(field::Optional { item: field::Bytes { limit: limits.settings_gate_report_fuzzy_some.min(CEILINGS.settings_gate_report_fuzzy_some) } }, limits, reader, paths::SETTINGS_GATE_REPORT_FUZZY)?,
+            matched: field::read(field::Optional { item: field::Bytes { limit: limits.settings_gate_report_matched_some.min(CEILINGS.settings_gate_report_matched_some) } }, limits, reader, paths::SETTINGS_GATE_REPORT_MATCHED)?,
+            rest: field::read(field::Optional { item: field::Bytes { limit: limits.settings_gate_report_rest_some.min(CEILINGS.settings_gate_report_rest_some) } }, limits, reader, paths::SETTINGS_GATE_REPORT_REST)?,
         })
     }
 }
@@ -32034,7 +32058,7 @@ impl SettingsGate {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 25;
+    pub const ENCODED_AT_ZERO: u64 = 35;
 }
 
 impl Record for SettingsGate {
@@ -35825,6 +35849,8 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.project_landing_close_job_some,
     CEILINGS.settings_gate_report_artifact,
     CEILINGS.settings_gate_report_fuzzy_some,
+    CEILINGS.settings_gate_report_matched_some,
+    CEILINGS.settings_gate_report_rest_some,
     CEILINGS.settings_gate_name,
     CEILINGS.settings_gate_workflow,
     CEILINGS.settings_gate_ignored,

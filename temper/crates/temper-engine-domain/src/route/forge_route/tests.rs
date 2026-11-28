@@ -1685,9 +1685,7 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
     assert!(charter.owned_bytes().unwrap() <= bound);
     assert_eq!(charter.brief.sections.len(), 8, "no section is omitted");
     assert_eq!(charter.instructions, instructions);
-    assert!(
-        skein_lib::bytes::find(&charter.instructions, b"Failed test: test skein-lib::suite fuzzy::a (fuzzy)").is_some()
-    );
+    assert!(skein_lib::bytes::find(&charter.instructions, b"Failed test: test skein-lib::suite fuzzy::a\n").is_some());
     for section in &charter.brief.sections {
         match section.title.as_ref() {
             b"CI" => assert!(section.text == ci, "the failed step and log end survive charter fitting whole"),
@@ -5956,10 +5954,14 @@ fn a_live_prepare_counts_whatever_round_asked_it() {
 }
 
 fn report_tests() -> super::forge::ReceiptReport {
-    super::forge::ReceiptReport::Tests(Box::new([
-        super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
-        super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
-    ]))
+    super::forge::ReceiptReport::Tests(super::forge::ReceiptTests {
+        tests: Box::new([
+            super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), matched: true },
+            super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), matched: false },
+        ]),
+        matched: None,
+        rest: None,
+    })
 }
 
 /// questions.md, 1, What every delegate is told: the step's retained amendment is visible before admission.
