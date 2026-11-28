@@ -64,9 +64,14 @@ pub(crate) fn covered(touch: Touch, head_method: bool, base_method: bool) -> boo
 }
 
 fn eligible(d: &Domain, row: &ChangeRow, repository: &Repository) -> bool {
-    repository.role != Role::Context && repository.kinds.push && row.base == repository.landing
+    guards(row, repository)
         // Already joined members use the turn's candidate, not this check of their own head.
         && !(row.change.way == change::Way::Turn && d.landing_of(row.task).is_some())
+}
+
+/// The check only guards a writable repository's landing branch.
+pub(crate) fn guards(row: &ChangeRow, repository: &Repository) -> bool {
+    repository.role != Role::Context && repository.kinds.push && row.base == repository.landing
 }
 
 pub(super) fn should_compare(d: &Domain, row: &ChangeRow, repository: &Repository, step: &PendingStep) -> bool {
@@ -219,7 +224,7 @@ fn next(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingSte
     }
     let pair = Pair::at(&pending).expect("judgement has endpoints");
     let root_known = reader.method_present().is_some();
-    let verdict = reader.judge(home(d, row));
+    let verdict = reader.judge(home(d, row.repository));
     pending.temper_dir.reading = None;
     if (verdict.method || !root_known) && !verdict.faults.is_empty() {
         pending.temper_dir.fact = change::TemperDir::Fault { head: pair.head };
@@ -233,10 +238,10 @@ fn next(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingSte
     }
 }
 
-fn home(d: &Domain, row: &ChangeRow) -> Home {
-    let repository = d.repository(row.repository).expect("adopted repository");
+pub(crate) fn home(d: &Domain, provider: skein_forge::api::Repository) -> Home {
+    let repository = d.repository(provider).expect("adopted repository");
     match d.home(repository.project) {
-        Some(home) if home.provider == row.repository => Home::Here,
+        Some(home) if home.provider == provider => Home::Here,
         Some(home) => {
             let mut name = Writer::new(home.owner.len().saturating_add(1).saturating_add(home.name.len()));
             name.put(&home.owner).expect("sized owner");
@@ -248,7 +253,7 @@ fn home(d: &Domain, row: &ChangeRow) -> Home {
     }
 }
 
-fn fault_words(head: Commit, verdict: &Verdict, bound: usize) -> Option<Box<[u8]>> {
+pub(crate) fn fault_words(head: Commit, verdict: &Verdict, bound: usize) -> Option<Box<[u8]>> {
     let digits = crate::commit_text(&head);
     let mut size = Writer::measure(bound);
     let mut count = verdict.faults.len();

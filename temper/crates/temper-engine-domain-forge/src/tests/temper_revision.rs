@@ -33,6 +33,7 @@ impl World {
         let mut config = fake::Config::test();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
+        config.limits.branches = 8;
         config.limits.files = 128;
         config.limits.commits = 128;
         config.limits.content_bytes = 65_536;
@@ -134,7 +135,7 @@ impl World {
         panic!("the connector did not settle");
     }
 
-    pub(crate) fn answer_for(&mut self, repository: api::Repository, read: &Read) -> Result<Answer, Error> {
+    pub(crate) fn answer_for(&mut self, _repository: api::Repository, read: &Read) -> Result<Answer, Error> {
         let raw_read = if let Read::Branch { branch } = read {
             raw::Read::Branch { branch: branch.clone() }
         } else if let Read::File { head, path, .. } = read {
@@ -152,24 +153,7 @@ impl World {
         } else {
             panic!("unexpected read: {read:?}");
         };
-        let mut out = Queue::uncapped();
-        fake::step(
-            &mut self.forge,
-            &self.forge_env,
-            fake::Event::Call {
-                reply_to: ReplyTo::new(Token::new(7)),
-                user: 7,
-                repository: REPOSITORY.into(),
-                op: raw::Op::Read(raw_read),
-            },
-            &mut out,
-        );
-        fake::fire(&mut self.forge, &self.forge_env, &mut out);
-        self.forge.reclaim();
-        let Some(fake::Request::Reply { result, .. }) = out.pop() else {
-            panic!("{repository:?}: no reply for {read:?}")
-        };
-        let answer = match result {
+        let answer = match self.call(raw::Op::Read(raw_read)) {
             Ok(answer) => answer,
             Err(raw::Error::Missing(_)) => return Err(Error::Missing),
             Err(raw::Error::Unavailable | raw::Error::Unreachable) => return Err(Error::Unavailable),
@@ -233,12 +217,34 @@ impl World {
         }
     }
 
+    pub(crate) fn call(&mut self, op: raw::Op) -> Result<raw::Answer, raw::Error> {
+        let mut out = Queue::uncapped();
+        fake::step(
+            &mut self.forge,
+            &self.forge_env,
+            fake::Event::Call { reply_to: ReplyTo::new(Token::new(7)), user: 7, repository: REPOSITORY.into(), op },
+            &mut out,
+        );
+        fake::fire(&mut self.forge, &self.forge_env, &mut out);
+        self.forge.reclaim();
+        let Some(fake::Request::Reply { result, .. }) = out.pop() else { panic!("fake forge did not answer") };
+        result
+    }
+
     pub(crate) fn tip(&self) -> Commit {
-        fake::commit_bytes(self.forge.branch(REPOSITORY, BRANCH).unwrap())
+        self.branch_tip(BRANCH)
+    }
+
+    pub(crate) fn branch_tip(&self, branch: &[u8]) -> Commit {
+        fake::commit_bytes(self.forge.branch(REPOSITORY, branch).unwrap())
+    }
+
+    pub(crate) fn push(&mut self, branch: &[u8], path: &[u8], words: &[u8]) -> Commit {
+        fake::commit_bytes(fake::advance(&mut self.forge, &self.forge_env, REPOSITORY, branch, path, words, 7).unwrap())
     }
 
     pub(crate) fn advance(&mut self, path: &[u8], words: &[u8]) -> Commit {
-        fake::commit_bytes(fake::advance(&mut self.forge, &self.forge_env, REPOSITORY, BRANCH, path, words, 7).unwrap())
+        self.push(BRANCH, path, words)
     }
 
     fn observe(&mut self, repository: api::Repository, branch: &[u8], tip: Commit) {

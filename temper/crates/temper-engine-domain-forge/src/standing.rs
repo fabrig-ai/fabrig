@@ -312,7 +312,10 @@ impl Domain {
         let checked = match evidence.temper_dir {
             TemperDirEvidence::Uncovered => true,
             TemperDirEvidence::Pending => false,
-            TemperDirEvidence::Passed { tree } => tree == head,
+            TemperDirEvidence::Passed { tree } => match landing {
+                Some(landing) => landing::temper_dir_tree(landing, head, evidence.base_tip) == Some(tree),
+                None => tree == head,
+            },
         };
         if !up_to_date && !checked {
             return Some((JudgeVerdict::Wait, None));

@@ -6463,6 +6463,50 @@ fn hold_read_session(
     );
 }
 
+pub(crate) fn hold_candidate_member(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    words: &[u8],
+    out: &mut Queue<Request>,
+) {
+    let Some(mut row) = d.changes.get(&task).cloned() else { return };
+    let before = crate::panel::ready(&row);
+    let cause = change::Cause::Failed;
+    if !relay_hold(&mut row.change.state, cause, env.wall) {
+        return;
+    }
+    let change::State::Held { hold, .. } = &mut row.change.state else { unreachable!("held member") };
+    hold.words = Box::from(words);
+    row.change.released = None;
+    let owned = row.change.owns_turn;
+    row.change.owns_turn = false;
+    if let Some(owner) = step_owner(d, task) {
+        d.steps.remove(&owner);
+    }
+    d.change_due.remove(&task);
+    d.read_sessions.remove(&task);
+    d.fresh_steps.remove(&task);
+    d.fresh_waits.remove(&task);
+    d.procedure_wakes.remove(&task);
+    d.merge_withheld.remove(&task);
+    connection_wait::take(d, task);
+    crate::room::pass(d, task);
+    wake_after_turn(d, &row, owned);
+    save_queue_change(d, env, before, row, out);
+    emit(
+        out,
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::Hold(cause),
+            entry: None,
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
+        },
+    );
+}
+
 pub(super) fn hold_room_change(
     d: &mut Domain,
     env: &Env<Limits>,
