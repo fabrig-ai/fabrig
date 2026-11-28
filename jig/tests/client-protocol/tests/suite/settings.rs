@@ -75,7 +75,7 @@ fn a_settings_change_naming_an_effort_no_model_offered_is_answered_refused() {
     template.llm = Some(c::LlmChoice {
         later: None,
         account: None,
-        main: c::ModelEffort { model: model.clone(), effort: Some(effort) },
+        main: c::ModelEffort { model: model.clone(), effort: Some(effort), speed: None },
         subagents: List::with_capacity(0),
     });
     let item = c::SettingItem {

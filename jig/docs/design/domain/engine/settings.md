@@ -268,8 +268,9 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
 ## 4. Moving running work
 
 - **A move** sets a live agent task's revision to the newest. A task moves
-  only when the newest offers its charter and allows its LLM choice
-  (../tasks/README.md, section 3); one that cannot stays on its revision and
+  only when the newest offers its charter and allows its LLM choice, its
+  models and each speed it names by name among those its models declare
+  there (../tasks/README.md, section 3); one that cannot stays on its revision and
   finishes there. A move takes effect at the task's next run: a live
   run goes on with the version it was prepared under, until it ends or
   an owner cancels it, and holds that revision until then.

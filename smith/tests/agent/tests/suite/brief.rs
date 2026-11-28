@@ -35,7 +35,7 @@ You can ask for a sub-agent: an LLM of its own, working on a brief you write, wi
 yours and a share of the ordinary budget above the reserve. Its last message comes back with usage.\n\
 A child starts cold: give it a focused brief naming paths, decisions and scope. Inspect-only children may work side by side; a writing child works alone.\n\
 It runs on the \
-run's main LLM unless you name one of these: `fake-2`.\n\n\
+run's main LLM, or pick from: `fake-2`.\n\n\
 Call `wait` when you need another message; its result is withheld until messages arrive and returns with them in one request.\n\n\
 ## Finishing\n\n\
 When the work is done, call `finish` with its result. A result outside the host's contract returns \

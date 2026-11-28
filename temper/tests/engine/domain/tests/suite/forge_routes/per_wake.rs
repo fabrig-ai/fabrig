@@ -87,6 +87,8 @@ fn reference_items(model: &engine::Model, words: u32) -> Box<[settings::Item]> {
         description: None,
         shown: None,
         picker: true,
+        speeds: Box::default(),
+        speed: None,
     };
     let mut items = jig_protocol_engine_clients::translate::settings::items(
         change.items.as_ref().into(),
@@ -163,18 +165,18 @@ fn request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
     };
     member.llm = template.llm.as_ref().map(|choice| people::LlmChoice {
         account: None,
-        main: people::ModelEffort { model: choice.main.model, effort: choice.main.effort },
+        main: people::ModelEffort { model: choice.main.model, effort: choice.main.effort, speed: None },
         subagents: choice
             .subagents
             .iter()
-            .map(|model| people::ModelEffort { model: model.model, effort: model.effort })
+            .map(|model| people::ModelEffort { model: model.model, effort: model.effort, speed: None })
             .collect(),
         later: choice.later.as_ref().map(|later| people::LlmLater {
-            main: people::ModelEffort { model: later.main.model, effort: later.main.effort },
+            main: people::ModelEffort { model: later.main.model, effort: later.main.effort, speed: None },
             subagents: later
                 .subagents
                 .iter()
-                .map(|model| people::ModelEffort { model: model.model, effort: model.effort })
+                .map(|model| people::ModelEffort { model: model.model, effort: model.effort, speed: None })
                 .collect(),
         }),
     });

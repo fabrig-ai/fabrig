@@ -114,7 +114,9 @@ fn member(
     };
     let delegate = match forge_route::chat_change(domain, env, &origin, &change, &repository, base, None, spend) {
         Ok(delegate) => delegate,
-        Err(why) => return Err(forge::ApplicationOutcome::CoreRefused(refusal(domain, &origin, spend, why))),
+        Err(why) => {
+            return Err(forge::ApplicationOutcome::CoreRefused(refusal(domain, &origin, spend, why.task_refusal())));
+        }
     };
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     for parameter in delegate.spec.parameters {

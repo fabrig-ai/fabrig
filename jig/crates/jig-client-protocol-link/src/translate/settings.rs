@@ -76,20 +76,19 @@ pub fn wire_setting_model(value: &c::SettingModel) -> w::SettingModel {
         },
     }
 }
-pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel, w::Problem> {
-    let mut efforts = List::with_capacity(value.efforts.len());
-    for item in &value.efforts {
-        efforts.push(text(item, 32)?).expect("same capacity");
-    }
-    let mut speeds = List::with_capacity(value.speeds.len());
-    for speed in &value.speeds {
+pub(super) fn restore_speeds(
+    values: &List<w::SettingSpeed>,
+    limits: &w::Limits,
+) -> Result<List<c::SettingSpeed>, w::Problem> {
+    let mut speeds = List::with_capacity(values.len());
+    for speed in values {
         let mut also = List::with_capacity(speed.also.len());
         for name in &speed.also {
-            also.push(text(name, 32)?).expect("same capacity");
+            also.push(text(name, limits.setting_speed_also_item)?).expect("same capacity");
         }
         speeds
             .push(c::SettingSpeed {
-                name: text(&speed.name, 32)?,
+                name: text(&speed.name, limits.setting_speed_name)?,
                 also,
                 input_price: speed.input_price,
                 cached_price: speed.cached_price,
@@ -98,6 +97,15 @@ pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel,
             })
             .expect("same capacity");
     }
+    Ok(speeds)
+}
+
+pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel, w::Problem> {
+    let mut efforts = List::with_capacity(value.efforts.len());
+    for item in &value.efforts {
+        efforts.push(text(item, 32)?).expect("same capacity");
+    }
+    let speeds = restore_speeds(&value.speeds, &w::CEILINGS)?;
     Ok(c::SettingModel {
         provider: value.provider,
         dialect: value.dialect,

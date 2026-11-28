@@ -1,7 +1,7 @@
 //! A closer's catch-up belongs to the close request that found the goal outdated
 //! (temper/docs/design/domain/forge/branches.md, 2).
 use super::super::forge_change::{CloseAt, CloseOutdated};
-use super::super::{ChangeOrigin, chat_change};
+use super::super::{ChangeBuildRefused, ChangeOrigin, chat_change};
 use super::{Box, Domain, List, c, forge, tasks};
 use super::{Env, Limits};
 use forge::closer_words;
@@ -82,7 +82,7 @@ pub(super) fn delegate(
     close: &forge::ChangeRow,
     goal: u64,
     spend: u64,
-) -> Result<super::super::super::Delegate, tasks::Refusal> {
+) -> Result<super::super::super::Delegate, ChangeBuildRefused> {
     let at = close.close_at.expect("an outdated close read its landing tip");
     let mut change = super::questions_up(closer_words::catch_up(goal, &at.landing));
     change.merge = Some(at.landing);

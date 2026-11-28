@@ -359,6 +359,7 @@ fn a_follow_without_the_targets_context_adoption_is_refused() {
     world.close();
 }
 
+#[expect(clippy::too_many_lines, reason = "one proof drives the native client through the whole follow-list exchange")]
 fn ctl_list(world: &mut World) -> String {
     use jig_client::{self as client, contract as c};
     use skein_lib::{Env, List, Queue};
@@ -404,6 +405,8 @@ fn ctl_list(world: &mut World) -> String {
         description: None,
         shown: None,
         picker: true,
+        speeds: Box::default(),
+        speed: None,
     };
     let frame = owner::frame(&frame, Wall::EPOCH, &[catalogue], link.wire()).expect("owner's frame on wire");
     let me = jig_client_protocol_link::translate::documents::frame(frame, &link).expect("client frame");

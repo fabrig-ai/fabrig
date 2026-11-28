@@ -919,6 +919,10 @@ pub fn encode_model_effort(value: &c::ModelEffort, out: &mut Encoder) {
         }
         None => out.null(),
     }
+    if let Some(speed) = &value.speed {
+        out.key(b"speed");
+        encode_text(speed, out);
+    }
     out.object_end();
 }
 pub fn encode_authority_models(value: &c::AuthorityModels, out: &mut Encoder) {

@@ -253,7 +253,7 @@ pub(super) fn goal(world: &World, goal: &Goal, milestone: u64) -> people::Ask {
     member.budget = people::Budget::Named;
     member.llm = Some(people::LlmChoice {
         account: Some(account(goal.party)),
-        main: people::ModelEffort { model: 0, effort: None },
+        main: people::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::default(),
         later: None,
     });

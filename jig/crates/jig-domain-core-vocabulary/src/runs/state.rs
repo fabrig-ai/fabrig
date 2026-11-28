@@ -47,8 +47,9 @@ pub struct Model {
     pub effort: Option<Box<[u8]>>,
     /// The faster speeds the model declares, at most four, in the order given.
     pub speeds: Box<[Speed]>,
-    /// On a configured model, its default speed by name, or `None` for the provider's
-    /// standard speed. On a run's charter, the run's speed: its model's default.
+    /// On a configured model, its default, or `None` for standard. In a charter's value, the
+    /// chosen speed by name, `standard`, or `None` to inherit the model's default. On a charter's
+    /// resolution or a run's charter, the speed it takes, `None` for standard.
     pub speed: Option<Box<[u8]>>,
 }
 
@@ -83,15 +84,29 @@ impl Model {
 
     /// The speed `speed` names among `speeds`; `None` at the standard speed.
     #[must_use]
-    #[expect(clippy::manual_find, reason = "a bounded search in the step subset, without a closure")]
     pub fn run_speed(&self) -> Option<&Speed> {
-        let name = self.speed.as_deref()?;
+        self.speed_named(self.speed.as_deref()?)
+    }
+
+    /// A declared speed by its own name, never by an alias.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "a bounded search in the step subset, without a closure")]
+    pub fn speed_named(&self, name: &[u8]) -> Option<&Speed> {
         for speed in &self.speeds {
             if speed.name.as_ref() == name {
                 return Some(speed);
             }
         }
         None
+    }
+
+    /// A speed a choice may name: a declaration by its own name, `standard`, or no override.
+    #[must_use]
+    pub fn takes_speed(&self, name: Option<&[u8]>) -> bool {
+        match name {
+            Some(name) => name == tasks::STANDARD_SPEED || self.speed_named(name).is_some(),
+            None => true,
+        }
     }
 
     /// The explicit name to use if this model runs at standard

@@ -107,6 +107,7 @@ fn committed_turns_use_the_transcript_and_client_codecs() {
             llm: Some(c::ModelEffort {
                 model: c::Text::new(Box::from(b"named-model".as_slice()), 128).unwrap(),
                 effort: Some(c::Text::new(Box::from(b"high".as_slice()), 32).unwrap()),
+                speed: None,
             }),
             cut: false,
         }),

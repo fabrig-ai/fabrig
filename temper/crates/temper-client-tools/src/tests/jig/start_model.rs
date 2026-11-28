@@ -113,6 +113,7 @@ fn start_refusal_explains_each_llm_bound() {
         (c::LlmWhy::Charter, "not one of charter 5's models"),
         (c::LlmWhy::Authority, "outside the authority the task is given"),
         (c::LlmWhy::Effort, "its effort is not one the model declares"),
+        (c::LlmWhy::Speed, "its speed is not one the model declares"),
         (c::LlmWhy::Unconfigured, "not a configured model"),
         (c::LlmWhy::Procedure, "the task's executor runs no model"),
         (c::LlmWhy::Repeated, "named twice among the sub-agents"),
@@ -126,26 +127,43 @@ fn start_refusal_explains_each_llm_bound() {
 
 #[test]
 fn start_refusal_json_keeps_the_record_and_adds_only_the_named_flag() {
-    for (extra, model, flag) in [
-        (MODEL, "chosen-model", Some(("--model", "chosen-model"))),
+    for (extra, model, why, why_json, flag) in [
+        (MODEL, "chosen-model", c::LlmWhy::Authority, "authority", Some(("--model", "chosen-model"))),
         (
             &["--model", "chosen-model", "--sub-agent", "plain-model:low"][..],
             "plain-model",
+            c::LlmWhy::Authority,
+            "authority",
             Some(("--sub-agent", "plain-model:low")),
         ),
-        (&[][..], "gpt-6.1-sol", None),
+        (&[][..], "gpt-6.1-sol", c::LlmWhy::Authority, "authority", None),
+        (
+            &["--model", "chosen-model", "--speed", "standard"][..],
+            "chosen-model",
+            c::LlmWhy::Speed,
+            "speed",
+            Some(("--speed", "standard")),
+        ),
+        (
+            &["--model", "chosen-model", "--sub-agent", "plain-model:low", "--sub-agent-speed", "plain-model:standard"]
+                [..],
+            "plain-model",
+            c::LlmWhy::Speed,
+            "speed",
+            Some(("--sub-agent-speed", "plain-model:standard")),
+        ),
     ] {
         let argv = f::extended(START, extra);
         let argv = f::extended(argv.as_slice(), f::JSON_FLAG);
         let mut root = f::choice_root(subagent_me());
         let call = root.submit(argv.as_slice());
-        root.answered(call, refusal(model.as_bytes(), c::LlmWhy::Authority));
+        root.answered(call, refusal(model.as_bytes(), why));
         let answer = root.answer(call).expect("JSON refusal");
         assert_eq!(answer.status, 2);
         f::unique_keys(&answer.stderr).expect("unique JSON keys");
         let mut expected = serde_json::json!({
             "operation": "goal",
-            "outcome": {"refused": {"refusal": {"llm": {"model": model, "why": "authority"}}, "at": null}},
+            "outcome": {"refused": {"refusal": {"llm": {"model": model, "why": why_json}}, "at": null}},
             "task": null, "to": null
         });
         if let Some((flag, value)) = flag {
@@ -153,6 +171,27 @@ fn start_refusal_json_keeps_the_record_and_adds_only_the_named_flag() {
             expected["value"] = value.into();
         }
         assert_eq!(serde_json::from_slice::<serde_json::Value>(&answer.stderr).unwrap(), expected);
+    }
+}
+
+#[test]
+fn chat_start_names_the_refused_speed_flag() {
+    let argv = f::extended(
+        f::MODEL_CHAT,
+        &["--speed", "standard", "--sub-agent", "plain-model", "--sub-agent-speed", "plain-model:standard"],
+    );
+    for (model, flag) in
+        [(f::MODEL_NAME, "--speed standard"), (f::EFFORTLESS_MODEL_NAME, "--sub-agent-speed plain-model:standard")]
+    {
+        let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
+        let call = root.submit(argv.as_slice());
+        assert_text(
+            root,
+            call,
+            model,
+            c::LlmWhy::Speed,
+            &format!("chat start: {flag}: its speed is not one the model declares\n"),
+        );
     }
 }
 

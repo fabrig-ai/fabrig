@@ -112,8 +112,9 @@ fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() -> Res
     cases(this_test!("selected_starts_keep_drawn_choices_and_name_the_first_removed_effort"), CHOICE_SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let number = 10 + rng.below(100);
-        let chosen = ModelEffort { model: 0, effort: Some(u8::try_from(rng.below(2)).expect("two efforts")) };
-        let subagent = ModelEffort { model: 1, effort: None };
+        let chosen =
+            ModelEffort { model: 0, effort: Some(u8::try_from(rng.below(2)).expect("two efforts")), speed: None };
+        let subagent = ModelEffort { model: 1, effort: None, speed: None };
         let choice = LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([subagent]) };
         let mut member = task(number, &[]);
         member.authority.models = tasks::Models::Named(0b11);

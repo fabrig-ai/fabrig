@@ -302,7 +302,7 @@ pub(crate) fn decode_amendment(
     let wire::Amendment { tracked, addressed, instructions, spec, wake, dependencies, authority, llm, reason } = value;
     let value = domain::Amendment {
         llm: match llm {
-            Some(value) => Some(mapped::llm_choice_to_domain(value)),
+            Some(value) => Some(mapped::llm_choice_to_domain(value)?),
             None => None,
         },
         tracked: match tracked {

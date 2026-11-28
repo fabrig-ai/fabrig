@@ -398,5 +398,64 @@ fn model_effort(value: &Value) -> Result<tasks::ModelEffort, Problem> {
             Some(value) => Some(u8::try_from(value.small(b"effort")?).or(Err(Problem::Range(b"effort")))?),
             None => None,
         },
+        speed: model_speed(value)?,
     })
+}
+
+/// The tools take the same speed spelling whether the model is named or indexed.
+pub(crate) fn model_speed(value: &Value) -> Result<Option<skein_lib::Name<32>>, Problem> {
+    let Some(value) = value.field(b"speed")? else { return Ok(None) };
+    let name = value.text(b"speed")?;
+    let speed = temper_engine_domain_forge::change_llm_text::speed_name(&name).ok_or(Problem::Range(b"speed"))?;
+    Ok(Some(speed))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::json::parse;
+
+    const CHOICE: &str = r#"{"main":{"model":3,"effort":1,"speed":"ultrafast"},"subagents":[{"model":4},{"model":5,"speed":"standard"}]}"#;
+
+    fn named_choice() -> tasks::LlmChoice {
+        tasks::LlmChoice {
+            later: None,
+            account: None,
+            main: tasks::ModelEffort { model: 3, effort: Some(1), speed: skein_lib::Name::from_checked(b"ultrafast") },
+            subagents: Box::new([
+                tasks::ModelEffort { model: 4, effort: None, speed: None },
+                tasks::ModelEffort { model: 5, effort: None, speed: skein_lib::Name::from_checked(b"standard") },
+            ]),
+        }
+    }
+
+    #[test]
+    #[expect(clippy::disallowed_macros, reason = "join the shared delegate and model-choice fixtures")]
+    fn delegate_decodes_speed_by_name_for_each_model() {
+        let member = crate::tests::DELEGATE_MEMBER;
+        let input = format!(r#"{{{member},"llm":{CHOICE}}}"#);
+        let value = parse(input.as_bytes()).expect("delegate JSON");
+        assert_eq!(delegate(&value).expect("delegate").llm, Some(named_choice()));
+    }
+
+    #[test]
+    #[expect(clippy::disallowed_macros, reason = "embed the model-choice fixture in an amendment")]
+    fn amend_decodes_speed_by_name_for_each_model() {
+        let input = format!(r#"{{"reason":"x","llm":{CHOICE}}}"#);
+        let value = parse(input.as_bytes()).expect("amendment JSON");
+        assert_eq!(amendment(&value).expect("amendment").llm, Some(named_choice()));
+    }
+
+    #[test]
+    fn an_llm_choice_refuses_a_non_name_speed() {
+        for (text, error) in [
+            (br#"{"main":{"model":3,"speed":1}}"#.as_slice(), Problem::Type(b"speed")),
+            (br#"{"main":{"model":3,"speed":""}}"#, Problem::Range(b"speed")),
+            (br#"{"main":{"model":3,"speed":"fast@standard"}}"#, Problem::Range(b"speed")),
+            (br#"{"main":{"model":3,"speed":"abcdefghijklmnopqrstuvwxyz0123456"}}"#, Problem::Range(b"speed")),
+        ] {
+            let value = parse(text).expect("choice JSON");
+            assert_eq!(llm(Some(&value)), Err(error));
+        }
+    }
 }

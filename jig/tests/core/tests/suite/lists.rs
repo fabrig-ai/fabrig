@@ -109,7 +109,7 @@ fn make(world: &mut World, signed: u64, key: u8, model: Option<u8>) -> u64 {
     member.llm = model.map(|model| people::LlmChoice {
         later: None,
         account: Some(ACCOUNT),
-        main: people::ModelEffort { model, effort: None },
+        main: people::ModelEffort { model, effort: None, speed: None },
         subagents: Box::new([]),
     });
     let reply = ask(world, signed, key, people::Ask::Create { project: 1, batch: Box::new([member]) });

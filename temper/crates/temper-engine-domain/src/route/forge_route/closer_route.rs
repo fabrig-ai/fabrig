@@ -798,7 +798,7 @@ fn delegate(
     };
     let mut delegate = match draft {
         Ok(delegate) => delegate,
-        Err(why) => return Err(short_refusal(why, available, minimum, room)),
+        Err(why) => return Err(short_refusal(why.task_refusal(), available, minimum, room)),
     };
     let (bound, ended) = match kind {
         c::Step::CatchUp => (1, 0),

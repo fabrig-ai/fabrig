@@ -17,8 +17,8 @@ pub struct Template {
     pub flags: Flags,
     pub label: u32,
     pub grace: Option<Duration>,
-    /// The LLM choice a task filled from it carries, each model configured with an effort it
-    /// takes; none for its charter's default (protocol/configuration-templates.md, 1; domain/tasks/README.md, 3).
+    /// The LLM choice a task filled from it carries, with each model's effort and optional speed;
+    /// none for its charter's default (protocol/configuration-templates.md, 1; domain/tasks/README.md, 3).
     pub llm: Option<jig_domain_tasks::LlmChoice>,
     /// Connectors' symbols a task filled from this template holds (protocol/configuration-templates.md, 3).
     pub resources: Box<[jig_domain_people::Symbol]>,
@@ -73,8 +73,8 @@ pub fn shape_executor(flags: Flags, executor: TemplateExecutor) -> jig_domain_ta
 }
 
 /// Whether a template's retained choice fits its effective executor (protocol/configuration-templates.md, 1).
-/// A chosen executor still requires configured models and valid efforts; a named charter must
-/// also allow every model. This checks data served in `me`, without granting task authority.
+/// A chosen executor still requires configured models and valid efforts and speeds; a named
+/// charter must also allow the choice. This checks data served in `me`, without granting task authority.
 #[must_use]
 pub fn valid_executor(
     template: &Template,
@@ -102,18 +102,7 @@ pub fn valid_executor(
         }
     };
     let Some(choice) = &template.llm else { return true };
-    if choice.subagents.len() > skein_lib::length::usize_of(jig_domain_tasks::MODELS) || !takes(models, choice.main) {
-        return false;
-    }
-    for chosen in &choice.subagents {
-        if !takes(models, *chosen) {
-            return false;
-        }
-    }
-    match policy {
-        Some(policy) => crate::runs::llm::takes(models, policy, choice),
-        None => true,
-    }
+    choice_fits(models, policy, choice)
 }
 
 /// Validate every effective executor before publishing merged templates, including on restore.
@@ -184,20 +173,7 @@ pub fn valid_current_executor(
         },
     };
     let Some(choice) = &template.llm else { return true };
-    if choice.subagents.len() > skein_lib::length::usize_of(jig_domain_tasks::MODELS)
-        || !takes(&settings.models, choice.main)
-    {
-        return false;
-    }
-    for chosen in &choice.subagents {
-        if !takes(&settings.models, *chosen) {
-            return false;
-        }
-    }
-    match policy {
-        Some(policy) => crate::runs::llm::takes(&settings.models, policy, choice),
-        None => true,
-    }
+    choice_fits(&settings.models, policy, choice)
 }
 
 /// Copy current templates directly into the frame's merged values.
@@ -231,8 +207,14 @@ pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::
     result.into_boxed()
 }
 
-/// Whether `chosen` names a configured model and an effort it takes: one it declares, or none
-/// for a model that declares none (protocol/configuration-templates.md, 1).
-fn takes(models: &[crate::Model], chosen: jig_domain_tasks::ModelEffort) -> bool {
-    super::check::effort_valid(models, chosen)
+fn choice_fits(
+    models: &[crate::Model],
+    policy: Option<&crate::RunPolicy>,
+    choice: &jig_domain_tasks::LlmChoice,
+) -> bool {
+    super::check::choice_valid(models, choice)
+        && match policy {
+            Some(policy) => crate::runs::llm::takes(models, policy, choice),
+            None => true,
+        }
 }

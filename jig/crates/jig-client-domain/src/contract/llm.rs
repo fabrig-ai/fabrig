@@ -4,12 +4,14 @@ use super::Text;
 use alloc::boxed::Box;
 use skein_lib::List;
 
-/// One model and its effort, each by its configured name.
+/// One model, its effort and its speed, each by its configured name.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ModelEffort {
     pub model: Text,
     /// One of the efforts the model declares; `None` is its LLM provider's default.
     pub effort: Option<Text>,
+    /// By name, `standard`, or `None` (domain/tasks/README.md, 3).
+    pub speed: Option<Text>,
 }
 
 /// The choice for runs after the first activation
@@ -57,6 +59,10 @@ pub struct MeModel {
     /// Accounts that can run it, in selection order.
     pub accounts: List<u32>,
     pub picker: bool,
+    /// The faster speeds it is served at, in the model's order (settings-catalogue.md, 1).
+    pub speeds: List<super::SettingSpeed>,
+    /// Its default speed by name; `None` for the provider's standard.
+    pub speed: Option<Text>,
 }
 
 /// Amounts per `unit` tokens in the deployment's spend unit. Without a separate cache-write
@@ -85,6 +91,8 @@ pub enum LlmWhy {
     Procedure,
     /// The sub-agents name the model twice.
     Repeated,
+    /// The speed is not one the model declares, nor `standard`.
+    Speed,
 }
 
 /// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).

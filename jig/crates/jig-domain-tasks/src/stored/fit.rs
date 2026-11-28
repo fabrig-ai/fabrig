@@ -641,21 +641,27 @@ pub(super) fn choice(domain: &Domain, value: &TaskRecord) -> Result<(), RestoreC
         Executor::Agent { charter } => charter,
         Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => return Ok(()),
     };
-    let models = domain.charter_models(charter, value.settings.task).expect("charter linked");
-    model(domain, models, choice.main)?;
+    let version = crate::llm::version(&domain.charters, charter, value.settings.task).expect("charter linked");
+    let models = version.models.as_deref().expect("linked charter offered");
+    model(domain, version, models, choice.main)?;
     for chosen in &choice.subagents {
-        model(domain, models, *chosen)?;
+        model(domain, version, models, *chosen)?;
     }
     if let Some(later) = &choice.later {
-        model(domain, models, later.main)?;
+        model(domain, version, models, later.main)?;
         for chosen in &later.subagents {
-            model(domain, models, *chosen)?;
+            model(domain, version, models, *chosen)?;
         }
     }
     Ok(())
 }
 
-fn model(domain: &Domain, models: &[u8], chosen: crate::ModelEffort) -> Result<(), RestoreCause> {
+fn model(
+    domain: &Domain,
+    version: &crate::CharterModels,
+    models: &[u8],
+    chosen: crate::ModelEffort,
+) -> Result<(), RestoreCause> {
     let Some(efforts) = domain.efforts.get(usize::from(chosen.model)) else {
         return Err(RestoreCause::LlmChoice { chosen, why: RestoreLlmWhy::Unconfigured });
     };
@@ -668,6 +674,9 @@ fn model(domain: &Domain, models: &[u8], chosen: crate::ModelEffort) -> Result<(
     };
     if !fits {
         return Err(RestoreCause::LlmChoice { chosen, why: RestoreLlmWhy::Effort });
+    }
+    if !version.takes_speed(chosen) {
+        return Err(RestoreCause::LlmChoice { chosen, why: RestoreLlmWhy::Speed });
     }
     Ok(())
 }

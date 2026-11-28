@@ -116,6 +116,10 @@ fn model(v: &w::NamedModel, out: &mut Encoder) {
         Some(effort) => out.string(effort),
         None => out.null(),
     }
+    if let Some(speed) = &v.speed {
+        out.key(b"speed");
+        out.string(speed);
+    }
     out.object_end();
 }
 fn models(v: &skein_lib::List<w::NamedModel>, out: &mut Encoder) {

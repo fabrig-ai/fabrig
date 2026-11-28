@@ -73,8 +73,8 @@ fn reading_older_lets_the_newest_go_and_reading_newer_the_oldest() {
 }
 #[test]
 fn the_latest_llm_is_the_newest_turn_at_the_live_end() {
-    let older = ModelEffort { model: text(b"older-model"), effort: None };
-    let newest = ModelEffort { model: text(b"newest-model"), effort: Some(text(b"high")) };
+    let older = ModelEffort { model: text(b"older-model"), effort: None, speed: None };
+    let newest = ModelEffort { model: text(b"newest-model"), effort: Some(text(b"high")), speed: None };
     for (has_turns, decodes, named, expected) in [
         (true, true, true, Some(newest.clone())),
         (true, false, false, Some(older.clone())),
@@ -104,7 +104,7 @@ fn the_latest_llm_is_the_newest_turn_at_the_live_end() {
         let TurnRead::Decoded(turn) = &mut older_page.rows.get_mut(0).unwrap().decoded.as_mut().unwrap().turn else {
             panic!("decoded fixture")
         };
-        turn.llm = Some(ModelEffort { model: text(b"history"), effort: None });
+        turn.llm = Some(ModelEffort { model: text(b"history"), effort: None, speed: None });
         assert_eq!(thread.page(older_page), None);
         assert_eq!(positions(&thread).as_ref(), &[4, 3]);
         assert_eq!(thread.latest_llm, expected, "older pages leave the latest model alone");
@@ -280,7 +280,7 @@ fn a_line_weighs_its_bytes_and_its_room() {
     let line = page.rows.get_mut(0).unwrap();
     assert_eq!(line.weight(), 193);
     let TurnRead::Decoded(turn) = &mut line.decoded.as_mut().unwrap().turn else { panic!("decoded fixture") };
-    turn.llm = Some(ModelEffort { model: text(b"model"), effort: None });
+    turn.llm = Some(ModelEffort { model: text(b"model"), effort: None, speed: None });
     assert_eq!(line.weight(), 198);
     let TurnRead::Decoded(turn) = &mut line.decoded.as_mut().unwrap().turn else { panic!("decoded fixture") };
     turn.llm.as_mut().unwrap().effort = Some(text(b"high"));

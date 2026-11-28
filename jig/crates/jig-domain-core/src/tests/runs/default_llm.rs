@@ -17,7 +17,6 @@ fn task_with_default(
     main_effort: Option<&str>,
     subagent_effort: Option<&str>,
 ) -> Core {
-    let (base, limits) = tree_core();
     let mut configuration = config(17);
     let mut main = model_with_default();
     let mut subagent = main.clone();
@@ -35,6 +34,11 @@ fn task_with_default(
     };
     configuration.defaults.charters[0].policy.model = main;
     configuration.defaults.charters[0].policy.alternatives = Box::new([subagent]);
+    with_task(configuration, choice)
+}
+
+fn with_task(configuration: Config, choice: Option<tasks::LlmChoice>) -> Core {
+    let (base, limits) = tree_core();
     let mut core = seeded_core(configuration, &limits).unwrap();
     core.people = base.people;
     core.accounts = base.accounts;
@@ -72,10 +76,14 @@ fn an_omitted_choice_takes_each_models_own_default() {
     ] {
         let core = task_with_default(None, main, subagent);
         let choice = core.next_llm(core.tasks.task(TASK).unwrap()).unwrap();
-        assert_eq!(choice.main, tasks::ModelEffort { model: 0, effort: Some(main_index) }, "{main:?}, {subagent:?}");
+        assert_eq!(
+            choice.main,
+            tasks::ModelEffort { model: 0, effort: Some(main_index), speed: None },
+            "{main:?}, {subagent:?}"
+        );
         assert_eq!(
             choice.subagents.as_ref(),
-            [tasks::ModelEffort { model: 1, effort: Some(subagent_index) }],
+            [tasks::ModelEffort { model: 1, effort: Some(subagent_index), speed: None }],
             "{main:?}, {subagent:?}"
         );
         let policy = core.chosen_policy(TASK);
@@ -95,8 +103,71 @@ fn chosen(effort: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: 0, effort: Some(effort) },
+        main: tasks::ModelEffort { model: 0, effort: Some(effort), speed: None },
         subagents: Box::new([]),
+    }
+}
+
+fn with_speeds(choice: Option<tasks::LlmChoice>) -> Core {
+    let mut configuration = config(17);
+    let mut main = model_with_default();
+    main.name = b"gpt-x".as_slice().into();
+    speed_example(&mut main);
+    main.window = 10;
+    main.output = 2;
+    main.price_unit = 1_000;
+    main.speed = Some(b"fast".as_slice().into());
+    let mut subagent = main.clone();
+    subagent.name = b"subagent".as_slice().into();
+    subagent.speed = None;
+    configuration.settings.models = Box::new([main.clone(), subagent.clone()]);
+    let policy = &mut configuration.defaults.charters[0].policy;
+    policy.model = main;
+    policy.reserve_turns = 0;
+    policy.alternatives = Box::new([subagent]);
+    with_task(configuration, choice)
+}
+
+#[test]
+fn chosen_speeds_set_main_cost_and_subagent_speed() {
+    let mut choice = chosen(0);
+    choice.main.speed = Some(skein_lib::Name::from_checked(b"ultrafast").unwrap());
+    choice.subagents = Box::new([tasks::ModelEffort {
+        model: 1,
+        effort: Some(1),
+        speed: Some(skein_lib::Name::from_checked(b"fast").unwrap()),
+    }]);
+    let core = with_speeds(Some(choice));
+    let policy = core.chosen_policy(TASK);
+    assert_eq!(policy.model.name.as_ref(), b"gpt-x");
+    assert_eq!(policy.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
+    assert_eq!(most_costly(&policy.model), Some(270)); // 10 cached-write input tokens and 2 output at Ultrafast.
+    assert_eq!(core.run_reserve(TASK), 270); // One completion with zero reserve turns.
+    assert_eq!(policy.alternatives[0].speed.as_deref(), Some(b"fast".as_slice()));
+}
+
+#[test]
+fn standard_overrides_fast_and_an_omitted_speed_inherits_it() {
+    let fast = Some(b"fast".as_slice());
+    for (llm, expected, request) in [
+        (None, fast, None),
+        (Some(chosen(0)), fast, None),
+        (
+            Some(tasks::LlmChoice {
+                main: tasks::ModelEffort {
+                    speed: Some(skein_lib::Name::from_checked(tasks::STANDARD_SPEED).unwrap()),
+                    ..chosen(0).main
+                },
+                ..chosen(0)
+            }),
+            None,
+            Some(b"default".as_slice()),
+        ),
+    ] {
+        let core = with_speeds(llm);
+        let model = core.chosen_policy(TASK).model;
+        assert_eq!(model.speed.as_deref(), expected);
+        assert_eq!(if model.speed.is_none() { model.standard_speed_override() } else { None }, request);
     }
 }
 

@@ -179,7 +179,7 @@ fn settings_request(call: &Call, limits: &Limits, me: &c::Me) -> Prepared {
         Ok(settings) => settings,
         Err(why) => return Err(Failed::Detail(why)),
     };
-    if let Some(why) = choice::settings_effort(settings.items.as_slice(), me) {
+    if let Some(why) = choice::settings_choice(settings.items.as_slice(), me) {
         return Err(Failed::Detail(why));
     }
     let ask = if call.tool == rows::PROPOSE_SETTINGS_AT {
@@ -272,7 +272,7 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     };
     let c::Ask::Create { tasks, .. } = &mut ask else { unreachable!("chat creates") };
     let task = tasks.get_mut(0).expect("chat creates one task");
-    task.llm = choice::selection(call, 3, 4, 5, me, project, task.llm.as_ref())?;
+    task.llm = choice::selection(call, rows::CHAT_CHOICE, me, project, task.llm.as_ref())?;
     let mut creating = None;
     for membership in &me.projects {
         if membership.project == project {

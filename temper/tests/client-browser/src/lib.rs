@@ -733,8 +733,8 @@ mod tests {
         let mut value = tier_configuration().1;
         super::account_provider(&mut value, &super::account_registration("http://127.0.0.1:9"));
         let defaults = stock_defaults(&value);
-        assert_eq!(defaults.models.len(), 7);
-        assert_eq!(defaults.models.iter().filter(|entry| entry.model.provider == 1).count(), 4);
+        assert_eq!(defaults.models.len(), 8);
+        assert_eq!(defaults.models.iter().filter(|entry| entry.model.provider == 1).count(), 5);
         assert_eq!(defaults.models.iter().filter(|entry| entry.model.provider == 2).count(), 3);
     }
     #[test]

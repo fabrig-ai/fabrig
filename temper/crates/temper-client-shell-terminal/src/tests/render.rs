@@ -352,6 +352,8 @@ pub(super) fn models_frame(
                 picker,
                 description: None,
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 5, unit: 1000 },
+                speeds: List::with_capacity(0),
+                speed: None,
             })
             .unwrap();
     }
@@ -360,7 +362,7 @@ pub(super) fn models_frame(
         choice: c::LlmChoice {
             later: None,
             account: None,
-            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
+            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")), speed: None },
             subagents: List::with_capacity(0),
         },
     }]));

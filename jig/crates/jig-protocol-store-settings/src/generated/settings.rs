@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 3;
 pub const LAYOUT: [u8; 32] = [
-    0x49, 0xae, 0xde, 0xda, 0xf3, 0xdb, 0x76, 0x61, 0xf6, 0xd2, 0x8b, 0x21, 0xeb, 0xe5, 0xf8, 0xe1, 0xe4, 0x59, 0x47,
-    0x51, 0xf2, 0xb8, 0x62, 0xf0, 0x9e, 0x97, 0x5c, 0x1a, 0x68, 0x4c, 0x53, 0x18,
+    0x37, 0xa4, 0xa0, 0x9d, 0x88, 0x18, 0xe3, 0x51, 0xf2, 0xb2, 0xcb, 0xf5, 0xe3, 0x19, 0x99, 0x0d, 0xda, 0x61, 0x8f,
+    0xe6, 0x9b, 0x02, 0xa7, 0x2c, 0xb2, 0xc1, 0x27, 0xf7, 0x71, 0x44, 0xa9, 0x89,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -93,6 +93,7 @@ pub struct Limits {
     pub part_path_segments: u32,
     pub approval_state: u32,
     pub verdict_choices_choices: u32,
+    pub model_effort_speed_some: u32,
     pub llm_later_subagents: u32,
     pub llm_choice_subagents: u32,
     pub template_name: u32,
@@ -188,6 +189,7 @@ pub const CEILINGS: Limits = Limits {
     part_path_segments: 8,
     approval_state: 524_288,
     verdict_choices_choices: 8,
+    model_effort_speed_some: 32,
     llm_later_subagents: 64,
     llm_choice_subagents: 64,
     template_name: 65_536,
@@ -283,6 +285,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "part_path_segments",
     "approval_state",
     "verdict_choices_choices",
+    "model_effort_speed_some",
     "llm_later_subagents",
     "llm_choice_subagents",
     "template_name",
@@ -381,6 +384,7 @@ impl Limits {
             self.part_path_segments,
             self.approval_state,
             self.verdict_choices_choices,
+            self.model_effort_speed_some,
             self.llm_later_subagents,
             self.llm_choice_subagents,
             self.template_name,
@@ -480,6 +484,7 @@ impl Limits {
             part_path_segments: self.part_path_segments.min(most),
             approval_state: self.approval_state.min(most),
             verdict_choices_choices: self.verdict_choices_choices.min(most),
+            model_effort_speed_some: self.model_effort_speed_some.min(most),
             llm_later_subagents: self.llm_later_subagents.min(most),
             llm_choice_subagents: self.llm_choice_subagents.min(most),
             template_name: self.template_name.min(most),
@@ -577,6 +582,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PART_PATH_SEGMENTS,
     paths::APPROVAL_STATE,
     paths::VERDICT_CHOICES_CHOICES,
+    paths::MODEL_EFFORT_SPEED,
     paths::LLM_LATER_SUBAGENTS,
     paths::LLM_CHOICE_SUBAGENTS,
     paths::TEMPLATE_NAME,
@@ -956,6 +962,7 @@ pub mod paths {
     pub const FLAGS_TAIL: Path = Path::new("Flags (tail)");
     pub const MODEL_EFFORT_MODEL: Path = Path::new("ModelEffort.model");
     pub const MODEL_EFFORT_EFFORT: Path = Path::new("ModelEffort.effort");
+    pub const MODEL_EFFORT_SPEED: Path = Path::new("ModelEffort.speed");
     pub const MODEL_EFFORT_TAIL: Path = Path::new("ModelEffort (tail)");
     pub const LLM_LATER_MAIN: Path = Path::new("LlmLater.main");
     pub const LLM_LATER_SUBAGENTS: Path = Path::new("LlmLater.subagents");
@@ -6629,6 +6636,7 @@ impl Record for Flags {
 pub struct ModelEffort {
     pub model: u8,
     pub effort: Option<u8>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: ModelEffort.
@@ -6637,11 +6645,13 @@ impl ModelEffort {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, model_effort_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 3;
+    pub const ENCODED_AT_ZERO: u64 = 8;
 }
 
 impl Record for ModelEffort {
@@ -6668,6 +6678,7 @@ impl Record for ModelEffort {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U8, &self.model, limits, out, paths::MODEL_EFFORT_MODEL)?;
         field::write(field::Optional { item: field::U8 }, &self.effort, limits, out, paths::MODEL_EFFORT_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, &self.speed, limits, out, paths::MODEL_EFFORT_SPEED)?;
         Ok(())
     }
 
@@ -6675,6 +6686,7 @@ impl Record for ModelEffort {
         Ok(Self {
             model: field::read(field::U8, limits, reader, paths::MODEL_EFFORT_MODEL)?,
             effort: field::read(field::Optional { item: field::U8 }, limits, reader, paths::MODEL_EFFORT_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, limits, reader, paths::MODEL_EFFORT_SPEED)?,
         })
     }
 }
@@ -6696,7 +6708,7 @@ impl LlmLater {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 7;
+    pub const ENCODED_AT_ZERO: u64 = 12;
 }
 
 impl Record for LlmLater {
@@ -6722,14 +6734,14 @@ impl Record for LlmLater {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::LLM_LATER_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_LATER_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_LATER_SUBAGENTS)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::LLM_LATER_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_LATER_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_LATER_SUBAGENTS)?,
         })
     }
 }
@@ -6757,7 +6769,7 @@ impl LlmChoice {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 20;
+    pub const ENCODED_AT_ZERO: u64 = 30;
 }
 
 impl Record for LlmChoice {
@@ -6784,7 +6796,7 @@ impl Record for LlmChoice {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::LLM_CHOICE_ACCOUNT)?;
         field::write(field::Nested, &self.main, limits, out, paths::LLM_CHOICE_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
         field::write(field::Optional { item: field::Nested }, &self.later, limits, out, paths::LLM_CHOICE_LATER)?;
         Ok(())
     }
@@ -6793,7 +6805,7 @@ impl Record for LlmChoice {
         Ok(Self {
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::LLM_CHOICE_ACCOUNT)?,
             main: field::read(field::Nested, limits, reader, paths::LLM_CHOICE_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
             later: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LLM_CHOICE_LATER)?,
         })
     }
@@ -6895,7 +6907,7 @@ impl Template {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 106;
+    pub const ENCODED_AT_ZERO: u64 = 116;
 }
 
 impl Record for Template {
@@ -8847,6 +8859,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.part_path_segments,
     CEILINGS.approval_state,
     CEILINGS.verdict_choices_choices,
+    CEILINGS.model_effort_speed_some,
     CEILINGS.llm_later_subagents,
     CEILINGS.llm_choice_subagents,
     CEILINGS.template_name,

@@ -456,6 +456,8 @@ fn demo_me() -> contract::Me {
             window: 1024,
             output: 128,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("demo model");
     me.projects.get_mut(0).expect("demo project").models = models;

@@ -124,6 +124,8 @@ pub fn home_documents_with_status(
             window: 200_000,
             output: 16_384,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .unwrap();
     let mut out = drive(

@@ -93,6 +93,7 @@ fn a_turn_keeps_its_model_and_effort_outside_the_text_budget() {
                         Some(value) => Some(Text::new(Box::from(value), 32).unwrap()),
                         None => None,
                     },
+                    speed: None,
                 })
             };
             assert_eq!(turn.llm, expected);
@@ -614,6 +615,7 @@ fn smith_full_fixed_value_preserves_maximum_usage_at_its_whole_length() {
             llm: Some(ModelEffort {
                 model: Text::new(Box::from(b"abc".as_slice()), 3).unwrap(),
                 effort: Some(Text::new(Box::from(b"abc".as_slice()), 3).unwrap()),
+                speed: None,
             }),
             cut: false
         }

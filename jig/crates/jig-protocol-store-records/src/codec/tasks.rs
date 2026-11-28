@@ -19,6 +19,7 @@ use skein_lib::Reader;
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 #[cfg(test)]
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
+    model_effort_speed_some: 0,
     question_relay_words: 0,
     question_answer_notice_words: 0,
     task_summary_title: 0,
@@ -154,6 +155,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
+        model_effort_speed_some: wire::CEILINGS.model_effort_speed_some,
         question_relay_words: domain.message_bytes,
         question_answer_notice_words: wire::CEILINGS.question_answer_notice_words,
         task_summary_title: domain::SUMMARY_TEXT,

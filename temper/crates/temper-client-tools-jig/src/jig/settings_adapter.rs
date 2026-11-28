@@ -326,10 +326,18 @@ pub fn client_llm_choice(v: &n::LlmChoice) -> c::LlmChoice {
     }
 }
 pub fn form_model_effort(v: &c::ModelEffort) -> n::ModelEffort {
-    n::ModelEffort { model: form_text(&v.model), effort: form_optional_text(v.effort.as_ref()) }
+    n::ModelEffort {
+        model: form_text(&v.model),
+        effort: form_optional_text(v.effort.as_ref()),
+        speed: form_optional_text(v.speed.as_ref()),
+    }
 }
 pub fn client_model_effort(v: &n::ModelEffort) -> c::ModelEffort {
-    c::ModelEffort { model: client_text(&v.model), effort: client_optional_text(v.effort.as_ref()) }
+    c::ModelEffort {
+        model: client_text(&v.model),
+        effort: client_optional_text(v.effort.as_ref()),
+        speed: client_optional_text(v.speed.as_ref()),
+    }
 }
 pub fn form_owner_authority(v: &c::Authority) -> n::Authority {
     n::Authority {

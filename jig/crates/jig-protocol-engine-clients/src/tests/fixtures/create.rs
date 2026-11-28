@@ -122,8 +122,8 @@ fn expected_member(role: bool, expected: p::Authority) -> p::Member {
             Some(p::LlmChoice {
                 later: None,
                 account: None,
-                main: p::ModelEffort { model: 0, effort: Some(1) },
-                subagents: Box::new([p::ModelEffort { model: 1, effort: None }]),
+                main: p::ModelEffort { model: 0, effort: Some(1), speed: None },
+                subagents: Box::new([p::ModelEffort { model: 1, effort: None, speed: None }]),
             })
         },
     }
@@ -140,8 +140,9 @@ pub fn llm_choice(main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::Llm
             Some(effort) => Some(effort.into()),
             None => None,
         },
+        speed: None,
     };
-    let subagent = w::ModelEffort { model: subagent.into(), effort: None };
+    let subagent = w::ModelEffort { model: subagent.into(), effort: None, speed: None };
     w::LlmChoice { later: None, account: None, main, subagents: List::from_boxed(Box::new([subagent])) }
 }
 

@@ -84,14 +84,19 @@ fn apply(world: &mut World, signed: u64, item: s::Item) {
     );
 }
 fn make(world: &mut World, signed: u64, model: Option<u8>) -> u64 {
-    let mut member = jig_test_profile::fixtures::people_member(b"catalogue task", 20);
-    member.llm = model.map(|model| people::LlmChoice {
+    let llm = model.map(|model| people::LlmChoice {
         later: None,
         account: None,
-        main: people::ModelEffort { model, effort: None },
+        main: people::ModelEffort { model, effort: None, speed: None },
         subagents: Box::new([]),
     });
-    let reply = ask(world, signed, 90, people::Ask::Create { project: 1, batch: Box::new([member]) });
+    make_choice(world, signed, 90, llm)
+}
+
+fn make_choice(world: &mut World, signed: u64, key: u8, llm: Option<people::LlmChoice>) -> u64 {
+    let mut member = jig_test_profile::fixtures::people_member(b"catalogue task", 20);
+    member.llm = llm;
+    let reply = ask(world, signed, key, people::Ask::Create { project: 1, batch: Box::new([member]) });
     let people::Reply::Outcome(people::Outcome::Created { first, .. }) = reply else { panic!("created: {reply:?}") };
     first
 }
@@ -243,14 +248,7 @@ fn speeds_and_the_default_speed_version_only_the_charters_that_include_the_model
     let other = world.domain.core_mut().charter(2).expect("another resolution").clone();
     let mut value = entry(&world, 1);
     let model = &mut value.model;
-    model.speeds = Box::new([core::Speed {
-        name: b"fast".as_slice().into(),
-        also: Box::new([b"priority".as_slice().into()]),
-        input_price: model.input_price,
-        cached_price: model.cached_price,
-        cache_write_price: model.cache_write_price,
-        output_price: model.output_price,
-    }]);
+    model.speeds = Box::new([catalogue_fast(model)]);
     for revision in [2, 3] {
         apply(&mut world, signed, set(value.clone()));
         assert_eq!(world.domain.settings().lookup(s::Setting::Charter(1)).1, Some((false, revision)));
@@ -261,6 +259,94 @@ fn speeds_and_the_default_speed_version_only_the_charters_that_include_the_model
         assert_eq!(versions(&world), 1);
         value.model.speed = Some(b"fast".as_slice().into());
     }
+}
+
+fn catalogue_fast(model: &core::Model) -> core::Speed {
+    core::Speed {
+        name: b"fast".as_slice().into(),
+        also: Box::new([b"priority".as_slice().into()]),
+        input_price: model.input_price,
+        cached_price: model.cached_price,
+        cache_write_price: model.cache_write_price,
+        output_price: model.output_price,
+    }
+}
+
+fn catalogue_with_speeds() -> (World, u64, s::CatalogueModel) {
+    let (mut config, limits) = configured(1);
+    config.core.defaults.charters[0].policy.resume = false;
+    config.core.defaults.charters[0].policy.reserve_turns = 0;
+    let (mut world, signed) = start_with(config, &limits);
+    let mut value = entry(&world, 1);
+    let fast = catalogue_fast(&value.model);
+    let ultra = core::Speed {
+        name: b"ultrafast".as_slice().into(),
+        output_price: fast.output_price.checked_add(1).expect("fixture price"),
+        also: Box::default(),
+        ..fast.clone()
+    };
+    value.model.speeds = Box::new([fast, ultra]);
+    apply(&mut world, signed, set(value.clone()));
+    (world, signed, value)
+}
+
+fn selected_speed(name: Option<&[u8]>) -> people::LlmChoice {
+    people::LlmChoice {
+        account: None,
+        later: None,
+        main: people::ModelEffort {
+            model: 0,
+            effort: None,
+            speed: name.map(|name| skein_lib::Name::from_checked(name).expect("fixture speed")),
+        },
+        subagents: Box::new([]),
+    }
+}
+
+#[test]
+fn only_tasks_whose_named_speed_disappeared_stay_behind() {
+    const BEFORE: u32 = 2;
+    const AFTER: u32 = 3;
+    let (mut world, signed, mut value) = catalogue_with_speeds();
+    let mut only_later = selected_speed(None);
+    only_later.later =
+        Some(people::LlmLater { main: selected_speed(Some(b"ultrafast")).main, subagents: Box::new([]) });
+    let mut tasks = Vec::new();
+    for (key, choice, revision) in [
+        (91, selected_speed(Some(b"ultrafast")), BEFORE),
+        (92, only_later, BEFORE),
+        (93, selected_speed(Some(b"fast")), AFTER),
+        (94, selected_speed(Some(tasks::STANDARD_SPEED)), AFTER),
+        (95, selected_speed(None), AFTER),
+    ] {
+        tasks.push((make_choice(&mut world, signed, key, Some(choice)), revision));
+    }
+    value.model.speeds = Box::new([value.model.speeds[0].clone()]);
+    apply(&mut world, signed, set(value));
+    assert_eq!(
+        ask(&mut world, signed, 96, people::Ask::MoveToNewest { revision: BEFORE }),
+        people::Reply::Outcome(people::Outcome::MovedToNewest { newest: AFTER, moved: 3, stayed: 2 })
+    );
+    for (task, revision) in tasks {
+        assert_eq!(fixtures::live_row(&world, task).settings.task, revision);
+    }
+}
+
+#[test]
+fn a_reordered_speed_list_keeps_the_runs_named_speed() {
+    const BEFORE: u32 = 2;
+    let (mut world, signed, mut value) = catalogue_with_speeds();
+    let task = make_choice(&mut world, signed, 91, Some(selected_speed(Some(b"ultrafast"))));
+    value.model.speeds.reverse();
+    let expected = value.model.speeds[0].clone();
+    apply(&mut world, signed, set(value));
+    let moved = ask(&mut world, signed, 92, people::Ask::MoveToNewest { revision: BEFORE });
+    assert_eq!(moved, people::Reply::Outcome(people::Outcome::MovedToNewest { newest: 3, moved: 1, stayed: 0 }));
+    host(&mut world);
+    let assigned = world.assigned.as_ref().expect("moved task runs");
+    assert_eq!(assigned.task, task);
+    assert_eq!(assigned.run.policy.model.run_speed(), Some(&expected));
+    fixtures::finish_chat(&mut world, 0, b"Done");
 }
 
 #[test]
@@ -328,7 +414,7 @@ fn a_number_no_setting_has_is_a_hole() {
     member.llm = Some(people::LlmChoice {
         later: None,
         account: None,
-        main: people::ModelEffort { model: 31, effort: None },
+        main: people::ModelEffort { model: 31, effort: None, speed: None },
         subagents: Box::new([]),
     });
     let reply = ask(&mut world, signed, 90, people::Ask::Create { project: 1, batch: Box::new([member]) });

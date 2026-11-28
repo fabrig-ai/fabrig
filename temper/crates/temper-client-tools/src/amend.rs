@@ -170,9 +170,7 @@ fn named_draft(
     } else if value(call, 9).is_some() {
         change.dependencies = Some(List::with_capacity(0));
     }
-    if value(call, 10).is_some() {
-        change.llm = Some(choice::llm(call, 10, 11, me, task.project, task.llm.as_ref())?.expect("model supplied"));
-    }
+    change.llm = choice::amendment(call, task, me)?;
     let other = change.addressed.is_some()
         || change.spec.is_some()
         || change.authority.is_some()
@@ -288,8 +286,8 @@ fn controls(
     } else if value(call, 9).is_some() {
         draft.dependencies(List::with_capacity(0));
     }
-    if value(call, 10).is_some() {
-        draft.llm(choice::llm(call, 10, 11, me, task.project, task.llm.as_ref())?.expect("model supplied"));
+    if let Some(llm) = choice::amendment(call, task, me)? {
+        draft.llm(llm);
     }
     Ok(())
 }

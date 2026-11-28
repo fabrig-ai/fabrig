@@ -242,7 +242,7 @@ pub fn task_carrier(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(task.hold_bytes))?
         .checked_add(names)?
         .checked_add(authority)?
-        .checked_add(bytes(tasks::MODELS, sizeof(size_of::<tasks::ModelEffort>())?)?)
+        .checked_add(bytes(tasks::MODELS.checked_mul(2)?, sizeof(size_of::<tasks::ModelEffort>())?)?)
 }
 
 fn context_carrier(limits: &Limits) -> Option<u64> {

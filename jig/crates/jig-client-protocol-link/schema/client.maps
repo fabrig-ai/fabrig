@@ -586,6 +586,7 @@ record Needs = c::Needs
 record Template = c::Template
 record MePrices = c::ModelPrices
 enum ModelSource = c::ModelSource both ways
+record SettingSpeed by hand
 record MeModel by hand
 record MeDefault = c::MeDefault
 record ProviderOffer by hand
@@ -844,7 +845,6 @@ record WorkerState = c::WorkerState { since via s::wall }
 record Deployment by hand
 record TableEntry by hand
 record Inbox by hand
-record SettingSpeed by hand
 record SettingModel by hand
 record CatalogueEntry by hand
 enum SettingHosts = c::SettingHosts both ways

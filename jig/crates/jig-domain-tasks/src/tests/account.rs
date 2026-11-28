@@ -14,7 +14,7 @@ fn preparing() -> Harness {
     new.llm = Some(LlmChoice {
         later: None,
         account: Some(PREFERENCE),
-        main: ModelEffort { model: 0, effort: None },
+        main: ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
     });
     h.make(vec![new]);

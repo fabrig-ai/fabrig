@@ -62,7 +62,7 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     assert_eq!(template.grace, Some(skein_lib::Duration::from_secs(18)));
     assert_eq!(
         template.llm.as_ref().expect("settings fixture").main,
-        jig_domain_tasks::ModelEffort { model: 0, effort: Some(1) }
+        jig_domain_tasks::ModelEffort { model: 0, effort: Some(1), speed: None }
     );
     assert_eq!(template.llm.as_ref().expect("settings fixture").account, Some(21));
     assert!(template.flags.conversation);
@@ -290,11 +290,13 @@ fn template_choice(model: &[u8], effort: &[u8]) -> jig_client_domain::contract::
     c::ModelEffort {
         model: c::Text::new(model.into(), f::wire().model_effort_model).unwrap(),
         effort: Some(c::Text::new(effort.into(), f::wire().model_effort_effort_some).unwrap()),
+        speed: None,
     }
 }
 fn template_requests(
     main: jig_client_domain::contract::ModelEffort,
     subagents: List<jig_client_domain::contract::ModelEffort>,
+    later: Option<jig_client_domain::contract::LlmLater>,
 ) -> [w::Ask; 2] {
     use jig_client_domain::contract as c;
     let mut item = jig_client_test_records::settings::settings_change()
@@ -307,7 +309,7 @@ fn template_requests(
     let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set") };
     let c::SettingValue::Template(template) = &mut set.value else { panic!("template") };
     template.number = 4;
-    template.llm = Some(c::LlmChoice { later: None, account: None, main, subagents });
+    template.llm = Some(c::LlmChoice { later, account: None, main, subagents });
     let change =
         c::ChangeSettings { against: 5, running: c::Running::Stays, items: List::from_boxed(Box::new([item])) };
     let change = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &f::wire()).unwrap();
@@ -345,7 +347,7 @@ fn unsupported_template_efforts_receive_a_final_refusal() {
         ),
         (template_choice(b"absent", b"high"), List::with_capacity(0), b"absent".as_slice(), w::LlmWhy::Unconfigured),
     ] {
-        for ask in template_requests(main, subagents) {
+        for ask in template_requests(main, subagents, None) {
             let (exchange, owner) = send_template(&ask);
             assert!(exchange.out.is_empty(), "invalid settings reached the core: {ask:?}");
             let w::Final::Refused(value) = exchange.final_answer(owner) else { panic!("final refusal: {ask:?}") };
@@ -358,10 +360,11 @@ fn unsupported_template_efforts_receive_a_final_refusal() {
 }
 #[test]
 fn supported_template_efforts_reach_the_core() {
-    let expected = jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) };
+    let expected = jig_domain_tasks::ModelEffort { model: 0, effort: Some(0), speed: None };
     for ask in template_requests(
         template_choice(b"careful", b"high"),
         List::from_boxed(Box::new([template_choice(b"careful", b"high")])),
+        None,
     ) {
         let (mut exchange, _owner) = send_template(&ask);
         let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core entrance: {ask:?}") };
@@ -377,6 +380,55 @@ fn supported_template_efforts_reach_the_core() {
         assert!(exchange.out.is_empty());
     }
 }
+#[test]
+fn template_speeds_survive_direct_and_proposed_settings() {
+    use jig_client_domain::contract as c;
+    let choice = template_choice(b"careful", b"high");
+    let named = c::ModelEffort {
+        speed: Some(c::Text::new(b"fast".as_slice().into(), f::wire().model_effort_speed_some).unwrap()),
+        ..choice.clone()
+    };
+    let standard = c::ModelEffort {
+        speed: Some(c::Text::new(b"standard".as_slice().into(), f::wire().model_effort_speed_some).unwrap()),
+        ..choice
+    };
+    let from_charter = c::ModelEffort {
+        model: c::Text::new(b"quick".as_slice().into(), f::wire().model_effort_model).unwrap(),
+        effort: None,
+        speed: None,
+    };
+    for ask in template_requests(
+        named.clone(),
+        List::from_boxed(Box::new([standard.clone()])),
+        Some(c::LlmLater { main: standard, subagents: List::from_boxed(Box::new([from_charter, named])) }),
+    ) {
+        let models = f::models();
+        let limits = f::wire();
+        let items = if let w::Ask::ChangeSettings(change) = ask {
+            translate::settings::change(change, &models, &limits).unwrap().items
+        } else {
+            let w::Ask::Propose(propose) = ask else { panic!("settings entrance") };
+            translate::settings::proposed(propose, &models, &limits).unwrap().items
+        };
+        let [s::Item { setting: s::Setting::Template(4), edit: s::Edit::Set(s::Value::Template(template)) }] =
+            items.as_ref()
+        else {
+            panic!("only template 4")
+        };
+        let llm = template.llm.as_ref().expect("template choice");
+        let later = llm.later.as_ref().expect("later choice");
+        let fast = skein_lib::Name::from_checked(b"fast");
+        let standard = skein_lib::Name::from_checked(b"standard");
+        let [subagent] = llm.subagents.as_ref() else { panic!("one first sub-agent") };
+        let [omitted, named] = later.subagents.as_ref() else { panic!("two later sub-agents") };
+        assert_eq!(llm.main.speed, fast);
+        assert_eq!(subagent.speed, standard);
+        assert_eq!(later.main.speed, standard);
+        assert_eq!(omitted.speed, None);
+        assert_eq!(named.speed, fast);
+    }
+}
+
 #[test]
 fn settings_proposals_reach_the_core_with_the_whole_set_and_exact_digest() {
     let mut exchange = whole_settings_exchange();

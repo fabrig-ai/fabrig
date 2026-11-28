@@ -250,8 +250,8 @@ fn a_model_takes_its_speeds_in_order_and_names_a_default() {
     let engine = fixtures::engine(&bytes).expect("spend at the speed's floor");
     expected.speed = Some(b"ultrafast".as_slice().into());
     assert_eq!(engine.llm.models[0].model, expected);
-    assert_eq!(engine.charters[0].policy.model, expected);
     expected.speed = None;
+    assert_eq!(engine.charters[0].policy.model, expected, "the document's charter inherits the catalogue speed");
     assert_eq!(model(&with_speeds(&speeds, "")), expected);
 }
 

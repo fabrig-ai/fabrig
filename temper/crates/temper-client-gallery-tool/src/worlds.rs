@@ -85,6 +85,7 @@ fn model(w: World) -> c::LlmChoice {
                 Solo | World::Bare | World::WholeStory => Some(text("high")),
                 FirstRun { .. } => None,
             },
+            speed: None,
         },
         subagents: List::with_capacity(0),
     }
@@ -144,6 +145,8 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
             },
             picker: true,
             efforts,
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("model");
     if matches!(w, World::Bare | FirstRun { step: 0 }) {
@@ -215,7 +218,7 @@ fn template_preview(member: &mut c::MeProject) {
             choice: c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
+                main: c::ModelEffort { model: text("gpt-6-luna"), effort: None, speed: None },
                 subagents: List::with_capacity(0),
             },
         })
@@ -2992,7 +2995,7 @@ fn document(w: World, number: u64) -> c::Task {
         Some(c::LlmChoice {
             later: None,
             account: Some(f.account),
-            main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text) },
+            main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text), speed: None },
             subagents: List::with_capacity(0),
         })
     };
@@ -6013,7 +6016,7 @@ fn models_frame(me: &mut c::Me, one_account: bool, state: super::samples::ModelS
         choice: c::LlmChoice {
             later: None,
             account: None,
-            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
+            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")), speed: None },
             subagents: List::with_capacity(0),
         },
     }]));

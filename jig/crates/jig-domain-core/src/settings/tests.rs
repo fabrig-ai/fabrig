@@ -1107,30 +1107,33 @@ fn remap_template_choices_follow_model_and_effort_names_and_mark_departures() {
     for (names, expected) in [
         (
             [catalogue(b"new", &[]), catalogue(b"first", &[b"high", b"low"])],
-            tasks::ModelEffort { model: 1, effort: Some(0) },
+            tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
         ),
         (
             [catalogue(b"new", &[]), catalogue(b"other", &[])],
-            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1) },
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1), speed: None },
         ),
         (
             [catalogue(b"first", &[b"low"]), catalogue(b"new", &[])],
-            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1) },
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1), speed: None },
         ),
     ] {
         let mut template = template();
         template.llm = Some(tasks::LlmChoice {
             later: None,
             account: None,
-            main: tasks::ModelEffort { model: 0, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+            main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
         });
         let mut value = Value::Template(Box::new(template));
         remap(&mut value, &moves(&kept, &names), &kept, &names);
         let Value::Template(template) = value else { panic!("template") };
         let choice = template.llm.unwrap();
         assert_eq!(choice.main, expected);
-        assert_eq!(choice.subagents[0], tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: None });
+        assert_eq!(
+            choice.subagents[0],
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: None, speed: None }
+        );
     }
 }
 

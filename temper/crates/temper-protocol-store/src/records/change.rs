@@ -799,10 +799,18 @@ fn decode_gate_failures(values: List<w::GateFailure>) -> Box<[d::GateFailure]> {
 }
 
 fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
-    crate::generated::store::model_effort_to_record(&value)
+    let speed = match value.speed {
+        Some(speed) => Some(skein_lib::bytes::copy_of(speed.as_bytes())),
+        None => None,
+    };
+    w::ModelEffort { model: value.model, effort: value.effort, speed }
 }
 fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    crate::generated::store::model_effort_to_domain(value)
+    let speed = match value.speed {
+        Some(speed) => Some(skein_lib::Name::from_checked(&speed).expect("stored speed fits the codec's bound")),
+        None => None,
+    };
+    jig_domain_tasks::ModelEffort { model: value.model, effort: value.effort, speed }
 }
 pub(super) fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
     let jig_domain_tasks::LlmChoice { main, subagents, account, .. } = value?;

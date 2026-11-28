@@ -91,7 +91,7 @@ enum Retention { kept, forgotten_once_read }
 record Closer { connector: u16 code: u32 }
 enum EndedBy { result, requester, closer: Closer, standing }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
-record ModelEffort { model: u8 effort: option u8 }
+record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }
 record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record Symbol { connector: u16 symbol: u16 }

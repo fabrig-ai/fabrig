@@ -83,7 +83,7 @@ fn prepare(call: &Call, me: &c::Me, limits: &Limits, milestone: Option<(&c::Task
         }
     }
     let executor = executor(call, template)?;
-    let llm = choice::selection(call, 8, 9, 10, me, project, template.llm.as_ref())?;
+    let llm = choice::selection(call, crate::jig::rows::GOAL_CHOICE, me, project, template.llm.as_ref())?;
     let priority = match super::number(call, 4) {
         Some(priority) => Some(u32::try_from(priority).expect("priority fits")),
         None => None,

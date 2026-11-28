@@ -222,6 +222,7 @@ pub fn model_effort(model: &str, effort: Option<&str>) -> c::ModelEffort {
             Some(effort) => Some(fixtures::first_run::text(effort.as_bytes())),
             None => None,
         },
+        speed: None,
     }
 }
 

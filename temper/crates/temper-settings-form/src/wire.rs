@@ -590,6 +590,10 @@ pub(crate) fn llm_model_effort(value: &w::ModelEffort, limits: &Limits) -> Resul
             Some(effort) => Some(llm_name(effort, limits.settings.model_effort_effort_some)?),
             None => None,
         },
+        speed: match &value.speed {
+            Some(speed) => Some(llm_name(speed, limits.settings.model_effort_speed_some)?),
+            None => None,
+        },
     })
 }
 
@@ -1473,7 +1477,11 @@ pub(crate) fn llm_wire_choice(value: &c::LlmChoice) -> w::LlmChoice {
 }
 
 pub(crate) fn llm_wire_model_effort(value: &c::ModelEffort) -> w::ModelEffort {
-    w::ModelEffort { model: bytes::copy_of(value.model.bytes()), effort: optional_text(value.effort.as_ref()) }
+    w::ModelEffort {
+        model: bytes::copy_of(value.model.bytes()),
+        effort: optional_text(value.effort.as_ref()),
+        speed: optional_text(value.speed.as_ref()),
+    }
 }
 
 pub(crate) fn settings_wire_task_contract(

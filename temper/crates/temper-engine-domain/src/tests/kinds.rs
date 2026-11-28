@@ -1034,40 +1034,12 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         let (mut reader, _) = reader(Some(Role::Member));
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
-        let repository = forge::Repository {
-            contexts: Box::new([]),
-            landing: b"main".as_slice().into(),
-            refusals: Box::default(),
-            workflows: Box::default(),
-            project: PROJECT,
-            home: true,
-            provider: skein_forge::api::Repository { forge: 1, repository: 1 },
-            host: b"forge.example".as_slice().into(),
-            owner: b"org".as_slice().into(),
-            name: b"repo".as_slice().into(),
-            prefix: Box::new([]),
-            role: forge::Role::Owned,
-            ci: false,
-            checks: Box::new([]),
-            kinds: forge::Kinds {
-                read: true,
-                push: writable,
-                open: true,
-                land: true,
-                review: true,
-                status: true,
-                comment: true,
-                issue: true,
-                branch: true,
-            },
-            protection: forge::Protection::Absent,
-            settings: skein_forge::api::Settings {
-                default_branch: b"main".as_slice().into(),
-                merge: true,
-                squash: false,
-                rebase: false,
-            },
-        };
+        let mut repository = owned_repository(1);
+        repository.project = PROJECT;
+        repository.prefix = Box::new([]);
+        repository.ci = false;
+        repository.kinds.push = writable;
+        repository.settings.squash = false;
         let (mut domain, env) = resume_fixture::root_with_config(config);
         ::core::mem::swap(&mut domain.engine.core_mut().people, &mut reader.engine.core_mut().people);
         domain.forge.restore_begin(env.wall);
@@ -1389,44 +1361,29 @@ fn follow_value() -> settings::Follow {
 }
 
 fn follow_repository(number: u32, role: forge::Role, push: bool) -> forge::Repository {
-    forge::Repository {
-        project: 2,
-        contexts: Box::new([]),
-        home: false,
-        provider: skein_forge::api::Repository { forge: 1, repository: number },
-        host: b"forge.example".as_slice().into(),
-        owner: b"org".as_slice().into(),
-        name: b"repo".as_slice().into(),
-        prefix: Box::new([]),
-        role,
-        ci: true,
-        checks: Box::new([]),
-        kinds: forge::Kinds {
-            read: true,
-            push,
-            open: push,
-            land: push,
-            review: push,
-            status: push,
-            comment: push,
-            issue: push,
-            branch: push,
-        },
-        protection: forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: if role == forge::Role::Context {
-                b"main".as_slice().into()
-            } else {
-                b"stable".as_slice().into()
-            },
-            merge: true,
-            squash: false,
-            rebase: false,
-        },
-        landing: if role == forge::Role::Context { b"main".as_slice().into() } else { b"stable".as_slice().into() },
-        refusals: Box::default(),
-        workflows: Box::new([]),
+    let mut repository = owned_repository(1);
+    repository.project = 2;
+    repository.home = false;
+    repository.provider.repository = number;
+    repository.prefix = Box::new([]);
+    repository.role = role;
+    repository.kinds = forge::Kinds {
+        read: true,
+        push,
+        open: push,
+        land: push,
+        review: push,
+        status: push,
+        comment: push,
+        issue: push,
+        branch: push,
+    };
+    if role != forge::Role::Context {
+        repository.landing = b"stable".as_slice().into();
+        repository.settings.default_branch = repository.landing.clone();
     }
+    repository.settings.squash = false;
+    repository
 }
 
 fn follow_root() -> (Domain, Env<RootLimits>) {
@@ -2062,7 +2019,7 @@ fn repairs_setting() -> settings::ProjectLanding {
                 charter: 1,
                 llm: Some(settings::NamedLlm {
                     account: Some(9),
-                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None },
+                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None, speed: None },
                     subagents: Box::new([]),
                     later: None,
                 }),
@@ -2075,7 +2032,15 @@ fn repairs_setting() -> settings::ProjectLanding {
 }
 fn repairs_config() -> crate::Config {
     let mut config = resume_fixture::config(7);
-    let first = resume_fixture::models()[0].clone();
+    let mut first = resume_fixture::models()[0].clone();
+    first.speeds = Box::new([jig_domain_core::Speed {
+        name: b"fast".as_slice().into(),
+        also: Box::default(),
+        input_price: first.input_price,
+        cached_price: first.cached_price,
+        cache_write_price: first.cache_write_price,
+        output_price: first.output_price,
+    }]);
     let mut other = first.clone();
     other.name = b"other".as_slice().into();
     // Deliberately reordered: a kept name must resolve to the new catalogue index.
@@ -2184,7 +2149,9 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
         let mut landing = repairs_setting();
         let goal = &mut landing.repairs.as_mut().unwrap().goal;
         goal.charter = charter;
-        goal.llm.as_mut().unwrap().main.model = model.into();
+        let main = &mut goal.llm.as_mut().unwrap().main;
+        main.model = model.into();
+        main.speed = Some(b"fast".as_slice().into());
         let (domain, _) = start_with_repairs(Some(landing.clone()), spec);
         if let Some(expected) = expected {
             assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), expected);
@@ -2194,6 +2161,7 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
             assert_eq!((held.goal.charter, held.goal.priority, held.goal.budget), (1, 42, 2_000_000));
             assert_eq!(held.goal.llm.as_ref().unwrap().main.model, 1, "resolved by name, not old position");
             assert_eq!(held.goal.llm.as_ref().unwrap().account, Some(9));
+            assert_eq!(held.goal.llm.as_ref().unwrap().main.speed.unwrap().as_bytes(), b"fast");
         }
         assert_eq!(domain.forge.landing_settings(PROJECT), Some(&landing), "taken setting is kept even when off");
     }

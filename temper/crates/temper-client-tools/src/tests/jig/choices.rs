@@ -4,12 +4,28 @@ use skein_lib::List;
 
 #[test]
 fn task_show_prints_main_and_subagent_choices() {
-    let text = task_choice_text(Some(f::prior_choice()));
+    let mut choice = f::prior_choice();
+    choice.main = f::model_effort(b"gpt-6.2-sol", Some(b"high"));
+    choice.main.speed = Some(f::act_text(b"ultrafast"));
+    let text = task_choice_text(Some(choice.clone()));
     assert!(
-        skein_lib::bytes::find(&text, b"\nmain model: template-model/low\nsub-agent model: small-model/low\n")
-            .is_some()
+        skein_lib::bytes::find(
+            &text,
+            b"\nmain model: gpt-6.2-sol/high at ultrafast\nsub-agent model: small-model/low\n"
+        )
+        .is_some()
     );
     assert!(skein_lib::bytes::find(&text, b"account:").is_none());
+
+    let (mut root, call) = f::read_call(f::TASK_JSON_CALL);
+    let mut task = f::waiting_goal();
+    task.llm = Some(choice);
+    root.serve(call, f::task_result(task));
+    let answer = root.answer(call).expect("task JSON");
+    assert_eq!(answer.status, 0);
+    let task: serde_json::Value = serde_json::from_slice(&answer.stdout).unwrap();
+    assert_eq!(task["llm"]["main"]["speed"], "ultrafast");
+    assert_eq!(task["llm"]["subagents"][0].get("speed"), Some(&serde_json::Value::Null));
 }
 
 #[test]
@@ -47,9 +63,14 @@ fn task_choice_text(choice: Option<c::LlmChoice>) -> Box<[u8]> {
 
 #[test]
 fn chat_uses_the_named_model() {
-    let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
+    let mut me = f::choice_me(f::CHAT_BUDGET);
+    me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().llm.as_mut().unwrap().main.speed =
+        Some(f::act_text(b"fast"));
+    let mut root = f::choice_root(me);
     let call = root.submit(f::MODEL_CHAT);
-    assert_eq!(f::chat_task(&root, call).llm.as_ref().expect("choice").main.model.bytes(), f::MODEL_NAME);
+    let main = &f::chat_task(&root, call).llm.as_ref().expect("choice").main;
+    assert_eq!(main.model.bytes(), f::MODEL_NAME);
+    assert_eq!(main.speed, None);
 }
 #[test]
 fn chat_uses_the_named_effort() {
@@ -71,7 +92,9 @@ fn chat_keeps_the_template_subagents() {
 }
 #[test]
 fn chat_keeps_the_template_choice() {
-    let me = f::choice_me(f::CHAT_BUDGET);
+    let mut me = f::choice_me(f::CHAT_BUDGET);
+    me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().llm.as_mut().unwrap().main.speed =
+        Some(f::act_text(b"fast"));
     let expected = jig_client::shapes::chat(&me, f::PROJECT, f::call_words(f::CREATE_CHAT_CALL, 2)).expect("shape");
     let mut root = f::choice_root(me);
     let call = root.submit(f::CREATE_CHAT_CALL);
@@ -171,6 +194,28 @@ fn chat_model_lookup_is_scoped_to_the_project() {
         (1, b"--model chosen-model: not among the models you may choose in this project\n".as_slice())
     );
 }
+#[test]
+fn start_and_amend_require_a_model_for_main_speed() {
+    use crate::jig::{argv::Usage, rows};
+    for (base, tool, argument) in [
+        (CHAT_START, rows::CHAT_CREATE_AT, 3),
+        (super::goal_template::START, rows::GOAL_START_AT, 8),
+        (&["task", "amend", "41", "--rev", "7", "because"][..], rows::AMEND_AT, 10),
+    ] {
+        let expected = Usage::Missing { tool, form: 0, argument };
+        let argv = f::extended(base, &["--speed", "fast"]);
+        assert_eq!(f::parse(argv.as_slice()), Err(expected));
+
+        let complete = f::extended(argv.as_slice(), &["--model", "chosen-model"]);
+        let call = f::call(complete.as_slice());
+        let bytes = crate::jig::json::write_call(crate::table::TOOLS, &call).unwrap();
+        let mut record: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        record["arguments"].as_object_mut().unwrap().remove("model").unwrap();
+        let bytes = serde_json::to_vec(&record).unwrap();
+        assert_eq!(f::json(&bytes), Err(expected));
+    }
+}
+
 #[test]
 fn chat_effort_requires_a_model() {
     assert_eq!(
@@ -420,6 +465,152 @@ fn amend_takes_the_default_instead_of_the_previous_effort() {
     assert_eq!(change.llm.as_ref().expect("choice").main, f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME)));
 }
 
+const CHAT_START: &[&str] = &["chat", "start", "hello", "--project", "shop", "--key", "chat-speed"];
+
+fn with_speed_offer(mut me: c::Me, subagent: &[u8]) -> c::Me {
+    let models = &mut me.projects.get_mut(0).unwrap().models;
+    let mut fast = f::speed_offer(b"fast");
+    fast.also = List::from_boxed(Box::new([f::act_text(b"turbo")]));
+    let main = models.get_mut(0).unwrap();
+    main.name = f::act_text(b"gpt-6.2-sol");
+    main.speeds = List::from_boxed(Box::new([fast, f::speed_offer(b"ultrafast")]));
+    let subagent_model = models.get_mut(1).unwrap();
+    subagent_model.name = f::act_text(subagent);
+    subagent_model.efforts = List::from_boxed(Box::new([f::act_text(b"medium")]));
+    subagent_model.speeds = List::from_boxed(Box::new([f::speed_offer(b"fast")]));
+    me
+}
+
+#[test]
+fn starts_send_named_speeds_from_argv_and_json() {
+    for (base, me, subagent, selection, speed) in [
+        (
+            super::goal_template::START,
+            super::goal_template::goal_me(),
+            "gpt-6.1-sol",
+            "gpt-6.1-sol:medium",
+            "gpt-6.1-sol:fast",
+        ),
+        (CHAT_START, f::choice_me(f::CHAT_BUDGET), "acme:model-x", "acme:model-x:medium", "acme:model-x:fast"),
+    ] {
+        let argv = f::extended(
+            base,
+            &[
+                "--model",
+                "gpt-6.2-sol",
+                "--effort",
+                "high",
+                "--speed",
+                "ultrafast",
+                "--sub-agent",
+                selection,
+                "--sub-agent-speed",
+                speed,
+            ],
+        );
+        let call = f::call(argv.as_slice());
+        let bytes = crate::jig::json::write_call(crate::table::TOOLS, &call).expect("call JSON");
+        let record: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(record["arguments"]["speed"], "ultrafast");
+        assert_eq!(record["arguments"]["sub_agent_speed"][0], speed);
+        let decoded = f::from_json(&bytes);
+        assert_eq!(decoded, call);
+        let mut main = f::model_effort(b"gpt-6.2-sol", Some(b"high"));
+        main.speed = Some(f::act_text(b"ultrafast"));
+        let mut child = f::model_effort(subagent.as_bytes(), Some(b"medium"));
+        child.speed = Some(f::act_text(b"fast"));
+        for call in [call, decoded] {
+            let mut root = f::choice_root(with_speed_offer(me.clone(), subagent.as_bytes()));
+            let sent = root.submit_prepared(call, false, None);
+            let choice = f::chat_task(&root, sent).llm.as_ref().unwrap();
+            assert_eq!(choice.main, main);
+            assert_eq!(choice.subagents.as_slice(), &[child.clone()]);
+        }
+    }
+}
+
+#[test]
+fn standard_is_a_speed_even_without_faster_speeds() {
+    let argv = f::extended(
+        f::EFFORTLESS_CHAT,
+        &["--speed", "standard", "--sub-agent", "plain-model", "--sub-agent-speed", "plain-model:standard"],
+    );
+    let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
+    let call = root.submit(argv.as_slice());
+    let llm = f::chat_task(&root, call).llm.as_ref().unwrap();
+    let mut expected = f::model_effort(b"plain-model", None);
+    expected.speed = Some(f::act_text(b"standard"));
+    assert_eq!(llm.main, expected);
+    assert_eq!(llm.subagents.as_slice(), &[expected]);
+}
+
+#[test]
+fn starts_refuse_each_speed_flag_before_sending() {
+    for (extra, expected) in [
+        (
+            &["--model", "gpt-6.2-sol", "--speed", "turbo"][..],
+            "--speed turbo: not a speed gpt-6.2-sol declares; it declares fast, ultrafast",
+        ),
+        (
+            &["--model", "gpt-6.2-sol", "--sub-agent-speed", "gpt-6.1-sol:fast"][..],
+            "--sub-agent-speed gpt-6.1-sol:fast: gpt-6.1-sol is not a sub-agent --sub-agent names",
+        ),
+        (
+            &[
+                "--model",
+                "gpt-6.2-sol",
+                "--sub-agent",
+                "gpt-6.1-sol:medium",
+                "--sub-agent-speed",
+                "gpt-6.1-sol:ultrafast",
+            ][..],
+            "--sub-agent-speed gpt-6.1-sol:ultrafast: ultrafast is not a speed gpt-6.1-sol declares; it declares fast",
+        ),
+        (
+            &[
+                "--model",
+                "gpt-6.2-sol",
+                "--sub-agent",
+                "gpt-6.1-sol",
+                "--sub-agent-speed",
+                "gpt-6.1-sol:fast",
+                "--sub-agent-speed",
+                "gpt-6.1-sol:standard",
+            ][..],
+            "--sub-agent-speed gpt-6.1-sol:standard: gpt-6.1-sol already has a speed",
+        ),
+    ] {
+        let mut chat = f::choice_me(f::CHAT_BUDGET);
+        chat.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().llm.as_mut().unwrap().subagents =
+            List::from_boxed(Box::new([f::model_effort(b"gpt-6.1-sol", Some(b"medium"))]));
+        for (base, me) in [(CHAT_START, chat), (super::goal_template::START, super::goal_template::goal_me())] {
+            for json in [false, true] {
+                let mut root = f::choice_root(with_speed_offer(me.clone(), b"gpt-6.1-sol"));
+                let argv = f::extended(base, extra);
+                let argv = f::extended(argv.as_slice(), if json { f::JSON_FLAG } else { &[] });
+                let call = root.submit(argv.as_slice());
+                assert!(root.sends.is_empty());
+                let answer = root.answer(call).unwrap();
+                assert_eq!(answer.status, 1);
+                assert!(answer.stdout.is_empty());
+                if json {
+                    let record: serde_json::Value = serde_json::from_slice(&answer.stderr).unwrap();
+                    assert_eq!(record["error"], expected);
+                } else {
+                    assert_eq!(answer.stderr.strip_suffix(b"\n").unwrap(), expected.as_bytes());
+                }
+            }
+        }
+    }
+    let argv = f::extended(f::EFFORTLESS_CHAT, &["--speed", "fast"]);
+    let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
+    let call = root.submit(argv.as_slice());
+    assert!(root.sends.is_empty());
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 1);
+    assert_eq!(answer.stderr.as_ref(), b"--speed fast: not a speed plain-model declares; it declares none\n");
+}
+
 #[test]
 fn goals_refuse_each_model_flag_in_text_and_json_before_sending() {
     for (extra, expected) in [
@@ -637,6 +828,9 @@ fn every_model_flag_echo_is_bounded() {
     {
         let with_effort = format!("{name}:max");
         let low = format!("{name}:low");
+        let speed = format!("gpt-6.1-sol:{name}");
+        let speed_cut =
+            if name.len() > 256 { format!("gpt-6.1-sol:{}...", "x".repeat(244)) } else { format!("gpt-6.1-sol:{cut}") };
         for (extra, expected) in [
             (
                 vec!["--model", name.as_str()],
@@ -652,6 +846,24 @@ fn every_model_flag_echo_is_bounded() {
             ),
         ] {
             let mut root = f::choice_root(super::goal_template::goal_me());
+            let argv = f::extended(super::goal_template::START, &extra);
+            let call = root.submit(argv.as_slice());
+            assert!(root.sends.is_empty());
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 1);
+            assert_eq!(answer.stderr.strip_suffix(b"\n").unwrap(), expected.as_bytes());
+        }
+        for (extra, expected) in [
+            (
+                vec!["--model", "gpt-6.2-sol", "--speed", name.as_str()],
+                format!("--speed {cut}: not a speed gpt-6.2-sol declares; it declares fast, ultrafast"),
+            ),
+            (
+                vec!["--model", "gpt-6.2-sol", "--sub-agent", "gpt-6.1-sol", "--sub-agent-speed", speed.as_str()],
+                format!("--sub-agent-speed {speed_cut}: {cut} is not a speed gpt-6.1-sol declares; it declares fast"),
+            ),
+        ] {
+            let mut root = f::choice_root(with_speed_offer(super::goal_template::goal_me(), b"gpt-6.1-sol"));
             let argv = f::extended(super::goal_template::START, &extra);
             let call = root.submit(argv.as_slice());
             assert!(root.sends.is_empty());

@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 17;
 pub const LAYOUT: [u8; 32] = [
-    0x39, 0x0e, 0x29, 0x82, 0x27, 0x1b, 0x60, 0x2c, 0xa2, 0xac, 0x7a, 0xce, 0xec, 0xbf, 0xa7, 0x11, 0x3b, 0x15, 0x4b,
-    0x28, 0x53, 0x9b, 0xfd, 0x83, 0xe7, 0x64, 0xa4, 0x03, 0xd8, 0x2a, 0x8e, 0x86,
+    0x20, 0x08, 0xc4, 0x2d, 0xb0, 0x24, 0xec, 0xab, 0x01, 0x0c, 0xa6, 0xfe, 0x83, 0xfe, 0x02, 0x77, 0xed, 0xa5, 0xeb,
+    0xc5, 0x39, 0x2a, 0x10, 0x1b, 0x5f, 0x31, 0x85, 0x9f, 0x45, 0x24, 0x31, 0x3a,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -52,6 +52,7 @@ pub struct Limits {
     pub spec_words: u32,
     pub spec_parameters: u32,
     pub spec_inputs: u32,
+    pub model_effort_speed_some: u32,
     pub llm_later_subagents: u32,
     pub llm_choice_subagents: u32,
     pub amendment_instructions_some: u32,
@@ -149,6 +150,7 @@ pub const CEILINGS: Limits = Limits {
     spec_words: 135_168,
     spec_parameters: 405_504,
     spec_inputs: 405_504,
+    model_effort_speed_some: 32,
     llm_later_subagents: 64,
     llm_choice_subagents: 64,
     amendment_instructions_some: 135_168,
@@ -246,6 +248,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "spec_words",
     "spec_parameters",
     "spec_inputs",
+    "model_effort_speed_some",
     "llm_later_subagents",
     "llm_choice_subagents",
     "amendment_instructions_some",
@@ -346,6 +349,7 @@ impl Limits {
             self.spec_words,
             self.spec_parameters,
             self.spec_inputs,
+            self.model_effort_speed_some,
             self.llm_later_subagents,
             self.llm_choice_subagents,
             self.amendment_instructions_some,
@@ -447,6 +451,7 @@ impl Limits {
             spec_words: self.spec_words.min(most),
             spec_parameters: self.spec_parameters.min(most),
             spec_inputs: self.spec_inputs.min(most),
+            model_effort_speed_some: self.model_effort_speed_some.min(most),
             llm_later_subagents: self.llm_later_subagents.min(most),
             llm_choice_subagents: self.llm_choice_subagents.min(most),
             amendment_instructions_some: self.amendment_instructions_some.min(most),
@@ -546,6 +551,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::SPEC_WORDS,
     paths::SPEC_PARAMETERS,
     paths::SPEC_INPUTS,
+    paths::MODEL_EFFORT_SPEED,
     paths::LLM_LATER_SUBAGENTS,
     paths::LLM_CHOICE_SUBAGENTS,
     paths::AMENDMENT_INSTRUCTIONS,
@@ -858,6 +864,7 @@ pub mod paths {
     pub const TRACKING_TAG: Path = Path::new("Tracking (tag)");
     pub const MODEL_EFFORT_MODEL: Path = Path::new("ModelEffort.model");
     pub const MODEL_EFFORT_EFFORT: Path = Path::new("ModelEffort.effort");
+    pub const MODEL_EFFORT_SPEED: Path = Path::new("ModelEffort.speed");
     pub const MODEL_EFFORT_TAIL: Path = Path::new("ModelEffort (tail)");
     pub const LLM_LATER_MAIN: Path = Path::new("LlmLater.main");
     pub const LLM_LATER_SUBAGENTS: Path = Path::new("LlmLater.subagents");
@@ -6829,6 +6836,7 @@ impl Record for Tracking {
 pub struct ModelEffort {
     pub model: u8,
     pub effort: Option<u8>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: ModelEffort.
@@ -6837,11 +6845,13 @@ impl ModelEffort {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, model_effort_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 3;
+    pub const ENCODED_AT_ZERO: u64 = 8;
 }
 
 impl Record for ModelEffort {
@@ -6868,6 +6878,7 @@ impl Record for ModelEffort {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U8, &self.model, limits, out, paths::MODEL_EFFORT_MODEL)?;
         field::write(field::Optional { item: field::U8 }, &self.effort, limits, out, paths::MODEL_EFFORT_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, &self.speed, limits, out, paths::MODEL_EFFORT_SPEED)?;
         Ok(())
     }
 
@@ -6875,6 +6886,7 @@ impl Record for ModelEffort {
         Ok(Self {
             model: field::read(field::U8, limits, reader, paths::MODEL_EFFORT_MODEL)?,
             effort: field::read(field::Optional { item: field::U8 }, limits, reader, paths::MODEL_EFFORT_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, limits, reader, paths::MODEL_EFFORT_SPEED)?,
         })
     }
 }
@@ -6896,7 +6908,7 @@ impl LlmLater {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 7;
+    pub const ENCODED_AT_ZERO: u64 = 12;
 }
 
 impl Record for LlmLater {
@@ -6922,14 +6934,14 @@ impl Record for LlmLater {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::LLM_LATER_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_LATER_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_LATER_SUBAGENTS)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::LLM_LATER_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_LATER_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_LATER_SUBAGENTS)?,
         })
     }
 }
@@ -6957,7 +6969,7 @@ impl LlmChoice {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 20;
+    pub const ENCODED_AT_ZERO: u64 = 30;
 }
 
 impl Record for LlmChoice {
@@ -6984,7 +6996,7 @@ impl Record for LlmChoice {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::LLM_CHOICE_ACCOUNT)?;
         field::write(field::Nested, &self.main, limits, out, paths::LLM_CHOICE_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
         field::write(field::Optional { item: field::Nested }, &self.later, limits, out, paths::LLM_CHOICE_LATER)?;
         Ok(())
     }
@@ -6993,7 +7005,7 @@ impl Record for LlmChoice {
         Ok(Self {
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::LLM_CHOICE_ACCOUNT)?,
             main: field::read(field::Nested, limits, reader, paths::LLM_CHOICE_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
             later: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LLM_CHOICE_LATER)?,
         })
     }
@@ -7037,7 +7049,7 @@ impl Amendment {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 174;
+    pub const ENCODED_AT_ZERO: u64 = 184;
 }
 
 impl Record for Amendment {
@@ -8351,7 +8363,7 @@ impl Member {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 202;
+    pub const ENCODED_AT_ZERO: u64 = 212;
 }
 
 impl Record for Member {
@@ -8551,7 +8563,7 @@ impl OperationAmend {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 199;
+    pub const ENCODED_AT_ZERO: u64 = 209;
 }
 
 impl Record for OperationAmend {
@@ -8785,7 +8797,7 @@ impl Operation {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 200;
+    pub const ENCODED_AT_ZERO: u64 = 210;
 }
 
 impl Record for Operation {
@@ -9465,7 +9477,7 @@ impl ActionAmend {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 190;
+    pub const ENCODED_AT_ZERO: u64 = 200;
 }
 
 impl Record for ActionAmend {
@@ -9578,7 +9590,7 @@ impl Action {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 191;
+    pub const ENCODED_AT_ZERO: u64 = 201;
 }
 
 impl Record for Action {
@@ -9639,7 +9651,7 @@ impl AskPropose {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 199;
+    pub const ENCODED_AT_ZERO: u64 = 209;
 }
 
 impl Record for AskPropose {
@@ -10470,7 +10482,7 @@ impl AskAmend {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 203;
+    pub const ENCODED_AT_ZERO: u64 = 213;
 }
 
 impl Record for AskAmend {
@@ -13974,7 +13986,7 @@ impl Ask {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 204;
+    pub const ENCODED_AT_ZERO: u64 = 214;
 }
 
 impl Record for Ask {
@@ -17643,6 +17655,7 @@ pub enum LlmWhy {
     Authority,
     Procedure,
     Repeated,
+    Speed,
 }
 
 // Record: LlmWhy.
@@ -17654,7 +17667,8 @@ impl LlmWhy {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -17690,6 +17704,7 @@ impl Record for LlmWhy {
             Self::Authority => field::put(out, &[3], paths::LLM_WHY_TAG),
             Self::Procedure => field::put(out, &[4], paths::LLM_WHY_TAG),
             Self::Repeated => field::put(out, &[5], paths::LLM_WHY_TAG),
+            Self::Speed => field::put(out, &[6], paths::LLM_WHY_TAG),
         }
     }
 
@@ -17702,7 +17717,8 @@ impl Record for LlmWhy {
             3 => Ok(Self::Authority),
             4 => Ok(Self::Procedure),
             5 => Ok(Self::Repeated),
-            6..=u8::MAX => Err(Problem { path: paths::LLM_WHY_TAG, reason: skein_codec::Reason::Tag }),
+            6 => Ok(Self::Speed),
+            7..=u8::MAX => Err(Problem { path: paths::LLM_WHY_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -22224,7 +22240,7 @@ impl StoredAnswer {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 284;
+    pub const ENCODED_AT_ZERO: u64 = 294;
 }
 
 impl Record for StoredAnswer {
@@ -22524,7 +22540,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 285;
+    pub const ENCODED_AT_ZERO: u64 = 295;
 }
 
 impl Record for Value {
@@ -22599,7 +22615,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 287;
+    pub const ENCODED_AT_ZERO: u64 = 297;
 }
 
 impl Record for Row {
@@ -23035,6 +23051,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.spec_words,
     CEILINGS.spec_parameters,
     CEILINGS.spec_inputs,
+    CEILINGS.model_effort_speed_some,
     CEILINGS.llm_later_subagents,
     CEILINGS.llm_choice_subagents,
     CEILINGS.amendment_instructions_some,

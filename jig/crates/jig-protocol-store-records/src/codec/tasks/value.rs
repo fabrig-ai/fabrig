@@ -315,10 +315,10 @@ pub(super) fn llm(source: Option<&domain::LlmChoice>) -> Result<Option<wire::Llm
 }
 
 /// Read an agent task's LLM choice, if any; its decode bounds its sub-agents.
-pub(super) fn read_llm(source: Option<wire::LlmChoice>) -> Option<domain::LlmChoice> {
+pub(super) fn read_llm(source: Option<wire::LlmChoice>) -> Result<Option<domain::LlmChoice>, wire::Problem> {
     match source {
-        Some(value) => Some(mapped::llm_choice_to_domain(value)),
-        None => None,
+        Some(value) => Ok(Some(mapped::llm_choice_to_domain(value)?)),
+        None => Ok(None),
     }
 }
 

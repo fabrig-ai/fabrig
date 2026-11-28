@@ -365,7 +365,10 @@ BODY
     main: NamedModel, subagents: Box<[NamedModel]>, later:
     Option<NamedLater> }`, `NamedLater { main: NamedModel, subagents:
     Box<[NamedModel]> }` and `NamedModel { model: Box<[u8]>, effort:
-    Option<Box<[u8]>> }`, a template's file form's members, and
+    Option<Box<[u8]>>, speed: Option<Box<[u8]>> }`, its speed by name,
+    `standard` or none (jig's `domain/tasks/README.md`, section 3), its
+    store and wire records' `speed` an added field whose default is
+    none, a template's file form's members, and
     `ProjectLanding`'s `repairs: Option<RepairSettings>`; in the store
     and the client's wire, records of the same members;
   - the setting resolved at a start (section 7): `Repairs { goals: u8,

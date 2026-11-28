@@ -312,9 +312,10 @@ host's half reports it (`llm.md`, 5.5).
   `tracked`, `null` or `{"priority": n}`; `conversation` and `listed`,
   booleans; `retention`, `"kept"` or `"forgotten_once_read"`; `label`;
   `grace_ms`, or `null`; and `llm`, `null` for none, or
-  `{"main": {"model": m, "effort": e}, "sub_agents": [{"model": m,
-  "effort": e}]}`, each `m` a configured model's name and each `e` an
-  effort it takes. jig's chat: `{"number": 1, "name": "chat",
+  `{"main": {"model": m, "effort": e, "speed": s}, "sub_agents": [{"model": m,
+  "effort": e, "speed": s}]}`, each `m` a configured model's name, each `e` an
+  effort it takes, and each `s`, optional, a speed it declares or
+  `"standard"`, none when left out (`../domain/tasks/README.md`, section 3). jig's chat: `{"number": 1, "name": "chat",
   "executor": {"charter": n}, "contract": {"report": {"words": n}},
   "shallower": 1, "budget": {"as_allowed": null}, "deadline": "none",
   "tracked": null, "conversation": true, "listed": false, "retention":

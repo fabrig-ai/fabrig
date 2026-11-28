@@ -165,7 +165,7 @@ fn preferred(number: u32) -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: Some(number),
-        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+        main: tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
         subagents: Box::new([]),
     }
 }

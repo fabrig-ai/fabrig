@@ -257,7 +257,9 @@ pub(crate) fn template_from_record(
         Some(value) => {
             let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded models"));
             for value in value.subagents {
-                subagents.push(t::ModelEffort { model: value.model, effort: value.effort }).expect("same count");
+                subagents
+                    .push(t::ModelEffort { model: value.model, effort: value.effort, speed: value.speed })
+                    .expect("same count");
             }
             Some(t::LlmChoice {
                 later: match value.later {
@@ -265,7 +267,7 @@ pub(crate) fn template_from_record(
                     None => None,
                 },
                 account: value.account,
-                main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
+                main: t::ModelEffort { model: value.main.model, effort: value.main.effort, speed: value.main.speed },
                 subagents: subagents.into_boxed(),
             })
         }
@@ -399,10 +401,12 @@ pub(crate) fn catalogue_from_record(value: w::CatalogueEntry) -> s::CatalogueMod
 fn task_later(value: p::LlmLater) -> t::LlmLater {
     let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded models"));
     for item in value.subagents {
-        subagents.push(t::ModelEffort { model: item.model, effort: item.effort }).expect("same count");
+        subagents
+            .push(t::ModelEffort { model: item.model, effort: item.effort, speed: item.speed })
+            .expect("same count");
     }
     t::LlmLater {
-        main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
+        main: t::ModelEffort { model: value.main.model, effort: value.main.effort, speed: value.main.speed },
         subagents: subagents.into_boxed(),
     }
 }

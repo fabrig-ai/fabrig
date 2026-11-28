@@ -12,7 +12,7 @@ fn choice(model: &[u8]) -> c::LlmChoice {
     c::LlmChoice {
         later: None,
         account: Some(7),
-        main: c::ModelEffort { model: fixtures::acts::text(model), effort: None },
+        main: c::ModelEffort { model: fixtures::acts::text(model), effort: None, speed: None },
         subagents: List::with_capacity(0),
     }
 }
@@ -37,6 +37,8 @@ fn me() -> c::Me {
                 window: 1024,
                 output: 128,
                 efforts: List::with_capacity(0),
+                speeds: List::with_capacity(0),
+                speed: None,
             })
             .unwrap();
     }
@@ -103,10 +105,12 @@ fn home_chooses_the_ask_template_and_new_chat_keeps_its_own() {
 fn a_main_model_edit_preserves_the_remaining_choice() {
     let mut draft = draft();
     let mut original = choice(b"first");
+    original.main.speed = Some(fixtures::acts::text(b"fast"));
     original.subagents = List::with_capacity(1);
     original.subagents.push(original.main.clone()).unwrap();
     draft.reset(draft.context, Some(&original));
     draft.edit(&me(), Act::Model { index: 1, account: None });
+    original.main.speed = None;
     original.main.model = fixtures::acts::text(b"second");
     original.account = None;
     let asks = start(&draft, &me());
@@ -287,6 +291,8 @@ fn the_selected_duplicate_models_effort_reaches_the_request() {
                 window: 1024,
                 output: 128,
                 efforts,
+                speeds: List::with_capacity(0),
+                speed: None,
             })
             .unwrap();
     }
@@ -475,9 +481,13 @@ fn the_default_row_goes_back_to_no_choice() {
 fn effort_with_no_request_starts_from_the_default() {
     let mut me = me_requiring_effort();
     preview(&mut me, b"first", Some(b"high"));
+    let speed = fixtures::acts::text(b"fast");
+    me.projects.get_mut(0).unwrap().defaults.get_mut(0).unwrap().choice.main.speed = Some(speed.clone());
     let mut draft = draft();
     draft.edit(&me, Act::Effort { index: 0 });
-    assert_eq!(draft.requested.unwrap().main.effort.unwrap().bytes(), b"low");
+    let main = draft.requested.unwrap().main;
+    assert_eq!(main.effort.unwrap().bytes(), b"low");
+    assert_eq!(main.speed, Some(speed));
 }
 fn answer_choice(answer: c::Answer) -> Draft {
     let (mut pages, client, _) = task_page();

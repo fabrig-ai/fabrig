@@ -600,7 +600,7 @@ fn render_agents(text: &mut Text, models: &[Llm]) {
         return;
     }
     text.host = true;
-    text.put(b"run's main LLM unless you name one of these: ");
+    text.put(b"run's main LLM, or pick from: ");
     let mut rest = models.len();
     for llm in models {
         text.put(b"`");

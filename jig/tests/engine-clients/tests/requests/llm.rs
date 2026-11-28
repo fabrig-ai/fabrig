@@ -1,6 +1,7 @@
 //! A task's LLM choice on the wire reaches the core by configuration's indices, and a refused
 //! model comes back by its name (client/domain/contract/requests.md, 2, and client/domain/contract/answers.md, 1; domain/tasks/README.md, 3).
-use super::{amendment_setup, final_answer, keyed, member_setup, owner_authority, route_real_core, w};
+use super::{amendment_setup, final_answer, fixtures, keyed, member_setup, owner_authority, route_real_core, w};
+use jig_client::contract as c;
 use jig_client_protocol_wire::Record as _;
 use jig_core_kit::fixtures::live_row;
 use jig_domain_tasks as tasks;
@@ -8,8 +9,11 @@ use skein_lib::{List, Writer};
 
 /// A choice by name: a main model and effort, then each sub-agent's model and effort.
 fn choice(main: (&[u8], Option<&[u8]>), subagents: &[(&[u8], Option<&[u8]>)]) -> w::LlmChoice {
-    let named =
-        |(model, effort): (&[u8], Option<&[u8]>)| w::ModelEffort { model: model.into(), effort: effort.map(Box::from) };
+    let named = |(model, effort): (&[u8], Option<&[u8]>)| w::ModelEffort {
+        model: model.into(),
+        effort: effort.map(Box::from),
+        speed: None,
+    };
     let mut items = List::with_capacity(u32::try_from(subagents.len()).expect("few sub-agents"));
     for item in subagents {
         items.push(named(*item)).expect("same capacity");
@@ -84,6 +88,10 @@ const SCRIPTED: u8 = 0;
 const LOW: u8 = 0;
 const HIGH: u8 = 1;
 
+fn speed(name: &[u8]) -> skein_lib::Name<32> {
+    skein_lib::Name::from_checked(name).expect("whole speed name")
+}
+
 #[test]
 fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices() {
     let (mut peer, mut world, bearer) = member_setup(360);
@@ -91,8 +99,8 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
     let expected = tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
-        subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) }]),
+        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH), speed: None },
+        subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW), speed: None }]),
     };
     let socket = peer.post(b"/jig/v1/request", keyed([62; 16], &create(first.clone())), Some(&bearer));
     assert_eq!(route_real_core(&mut peer, &mut world), [[62; 16]], "core reply: {:?}", world.people_answers.last());
@@ -103,18 +111,25 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
 
     // Both translations meet at the core boundary; the core owns retaining a party's choice.
     let models = super::real_core_settings().models;
-    for (key, named, later) in [
-        ([66; 16], first.clone(), None),
-        (
-            [67; 16],
-            with_later(first, choice((b"scripted", Some(b"low")), &[(b"scripted", Some(b"high"))])),
-            Some(tasks::LlmLater {
-                main: tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) },
-                subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) }]),
-            }),
-        ),
-    ] {
-        let expected = tasks::LlmChoice { later, ..expected.clone() };
+    let later = with_later(first.clone(), choice((b"scripted", Some(b"low")), &[(b"scripted", Some(b"high"))]));
+    let effort_only = tasks::LlmChoice {
+        later: Some(tasks::LlmLater {
+            main: tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH), speed: None }]),
+        }),
+        ..expected.clone()
+    };
+    let mut faster = later.clone();
+    faster.main.speed = Some(b"ultrafast".as_slice().into());
+    faster.subagents.get_mut(0).unwrap().speed = Some(b"fast".as_slice().into());
+    faster.later.as_mut().unwrap().main.speed = Some(b"standard".as_slice().into());
+    let mut named_speeds = effort_only.clone();
+    named_speeds.main.speed = Some(speed(b"ultrafast"));
+    named_speeds.subagents[0].speed = Some(speed(b"fast"));
+    named_speeds.later.as_mut().unwrap().main.speed = Some(speed(b"standard"));
+    for (key, named, expected) in
+        [([66; 16], first, expected), ([67; 16], faster, named_speeds), ([70; 16], later, effort_only)]
+    {
         assert_eq!(
             jig_protocol_engine_clients::translate::llm::choice(Some(&expected), &models).expect("named choice"),
             Some(named.clone())
@@ -135,25 +150,28 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
 }
 fn assert_choice_indices(actual: &jig_domain_people::LlmChoice, expected: &tasks::LlmChoice) {
     assert_eq!(actual.account, expected.account);
-    assert_eq!((actual.main.model, actual.main.effort), (expected.main.model, expected.main.effort));
+    assert_eq!(
+        (actual.main.model, actual.main.effort, actual.main.speed),
+        (expected.main.model, expected.main.effort, expected.main.speed)
+    );
     assert_eq!(actual.subagents.len(), expected.subagents.len());
     for (actual, expected) in actual.subagents.iter().zip(expected.subagents.iter()) {
-        assert_eq!((actual.model, actual.effort), (expected.model, expected.effort));
+        assert_eq!((actual.model, actual.effort, actual.speed), (expected.model, expected.effort, expected.speed));
     }
     assert_eq!(
-        actual.later.as_ref().map(|later| (later.main.model, later.main.effort)),
-        expected.later.as_ref().map(|later| (later.main.model, later.main.effort))
+        actual.later.as_ref().map(|later| (later.main.model, later.main.effort, later.main.speed)),
+        expected.later.as_ref().map(|later| (later.main.model, later.main.effort, later.main.speed))
     );
     assert_eq!(
         actual.later.as_ref().map(|later| later
             .subagents
             .iter()
-            .map(|item| (item.model, item.effort))
+            .map(|item| (item.model, item.effort, item.speed))
             .collect::<Vec<_>>()),
         expected.later.as_ref().map(|later| later
             .subagents
             .iter()
-            .map(|item| (item.model, item.effort))
+            .map(|item| (item.model, item.effort, item.speed))
             .collect::<Vec<_>>())
     );
 }
@@ -205,20 +223,54 @@ fn a_model_the_core_refuses_comes_back_by_its_name() {
     assert_eq!(refused_llm(&final_answer(&peer, socket)), (b"scripted".as_slice(), w::LlmWhy::Repeated));
 }
 #[test]
+fn an_undeclared_speed_reaches_the_tasks_child_and_its_refusal_names_the_model() {
+    let (mut peer, mut world, bearer) = member_setup(362);
+    let mut llm = choice((b"scripted", Some(b"low")), &[]);
+    llm.main.speed = Some(b"ultrafast".as_slice().into());
+    let socket = peer.post(b"/jig/v1/request", keyed([68; 16], &create(llm)), Some(&bearer));
+    assert_eq!(route_real_core(&mut peer, &mut world), [[68; 16]]);
+    let answer = w::KeyedAnswer::decode(
+        &fixtures::limits().wire,
+        &mut skein_lib::Reader::new(peer.answered(socket).expect("http answer")),
+    )
+    .unwrap();
+    let limits = jig_client_kit::test::limits().client;
+    let link = jig_client_protocol_link::Limits::new(limits.domain, limits.exchanges).unwrap();
+    let c::Answer::Refused { refusal: c::Refusal::Llm { model, why }, at: None } =
+        jig_client_protocol_link::translate::answers::answer(answer, &link).unwrap()
+    else {
+        panic!("a refusal naming its model")
+    };
+    assert_eq!((model.bytes(), why), (b"scripted".as_slice(), c::LlmWhy::Speed));
+}
+#[test]
 fn an_amend_naming_a_choice_changes_the_one_the_task_s_next_run_takes() {
     let (mut peer, mut world, bearer) = amendment_setup(363);
     let before = live_row(&world, 2);
     assert_eq!(before.llm, None, "an omitted choice is resolved at the run check");
-    let revision = before.revisions.spec;
-    let llm = choice((b"scripted", Some(b"high")), &[]);
-    let socket = peer.post(b"/jig/v1/request", keyed([65; 16], &amend(revision, llm)), Some(&bearer));
-    assert_eq!(route_real_core(&mut peer, &mut world), [[65; 16]], "core reply: {:?}", world.people_answers.last());
-    let w::Final::Done(_) = final_answer(&peer, socket) else { panic!("amended") };
-    let chosen = tasks::LlmChoice {
-        later: None,
-        account: None,
-        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
-        subagents: Box::new([]),
-    };
-    assert_eq!(live_row(&world, 2).llm, Some(chosen));
+    for (key, named, kept) in
+        [([65; 16], Some(b"standard".as_slice()), Some(speed(b"standard"))), ([69; 16], None, None)]
+    {
+        let revision = live_row(&world, 2).revisions.spec;
+        let mut llm = choice((b"scripted", Some(b"high")), &[]);
+        llm.main.speed = named.map(Box::from);
+        let socket = peer.post(b"/jig/v1/request", keyed(key, &amend(revision, llm.clone())), Some(&bearer));
+        assert_eq!(route_real_core(&mut peer, &mut world), [key], "core reply: {:?}", world.people_answers.last());
+        let w::Final::Done(_) = final_answer(&peer, socket) else { panic!("amended") };
+        let row = live_row(&world, 2);
+        assert_eq!(
+            row.llm,
+            Some(tasks::LlmChoice {
+                later: None,
+                account: None,
+                main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH), speed: kept },
+                subagents: Box::new([]),
+            })
+        );
+        assert_eq!(
+            jig_protocol_engine_clients::translate::llm::choice(row.llm.as_ref(), &super::real_core_settings().models)
+                .unwrap(),
+            Some(llm),
+        );
+    }
 }

@@ -618,7 +618,7 @@ fn hold_changed_charter(
         return false;
     }
     let Some(row) = domain.forge.change(task) else { return false };
-    let (role, charter): (&[u8], u32) = match delegation {
+    let (role, charter, choice): (&[u8], u32, _) = match delegation {
         Some(Delegate::Gate { number, .. }) => {
             let mut kind = None;
             for gate in &row.change.gates {
@@ -628,17 +628,17 @@ fn hold_changed_charter(
                 }
             }
             match kind {
-                Some(GateKind::Agent) => (b"review", row.review_charter),
-                Some(GateKind::Check) => (b"producer", row.producing_charter),
+                Some(GateKind::Agent) => (b"review", row.review_charter, &row.review_llm),
+                Some(GateKind::Check) => (b"producer", row.producing_charter, &row.producing_llm),
                 Some(GateKind::Person | GateKind::Follow) | None => return false,
             }
         }
         Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
-            (b"producer", row.producing_charter)
+            (b"producer", row.producing_charter, &row.producing_llm)
         }
         Some(Delegate::Merge { .. } | Delegate::Close) | None => return false,
     };
-    let model = match refusal {
+    let model_and_speed = match refusal {
         core::StepRefusal::Denied { findings, .. }
             if executor_refused(findings)
                 && (!domain
@@ -657,40 +657,92 @@ fn hold_changed_charter(
         core::StepRefusal::Refused(tasks::Problem {
             why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Charter },
             ..
-        }) => Some(*model),
+        }) => Some((*model, None)),
+        core::StepRefusal::Refused(tasks::Problem {
+            why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Speed },
+            ..
+        }) => {
+            let Some(choice) = choice else { return false };
+            let Some(speed) = forge_route::refused_speed(domain, *model, choice) else { return false };
+            Some((*model, Some(speed)))
+        }
         core::StepRefusal::Moved { .. } | core::StepRefusal::Refused(_) | core::StepRefusal::Denied { .. } => {
             return false;
         }
     };
-    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    append_hold(&mut words, b"the change's ");
-    append_hold(&mut words, role);
-    match model {
-        Some(model) => {
-            append_hold(&mut words, b" choice names model ");
-            let Some(model) = domain.engine.core().settings.models.get(usize::from(model)) else { return false };
-            append_hold(&mut words, &model.name);
-            append_hold(&mut words, b", which charter ");
-            append_hold(&mut words, &forge_route::decimal(u64::from(charter)));
-            append_hold(&mut words, b" no longer allows");
-        }
-        None => {
-            append_hold(&mut words, b" charter ");
-            append_hold(&mut words, &forge_route::decimal(u64::from(charter)));
-            append_hold(&mut words, b" is no longer offered");
-        }
-    }
-    append_hold(&mut words, b"; cancel the change or make it again");
+    let Some(words) = changed_charter_words(domain, role, charter, model_and_speed) else { return false };
     domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
         task,
         why: tasks::Hold::Procedure,
-        source: Box::new(tasks::HoldSource::Account {
-            connector: domain.config.forge_connector,
-            entry: None,
-            words: words.into_boxed(),
-        }),
+        source: Box::new(tasks::HoldSource::Account { connector: domain.config.forge_connector, entry: None, words }),
     }));
     true
+}
+
+fn changed_charter_words(
+    domain: &Domain,
+    role: &[u8],
+    charter: u32,
+    model_and_speed: Option<(u8, Option<skein_lib::Name<32>>)>,
+) -> Option<Box<[u8]>> {
+    const CHARTER: &[u8] = b", which charter ";
+    const DISALLOWED: &[u8] = b" no longer allows";
+    const REMEDY: &[u8] = b"; cancel the change or make it again";
+    const AT_SPEED: &[u8] = b" at speed ";
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    let charter_number = forge_route::decimal(u64::from(charter));
+    append_hold(&mut words, b"the change's ");
+    append_hold(&mut words, role);
+    match model_and_speed {
+        Some((model, speed)) => {
+            append_hold(&mut words, b" choice names model ");
+            match domain.engine.core().settings.models.get(usize::from(model)) {
+                Some(configured) => {
+                    if let Some(speed) = speed {
+                        // Leave room for the speed even when a long model name needs shortening.
+                        let tail = AT_SPEED
+                            .len()
+                            .saturating_add(speed.as_bytes().len())
+                            .saturating_add(CHARTER.len())
+                            .saturating_add(charter_number.len())
+                            .saturating_add(DISALLOWED.len())
+                            .saturating_add(REMEDY.len());
+                        let room = skein_lib::usize_of(words.room()).saturating_sub(tail);
+                        append_hold_name(&mut words, &configured.name, room);
+                    } else {
+                        append_hold(&mut words, &configured.name);
+                    }
+                }
+                None if speed.is_some() => append_hold(&mut words, &forge_route::decimal(u64::from(model))),
+                None => return None,
+            }
+            if let Some(speed) = speed {
+                append_hold(&mut words, AT_SPEED);
+                append_hold(&mut words, speed.as_bytes());
+            }
+            append_hold(&mut words, CHARTER);
+            append_hold(&mut words, &charter_number);
+            append_hold(&mut words, DISALLOWED);
+        }
+        None => {
+            append_hold(&mut words, b" charter ");
+            append_hold(&mut words, &charter_number);
+            append_hold(&mut words, b" is no longer offered");
+        }
+    }
+    append_hold(&mut words, REMEDY);
+    Some(words.into_boxed())
+}
+
+fn append_hold_name(words: &mut List<u8>, name: &[u8], room: usize) {
+    if name.len() <= room {
+        append_hold(words, name);
+    } else {
+        const CUT: &[u8] = b"...";
+        let prefix = skein_lib::bytes::utf8_prefix(name, room.saturating_sub(CUT.len()));
+        append_hold(words, prefix);
+        append_hold(words, CUT);
+    }
 }
 
 fn executor_refused(findings: &[jig_domain_authority::Finding]) -> bool {
