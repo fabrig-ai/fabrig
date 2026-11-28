@@ -218,7 +218,7 @@ Each step is a change to the repository, and none needs the next.
 
 ## 10. Open questions
 
-**Settled by the user, 2026-11-28** ("I think we're ready to go"), on the picks below: 1, 2, 3, 4 and 6.
+**Settled by the user, 2026-11-28,** on the picks below: 1, 2, 3, 4 and 6 ("I think we're ready to go"), and 5 as the review changed it ("ok").
 
 1. **Where the convention is said:** the guide, `AGENTS.md`, read through the stock's `design` file (the pick, 4.1); a `design` charter file alone, in `.temper/charters/`, which only a project with its own ways can write; or a value in `ways.toml` naming the rung, which the engine would read.
 2. **The stock goal's rung where the guide says nothing:** rung 2, the goal's plan (the pick, 3.3); rung 1, no design at all; or rung 3, a record at a path temper picks.

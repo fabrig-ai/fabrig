@@ -11,4 +11,4 @@
   - 6.3: [../domain/landing-settings.md](../domain/landing-settings.md): a gate's report names its fuzzy tests' prefix, and every other failed test is called `focused` in a repair's words; a goal's branch is recognized by a literal `temper` prefix (`temper/crates/temper-client-domain-pages/src/pages/goal.rs`).
   - 7.3: [ways-temper-dir.md](ways-temper-dir.md), section 7: a new project's first change is "Add .temper/ with your ways", writing its ways and charters alone.
 - **Design departs:** none.
-- **Open:** question 5 of section 10, its pick changed by the review, awaits the user; the others were settled by the user, 2026-11-28.
+- **Open:** none; section 10's questions were settled by the user, 2026-11-28.
