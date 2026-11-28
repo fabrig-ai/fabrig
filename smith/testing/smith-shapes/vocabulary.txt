@@ -1,0 +1,8 @@
+smith/3
+tool read list search write edit remove shell job read_task message subscribe mark_read delegated unknown
+answer ok search_timed_out running exited exit_nonzero signalled command_timed_out stopped cancelled interrupted not_granted too_long outside read_only protected not_found not_file not_directory linked not_empty nul_byte too_large not_read stale edit_no_match edit_ambiguous edit_unchanged failed timed_out busy unknown_tool malformed call_too_large cut_off unknown_job jobs_full not_run_outside_choice not_run_after_failure not_run_stopped withdrawn delegated unanswered read sent subscribed marked no_reference recipient_ended question_answered not_unread refused unknown
+reference path offset job task question message
+class live stale held consumed before_opening foreign unissued ended unknown
+end parked finished cancelled refused failed suspended unknown
+begin made ready message released retry narrowed changed none unknown
+wake question_owed nothing_awaited settings_decision escalation proposal person_stalled proposal_decision question_answered question_ended words effect_not_made amendment question answer notice timer news result met none unknown
