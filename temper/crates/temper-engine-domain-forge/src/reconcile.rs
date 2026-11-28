@@ -229,6 +229,7 @@ impl Reconciliation {
             | Stored::Milestone(_)
             | Stored::PersonBrief(_)
             | Stored::ProjectFacts(_)
+            | Stored::TemperRevision(_)
             | Stored::Device(_)
             | Stored::LandedDraft(_)
             | Stored::Away(_)

@@ -17,7 +17,7 @@ use crate::{
 };
 use crate::{adoption, brief, held, topics};
 
-mod admission;
+pub(crate) mod admission;
 #[path = "catching_up.rs"]
 mod catching_up;
 mod change_reads;
@@ -64,6 +64,7 @@ pub(crate) struct PendingLanding {
     topic: Topic,
     before: skein_forge::api::Commit,
     after: skein_forge::api::Commit,
+    read_temper: bool,
 }
 #[derive(Hash, Debug)]
 pub(crate) struct PendingLost {
@@ -382,6 +383,7 @@ pub struct Domain {
     /// and fetch with (protocol/credentials.md).
     pub(crate) identities: Map<u16, u32>,
     pub(crate) workflows: crate::workflows::State,
+    pub(crate) temper_revisions: crate::temper_revision::State,
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
@@ -1216,6 +1218,7 @@ impl Domain {
             application: adoption::State::new(l),
             capabilities: Map::with_capacity(l.repositories),
             workflows: crate::workflows::State::new(l),
+            temper_revisions: crate::temper_revision::State::new(l),
             writers,
             identities: credentials,
             stopping: false,
@@ -1376,6 +1379,7 @@ impl Domain {
             for at in &[
                 ci_news::deadline(self),
                 crate::follows::deadline(self),
+                crate::temper_revision::deadline(self),
                 outage::deadline(self),
                 crate::unmade::deadline(self),
                 crate::landing::read_deadline(self),
@@ -2392,21 +2396,27 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         }
         Event::ReleaseProject { project, request } => adoption::release(d, env, project, request, out),
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
-        Event::ForgetAdoption { repository, restore } => match restore {
-            Some(mut previous) => {
-                if let Some(current) = d.repository(repository)
-                    && current.project == previous.project
-                {
-                    previous.refusals.clone_from(&current.refusals);
+        Event::TakeAdoption { repository, request } => {
+            crate::temper_revision::adopted(d, env, repository, request, out)
+        }
+        Event::ForgetAdoption { repository, restore } => {
+            crate::temper_revision::forget(d, repository);
+            match restore {
+                Some(mut previous) => {
+                    if let Some(current) = d.repository(repository)
+                        && current.project == previous.project
+                    {
+                        previous.refusals.clone_from(&current.refusals);
+                    }
+                    d.repositories
+                        .insert(repository, Box::new(previous.clone()))
+                        .expect("restores an admitted repository");
+                    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(previous) });
+                    emit(out, Request::MarkedForges);
                 }
-                d.repositories.insert(repository, Box::new(previous.clone())).expect("restores an admitted repository");
-                emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(previous) });
-                emit(out, Request::MarkedForges);
+                None => release::repository(d, env, repository, out),
             }
-            None => {
-                release::repository(d, env, repository, out);
-            }
-        },
+        }
         Event::Names { task, resources } => {
             if !d.kept.contains_key(&task) {
                 names(d, env, task, resources, out);
@@ -2839,6 +2849,7 @@ fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     crate::follows::fire(d, env.now);
+    crate::temper_revision::fire(d, env, out);
     read_line::prune_makings(d);
     crate::closer::fire(d, env, out);
     release_reads::fire(d, env, out);
@@ -3180,6 +3191,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
                     ci_read(d, env, owner, result, out);
+                } else if d.temper_revisions.reading(owner) {
+                    crate::temper_revision::answered(d, env, owner, result, out);
                 } else if d.workflows.reading(owner) {
                     crate::workflows::answered(d, env, owner, result, out);
                 } else if crate::is_root_read(owner) {
@@ -10272,7 +10285,7 @@ fn branch_changed(
     record_branch_tip(d, env, name, &resource, commit, out);
 }
 
-fn record_branch_tip(
+pub(crate) fn record_branch_tip(
     d: &mut Domain,
     env: &Env<Limits>,
     name: Name,
@@ -10311,20 +10324,31 @@ fn record_branch_tip(
     if before == commit || completed_branch(d, resource.repository, &branch) {
         return;
     }
+    let read_temper = d.restore_phase == RestorePhase::Active
+        && d.restart_fresh.is_none()
+        && crate::temper_revision::watches_branch(d, resource.repository, &branch);
     let topic = Topic::Landings { repository: resource.repository, branch: branch.clone() };
     if d.landings.len() >= env.limits.landings.max(env.limits.client.resources) {
         crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
+        if read_temper {
+            crate::temper_revision::landed(d, env, resource.repository, &branch, Some(commit), out);
+        }
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     }
     let Some(sequence) = d.sequence.checked_add(1) else {
         crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
+        if read_temper {
+            crate::temper_revision::landed(d, env, resource.repository, &branch, Some(commit), out);
+        }
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     };
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 63));
-    d.landings.insert(owner, PendingLanding { topic, before, after: commit }).expect("landing capacity preflighted");
+    d.landings
+        .insert(owner, PendingLanding { topic, before, after: commit, read_temper })
+        .expect("landing capacity preflighted");
     child(
         d,
         env,
@@ -10350,17 +10374,24 @@ fn landing_read(
     {
         return;
     }
-    let files = match result {
-        Ok(skein_forge::api::Answer::Compare { before, after, files, changed, .. })
+    let (files, behind) = match result {
+        Ok(skein_forge::api::Answer::Compare { before, after, files, changed, behind, .. })
             if before == pending.before && after == pending.after && skein_lib::len_u64(files.len()) == changed =>
         {
-            Some(files)
+            (Some(files), behind > 0)
         }
-        Ok(_) | Err(_) => None,
+        Ok(_) | Err(_) => (None, false),
     };
     match &pending.topic {
         Topic::Landings { repository, branch } => {
             crate::workflows::landed(d, env, *repository, branch, pending.after, files.as_deref(), out);
+            if pending.read_temper && crate::temper_revision::touched(files.as_deref(), behind) {
+                // An older comparison can answer after a newer tip was observed. Its paths
+                // still trigger a read, but not of the now superseded tip.
+                let name = crate::tiers::name(*repository, branch);
+                let tip = if d.branch_head(&name) == Some(pending.after) { Some(pending.after) } else { None };
+                crate::temper_revision::landed(d, env, *repository, branch, tip, out);
+            }
         }
         Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {
             unreachable!("landing comparison belongs to a landing")
@@ -10894,6 +10925,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::PersonBrief(row) => {
             d.person_briefs.insert((row.party, row.project), row).expect("restored person brief room checked");
         }
+        Stored::TemperRevision(row) => {
+            d.temper_revisions.rows.insert(row.project, row).expect("restored revision room checked");
+        }
         Stored::ProjectFacts(row) => {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
@@ -11302,6 +11336,7 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         writes::readback::restart(d, out);
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
         read_session::fresh(d, env);
+        crate::temper_revision::restart(d, env, out);
     }
     if d.restart_reads_started {
         repository_reads::wake(d, env, out);
@@ -11925,6 +11960,7 @@ impl Domain {
             | RecordKind::Milestone
             | RecordKind::HistoryProject
             | RecordKind::PersonBrief
+            | RecordKind::TemperRevision
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft

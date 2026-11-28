@@ -518,6 +518,7 @@ fn forge_fit(failure: &forge::RestoreFit) -> Option<&'static [u8]> {
             | R::Making
             | R::Dismissed
             | R::ProjectFacts
+            | R::TemperRevision
             | R::Looked
             | R::Away
             | R::Decided
@@ -666,6 +667,7 @@ fn opening_value(
         | forge::Stored::Making(_)
         | forge::Stored::Dismissed { .. }
         | forge::Stored::ProjectFacts(_)
+        | forge::Stored::TemperRevision(_)
         | forge::Stored::Looked(_)
         | forge::Stored::Away(_)
         | forge::Stored::Decided(_)

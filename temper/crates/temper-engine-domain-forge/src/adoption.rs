@@ -642,6 +642,12 @@ fn finish_adoption(
             None => Box::default(),
         },
     };
+    if row.home
+        && let Err(error) = crate::domain::admission::home_watch(d, &env.limits, row.provider, &row.landing)
+    {
+        adopted(d, out, owner, Err(error));
+        return;
+    }
     let mut stored = row.clone();
     let mut contexts = List::with_capacity(env.limits.judge_projects);
     if let Some(existing) = d.repository(row.provider) {
@@ -665,6 +671,13 @@ fn finish_adoption(
     stored.contexts = contexts.into_boxed();
     let changed = d.repository(row.provider) != Some(&stored);
     if changed || row.role != Role::Context {
+        let was_home = match d.repository(row.provider) {
+            Some(previous) => previous.home,
+            None => false,
+        };
+        if row.home || (was_home && !stored.home) {
+            crate::temper_revision::provisional(d, row.provider, owner);
+        }
         d.repositories.insert(row.provider, Box::new(stored.clone())).expect("adoption capacity checked");
         d.tier_ops.dirty |= !crate::tiers::configured_all(d, row.provider).is_empty();
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(stored) });
@@ -757,6 +770,7 @@ pub(crate) fn release(d: &mut Domain, env: &Env<Limits>, project: u32, request: 
     crate::follows::erase_project(d, project, out_project);
     crate::dismissed::erase_project(d, project, out_project);
     crate::status::erase_project(d, project, out_project);
+    crate::temper_revision::erase_project(d, project, out_project);
     crate::away::erase_project(d, project, out_project);
     crate::findings::erase_project(d, project, out_project);
     crate::drafts::erase_project(d, project, out_project);

@@ -379,6 +379,7 @@ impl Driver {
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Procedure { .. }
             | Delivery::Relay { .. }

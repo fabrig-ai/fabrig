@@ -11317,3 +11317,124 @@ pub fn writes_to_domain(record: crate::v25::Writes, context: &crate::records::Co
     })
 }
 
+#[must_use]
+pub fn temper_file_to_record(value: &temper_engine_domain_forge_vocabulary::TemperFile) -> crate::v25::TemperFile {
+    let temper_engine_domain_forge_vocabulary::TemperFile { path: field_000000, bytes: field_000001 } = value;
+    crate::v25::TemperFile {
+        path: field_000000.clone(),
+        bytes: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn temper_file_to_domain(record: crate::v25::TemperFile) -> temper_engine_domain_forge_vocabulary::TemperFile {
+    let crate::v25::TemperFile { path: field_000000, bytes: field_000001 } = record;
+    temper_engine_domain_forge_vocabulary::TemperFile {
+        path: field_000000,
+        bytes: field_000001
+    }
+}
+
+#[must_use]
+pub fn temper_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::TemperRefusal) -> crate::v25::TemperRefusal {
+    let temper_engine_domain_forge_vocabulary::TemperRefusal { commit: field_000000, observed: field_000001, words: field_000002 } = value;
+    crate::v25::TemperRefusal {
+        commit: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        observed: *field_000001,
+        words: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn temper_refusal_to_domain(record: crate::v25::TemperRefusal) -> temper_engine_domain_forge_vocabulary::TemperRefusal {
+    let crate::v25::TemperRefusal { commit: field_000000, observed: field_000001, words: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::TemperRefusal {
+        commit: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        observed: field_000001,
+        words: field_000002
+    }
+}
+
+pub fn temper_revision_to_record(value: &temper_engine_domain_forge_vocabulary::TemperRevision) -> Result<crate::v25::TemperRevision, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::TemperRevision { project: field_000000, number: field_000001, home: field_000002, commit: field_000003, method: field_000004, files: field_000005, observed: field_000006, refused: field_000007 } = value;
+    Ok(crate::v25::TemperRevision {
+        project: *field_000000,
+        number: *field_000001,
+        home: repository_to_record(field_000002),
+        commit: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        method: *field_000004,
+        files: {
+            let source = field_000005;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::TEMPER_REVISION_FILES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = temper_file_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        observed: *field_000006,
+        refused: match field_000007 {
+            Some(item) => {
+                let converted = temper_refusal_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn temper_revision_to_domain(record: crate::v25::TemperRevision) -> temper_engine_domain_forge_vocabulary::TemperRevision {
+    let crate::v25::TemperRevision { project: field_000000, number: field_000001, home: field_000002, commit: field_000003, method: field_000004, files: field_000005, observed: field_000006, refused: field_000007 } = record;
+    temper_engine_domain_forge_vocabulary::TemperRevision {
+        project: field_000000,
+        number: field_000001,
+        home: repository_to_domain(field_000002),
+        commit: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        method: field_000004,
+        files: {
+            let source = field_000005;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = temper_file_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        observed: field_000006,
+        refused: match field_000007 {
+            Some(item) => {
+                let converted = temper_refusal_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+

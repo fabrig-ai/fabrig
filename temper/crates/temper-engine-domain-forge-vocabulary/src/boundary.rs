@@ -1994,6 +1994,33 @@ pub enum CallPayload {
     Red(Box<crate::RedReply>),
 }
 
+/// A project's last good repository revision and latest observation
+/// (temper/docs/design/domain/forge/temper-dir.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TemperRevision {
+    pub project: u32,
+    pub number: u64,
+    pub home: skein_forge::api::Repository,
+    pub commit: Option<skein_forge::api::Commit>,
+    pub method: bool,
+    pub files: Box<[TemperFile]>,
+    pub observed: u64,
+    pub refused: Option<TemperRefusal>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TemperFile {
+    pub path: Box<[u8]>,
+    pub bytes: Box<[u8]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TemperRefusal {
+    pub commit: Option<skein_forge::api::Commit>,
+    pub observed: u64,
+    pub words: Box<[u8]>,
+}
+
 /// The connector's durable records, wrapped by the root store.
 #[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -2091,6 +2118,7 @@ pub enum Stored {
         what: crate::PersonFact,
     },
     ProjectFacts(crate::ProjectFacts),
+    TemperRevision(TemperRevision),
     PersonBrief(crate::PersonBrief),
     Looked(crate::Looked),
     Away(crate::Away),
@@ -2188,6 +2216,7 @@ pub enum Key {
     Dismissed { party: u64, what: crate::PersonFact },
     Making(crate::MakingKey),
     ProjectFacts { project: u32 },
+    TemperRevision { project: u32 },
     Looked { party: u64, project: u32 },
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
@@ -2670,6 +2699,11 @@ pub enum Event {
     },
     /// Read current permissions, settings, protection and collaborators.
     Adopt {
+        request: Token,
+    },
+    /// The root has committed the adoption and its role seed.
+    TakeAdoption {
+        repository: skein_forge::api::Repository,
         request: Token,
     },
     /// Withdraw a just-adopted repository when its parent cannot commit the role seed.

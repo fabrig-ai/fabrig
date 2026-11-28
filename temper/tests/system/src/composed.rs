@@ -1664,6 +1664,7 @@ impl World {
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
             | Delivery::Relay { .. }

@@ -18,7 +18,7 @@ pub struct MethodFile {
 pub struct Unread;
 
 /// One caller-driven reading. The caller binds each result to its request.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Reading {
     head: Commit,
     answer_bytes: u32,
@@ -29,14 +29,14 @@ pub struct Reading {
     bytes_read: u32,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Kept {
     Directory { listed: bool, cut: bool },
     File { kind: Format, held: Held },
     Fault(Box<[u8]>),
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Held {
     Pending,
     Cut,
@@ -44,7 +44,7 @@ pub(crate) enum Held {
     OverBudget,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) enum Format {
     Offers,
     Way,

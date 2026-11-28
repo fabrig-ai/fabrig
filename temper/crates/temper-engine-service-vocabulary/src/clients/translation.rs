@@ -207,6 +207,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::MoveStanding { .. }
         | root::Delivery::FindingsOwned { .. }
         | root::Delivery::ForgeCommitted { .. }
+        | root::Delivery::TakeForgeAdoption { .. }
         | root::Delivery::ForgeCall { .. }
         | root::Delivery::Bound { .. }
         | root::Delivery::Procedure { .. }

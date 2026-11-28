@@ -182,6 +182,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Tier(_)
             | d::Stored::PersonBrief(_)
             | d::Stored::ProjectFacts(_)
+            | d::Stored::TemperRevision(_)
             | d::Stored::Red(_)
             | d::Stored::RedPass(_)
             | d::Stored::RedNumber { .. }

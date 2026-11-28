@@ -666,5 +666,8 @@ enum WriteSender = wr::Sender
 enum WriteState = wr::WriteState
 record Written = wr::Written
 record Writes = wr::Writes { entries slice }
+record TemperFile = d::TemperFile
+record TemperRefusal = d::TemperRefusal
+record TemperRevision = d::TemperRevision { files slice }
 enum Value by hand
 record Row by hand

@@ -1159,6 +1159,7 @@ impl World {
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::Relay { .. }
             | Delivery::Load { .. } => {
                 panic!("internal handoff leaked to world")

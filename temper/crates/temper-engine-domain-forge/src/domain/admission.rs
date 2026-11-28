@@ -240,6 +240,49 @@ pub(super) fn landing_subscription_problem(
     Ok(())
 }
 
+/// Fit the home watch alongside existing watches before the adoption is saved.
+pub(crate) fn home_watch(
+    d: &Domain,
+    limits: &Limits,
+    repository: skein_forge::api::Repository,
+    branch: &[u8],
+) -> Result<(), Error> {
+    match plan_home_watch(d, limits, repository, branch) {
+        Ok(()) => Ok(()),
+        Err((_, cause)) => Err(watch_error(cause)),
+    }
+}
+
+fn plan_home_watch(
+    d: &Domain,
+    limits: &Limits,
+    repository: skein_forge::api::Repository,
+    branch: &[u8],
+) -> Result<(), Failed> {
+    let resource = Resource { repository, what: skein_forge_client::What::Branch(Box::from(branch)) };
+    let Some(name) = super::from_client(&resource, limits) else { return Err((None, RefusalCause::InvalidName)) };
+    let mut watches = Map::uncapped();
+    for (_, names) in &d.names {
+        add(d, limits, names, &mut watches)?;
+    }
+    let prior = crate::tiers::watched_except_home(d, Some(repository));
+    add(d, limits, prior.as_slice(), &mut watches)?;
+    bound("forge.client.op_bytes", limits.client.op_bytes, branch.len(), Some(name.clone()))?;
+    watches.insert(resource.clone(), Watch { resource, participating: false }).expect("internal watch set");
+    finish(watches, limits, Some(name))?;
+    Ok(())
+}
+
+fn watch_error(cause: RefusalCause) -> Error {
+    match cause {
+        RefusalCause::Limit { configured, needed, .. } => {
+            Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::Forge, configured, needed))
+        }
+        RefusalCause::InvalidName | RefusalCause::Unadopted => Error::Refused,
+        RefusalCause::Backend(error) => error,
+    }
+}
+
 fn add(d: &Domain, limits: &Limits, names: &[Name], watches: &mut Map<Resource, Watch>) -> Result<(), Failed> {
     for name in names {
         validate(d, limits, name)?;

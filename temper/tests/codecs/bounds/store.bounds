@@ -550,6 +550,9 @@ Subscriber: ceilings encoded=4726829 decoded=4739072; at_most(3) encoded=118 dec
 Summary: ceilings encoded=5242923 decoded=5242880; at_most(3) encoded=55 decoded=12
 TaskRelease: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 TaskRevision: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
+TemperFile: ceilings encoded=65596 decoded=65588; at_most(3) encoded=14 decoded=6
+TemperRefusal: ceilings encoded=1069 decoded=1024; at_most(3) encoded=48 decoded=3
+TemperRevision: ceilings encoded=4199278 decoded=4200704; at_most(3) encoded=155 decoded=117
 TemplateGoal: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 TierBranch: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 TierBranchEntry: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0

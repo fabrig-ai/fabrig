@@ -4735,6 +4735,20 @@ pub(crate) fn outputs(
                         ) {
                             Ok(seeds) => {
                                 report_adoption(domain, &adopted.repository);
+                                let was_home = match previous {
+                                    Some(previous) => previous.home,
+                                    None => false,
+                                };
+                                if adopted.repository.home || was_home {
+                                    emit(
+                                        decision,
+                                        &env.limits,
+                                        Delivery::TakeForgeAdoption {
+                                            repository: adopted.repository.provider,
+                                            request: reply_to,
+                                        },
+                                    );
+                                }
                                 super::ways::mark(domain, adopted.repository.project);
                                 domain.work.push(Work::People(people::Event::Seed {
                                     project: adopted.repository.project,

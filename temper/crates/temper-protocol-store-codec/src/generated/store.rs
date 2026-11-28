@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xf1, 0xf7, 0x07, 0x28, 0xc6, 0x72, 0x51, 0xe5, 0x72, 0x56, 0xa3, 0x5b, 0xd1, 0xe4, 0xb1, 0xcb, 0xf5, 0xea, 0xc1,
-    0x3e, 0x9d, 0x76, 0x22, 0xd4, 0xa8, 0x92, 0x3e, 0x51, 0x19, 0x74, 0xc0, 0x85,
+    0x13, 0x41, 0xd6, 0xa7, 0x21, 0x3b, 0x30, 0x34, 0x28, 0x57, 0x71, 0xe8, 0xb5, 0x90, 0xe8, 0x6a, 0x8b, 0x02, 0xcd,
+    0x9d, 0x48, 0xc1, 0xea, 0x3e, 0x65, 0x70, 0x29, 0xf4, 0x82, 0x63, 0xdb, 0xaa,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -406,6 +406,10 @@ pub struct Limits {
     pub written_retarget_from: u32,
     pub written_retarget_to: u32,
     pub writes_entries: u32,
+    pub temper_file_path: u32,
+    pub temper_file_bytes: u32,
+    pub temper_refusal_words: u32,
+    pub temper_revision_files: u32,
 }
 
 pub const CEILINGS: Limits = Limits {
@@ -798,6 +802,10 @@ pub const CEILINGS: Limits = Limits {
     written_retarget_from: 1_048_576,
     written_retarget_to: 1_048_576,
     writes_entries: 32,
+    temper_file_path: 52,
+    temper_file_bytes: 65_536,
+    temper_refusal_words: 1_024,
+    temper_revision_files: 64,
 };
 
 pub const LIMIT_NAMES: &[&str] = &[
@@ -1190,6 +1198,10 @@ pub const LIMIT_NAMES: &[&str] = &[
     "written_retarget_from",
     "written_retarget_to",
     "writes_entries",
+    "temper_file_path",
+    "temper_file_bytes",
+    "temper_refusal_words",
+    "temper_revision_files",
 ];
 
 impl Limits {
@@ -1586,6 +1598,10 @@ impl Limits {
             self.written_retarget_from,
             self.written_retarget_to,
             self.writes_entries,
+            self.temper_file_path,
+            self.temper_file_bytes,
+            self.temper_refusal_words,
+            self.temper_revision_files,
         ].into())
     }
 
@@ -1983,6 +1999,10 @@ impl Limits {
             written_retarget_from: self.written_retarget_from.min(most),
             written_retarget_to: self.written_retarget_to.min(most),
             writes_entries: self.writes_entries.min(most),
+            temper_file_path: self.temper_file_path.min(most),
+            temper_file_bytes: self.temper_file_bytes.min(most),
+            temper_refusal_words: self.temper_refusal_words.min(most),
+            temper_revision_files: self.temper_revision_files.min(most),
         }
     }
 }
@@ -2377,6 +2397,10 @@ const LIMIT_PATHS: &[Path] = &[
     paths::WRITTEN_RETARGET_FROM,
     paths::WRITTEN_RETARGET_TO,
     paths::WRITES_ENTRIES,
+    paths::TEMPER_FILE_PATH,
+    paths::TEMPER_FILE_BYTES,
+    paths::TEMPER_REFUSAL_WORDS,
+    paths::TEMPER_REVISION_FILES,
 ];
 
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
@@ -4599,6 +4623,22 @@ pub mod paths {
     pub const WRITES_NEXT: Path = Path::new("Writes.next");
     pub const WRITES_ENTRIES: Path = Path::new("Writes.entries");
     pub const WRITES_TAIL: Path = Path::new("Writes (tail)");
+    pub const TEMPER_FILE_PATH: Path = Path::new("TemperFile.path");
+    pub const TEMPER_FILE_BYTES: Path = Path::new("TemperFile.bytes");
+    pub const TEMPER_FILE_TAIL: Path = Path::new("TemperFile (tail)");
+    pub const TEMPER_REFUSAL_COMMIT: Path = Path::new("TemperRefusal.commit");
+    pub const TEMPER_REFUSAL_OBSERVED: Path = Path::new("TemperRefusal.observed");
+    pub const TEMPER_REFUSAL_WORDS: Path = Path::new("TemperRefusal.words");
+    pub const TEMPER_REFUSAL_TAIL: Path = Path::new("TemperRefusal (tail)");
+    pub const TEMPER_REVISION_PROJECT: Path = Path::new("TemperRevision.project");
+    pub const TEMPER_REVISION_NUMBER: Path = Path::new("TemperRevision.number");
+    pub const TEMPER_REVISION_HOME: Path = Path::new("TemperRevision.home");
+    pub const TEMPER_REVISION_COMMIT: Path = Path::new("TemperRevision.commit");
+    pub const TEMPER_REVISION_METHOD: Path = Path::new("TemperRevision.method");
+    pub const TEMPER_REVISION_FILES: Path = Path::new("TemperRevision.files");
+    pub const TEMPER_REVISION_OBSERVED: Path = Path::new("TemperRevision.observed");
+    pub const TEMPER_REVISION_REFUSED: Path = Path::new("TemperRevision.refused");
+    pub const TEMPER_REVISION_TAIL: Path = Path::new("TemperRevision (tail)");
     pub const VALUE_TAG: Path = Path::new("Value (tag)");
     pub const ROW_VALUE: Path = Path::new("Row.value");
     pub const ROW_VERSION: Path = Path::new("Row (version)");
@@ -43335,6 +43375,200 @@ impl Record for Writes {
     }
 }
 
+// Type: TemperFile.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TemperFile {
+    pub path: Box<[u8]>,
+    pub bytes: Box<[u8]>,
+}
+
+// Record: TemperFile.
+impl TemperFile {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, temper_file_path) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, temper_file_bytes) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for TemperFile {
+    type Limits = Limits;
+    const TAIL: Path = paths::TEMPER_FILE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperFile")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperFile")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.temper_file_path.min(CEILINGS.temper_file_path) }, &self.path, limits, out, paths::TEMPER_FILE_PATH)?;
+        field::write(field::Bytes { limit: limits.temper_file_bytes.min(CEILINGS.temper_file_bytes) }, &self.bytes, limits, out, paths::TEMPER_FILE_BYTES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            path: field::read(field::Bytes { limit: limits.temper_file_path.min(CEILINGS.temper_file_path) }, limits, reader, paths::TEMPER_FILE_PATH)?,
+            bytes: field::read(field::Bytes { limit: limits.temper_file_bytes.min(CEILINGS.temper_file_bytes) }, limits, reader, paths::TEMPER_FILE_BYTES)?,
+        })
+    }
+}
+
+// Type: TemperRefusal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TemperRefusal {
+    pub commit: Option<[u8; 32]>,
+    pub observed: u64,
+    pub words: Box<[u8]>,
+}
+
+// Record: TemperRefusal.
+impl TemperRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, temper_refusal_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 45;
+}
+
+impl Record for TemperRefusal {
+    type Limits = Limits;
+    const TAIL: Path = paths::TEMPER_REFUSAL_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRefusal")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::TEMPER_REFUSAL_COMMIT)?;
+        field::write(field::U64, &self.observed, limits, out, paths::TEMPER_REFUSAL_OBSERVED)?;
+        field::write(field::Bytes { limit: limits.temper_refusal_words.min(CEILINGS.temper_refusal_words) }, &self.words, limits, out, paths::TEMPER_REFUSAL_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::TEMPER_REFUSAL_COMMIT)?,
+            observed: field::read(field::U64, limits, reader, paths::TEMPER_REFUSAL_OBSERVED)?,
+            words: field::read(field::Bytes { limit: limits.temper_refusal_words.min(CEILINGS.temper_refusal_words) }, limits, reader, paths::TEMPER_REFUSAL_WORDS)?,
+        })
+    }
+}
+
+// Type: TemperRevision.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TemperRevision {
+    pub project: u32,
+    pub number: u64,
+    pub home: Repository,
+    pub commit: Option<[u8; 32]>,
+    pub method: bool,
+    pub files: List<TemperFile>,
+    pub observed: u64,
+    pub refused: Option<TemperRefusal>,
+}
+
+// Record: TemperRevision.
+impl TemperRevision {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("Repository"),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("TemperFile"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, temper_revision_files), item: 6, size: size_of::<TemperFile>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("TemperRefusal"),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 7, 8, 10] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 110;
+}
+
+impl Record for TemperRevision {
+    type Limits = Limits;
+    const TAIL: Path = paths::TEMPER_REVISION_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRevision")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRevision")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::TEMPER_REVISION_PROJECT)?;
+        field::write(field::U64, &self.number, limits, out, paths::TEMPER_REVISION_NUMBER)?;
+        field::write(field::Nested, &self.home, limits, out, paths::TEMPER_REVISION_HOME)?;
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::TEMPER_REVISION_COMMIT)?;
+        field::write(field::Boolean, &self.method, limits, out, paths::TEMPER_REVISION_METHOD)?;
+        field::write(field::Sequence { limit: limits.temper_revision_files.min(CEILINGS.temper_revision_files), minimum: 8, item: field::Nested }, &self.files, limits, out, paths::TEMPER_REVISION_FILES)?;
+        field::write(field::U64, &self.observed, limits, out, paths::TEMPER_REVISION_OBSERVED)?;
+        field::write(field::Optional { item: field::Nested }, &self.refused, limits, out, paths::TEMPER_REVISION_REFUSED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::TEMPER_REVISION_PROJECT)?,
+            number: field::read(field::U64, limits, reader, paths::TEMPER_REVISION_NUMBER)?,
+            home: field::read(field::Nested, limits, reader, paths::TEMPER_REVISION_HOME)?,
+            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::TEMPER_REVISION_COMMIT)?,
+            method: field::read(field::Boolean, limits, reader, paths::TEMPER_REVISION_METHOD)?,
+            files: field::read(field::Sequence { limit: limits.temper_revision_files.min(CEILINGS.temper_revision_files), minimum: 8, item: field::Nested }, limits, reader, paths::TEMPER_REVISION_FILES)?,
+            observed: field::read(field::U64, limits, reader, paths::TEMPER_REVISION_OBSERVED)?,
+            refused: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TEMPER_REVISION_REFUSED)?,
+        })
+    }
+}
+
 // Type: Value.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Value {
@@ -43390,6 +43624,7 @@ pub enum Value {
     PersonBrief(PersonBrief),
     LimitHold(LimitHold),
     Writes(Writes),
+    TemperRevision(TemperRevision),
 }
 
 // Record: Value.
@@ -43453,7 +43688,8 @@ impl Value {
         skein_codec::bounds::Node::Named("PersonBrief"),
         skein_codec::bounds::Node::Named("LimitHold"),
         skein_codec::bounds::Node::Named("Writes"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57] },
+        skein_codec::bounds::Node::Named("TemperRevision"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57, 58] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -43535,6 +43771,7 @@ impl Record for Value {
             Self::PersonBrief(value) => { field::put(out, &[49], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::LimitHold(value) => { field::put(out, &[50], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::Writes(value) => { field::put(out, &[51], paths::VALUE_TAG)?; value.write(limits, out) },
+            Self::TemperRevision(value) => { field::put(out, &[52], paths::VALUE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -43593,7 +43830,8 @@ impl Record for Value {
             49 => Ok(Self::PersonBrief(PersonBrief::read(limits, reader)?)),
             50 => Ok(Self::LimitHold(LimitHold::read(limits, reader)?)),
             51 => Ok(Self::Writes(Writes::read(limits, reader)?)),
-            52..=u8::MAX => Err(Problem { path: paths::VALUE_TAG, reason: skein_codec::Reason::Tag }),
+            52 => Ok(Self::TemperRevision(TemperRevision::read(limits, reader)?)),
+            53..=u8::MAX => Err(Problem { path: paths::VALUE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -44204,6 +44442,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Summary", nodes: Summary::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskRelease", nodes: TaskRelease::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskRevision", nodes: TaskRevision::SHAPE },
+    skein_codec::bounds::Declaration { name: "TemperFile", nodes: TemperFile::SHAPE },
+    skein_codec::bounds::Declaration { name: "TemperRefusal", nodes: TemperRefusal::SHAPE },
+    skein_codec::bounds::Declaration { name: "TemperRevision", nodes: TemperRevision::SHAPE },
     skein_codec::bounds::Declaration { name: "TemplateGoal", nodes: TemplateGoal::SHAPE },
     skein_codec::bounds::Declaration { name: "TierBranch", nodes: TierBranch::SHAPE },
     skein_codec::bounds::Declaration { name: "TierBranchEntry", nodes: TierBranchEntry::SHAPE },
@@ -44665,6 +44906,10 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.written_retarget_from,
     CEILINGS.written_retarget_to,
     CEILINGS.writes_entries,
+    CEILINGS.temper_file_path,
+    CEILINGS.temper_file_bytes,
+    CEILINGS.temper_refusal_words,
+    CEILINGS.temper_revision_files,
 ];
 
 #[must_use]

@@ -3,6 +3,7 @@ use crate::{ChangeEvidence, Criterion, JudgeFreshness as Freshness, Reviewer, SI
 use alloc::collections::BTreeSet;
 use skein_forge::api::Verdict;
 use skein_lib::{List, Rng, Wall};
+mod temper_revision;
 
 #[test]
 fn forge_read_waiters_keep_their_turn_under_interleaving() {

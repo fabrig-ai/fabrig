@@ -4767,3 +4767,42 @@ fn a_ci_recheck_round_trips_before_and_after_its_measurement() {
         assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
     }
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary Rust store fixture at the byte ceiling"
+)]
+fn temper_revision_row_is_keyed_by_project_and_bounded() {
+    let mut revision = forge::TemperRevision {
+        project: u32::MAX,
+        number: 9,
+        home: fixtures::REPO,
+        commit: Some([1; 32]),
+        method: true,
+        files: (0_u32..8_u32)
+            .map(|n| forge::TemperFile {
+                path: format!(".temper/ways/a{n}.toml").into_bytes().into(),
+                bytes: vec![b'x'; 65_536].into(),
+            })
+            .collect(),
+        observed: 43,
+        refused: Some(forge::TemperRefusal { commit: Some([2; 32]), observed: 43, words: vec![b'w'; 1024].into() }),
+    };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = forge::Stored::TemperRevision(revision.clone());
+    let key = forge::stored_key(&row);
+    let encoded_key = crate::keys::encode(&key, u32::MAX).unwrap();
+    assert_eq!(encoded_key[0], 53);
+    assert_eq!(
+        crate::keys::decode(&encoded_key, &fixtures::LIMITS),
+        Some(forge::Key::TemperRevision { project: u32::MAX })
+    );
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    let mut files = revision.files.into_vec();
+    files.push(forge::TemperFile { path: b".temper/ways/extra.toml".as_slice().into(), bytes: b"x".as_slice().into() });
+    revision.files = files.into();
+    let over = records::encode(&forge::Stored::TemperRevision(revision));
+    assert_eq!(records::decode(&over, &bounds), Err(crate::Undecodable::Malformed));
+}

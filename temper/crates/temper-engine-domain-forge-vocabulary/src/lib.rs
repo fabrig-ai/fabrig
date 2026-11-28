@@ -377,6 +377,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::Milestone(row) => Key::Milestone(row.task),
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::TemperRevision(row) => Key::TemperRevision { project: row.project },
         Stored::PersonBrief(row) => Key::PersonBrief { party: row.party, project: row.project },
         Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
@@ -884,6 +885,16 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     | Op::Writer { .. }
                     | Op::Compare { .. } => held,
                 };
+            }
+            Some(held)
+        }
+        Stored::TemperRevision(row) => {
+            let mut held = match &row.refused {
+                Some(refused) => bytes(&refused.words),
+                None => 0,
+            };
+            for file in &row.files {
+                held = held.checked_add(bytes(&file.path))?.checked_add(bytes(&file.bytes))?;
             }
             Some(held)
         }

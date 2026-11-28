@@ -51,13 +51,14 @@ fn without_deleted_repository_job() -> OwnerSets {
 
 // The floor predates the registered change parts, person briefs and branch writes.
 // Keep every other current declaration and range without leaking an owner set at each open.
-const NEW_TYPES: usize = 4;
+const NEW_TYPES: usize = 5;
 const fn after_floor(from: &[u8]) -> bool {
     from.len() == 1
         && (from[0] == crate::keys::CHANGE_COLD
             || from[0] == crate::keys::CHANGE_HOT
             || from[0] == crate::keys::PERSON_BRIEF
-            || from[0] == crate::keys::WRITES)
+            || from[0] == crate::keys::WRITES
+            || from[0] == crate::keys::TEMPER_REVISION)
 }
 const fn floor_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.len() - NEW_TYPES] {
     let types = crate::OWNER_SET.families[0].types;

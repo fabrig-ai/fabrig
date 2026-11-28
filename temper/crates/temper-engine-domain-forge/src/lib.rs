@@ -58,6 +58,7 @@ use temper_engine_domain_forge_vocabulary::brief_words;
 mod capabilities;
 pub mod jobs;
 pub use jobs::CLOSE_HOOK;
+mod temper_revision;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod workflows;
 pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};

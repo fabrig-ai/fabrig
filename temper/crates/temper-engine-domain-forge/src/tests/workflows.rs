@@ -53,7 +53,8 @@ fn a_refusals_refresh_keeps_the_adopted_landing() {
 fn restored(kind: Kind) -> Domain {
     let mut d = domain();
     d.configured.get_mut(&1).unwrap().kind = kind;
-    let mut row = adopted();
+    // These cases pin workflow reads independently of a home’s repository revision.
+    let mut row = Repository { home: false, ..adopted() };
     row.workflows = Box::new([b"old.yml".as_slice().into()]);
     outputs(&mut d, Event::Restore { record: Stored::Repository(row) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
