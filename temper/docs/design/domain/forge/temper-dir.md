@@ -35,9 +35,8 @@ files, and the judgement made of them, is
   record names `landing` (`adoption.md`, 12). Where what asks for the
   read names no tip, a `Read::Branch` gives it first. Then the forge
   reads `.temper/` at that commit as `../../protocol/temper-dir.md`,
-  2 says, through its client, each answer at that commit and that path
-  (`temper-dir-contracts.md`, 1.1), and judges it (8 there), the home's
-  `Home::Here`.
+  2 says, through its client, each answer at that commit and that path,
+  and judges it (8 there) as the home's.
 - **Whole or none:** a read the forge refuses or fails, or answers for
   another commit or path, is no read. It changes no revision; the
   record says so (3).
@@ -81,7 +80,7 @@ files, and the judgement made of them, is
   - `method`, whether that tree holds temper's method
     (`../../protocol/temper-dir.md`, 2);
   - `files`, the method's files that read gave, each a path and its
-    bytes (`Reading::method_files`), within the judgement's bounds;
+    bytes, within the judgement's bounds;
   - `observed`, the latest observation it took (below);
   - `refused`, none, or the latest read since that failed or judged with
     a fault: its commit, where one was read; its observation; and its
@@ -120,16 +119,20 @@ files, and the judgement made of them, is
 - **What it covers:** a change into the landing branch of one of the
   project's writable repositories (`adoption.md`, 12), where the
   comparison of the base's tip and its head (`Read::Compare`,
-  `change/gates.md`, 2) is, by `touched` (`temper-dir-contracts.md`,
-  1.3):
-  - `Method`: always;
-  - `Temper` or `Unknown`: where the tree that will land holds temper's
-    method, or, for `Unknown`, the base's tip does, as their listings of
-    `.temper/` say.
+  `change/gates.md`, 2) touches it, by the paths it gives:
+  - **the method:** a path is `.temper/ways.toml`, or under
+    `.temper/ways/` or `.temper/charters/`; always covered;
+  - **`.temper/` alone:** else a path is under `.temper/`; covered where
+    the tree that will land holds temper's method, as its listing of
+    `.temper/` says;
+  - **unknown:** else the comparison isn't whole (its count past its
+    paths, other endpoints, or failed); covered where the tree that will
+    land, or the base's tip, holds temper's method;
+  - **nothing:** else; never covered.
 
-  `None` is never covered, and a change into any other branch isn't
-  either: a goal's branch lands whole as the change that lands it into
-  the landing branch (`branches.md`, section 2), and is checked then.
+  A change into any other branch isn't covered either: a goal's branch
+  lands whole as the change that lands it into the landing branch
+  (`branches.md`, section 2), and is checked then.
 - **Read once per pair:** the comparison is read where a step may
   decide on it, and kept by head and base in the forge's working set,
   as `Touched` is (`change/gates.md`, 2), so a pair is compared once.
@@ -143,13 +146,13 @@ files, and the judgement made of them, is
     turn, so a fault of its own is found while it can repair.
 - **A pass** is a judgement with no fault, or of a tree holding no
   temper's method, naming the head, the base's tip and the commit
-  judged. A step whose head or base tip differs has none: the merge's
-  evidence is `Pending` (`temper-dir-contracts.md`, 2). The pass is kept
+  judged. A step whose head or base tip differs has none, and its
+  merge's evidence says the check is still to pass. The pass is kept
   in the forge's working set beside the change's review facts, never
   stored: after a restart the tree is judged again.
 - **Then it may land:** the step that decides a merge reads its facts
-  afresh, and asks the merge only where its evidence is `Uncovered`, or
-  `Passed` at that step's head and base. It is observed as up to date
+  afresh, and asks the merge only where its evidence says the check
+  doesn't cover it, or passed at that step's head and base. It is observed as up to date
   is (`change/gates.md`, 2): a base that moves between that decision and
   the merge lands on a tip the check didn't judge, and the read after
   that landing judges the tree landed, the last good revision holding
@@ -163,17 +166,17 @@ files, and the judgement made of them, is
   line, with the count past them; counted against the change's repairs
   as any repair is (`change/repairs.md`).
 - **A fault at the turn's candidate:** each member whose own comparison
-  is `Method`, `Temper` or `Unknown` leaves the turn and holds, the
+  touches the method or `.temper/`, or is unknown, leaves the turn and holds, the
   hold's words the check's, and the turn goes on without them, as a
   member refused by a gate leaves (`../../landing-turn.md`, 1). Their
   own heads passed, so the fault is theirs together and asks no repair:
   a person or the change's requester amends or releases each.
-- **A read that fails:** the change waits, `Pending`, and is read again
+- **A read that fails:** the change waits, the check still to pass, and is read again
   at its next step. It never lands on a read that failed, and never
   repairs for one.
 - **A project without temper's method:** its changes touching
-  `.temper/` alone, its hooks among them, are `Temper` over trees that
-  hold none, so none is covered and each lands as it does today; its
+  `.temper/` alone, its hooks among them, touch `.temper/` over trees
+  that hold none, so none is covered and each lands as it does today; its
   hooks are checked where they run (`../../protocol/hooks.md`, 2.2 and
   4.3).
 
@@ -255,5 +258,5 @@ it says; a story crossing the root in temper's world.
   (`change/gates.md`, 2).
 - **A rename out of `.temper/`:** both forges' comparisons give a
   renamed file at its new path alone, so a change that only moves a
-  file out of `.temper/` is `Temper` or `None` by its paths; the read
+  file out of `.temper/` touches nothing of it by its paths; the read
   after its landing judges the tree, and the last good revision holds.
