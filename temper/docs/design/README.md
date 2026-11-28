@@ -275,6 +275,8 @@ forge, temper adds:
   - `protocol/configuration/startup.md`: configuration at the first and later starts.
   - `protocol/configuration/limits-startup.md`: cross-limit startup checks.
   - `protocol/configuration/limits-client.md`: engine and client bounds and watch rooms.
+  - `protocol/configuration/stock.md`: stock defaults and their sizing and policies.
+  - `protocol/configuration/stock-settings.md`: default charters, templates, policy and project settings.
   - `protocol/setup/box-supervision.md`: step supervision, restarts, stops and output.
   - `protocol/setup/box-backends.md`: the retained sandbox and fake backends.
   - `protocol/setup/box-front.md`: the box beneath its terminal front.
