@@ -451,6 +451,7 @@ pub(crate) fn declaration(
         resources: Box::from(resources),
         effects: effects.into_boxed(),
         projects_goals: true,
+        sections: false,
     }
 }
 

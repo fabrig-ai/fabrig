@@ -67,14 +67,17 @@ fn assert_documents(
         assert_eq!(
             sections.get(u32::try_from(index).unwrap().checked_add(2).unwrap()).unwrap(),
             &brief::Planned::Connector {
-                name: b"document",
                 connector: document.connector,
-                kind: DOCUMENT_KIND,
-                token,
-                size: 0,
-                limit: limits.brief.read_bytes,
-                priority: DOCUMENT_PRIORITY,
-                required: false,
+                section: jig_domain_contract::parts::Section {
+                    name: b"document",
+                    kind: DOCUMENT_KIND,
+                    token,
+                    size: 0,
+                    limit: limits.brief.read_bytes,
+                    priority: DOCUMENT_PRIORITY,
+                    required: false,
+                    document: None,
+                },
             }
         );
     }

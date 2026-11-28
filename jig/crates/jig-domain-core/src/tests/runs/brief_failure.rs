@@ -36,14 +36,17 @@ fn a_required_child_section_keeps_its_failure_and_releases_preparation() {
             budget: 128,
             deadline: Time::from_nanos(100),
             sections: Box::new([brief::Planned::Connector {
-                name: b"context",
                 connector: 1,
-                kind: 1,
-                token: section,
-                size: 0,
-                limit: 128,
-                priority: 0,
-                required: true,
+                section: jig_domain_contract::parts::Section {
+                    name: b"context",
+                    kind: 1,
+                    token: section,
+                    size: 0,
+                    limit: 128,
+                    priority: 0,
+                    required: true,
+                    document: None,
+                },
             }]),
         }),
     );
@@ -55,7 +58,7 @@ fn a_required_child_section_keeps_its_failure_and_releases_preparation() {
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::Brief(brief::GatherEvent::Missing { brief: Token::new(1), section, why: failure.clone() }),
+        Event::Brief(brief::GatherEvent::Missing { brief: Token::new(1), connector: 1, section, why: failure.clone() }),
     );
     logged(&out, failure.clone());
     assert_eq!(core.tasks.task(1).unwrap().tries.transient, 1);

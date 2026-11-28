@@ -421,7 +421,13 @@ pub(crate) fn limits() -> Limits {
         authority: authority_limits(),
         people,
         fleet,
-        brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
+        brief: jig_domain_brief::Limits {
+            briefs: 2,
+            sections: 3,
+            read_bytes: 256,
+            brief_bytes: 384,
+            gather: Duration::from_secs(30),
+        },
         brief_parts: 2,
         brief_core_budgets: CoreBriefBudgets {
             tail: 128,

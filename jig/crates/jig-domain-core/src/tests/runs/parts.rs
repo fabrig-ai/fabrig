@@ -316,14 +316,17 @@ fn finish_brief(core: &mut Core, limits: &Limits, mut owner: Token) {
             budget: 128,
             deadline: Time::from_nanos(100),
             sections: Box::new([brief::Planned::Connector {
-                name: b"context",
                 connector: 1,
-                kind: 1,
-                token: Token::new(19),
-                size: 0,
-                limit: 128,
-                priority: 0,
-                required: true,
+                section: jig_domain_contract::parts::Section {
+                    name: b"context",
+                    kind: 1,
+                    token: Token::new(19),
+                    size: 0,
+                    limit: 128,
+                    priority: 0,
+                    required: true,
+                    document: None,
+                },
             }]),
         }),
     );
@@ -395,7 +398,12 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             let out = watch_outputs(
                 &mut core,
                 &limits,
-                Event::Brief(brief::GatherEvent::Ready { brief: Token::new(1), section: Token::new(19), size: 1 }),
+                Event::Brief(brief::GatherEvent::Sized {
+                    brief: Token::new(1),
+                    connector: 1,
+                    section: Token::new(19),
+                    size: 1,
+                }),
             );
             let mut complete = false;
             for request in &out {

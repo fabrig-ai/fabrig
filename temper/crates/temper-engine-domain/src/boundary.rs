@@ -933,7 +933,6 @@ pub(crate) struct BriefConnector {
     pub(crate) kind: ForgeBriefKind,
     pub(crate) gatherable: bool,
     pub(crate) active: bool,
-    pub(crate) cutting: bool,
 }
 
 /// Preparation waits for the goal branch before its brief and workspace

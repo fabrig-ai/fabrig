@@ -37,6 +37,7 @@ fn declarations() -> [Declaration; 2] {
                 waits_for_dependencies: false,
             }]),
             projects_goals: true,
+            sections: false,
         },
     ]
 }

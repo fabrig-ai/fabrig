@@ -407,7 +407,7 @@ fn clear_stale_preparation(
         );
         for _ in 0..abandoned.len() {
             match abandoned.pop().expect("abandoned brief output count") {
-                brief::GatherRequest::Drop { connector, section } => {
+                brief::GatherRequest::Drop { connector, section, .. } => {
                     out.push(Request::Ask { connector, ask: Ask::Drop { section } });
                 }
                 brief::GatherRequest::Gather { .. }

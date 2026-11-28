@@ -1,6 +1,8 @@
 //! Capacity bounds for core sections and connector section tokens
 //! (domain/engine/briefs.md, section 1).
 
+use skein_lib::Duration;
+
 /// Limits supplied by the core to the brief child at every step.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
@@ -12,4 +14,6 @@ pub struct Limits {
     pub read_bytes: u32,
     /// Largest total size of one completed brief.
     pub brief_bytes: u32,
+    /// Time from placing a brief to its deadline.
+    pub gather: Duration,
 }

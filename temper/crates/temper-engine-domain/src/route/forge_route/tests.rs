@@ -1390,7 +1390,11 @@ fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
         assert_eq!(sections.len(), 2);
         let mut tokens = List::with_capacity(2);
         for (section, expected_kind) in sections.iter().zip(kinds) {
-            let Planned::Connector { kind, token, priority, size, limit, .. } = section else {
+            let Planned::Connector {
+                section: jig_domain_contract::parts::Section { kind, token, priority, size, limit, .. },
+                ..
+            } = section
+            else {
                 panic!("required forge section")
             };
             assert_eq!(*kind, expected_kind, "{why:?} section order");
@@ -1472,7 +1476,7 @@ fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brie
     ci.put(end).unwrap();
     let ci = ci.finish();
     for section in &mut sections {
-        if let Planned::Connector { kind, size, .. } = section {
+        if let Planned::Connector { section: jig_domain_contract::parts::Section { kind, size, .. }, .. } = section {
             *size = u32::try_from(if *kind == 3 { pull.len() } else { ci.len() }).unwrap();
         }
     }
@@ -1481,19 +1485,23 @@ fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brie
     for placed in &plan.order {
         let section = &sections[usize::try_from(placed.index).unwrap()];
         match section {
-            Planned::Connector { kind: 1, .. } => {
+            Planned::Connector { section: jig_domain_contract::parts::Section { kind: 1, .. }, .. } => {
                 assert_eq!(placed.size, 4096, "the repair's CI budget survives the maximal pull");
                 let kept = &ci[..usize::try_from(placed.size).unwrap()];
                 assert!(kept.starts_with(failure));
                 assert!(kept.ends_with(end));
             }
-            Planned::Connector { kind: 3, .. } => assert_eq!(placed.size, 3392, "pull contents yield first"),
+            Planned::Connector { section: jig_domain_contract::parts::Section { kind: 3, .. }, .. } => {
+                assert_eq!(placed.size, 3392, "pull contents yield first");
+            }
             Planned::Core { limit, .. } => assert_eq!(placed.size, *limit, "other context still fits"),
             Planned::Connector { .. } => panic!("two repair sections"),
         }
         let (title, text): (&[u8], &[u8]) = match section {
-            Planned::Connector { kind: 1, .. } => (b"CI", &ci),
-            Planned::Connector { kind: 3, .. } => (b"Pull request", &pull),
+            Planned::Connector { section: jig_domain_contract::parts::Section { kind: 1, .. }, .. } => (b"CI", &ci),
+            Planned::Connector { section: jig_domain_contract::parts::Section { kind: 3, .. }, .. } => {
+                (b"Pull request", &pull)
+            }
             Planned::Core { text, .. } => (b"Task", text),
             Planned::Connector { .. } => panic!("two repair sections"),
         };
@@ -1629,7 +1637,9 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
     let ci = b"Failed check: check\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\n[job log could not be read]\nRepair the failed check.\n";
     assert_eq!(out.len(), 2, "gather both required forge sections");
     for _ in 0..out.len() {
-        let Some(GatherRequest::Gather { section, budget: 512, .. }) = out.pop() else { panic!("bounded forge read") };
+        let Some(GatherRequest::Gather { brief, connector, section, budget: 512, .. }) = out.pop() else {
+            panic!("bounded forge read")
+        };
         let kind = domain.brief_connectors.get(Id::from_token(section)).unwrap().kind.clone();
         let size = match kind {
             ForgeBriefKind::Pull => pull.len(),
@@ -1639,7 +1649,7 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
         gather_step(
             &mut gather,
             &gather_env,
-            GatherEvent::Ready { brief: skein_lib::Token::new(8), section, size: u32::try_from(size).unwrap() },
+            GatherEvent::Sized { brief, connector, section, size: u32::try_from(size).unwrap() },
             &mut out,
         );
     }

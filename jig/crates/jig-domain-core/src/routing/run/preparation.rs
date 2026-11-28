@@ -591,14 +591,17 @@ pub(crate) fn plan_brief(
         let token = Token::new(u64::try_from(index).expect("document index").checked_add(1).expect("document token"));
         wanted
             .push(brief::Planned::Connector {
-                name: b"document",
                 connector: document.connector,
-                kind: crate::DOCUMENT_KIND,
-                token,
-                size: 0,
-                limit: env.limits.brief.read_bytes,
-                priority: crate::DOCUMENT_PRIORITY,
-                required: false,
+                section: jig_domain_contract::parts::Section {
+                    name: b"document",
+                    kind: crate::DOCUMENT_KIND,
+                    token,
+                    size: 0,
+                    limit: env.limits.brief.read_bytes,
+                    priority: crate::DOCUMENT_PRIORITY,
+                    required: false,
+                    document: None,
+                },
             })
             .expect("document section room checked");
         documents.push(crate::PlannedDocument { token, document: document.clone() }).expect("charter document bound");

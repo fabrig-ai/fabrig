@@ -528,6 +528,11 @@ fn part_ask(domain: &mut Domain, env: &Env<Limits>, ask: parts::Ask, raw: &mut Q
         parts::Ask::Document { watcher, scope, subject, party, window } => {
             Event::Document { watcher, scope: scope_of(scope), subject, party, window: window_of(window) }
         }
+        parts::Ask::Plan(_)
+        | parts::Ask::Abandon { .. }
+        | parts::Ask::Gather { .. }
+        | parts::Ask::Cut { .. }
+        | parts::Ask::Drop { .. } => return,
         parts::Ask::DropDocument { subject } => Event::DocumentForget { subject },
     };
     crate::step_system(domain, env, event, raw);

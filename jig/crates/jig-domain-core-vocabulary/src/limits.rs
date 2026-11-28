@@ -25,8 +25,7 @@ pub const CORE_SECTIONS: u32 = 8;
 /// The connector section kind the core plans a document under; the root may renumber it
 /// (domain/engine/settings.md, 9).
 pub const DOCUMENT_KIND: u16 = 0;
-/// A charter document section's priority (domain/engine/settings.md, 9).
-pub const DOCUMENT_PRIORITY: u16 = 5;
+pub use jig_domain_contract::parts::DOCUMENT_PRIORITY;
 
 /// Whether a brief's sections hold the core's own most and a charter's documents
 /// (domain/engine/settings.md, 9).

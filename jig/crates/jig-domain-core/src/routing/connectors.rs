@@ -84,6 +84,7 @@ pub(super) fn step(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, s
                 core.judgements.answered(source, Subject::Public(token));
                 crate::public::reads::answered(core, token, answer)
             }
+            parts::Up::Planned { .. } | parts::Up::Sized { .. } | parts::Up::Failed { .. } => stopping::empty(),
             parts::Up::Marked { tasks } => {
                 view::part_marks::records(core, source, &tasks);
                 stopping::empty()

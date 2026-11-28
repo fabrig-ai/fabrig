@@ -46,14 +46,17 @@ fn plan(documents: &[PlannedDocument], capacity: u32) -> List<brief::Planned> {
     for planned in documents {
         wanted
             .push(brief::Planned::Connector {
-                name: b"document",
                 connector: planned.document.connector,
-                kind: jig_domain_core::DOCUMENT_KIND,
-                token: planned.token,
-                size: 0,
-                limit: 1,
-                priority: jig_domain_core::DOCUMENT_PRIORITY,
-                required: false,
+                section: jig_domain_contract::parts::Section {
+                    name: b"document",
+                    kind: jig_domain_core::DOCUMENT_KIND,
+                    token: planned.token,
+                    size: 0,
+                    limit: 1,
+                    priority: jig_domain_core::DOCUMENT_PRIORITY,
+                    required: false,
+                    document: None,
+                },
             })
             .unwrap();
     }
@@ -102,7 +105,11 @@ fn two_documents_are_planned_on_the_forge_and_rewritten_with_their_own_limits() 
     assert!(domain.work.is_empty());
     assert_eq!(tokens.len(), 2);
     for (index, section) in sections.iter().enumerate() {
-        let brief::Planned::Connector { connector: 0, token, kind, limit: 4096, .. } = section else {
+        let brief::Planned::Connector {
+            connector: 0,
+            section: jig_domain_contract::parts::Section { token, kind, limit: 4096, .. },
+        } = section
+        else {
             panic!("document section")
         };
         assert_eq!(*kind, DOCUMENT_KINDS + u16::try_from(index).unwrap());
@@ -125,8 +132,11 @@ fn a_missing_document_section_is_titled_with_its_document() {
     let sections = take_plan(&mut domain);
     let mut requests = Queue::uncapped();
     for section in sections {
-        let brief::Planned::Connector { token, .. } = section else { panic!("document") };
-        requests.push(brief::GatherRequest::Drop { connector: 0, section: token });
+        let brief::Planned::Connector { section: jig_domain_contract::parts::Section { token, .. }, .. } = section
+        else {
+            panic!("document")
+        };
+        requests.push(brief::GatherRequest::Drop { connector: 0, brief: Token::new(8), section: token });
     }
     requests.push(brief::GatherRequest::Complete {
         brief: Token::new(8),
@@ -163,13 +173,22 @@ fn a_name_that_is_no_forge_branch_is_missing_without_asking_the_forge() {
         panic!("no forge request for an invalid document")
     };
     assert!(domain.work.is_empty());
-    let brief::Planned::Connector { token, .. } = sections[0] else { panic!("document") };
+    let brief::Planned::Connector { section: jig_domain_contract::parts::Section { token, .. }, .. } = sections[0]
+    else {
+        panic!("document")
+    };
     assert_eq!(
         domain.brief_connectors.get(Id::from_token(token)).unwrap().kind,
         ForgeBriefKind::Document(Box::from(b"docs/rules.md".as_slice()))
     );
     let mut requests = Queue::uncapped();
-    requests.push(brief::GatherRequest::Gather { connector: 0, section: token, budget: 4096 });
+    requests.push(brief::GatherRequest::Gather {
+        connector: 0,
+        brief: Token::new(8),
+        section: token,
+        budget: 4096,
+        deadline: env.now.saturating_add(env.limits.brief.gather),
+    });
     outputs(&mut domain, &env, &mut requests);
     let Some(Work::Brief(brief::GatherEvent::Missing { brief, section, .. })) = domain.work.pop() else {
         panic!("missing document")
@@ -353,14 +372,27 @@ fn a_repair_replaces_optional_core_sections_and_keeps_both_documents() {
     let sections = take_plan(&mut domain);
     assert_eq!(sections.len(), 8);
     for (index, section) in sections.iter().take(2).enumerate() {
-        let brief::Planned::Connector { kind, .. } = section else { panic!("document preserved") };
+        let brief::Planned::Connector { section: jig_domain_contract::parts::Section { kind, .. }, .. } = section
+        else {
+            panic!("document preserved")
+        };
         assert_eq!(*kind, 16 + u16::try_from(index).unwrap());
     }
     let brief::Planned::Core { kind: brief::Core::Plan, .. } = sections[5] else {
         panic!("first optional core section preserved")
     };
-    let brief::Planned::Connector { kind: 1, required: true, .. } = sections[6] else { panic!("required reason") };
-    let brief::Planned::Connector { kind: 3, required: true, .. } = sections[7] else { panic!("required Pull") };
+    let brief::Planned::Connector {
+        section: jig_domain_contract::parts::Section { kind: 1, required: true, .. }, ..
+    } = sections[6]
+    else {
+        panic!("required reason")
+    };
+    let brief::Planned::Connector {
+        section: jig_domain_contract::parts::Section { kind: 3, required: true, .. }, ..
+    } = sections[7]
+    else {
+        panic!("required Pull")
+    };
 }
 
 #[test]
@@ -402,10 +434,19 @@ fn a_gathered_document_keeps_its_kind_and_frees_the_binding_at_completion() {
     forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut out);
     assert!(out.is_empty());
     let sections = take_plan(&mut domain);
-    let brief::Planned::Connector { token, .. } = sections[0] else { panic!("document") };
+    let brief::Planned::Connector { section: jig_domain_contract::parts::Section { token, .. }, .. } = sections[0]
+    else {
+        panic!("document")
+    };
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let mut requests = Queue::uncapped();
-    requests.push(brief::GatherRequest::Gather { connector: 0, section: token, budget: 4096 });
+    requests.push(brief::GatherRequest::Gather {
+        connector: 0,
+        brief: Token::new(8),
+        section: token,
+        budget: 4096,
+        deadline: env.now.saturating_add(env.limits.brief.gather),
+    });
     brief_outputs(&mut domain, &env, &mut decision, &mut requests);
     let Some(Work::Forge(event)) = domain.work.pop() else { panic!("forge gather") };
     forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut out);

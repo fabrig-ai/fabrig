@@ -233,6 +233,7 @@ pub fn brief_limits(limits: &BriefLimits) -> brief::Limits {
         sections: limits.sections,
         read_bytes: limits.read_bytes,
         brief_bytes: limits.brief_bytes,
+        gather: limits.gather,
     }
 }
 

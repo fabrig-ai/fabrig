@@ -149,7 +149,7 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     implications: 8,
 };
 pub(super) const BRIEF: brief::Limits =
-    brief::Limits { briefs: 32, sections: 10, read_bytes: 8_192, brief_bytes: 16_384 };
+    brief::Limits { briefs: 32, sections: 10, read_bytes: 8_192, brief_bytes: 16_384, gather: Duration::from_secs(30) };
 pub(super) const ACCOUNTS: accounts::Limits = accounts::Limits {
     program_hosts: 65,
     accounts: 16,

@@ -60,13 +60,15 @@ pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         let request = match child.pop().expect("brief output count") {
-            brief::GatherRequest::Gather { connector, section, budget } => {
+            brief::GatherRequest::Gather { connector, section, budget, .. } => {
                 Request::Ask { connector, ask: Ask::Gather { section, budget } }
             }
-            brief::GatherRequest::CutTo { connector, section, size } => {
+            brief::GatherRequest::CutTo { connector, section, size, .. } => {
                 Request::Ask { connector, ask: Ask::CutTo { section, size } }
             }
-            brief::GatherRequest::Drop { connector, section } => Request::Ask { connector, ask: Ask::Drop { section } },
+            brief::GatherRequest::Drop { connector, section, .. } => {
+                Request::Ask { connector, ask: Ask::Drop { section } }
+            }
             brief::GatherRequest::Failed { brief, failure, .. } | brief::GatherRequest::Refused { brief, failure } => {
                 let task = brief.raw();
                 super::run::results::clear(core, task);

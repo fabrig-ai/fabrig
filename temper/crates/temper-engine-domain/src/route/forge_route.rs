@@ -4606,10 +4606,12 @@ pub(crate) fn outputs(
                 let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
                 let brief = Token::new(row.task);
                 let event = match size {
-                    Ok(size) if row.cutting => brief::GatherEvent::Cut { brief, section, size },
-                    Ok(size) => brief::GatherEvent::Ready { brief, section, size },
+                    Ok(size) => {
+                        brief::GatherEvent::Sized { brief, connector: domain.config.forge_connector, section, size }
+                    }
                     Err(unread) => brief::GatherEvent::Missing {
                         brief,
+                        connector: domain.config.forge_connector,
                         section,
                         why: brief::GatherFailure {
                             fate: match unread.fate {

@@ -24,14 +24,17 @@ fn seeded_connector_sizes_and_priorities_never_exceed_the_budget_or_leak_a_token
             deadline: Time::ZERO.saturating_add(Duration::from_secs(10)),
             sections: Box::new([
                 Planned::Connector {
-                    name: b"section",
                     connector: 3,
-                    kind: 7,
-                    token,
-                    size: 0,
-                    limit: 80,
-                    priority: u16::try_from(seed % 3).expect("small priority"),
-                    required: seed % 2 == 0,
+                    section: jig_domain_contract::parts::Section {
+                        name: b"section",
+                        kind: 7,
+                        token,
+                        size: 0,
+                        limit: 80,
+                        priority: u16::try_from(seed % 3).expect("small priority"),
+                        required: seed % 2 == 0,
+                        document: None,
+                    },
                 },
                 Planned::Core {
                     kind: Core::Task,

@@ -13,6 +13,7 @@ use jig_domain_contract::{
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use skein_lib::{Id, Token};
 
 /// Contract cases that need root state stay here; the rest reach the forge unchanged.
 #[expect(clippy::too_many_lines, reason = "root-owned cases of the connector port, grouped by capability")]
@@ -417,6 +418,13 @@ pub(super) fn connector_ask(
                 super::kinds::ask(domain, env, decision, ask);
             }
         }
+        Ask::Parts(
+            parts::Ask::Plan(_)
+            | parts::Ask::Abandon { .. }
+            | parts::Ask::Gather { .. }
+            | parts::Ask::Cut { .. }
+            | parts::Ask::Drop { .. },
+        ) => {}
         ask @ (Ask::Lifecycle(lifecycle::Ask::CatchUp | lifecycle::Ask::ReleaseProject { .. })
         | Ask::Resources(resources::Ask::Hold { .. } | resources::Ask::Unname { .. })
         | Ask::Effects(effects::Ask::Resolve { .. } | effects::Ask::DropProposal { .. })
@@ -520,11 +528,20 @@ pub(super) fn application(
         emit(decision, &env.limits, Delivery::Providers(providers));
         None
     } else if let core::Ask::Gather { section, budget } = ask {
-        Some(brief::GatherRequest::Gather { connector, section, budget })
+        let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { return };
+        Some(brief::GatherRequest::Gather {
+            connector,
+            brief: Token::new(row.task),
+            section,
+            budget,
+            deadline: row.deadline,
+        })
     } else if let core::Ask::CutTo { section, size } = ask {
-        Some(brief::GatherRequest::CutTo { connector, section, size })
+        let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { return };
+        Some(brief::GatherRequest::CutTo { connector, brief: Token::new(row.task), section, size })
     } else if let core::Ask::Drop { section } = ask {
-        Some(brief::GatherRequest::Drop { connector, section })
+        let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { return };
+        Some(brief::GatherRequest::Drop { connector, brief: Token::new(row.task), section })
     } else if let core::Ask::ClaimDone { task, attempt, kinds, version } = ask {
         if connector == domain.config.forge_connector {
             let workspace = &domain.assignment_parts.get(&task).expect("admitted assignment").workspace;
