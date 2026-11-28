@@ -1,9 +1,9 @@
 //! Job admission (jig/docs/design/domain/engine/executors.md, 5).
-use crate::documents::{JobWhy, TaskRunWait, TaskWaitRefused, run_wait};
+use crate::documents::{TaskRunWait, TaskWaitRefused, run_wait};
 use crate::runs::delegation::job_member;
 use crate::tests::new_core;
 use crate::tests::*;
-use jig_domain_fleet::JobShort;
+use jig_domain_fleet::{JobRefusal, JobShort, JobShortfall};
 use jig_domain_link::{Form, JobBound, JobKind, PauseState};
 
 const SHORT: Token = Token::new(11);
@@ -544,7 +544,10 @@ fn a_job_waits_for_its_declared_kind_and_deadline_then_places_on_the_covering_wo
         activate_job(&mut core, &limits);
         assert_due(
             &core,
-            TaskRunWait::Refused(TaskWaitRefused::Job { worker: Some(1), kind: 7, why: JobWhy::Short(why), figures }),
+            TaskRunWait::Refused(TaskWaitRefused::Job {
+                kind: 7,
+                refusal: JobRefusal { worker: Some(1), short: Some(JobShortfall { why, figures }) },
+            }),
         );
         assert!(!core.proofs.contains_key(&1));
         assert!(core.take_due().is_none());
@@ -709,12 +712,7 @@ fn an_untranslated_job_is_due_after_the_pause_and_waits_for_a_new_channel() {
     drop(fire(&mut core, &env, Timer::Tasks));
     assert_due(
         &core,
-        TaskRunWait::Refused(TaskWaitRefused::Job {
-            worker: Some(2),
-            kind: 7,
-            why: JobWhy::Untranslated,
-            figures: None,
-        }),
+        TaskRunWait::Refused(TaskWaitRefused::Job { kind: 7, refusal: JobRefusal { worker: Some(2), short: None } }),
     );
     let context = core.tasks.run_context(1).unwrap();
     drop(step(&mut core, &env, Event::Activate { context, ready: true }));

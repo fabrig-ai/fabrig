@@ -124,20 +124,50 @@ fn opening_report_names_elapsed_milliseconds_and_each_forges_remaining_work() {
 
 #[test]
 fn workers_lines_count_files_before_the_checks_verdict_for_yes_no_and_unknown() {
+    enum Expected {
+        Exact(&'static [&'static str]),
+        ContainsAndEnds { line: &'static str, ending: &'static str },
+    }
+
     let dirs = directories();
-    for verdict in ["yes", "no", "restart", "unknown"] {
-        let mut w1 = opening("w1");
+    for (label, mut w1, wires, verdict) in [
+        (
+            "yes",
+            opening("w1"),
+            Some(kept()),
+            Expected::Exact(&[
+                "worker w1 may stay: opened 2026-11-18T02:20:42Z",
+                "worker w2 may stay: opened 2026-11-18T02:20:42Z",
+                "workers may stay: yes",
+            ]),
+        ),
+        (
+            "no",
+            WorkerOpening { output: 0, ..opening("w1") },
+            Some(kept()),
+            Expected::ContainsAndEnds { line: "worker w1 may not stay: limits:", ending: "workers may stay: no\n" },
+        ),
+        (
+            "restart",
+            {
+                let mut w1 = opening("w1");
+                w1.jobs = without_close(w1.jobs);
+                w1
+            },
+            Some(kept()),
+            Expected::ContainsAndEnds {
+                line: "worker w1 must restart: job kind 4 (close): it runs none\n",
+                ending: "workers may stay: no\n",
+            },
+        ),
+        ("unknown", opening("w1"), None, Expected::Exact(&["workers may stay: unknown; the copy keeps no wires"])),
+    ] {
         let mut w2 = opening("w2");
         w1.at = Wall::from_nanos(1_794_968_442_000_000_000);
         w2.at = w1.at;
-        if verdict == "no" {
-            w1.output = 0;
-        } else if verdict == "restart" {
-            w1.jobs = without_close(w1.jobs);
-        }
         let mut report = super::tests::report(Event::Rehearsing {
             owner: Token::new(1),
-            wires: if verdict == "unknown" { None } else { Some(kept()) },
+            wires,
             openings: Box::new([KeptOpening::Current(w1), KeptOpening::Current(w2)]),
             workers: Some(Box::new([])),
             linked: 12,
@@ -156,8 +186,8 @@ fn workers_lines_count_files_before_the_checks_verdict_for_yes_no_and_unknown() 
         report.events.push(Event::Closed { owner: Token::new(1), removed: true });
         for binary in ["temper-engine", "temper-box"] {
             let (check, check_code) = lines(binary, &report, &dirs, b"/checkpoint");
-            assert_eq!(check_code, 0);
-            assert!(!check.contains("upgrade: rehearsal linked "), "{check}");
+            assert_eq!(check_code, 0, "{label} ({binary})");
+            assert!(!check.contains("upgrade: rehearsal linked "), "{label} ({binary}): {check}");
             let counts = format!("{binary} upgrade: rehearsal linked 12 files, copied 3\n");
             let expected = check
                 .split_inclusive('\n')
@@ -169,26 +199,20 @@ fn workers_lines_count_files_before_the_checks_verdict_for_yes_no_and_unknown() 
                 })
                 .collect::<String>();
             let (text, code) = workers_lines(binary, &report, &dirs, b"/checkpoint");
-            assert_eq!(text, format!("{counts}{expected}"));
-            assert_eq!(code, 0, "{verdict} changes no exit code");
-            if verdict == "yes" {
-                assert_eq!(
-                    text,
-                    format!(
-                        "{counts}{binary} upgrade: worker w1 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: worker w2 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: workers may stay: yes\n"
-                    )
-                );
-            } else if verdict == "unknown" {
-                assert_eq!(
-                    text,
-                    format!("{counts}{binary} upgrade: workers may stay: unknown; the copy keeps no wires\n")
-                );
-            } else if verdict == "restart" {
-                assert!(text.contains("worker w1 must restart: job kind 4 (close): it runs none\n"), "{text}");
-                assert!(text.ends_with("workers may stay: no\n"), "{text}");
-            } else {
-                assert!(text.contains("worker w1 may not stay: limits:"), "{text}");
-                assert!(text.ends_with("workers may stay: no\n"), "{text}");
+            assert_eq!(text, format!("{counts}{expected}"), "{label} ({binary})");
+            assert_eq!(code, 0, "{label} ({binary}) changes no exit code");
+            match verdict {
+                Expected::Exact(lines) => {
+                    let mut exact = counts;
+                    for line in lines {
+                        writeln!(exact, "{binary} upgrade: {line}").expect("string write");
+                    }
+                    assert_eq!(text, exact, "{label} ({binary})");
+                }
+                Expected::ContainsAndEnds { line, ending } => {
+                    assert!(text.contains(line), "{label} ({binary}): {text}");
+                    assert!(text.ends_with(ending), "{label} ({binary}): {text}");
+                }
             }
         }
     }
@@ -551,6 +575,11 @@ fn an_opening_with_derived_wire_plans_may_stay() {
         .filter(|term| term.kind != jig_protocol_worker_wire::Kind::PartBusy.number())
         .collect();
     assert_eq!(verdict(Some(kept()), Box::new([opening("w1"), derived])), COMPATIBLE);
+}
+
+#[test]
+fn job_kind_two_is_reported_as_key() {
+    assert_eq!(job_kind(JobKind(2)), "2 (key)");
 }
 
 fn without_close(jobs: Box<[jig_domain_link::JobBound]>) -> Box<[jig_domain_link::JobBound]> {

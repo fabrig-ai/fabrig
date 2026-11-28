@@ -714,7 +714,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
         | Making::Projection { entry: None, .. } => true,
         Making::Procedure { entry: Some(_), .. } | Making::Projection { entry: Some(_), .. } => false,
     };
-    if !acceptance_room(core, &origin) || (needs_entry && core.counters.deployment().connector_rows == u64::MAX) {
+    if !acceptance_room(core, &origin) || (needs_entry && core.counters.next_connector_candidate().is_none()) {
         drop_with(out, flight.connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Capacity);
         match origin {
             Making::Call { to, key, .. } => {

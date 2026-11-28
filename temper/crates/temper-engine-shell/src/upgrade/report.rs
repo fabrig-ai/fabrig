@@ -359,10 +359,10 @@ fn worker_work(
 }
 
 fn job_kind(kind: JobKind) -> String {
-    use temper_engine_domain_forge::{CLOSE_KIND, MERGE_KIND, PREPARE_KIND};
+    use temper_engine_domain_forge::{CLOSE_KIND, KEY_KIND, MERGE_KIND, PREPARE_KIND};
     let verb = match kind.0 {
         PREPARE_KIND => "prepare",
-        2 => "key",
+        KEY_KIND => "key",
         MERGE_KIND => "merge",
         CLOSE_KIND => "close",
         _ => return kind.0.to_string(),

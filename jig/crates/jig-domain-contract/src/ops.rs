@@ -15,8 +15,8 @@ pub use admission::{
 };
 pub use party::{Act, Outcome};
 pub use waits::{
-    AgentShortfall, AtBound, Figures, HelloRefusal, HostKind, JobShort, JobWhy, Place, TaskRunWait, TaskSourceState,
-    TaskWaitRefused, TaskWaitWhy, Thing, Unbounded, Unread, WaitKind, WaitObject,
+    AgentShortfall, AtBound, Figures, HelloRefusal, HostKind, JobRefusal, JobShort, JobShortfall, Place, TaskRunWait,
+    TaskSourceState, TaskWaitRefused, TaskWaitWhy, Thing, Unbounded, Unread, WaitKind, WaitObject,
 };
 
 use crate::parts::Part;

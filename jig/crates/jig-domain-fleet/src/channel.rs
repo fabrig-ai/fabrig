@@ -28,7 +28,7 @@
 //! holds the workstreams its hello listed and those of the runs placed on it
 //! since: placing one beyond the room evicts the one used longest ago.
 
-pub use jig_domain_contract::ops::JobShort;
+pub use jig_domain_contract::ops::{JobRefusal, JobShort, JobShortfall};
 
 use alloc::boxed::Box;
 use core::mem;
@@ -531,13 +531,6 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
     Some(id)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct JobShortfall {
-    pub why: JobShort,
-    /// None for Kind; a deadline is in milliseconds.
-    pub figures: Option<crate::Figures>,
-}
-
 /// `declared`: a host's hello's kinds; `job`: the application's declaration of the job's kind.
 #[must_use]
 pub fn job_short(declared: &[jig_domain_link::JobBound], job: jig_domain_link::JobBound) -> Option<JobShortfall> {
@@ -557,14 +550,6 @@ pub fn job_short(declared: &[jig_domain_link::JobBound], job: jig_domain_link::J
         return Some(JobShortfall { why, figures: Some(crate::Figures { required, offered }) });
     }
     Some(JobShortfall { why: JobShort::Kind, figures: None })
-}
-
-/// Every host taking work falls short of this job (domain/engine/fleet.md, 2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct JobRefusal {
-    pub worker: Option<u32>,
-    /// None when the task's assignment is untranslated on this channel.
-    pub short: Option<JobShortfall>,
 }
 
 fn takes_jobs(domain: &Domain, channel: &Channel) -> bool {
@@ -600,6 +585,7 @@ pub(crate) fn job_refusal(domain: &Domain, run: Token, job: jig_domain_link::Job
     first
 }
 
+/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
 pub(crate) fn choose_job(
     domain: &Domain,
     run: Token,

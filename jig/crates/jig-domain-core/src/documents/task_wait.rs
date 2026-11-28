@@ -58,11 +58,7 @@ fn job_wait(core: &Core, task: u64, kind: u32) -> Option<TaskRunWait> {
         return None;
     }
     let Some(refusal) = core.fleet.job_refusal(run, job) else { return Some(TaskRunWait::Host) };
-    let (why, figures) = match refusal.short {
-        Some(short) => (JobWhy::Short(short.why), short.figures),
-        None => (JobWhy::Untranslated, None),
-    };
-    Some(TaskRunWait::Refused(TaskWaitRefused::Job { worker: refusal.worker, kind, why, figures }))
+    Some(TaskRunWait::Refused(TaskWaitRefused::Job { kind, refusal }))
 }
 
 fn host_wait(core: &Core, task: u64) -> TaskRunWait {

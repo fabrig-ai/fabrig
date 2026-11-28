@@ -2,7 +2,7 @@
 use super::super::close_change::finish_job_on;
 use super::*;
 use jig_domain_core::{documents, reads, settings::WorkerSetting};
-use jig_domain_fleet::{Figures, JobShort};
+use jig_domain_fleet::{Figures, JobRefusal, JobShort, JobShortfall};
 
 const FIRST_WORKER: u32 = 1;
 const COVERING_WORKER: u32 = 2;
@@ -48,7 +48,7 @@ fn closing(jobs: Box<[JobBound]>) -> Close {
     panic!("closer T{closer} did not make its close job: {:?}", closer_row(&world, closer));
 }
 
-fn assert_due(world: &mut World, job: u64, why: documents::JobWhy, figures: Option<Figures>) {
+fn assert_due(world: &mut World, job: u64, short: Option<JobShortfall>) {
     world.oracle_settle();
     let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task: job }) else {
         panic!("close job document")
@@ -58,10 +58,8 @@ fn assert_due(world: &mut World, job: u64, why: documents::JobWhy, figures: Opti
     assert_eq!(
         task.run_wait,
         Some(documents::TaskRunWait::Refused(documents::TaskWaitRefused::Job {
-            worker: Some(FIRST_WORKER),
             kind: forge_top::CLOSE_KIND,
-            why,
-            figures,
+            refusal: JobRefusal { worker: Some(FIRST_WORKER), short },
         }))
     );
     assert!(world.jobs.is_empty(), "no assignment while waiting");
@@ -88,11 +86,78 @@ fn a_close_job_waits_for_a_worker_with_enough_time() {
     assert_due(
         &mut world,
         job,
-        documents::JobWhy::Short(JobShort::Deadline),
-        Some(Figures { required: KIND_DEADLINE.as_millis(), offered: SHORT_DEADLINE.as_millis() }),
+        Some(JobShortfall {
+            why: JobShort::Deadline,
+            figures: Some(Figures { required: KIND_DEADLINE.as_millis(), offered: SHORT_DEADLINE.as_millis() }),
+        }),
     );
     assert!(attempts(&world, job).is_empty(), "no close job attempt was committed");
     finish_with_covering_worker(world, goal, change, job);
+}
+
+#[test]
+fn a_close_job_wait_survives_a_cold_restart() {
+    let short = JobBound { deadline: SHORT_DEADLINE, ..close_bound() };
+    let Close { mut world, goal, change, job } = closing(Box::new([short]));
+    let before = refused_close_wait(&mut world, job);
+    let issue_writes = world.issue_write_times.len();
+    let mut expected = waiting_rows(&world, job);
+    // Re-stepping the close change updates the goal issue, allocating one connector entry.
+    let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
+    let Some(engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
+        expected.get_mut(&key)
+    else {
+        panic!("deployment row")
+    };
+    header.connector_rows += 1;
+    let snapshot = temper_engine_domain_world::oracle::Snapshot::new(&expected, world.env.wall);
+
+    world.restart_same();
+    assert_eq!(refused_close_wait(&mut world, job), before);
+    assert_eq!(world.issue_write_times.len(), issue_writes + 1, "only the goal's issue projection is written");
+    snapshot.compare_rows(&waiting_rows(&world, job)).unwrap_or_else(|finding| panic!("{finding}"));
+
+    finish_with_covering_worker(world, goal, change, job);
+}
+
+// The ancestor procedures re-step on restart. Compare the deployment and
+// the waiting job here; finish_with_covering_worker runs the full oracle.
+fn waiting_rows(world: &World, job: u64) -> std::collections::BTreeMap<Key, engine::Record> {
+    use jig_domain_core::{CoreKey, Key as CoreRowKey};
+    world
+        .store
+        .rows
+        .iter()
+        .filter(|(key, _)| match key {
+            Key::Core(CoreRowKey::Core(CoreKey::Deployment)) => true,
+            Key::Core(
+                CoreRowKey::Core(CoreKey::RunProof(task) | CoreKey::Terminal { task, .. })
+                | CoreRowKey::Tasks(
+                    tasks::Key::Live(task)
+                    | tasks::Key::LiveCold(task)
+                    | tasks::Key::Ended(task)
+                    | tasks::Key::Attempt { task, .. },
+                ),
+            ) => *task == job,
+            _ => false,
+        })
+        .map(|(key, row)| (key.clone(), row.clone()))
+        .collect()
+}
+
+fn refused_close_wait(world: &mut World, job: u64) -> documents::TaskRunWait {
+    world.oracle_settle();
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task: job }) else {
+        panic!("close job document")
+    };
+    let documents::Document::Task(task) = *document else { panic!("task document") };
+    assert_eq!(task.chip.phase, documents::PhaseLine::Active(tasks::Active::Due));
+    assert!(attempts(world, job).is_empty(), "no close job attempt was committed");
+    assert!(world.jobs.is_empty(), "no assignment while waiting");
+    let Some(wait @ documents::TaskRunWait::Refused(_)) = task.run_wait else {
+        panic!("close job refusal: {:?}", task.run_wait)
+    };
+    wait
 }
 
 fn finish_with_covering_worker(mut world: World, goal: u64, change: u64, job: u64) {
@@ -122,7 +187,7 @@ fn finish_with_covering_worker(mut world: World, goal: u64, change: u64, job: u6
 #[test]
 fn a_close_job_waits_when_the_worker_omits_its_kind() {
     let Close { mut world, goal, change, job } = closing(Box::new([]));
-    assert_due(&mut world, job, documents::JobWhy::Short(JobShort::Kind), None);
+    assert_due(&mut world, job, Some(JobShortfall { why: JobShort::Kind, figures: None }));
     assert!(attempts(&world, job).is_empty(), "no close job attempt was committed");
     finish_with_covering_worker(world, goal, change, job);
 }
@@ -149,7 +214,7 @@ fn an_untranslated_close_job_waits_after_its_claim_again_pause() {
         })
         .unwrap_or_else(|| panic!("close job did not enter its claim-again pause: {:?}", live_task(&world, job).phase));
     world.advance_to(Time::from_nanos(until.as_nanos()).max(world.env.now));
-    assert_due(&mut world, job, documents::JobWhy::Untranslated, None);
+    assert_due(&mut world, job, None);
     assert_eq!(attempts(&world, job), [assigned.attempt.raw()], "the refusal never opens a second attempt");
     assert_eq!(live_task(&world, job).tries, tasks::Tries::NONE);
     finish_with_covering_worker(world, goal, change, job);

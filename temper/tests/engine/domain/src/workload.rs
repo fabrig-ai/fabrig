@@ -232,7 +232,6 @@ impl Driver {
                 result: world.env.limits.tasks.result_bytes,
                 deadline: Duration::from_secs(600),
             }]);
-            world.workload_worker = Some((hello.bounds.clone(), hello.jobs.clone(), hello.slots));
         }
         world.send(hello);
         let mut ledger = FaultLedger::new();

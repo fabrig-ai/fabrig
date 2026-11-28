@@ -160,7 +160,8 @@ pub use views::{
 
 /// The prepare job (temper/docs/design/domain/worker/jobs.md).
 pub const PREPARE_KIND: u32 = 1;
-
+/// The key job (temper/docs/design/domain/worker/jobs.md).
+pub const KEY_KIND: u32 = 2;
 /// The merge job (temper/docs/design/domain/worker/jobs.md).
 pub const MERGE_KIND: u32 = 3;
 /// The close job (temper/docs/design/domain/worker/jobs.md).

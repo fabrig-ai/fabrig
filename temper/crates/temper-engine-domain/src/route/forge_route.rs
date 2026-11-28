@@ -714,7 +714,7 @@ pub(crate) fn project_goal(
         let words = if words.is_empty() { "Task milestone" } else { words };
         milestones.push(forge_issues::Milestone { key, text: Box::from(words) }).expect("feed capacity");
     }
-    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return };
+    let Some(entry) = domain.engine.core_mut().counters.reserve_connector_candidate() else { return };
     domain.work.push(Work::Forge(forge::Event::Project {
         entry,
         repository: provider,
@@ -2178,7 +2178,7 @@ pub(super) fn start_recovered_change(
         }));
         return true;
     }
-    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return false };
+    let Some(entry) = domain.engine.core_mut().counters.reserve_connector_candidate() else { return false };
     let released_questions = match (domain.forge.change(task), domain.engine.core().tasks.task(task)) {
         (Some(row), Some(task)) => {
             relay::questions_held(&row.change.state) && delegate_record::release_reason(task.due_reason)
@@ -4252,7 +4252,7 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
                     // An idle-only wake cannot refresh a step already reading its facts.
                     let repository = change.repository;
                     let base = change.base.clone();
-                    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else {
+                    let Some(entry) = domain.engine.core_mut().counters.reserve_connector_candidate() else {
                         return;
                     };
                     let step = change_step(domain, env, task, entry, repository, &base, false);
@@ -4563,7 +4563,7 @@ pub(crate) fn outputs(
                     }
                     if domain.engine.core().tasks.procedure_due(task).is_some()
                         && let Some(row) = domain.forge.change(task).cloned()
-                        && let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow)
+                        && let Some(entry) = domain.engine.core_mut().counters.reserve_connector_candidate()
                     {
                         let step = change_step(domain, env, task, entry, row.repository, &row.base, false);
                         domain.work.push(Work::Forge(step));
@@ -4577,7 +4577,7 @@ pub(crate) fn outputs(
                         && forge_change::held_on_ci(&row.change.state)
                         && let Some(record) = domain.engine.core().tasks.task(task)
                         && own_hold(record)
-                        && let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow)
+                        && let Some(entry) = domain.engine.core_mut().counters.reserve_connector_candidate()
                     {
                         let step = change_step(domain, env, task, entry, row.repository, &row.base, true);
                         domain.work.push(Work::Forge(step));
@@ -4682,6 +4682,9 @@ pub(crate) fn outputs(
                 );
             }
             forge::Request::Save { mut record, release, read_afresh } => {
+                if let forge::Stored::Entry { entry, .. } = &record {
+                    domain.engine.core_mut().counters.keep_connector_candidate(entry.number);
+                }
                 if let forge::Stored::ChangeHot(hot) = &mut record {
                     fill_hold_account(domain, env, hot, out);
                 }
@@ -5074,6 +5077,7 @@ pub(crate) fn outputs(
                     EffectFlight::Projection { description: Box::new(description), row: Box::new(row), entry },
                 );
                 assert!(inserted.is_ok(), "flight {owner:?} for projection entry {number} of goal {goal} fits");
+                domain.engine.core_mut().counters.keep_connector_candidate(number);
                 domain.work.push(Work::Core(jig_domain_core::Event::EffectStart {
                     owner,
                     connector: domain.config.forge_connector,
@@ -5325,8 +5329,7 @@ pub(crate) fn outputs(
                 } else if match domain.forge.issue(goal) {
                     Some(row) => row.pending.is_none(),
                     None => false,
-                } && let Some(entry) =
-                    crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow)
+                } && let Some(entry) = domain.engine.core_mut().counters.reserve_connector_candidate()
                 {
                     domain.work.push(Work::Forge(forge::Event::ProjectDesired { entry, goal }));
                 }

@@ -142,14 +142,30 @@ The fleet child domain knows the hosts and the runs they host:
 - **A job that waits says why,** derived as a run's refusals are,
   nothing stored: where an admitted, connected host taking work exists
   and every one of them falls short of the job, by `job_short` or by
-  keeping it off as *untranslated*, the task's wait is
-  `TaskRunWait::Refused(TaskWaitRefused::Job { worker, kind, why,
-  figures })`, of the first such host in setting-number order, the
-  engine's own host after every worker: `worker` its setting number
-  (`workers.md`, 4), none for the engine's host; `kind` the job's;
-  `why` a `JobWhy`, `Short(JobShort)` or `Untranslated`, whose words are
-  the attempt's refusal that the task's retry notice keeps
-  (`../../protocol/channel/layouts.md`, 5.1); `figures` the shortfall's.
+  keeping it off as *untranslated*, the fleet's `job_refusal` gives the
+  first such host's `JobRefusal`, in setting-number order, the engine's
+  own host after every worker: `worker` its setting number
+  (`workers.md`, 4), none for the engine's host; `short` its
+  `JobShortfall`, none where it keeps the task off as *untranslated*,
+  whose words are the attempt's refusal that the task's retry notice
+  keeps (`../../protocol/channel/layouts.md`, 5.1). The task's wait is
+  `TaskRunWait::Refused(TaskWaitRefused::Job { kind, refusal })`,
+  `kind` the job's and `refusal` that record whole. One record says
+  it: no second enum names *untranslated* beside `short`'s none, and a
+  reader that needs a cause and its figures apart, as the client's
+  document's `why` and `figures` are
+  (`../../client/domain/contract/documents.md`, 1), derives them from
+  `short` where it reads it.
+
+  ```rust
+  // jig-domain-fleet
+  pub struct JobRefusal { pub worker: Option<u32>, pub short: Option<JobShortfall> } // short: none where the host keeps the task off as untranslated
+  impl Domain {
+      /// The first host's refusal, where every host taking work falls short of the job.
+      pub fn job_refusal(&self, run: Token, job: JobBound) -> Option<JobRefusal>;
+  }
+  ```
+
   Otherwise, with no such host or every one busy, the wait is
   `TaskRunWait::Host`. Its words: `worker W runs no job of kind K`;
   `worker W takes job kind K's spec up to OFFERED bytes; this job's kind

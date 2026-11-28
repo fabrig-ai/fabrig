@@ -601,26 +601,42 @@ fn job_refusals_round_trip_in_task_bytes_at_the_frozen_version() {
     use jig_domain_core_vocabulary::documents as d;
     use jig_domain_fleet as f;
     assert_eq!(w::VERSION, 44);
-    for (worker, why, expected, figures) in [
-        (Some(2), d::JobWhy::Short(f::JobShort::Kind), c::JobWhy::Short(c::JobShort::Kind), None),
-        (Some(2), d::JobWhy::Short(f::JobShort::Spec), c::JobWhy::Short(c::JobShort::Spec), Some((16384, 1024))),
-        (None, d::JobWhy::Short(f::JobShort::Result), c::JobWhy::Short(c::JobShort::Result), Some((512, 256))),
+    for (worker, short, expected) in [
+        (Some(2), Some(f::JobShortfall { why: f::JobShort::Kind, figures: None }), c::JobWhy::Short(c::JobShort::Kind)),
         (
             Some(2),
-            d::JobWhy::Short(f::JobShort::Deadline),
-            c::JobWhy::Short(c::JobShort::Deadline),
-            Some((1_800_000, 600_000)),
+            Some(f::JobShortfall {
+                why: f::JobShort::Spec,
+                figures: Some(f::Figures { required: 16384, offered: 1024 }),
+            }),
+            c::JobWhy::Short(c::JobShort::Spec),
         ),
-        (Some(2), d::JobWhy::Untranslated, c::JobWhy::Untranslated, None),
+        (
+            None,
+            Some(f::JobShortfall {
+                why: f::JobShort::Result,
+                figures: Some(f::Figures { required: 512, offered: 256 }),
+            }),
+            c::JobWhy::Short(c::JobShort::Result),
+        ),
+        (
+            Some(2),
+            Some(f::JobShortfall {
+                why: f::JobShort::Deadline,
+                figures: Some(f::Figures { required: 1_800_000, offered: 600_000 }),
+            }),
+            c::JobWhy::Short(c::JobShort::Deadline),
+        ),
+        (Some(2), None, c::JobWhy::Untranslated),
     ] {
-        let (figures, client_figures) = match figures {
-            Some((required, offered)) => {
-                (Some(f::Figures { required, offered }), Some(c::Figures { required, offered }))
+        let client_figures = match short {
+            Some(f::JobShortfall { figures: Some(f::Figures { required, offered }), .. }) => {
+                Some(c::Figures { required, offered })
             }
-            None => (None, None),
+            Some(f::JobShortfall { figures: None, .. }) | None => None,
         };
         assert_task_refusal_round_trip(
-            d::TaskWaitRefused::Job { worker, kind: 4, why, figures },
+            d::TaskWaitRefused::Job { kind: 4, refusal: f::JobRefusal { worker, short } },
             c::TaskWaitRefused::Job { worker, kind: 4, why: expected, figures: client_figures },
         );
     }

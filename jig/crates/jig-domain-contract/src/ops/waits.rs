@@ -106,7 +106,7 @@ pub enum TaskRunWait {
 pub enum TaskWaitRefused {
     Hello { kind: HostKind, at: Wall, why: HelloRefusal, figures: Option<Figures> },
     Bounds { kind: HostKind, why: Option<AgentShortfall>, figures: Option<Figures> },
-    Job { worker: Option<u32>, kind: u32, why: JobWhy, figures: Option<Figures> },
+    Job { kind: u32, refusal: JobRefusal },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -117,12 +117,6 @@ pub enum TaskWaitWhy {
     Empty,
     Invalid(AccountWhy),
     Untooled { worker: u32 },
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum JobWhy {
-    Short(JobShort),
-    Untranslated,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -189,7 +183,6 @@ pub enum AgentShortfall {
     Unacknowledged,
 }
 
-/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
 /// Why a host cannot cover an application's job kind (domain/engine/fleet.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum JobShort {
@@ -197,6 +190,21 @@ pub enum JobShort {
     Spec,
     Result,
     Deadline,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct JobShortfall {
+    pub why: JobShort,
+    /// None for Kind; a deadline is in milliseconds.
+    pub figures: Option<Figures>,
+}
+
+/// Every host taking work falls short of this job (domain/engine/fleet.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct JobRefusal {
+    pub worker: Option<u32>,
+    /// None when the task's assignment is untranslated on this channel.
+    pub short: Option<JobShortfall>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
