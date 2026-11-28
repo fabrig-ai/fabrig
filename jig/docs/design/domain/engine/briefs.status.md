@@ -2,13 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
-- **Not yet:** 1, 1.1 and 1.4: the brief child's placing of the sections connectors plan, its
-  gather time, and its answers named by connector and token [in flight: change 22491].
-- **Not yet:** 1, 1.1 and 1.4: the engine asking connectors to plan, gather, cut and drop a
-  brief's sections through the connectors' port, and keeping a brief complete until its run is
-  prepared; jig's roots answering none of it [in flight: change 22500].
-- **Not yet:** 1 and 1.4: temper's forge planning, gathering and cutting its sections through the
-  connectors' port, and temper's root answering none of the brief [in flight: change 22502].
 - **Design departs:** 1.4 departs from `temper/docs/design/draft/jig-domain-api.md`, 6.3 and 6.6,
   in three places, each with its reason in 1.4: a brief's plan is an operation that ends later,
   not a judgement; it is asked of every connector that serves sections, not only of those the

@@ -2,10 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [settings.md](settings.md).
 
-- **Not yet:** 9, *Planned with the brief*: the core giving a charter's documents to their
-  connectors in the brief's preparation context, for each to plan its own [in flight: change 22500].
-- **Not yet:** 9, *Planned with the brief*: temper's forge planning a document's section from the
-  preparation context [in flight: change 22502].
 
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `vocabulary.status.md`, 1.2, and `decisions.status.md`, 1.3.
