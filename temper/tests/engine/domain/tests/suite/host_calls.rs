@@ -595,6 +595,7 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
     let mut defaults = temper_engine_service_stock::stock::with_models(llm.models.clone(), 384);
     let mut designer = defaults.charters[1].clone();
     designer.number = 7;
+    designer.name = None;
     defaults.charters = [defaults.charters.as_ref(), &[designer]].concat().into();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.tasks.batch = 2;

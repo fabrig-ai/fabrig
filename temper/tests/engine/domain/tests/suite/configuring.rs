@@ -703,6 +703,7 @@ fn a_proposal_selects_the_template_it_installs() {
         let run = world.chat(ASK_TEMPLATE, world.owner, 20);
         let mut value = see_value(&mut world.driver, &run, 1, "settings template 5");
         value["number"] = json!(33);
+        value.as_object_mut().expect("template object").remove("name");
         value["tracked"] = json!(1);
         let ways = json!({"drafts":true,"goals":true,"changes":true,"way":33});
         let mut items = vec![
@@ -750,7 +751,7 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         .expect("asking template");
     let added = s::Item {
         setting: s::Setting::Template(33),
-        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 33, ..template }))),
+        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 33, name: None, ..template }))),
     };
     for (name, item, way, accepted) in [
         ("zero", added.clone(), 0, true),
@@ -1334,7 +1335,7 @@ fn the_asking_chat_reads_each_kind() {
     for (input, heading, content) in [
         ("settings", "newest revision 2\n", "held revisions:\n  revision 1,"),
         ("settings charter 1", "charter 1, revision 2\n", "The newest chat instructions."),
-        ("settings template 1", "template 1, revision 2\n", "\"bytes\":\"chat\""),
+        ("settings template 1", "template 1, revision 2\n", "\"shown\":\"chat\""),
         ("settings policy 1", "policy 1, revision 2\n", "\"roles\":"),
         ("settings rules", "rules, revision 2\n", "\"ceiling\":"),
         ("settings landing-rule 1 project", "landing-rule 1 --project 1, revision 2\n", "\"enforce\":true"),
@@ -1972,6 +1973,7 @@ fn reference_settings(world: &mut World, run: &engine::Assignment) -> serde_json
             value["number"] = json!(number);
             let stock = crate::stock::defaults(10_660);
             let charter = crate::reference_settings::charter(&stock, u32::try_from(number).expect("charter number"));
+            value["name"] = json!(charter.name.as_deref().map(|name| std::str::from_utf8(name).expect("stock name")));
             let mut instructions = vec![std::str::from_utf8(&charter.policy.instructions).expect("stock instructions")];
             for part in &charter.parts {
                 instructions.push(std::str::from_utf8(&part.instructions).expect("stock part"));
