@@ -1031,10 +1031,10 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     use jig_client_protocol_wire as w;
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
-    const NAME_BYTES: usize = 4096;
-    // v21 SettingValue tag + this fixture's Template: 50 fixed bytes (including
-    // the empty resource list's count) + its 4096-byte name.
-    const ENCODED_TEMPLATE_BYTES: u64 = 4146;
+    const SHOWN_BYTES: usize = 4096;
+    // One byte for the SettingValue tag + 50 fixed Template bytes (including
+    // the empty resource list's count and the None tag for name) + 4096 bytes of shown text.
+    const ENCODED_TEMPLATE_BYTES: u64 = 4147;
     let (config, mut limits) = configuration();
     limits.core.load_bytes = SINGLE_READ_BYTES;
     let mut world = World::new(Setup {
@@ -1045,7 +1045,7 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     });
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
-    config.core.defaults.templates[0].shown = vec![b'x'; NAME_BYTES].into_boxed_slice();
+    config.core.defaults.templates[0].shown = vec![b'x'; SHOWN_BYTES].into_boxed_slice();
     restart(&mut world, config);
     let signed = sign_in(&mut world);
     let reads::Answer::Revision(answer) = client_read(&mut world, signed, reads::Read::Revision { number: 2 }) else {
