@@ -40,6 +40,7 @@ fn payloads() -> [(Carried, &'static str, Box<[u8]>); 8] {
                 command: b"tool".as_slice().into(),
                 request: b"{}".as_slice().into(),
                 refusal: false,
+                result: 512,
                 outdated: true,
                 find: false,
                 fallback: Box::new([]),
@@ -165,6 +166,36 @@ fn before_hook_fields() -> Box<str> {
         .into_boxed_str()
 }
 
+/// temper/docs/design/protocol/wires.md, 8: the result limit is an optional hint across layouts.
+#[test]
+fn close_job_specs_cross_the_previous_layout_in_both_directions() {
+    use jig_protocol_worker_wire::layouts::Nested;
+    use skein_codec::{layout::Mode, schema::parse};
+    let current = parse(wire::TEXT.as_bytes()).unwrap();
+    let deployed_text =
+        before_hook_fields().replace(" droppable result: u32 = 512 droppable outdated: bool = false", "");
+    let deployed = parse(deployed_text.as_bytes()).unwrap();
+    let deployed_bytes = b"\0\0\0\x04tool\0\0\0\x02{}\x01";
+    let limits = fixtures::limits();
+    let decode = |bytes| v1::JobSpec::decode(&limits, &mut skein_lib::Reader::new(bytes)).unwrap();
+    let from_old = transcode(Mode::Keep, &deployed, &current, "JobSpec", deployed_bytes);
+    let mut spec = decode(&from_old);
+    assert_eq!(spec.command.as_ref(), b"tool");
+    assert_eq!(spec.request.as_ref(), b"{}");
+    assert!(spec.refusal);
+    assert_eq!(spec.result, 512);
+    assert!(!spec.outdated);
+    assert!(!spec.find);
+    assert!(spec.fallback.is_empty());
+
+    spec.result = 8192;
+    let bytes = spec.encode(&limits).unwrap();
+    assert_eq!(decode(&bytes), spec);
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    peer(&deployed).down(Nested::Carried(Carried::JobSpec), &bytes, &mut out).expect("old worker keeps the ask");
+    assert_eq!(out.as_slice(), deployed_bytes);
+}
+
 /// temper/docs/design/protocol/wires.md, 8: an older worker can only keep a job that doesn't ask for a field it lacks.
 #[test]
 fn an_older_worker_cannot_keep_a_jobs_refusal_or_find_ask() {
@@ -172,7 +203,8 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_or_find_ask() {
     use skein_codec::{layout::Mode, schema::parse};
     let engine = parse(wire::TEXT.as_bytes()).unwrap();
     let previous = before_hook_fields();
-    let before_refusal = previous.replace(" refusal: bool = false droppable outdated: bool = false", "");
+    let before_refusal =
+        previous.replace(" refusal: bool = false droppable result: u32 = 512 droppable outdated: bool = false", "");
     let limits = fixtures::limits();
     let root = Nested::Carried(Carried::JobSpec);
     for (text, refused, kept, find) in [
@@ -196,6 +228,7 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_or_find_ask() {
             command: b"tool".as_slice().into(),
             request: b"{}".as_slice().into(),
             refusal: true,
+            result: 512,
             outdated: false,
             find,
             fallback: Box::new([]),
@@ -238,6 +271,7 @@ fn an_older_worker_keeps_a_close_by_dropping_its_outdated_ask() {
         command: b"tool".as_slice().into(),
         request: b"{}".as_slice().into(),
         refusal: true,
+        result: 8192,
         outdated: true,
         find: true,
         fallback: b"app/close".as_slice().into(),
@@ -246,12 +280,12 @@ fn an_older_worker_keeps_a_close_by_dropping_its_outdated_ask() {
     let mut out = skein_lib::Buffer::with_capacity(1024);
     peer.down(Nested::Carried(Carried::JobSpec), &bytes, &mut out).expect("old workers keep the close");
     let declaration = worker.find(b"JobSpec").unwrap();
-    let Shape::Record { first, count: 5, .. } = worker.declaration(declaration).shape else {
+    let Shape::Record { first, count: 6, .. } = worker.declaration(declaration).shape else {
         panic!("JobSpec without outdated");
     };
     let refusal = FieldIx::new(first.index().checked_add(2).unwrap());
     assert_eq!(worker.spelled(worker.field(refusal).name), b"refusal");
-    let mut decoded = Value::with_room(6);
+    let mut decoded = Value::with_room(7);
     let record = decoded.decode(&worker, declaration, out.to_boxed()).expect("the old JobSpec decodes");
     assert_eq!(decoded.boolean(decoded.field(record, refusal).unwrap()), Ok(true));
 

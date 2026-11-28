@@ -544,6 +544,7 @@ fn a_project_ending_at_landing_makes_no_verification_and_finishes_in_its_merge_s
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }
     ));
     assert_eq!(d.change(CHANGE).unwrap().change.state, change::State::Landed { merge: FIRST, since: env().wall });
@@ -601,6 +602,7 @@ fn two_landings_in_one_green_run_finish_cleared() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }
         ));
         assert_eq!(d.change(task).expect("change").change.state, change::State::Cleared { merge: commit });
@@ -700,6 +702,7 @@ fn no_verdict_at_the_project_bound_finishes_uncleared() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }
     ));
     d.wait_change(&env(), CHANGE, Some(deadline));
@@ -737,6 +740,7 @@ fn an_unfollowed_goal_branch_finishes_landed_at_once() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }
     ));
     assert_eq!(
@@ -1134,6 +1138,7 @@ fn goal_tiers_leave_goal_landings_unfollowed_and_main_verified() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }
     ));
     assert_eq!(

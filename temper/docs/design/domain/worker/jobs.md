@@ -112,10 +112,13 @@ smith's agent processes, and declares in its hello the kinds it runs:
   with `find` set and the setting's path as its `fallback`, and its
   request the close request's bytes, which the engine writes whole. Its spec asks for a
   typed refusal, `JobSpec`'s `refusal` true, and for an outdated
-  finding, its `outdated` true (`../../protocol/wires.md`, 8), and the
-  worker then sets `TEMPER_CLOSE_REFUSAL=3` and `TEMPER_CLOSE_OUTDATED=3`
-  in the command's environment beside the others
-  (`../../protocol/tooling.md`, 2), each only where its spec asks. On exit 3 it delivers nothing and
+  finding, its `outdated` true (`../../protocol/wires.md`, 8). When
+  asked for a refusal the worker sets `TEMPER_CLOSE_REFUSAL=3` and
+  `TEMPER_CLOSE_RESULT_BYTES` in the command's environment
+  (`../../protocol/tooling.md`, 2). The latter is the lesser of the
+  spec's result limit (512 when absent) and the worker's declared close
+  result bound. When asked for an outdated finding, it sets
+  `TEMPER_CLOSE_OUTDATED=3`. On exit 3 it delivers nothing and
   finishes the job with the result, as for a merge, and the engine reads
   it. On exit 0 the delivery
   commits the tree as the command left it, one parent, the tip, its message
@@ -124,11 +127,14 @@ smith's agent processes, and declares in its hello the kinds it runs:
   push; with nothing staged it commits and pushes nothing, and the job
   is done, as where its checkout holds no command, the job finishing
   with none's result. The engine learns which from the branch, as for a merge: its
-  head moved, or not. Its bounds, the engine's declaration and the
-  worker's alike: a spec of 16,384 bytes, a result of 512 and a deadline
-  of 86,400 seconds, the small profile's constants, each job's deadline
-  its project's ceiling, as kind 3's; the engine declares it
-  only where its tasks limits hold those bounds, as kind 3's.
+  head moved, or not. Both declare a spec of 16,384 bytes and a deadline
+  of 86,400 seconds; each job's deadline is its project's ceiling, as for
+  kind 3. The engine declares 512 result bytes for placement, the least a
+  worker must take, and contracts the close job at 8,192. The worker
+  declares 8,192 result bytes. The engine declares close only when its
+  tasks limits hold the spec and the 8,192-byte contract. The requester
+  decided on 2026-11-27 to give the goal more of the failures at once and
+  keep workers that declare 512 eligible on result size.
 - **A hook is found and checked before it runs** (`../../protocol/hooks.md`,
   2.2, 2.3 and 4.3): for a spec with `find`, the worker looks for the
   repository's `.temper/hooks/` and the moment's hook in the job's

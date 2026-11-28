@@ -260,6 +260,7 @@ fn drawn_small_windows_compact_within_them() {
     let mut sample = Sample::new("drawn_small_windows_compact_within_them");
     for seed in 0..100 {
         let mut world = Scripted::with_shapes(seed);
+        world.omit_replay();
         world.env.limits.spend = 10_000;
         let mut start = opening(None, world.env.limits.spend);
         start.spec.window = u32::try_from(rng.between(2_000, 3_000)).expect("small window");
@@ -293,6 +294,7 @@ fn no_drawn_session_ends_because_its_history_grew() {
     let mut sample = Sample::new("no_drawn_session_ends_because_its_history_grew");
     for seed in 0..100 {
         let mut world = Scripted::with_shapes(seed);
+        world.omit_replay();
         world.env.limits.history_bytes = rng.between(24_576, 32_768);
         world.open(opening(None, world.env.limits.spend));
         world.complete(written_calls(16), llm::Stop::ToolUse, llm::Usage::ZERO);

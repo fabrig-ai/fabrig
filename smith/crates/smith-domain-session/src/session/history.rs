@@ -168,20 +168,33 @@ pub(super) fn minimum(limits: &Limits) -> u64 {
 
 /// The fixed membership of one batch, keyed by assistant block position.
 #[derive(Debug)]
-pub(super) struct Batch {
+pub struct Batch {
     begin: u32,
     pub(super) end: u32,
     pub(super) share: u64,
     held: Map<u32, Share>,
 }
 
+/// One call’s reservation in its batch.
 #[derive(Debug)]
-struct Share {
+pub struct Share {
     credit: u64,
     run: Option<Id<Run>>,
 }
 
 impl Batch {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_range(&self) -> core::ops::Range<u32> {
+        self.begin..self.end
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_shares(&self) -> &Map<u32, Share> {
+        &self.held
+    }
+
     /// Bind a reserved share to the run before any tool effect is emitted.
     pub(super) fn start(&mut self, block: u32, run: Id<Run>) {
         let Some(share) = self.held.get_mut(&block) else {
@@ -248,13 +261,12 @@ impl Batch {
         );
     }
 
-    #[cfg(test)]
-    pub(super) fn credit(&self) -> u64 {
+    pub(super) fn inspection_credit(&self) -> Option<u64> {
         let mut credit = 0_u64;
         for (_, share) in &self.held {
-            credit = credit.checked_add(share.credit).expect("the batch's held credit fits");
+            credit = credit.checked_add(share.credit)?;
         }
-        credit
+        Some(credit)
     }
 }
 
@@ -438,4 +450,18 @@ fn cut_text(text: Box<[u8]>, cap: u64) -> Box<[u8]> {
     writer.put(decimal.as_bytes()).expect("count room");
     writer.put(b" bytes omitted]").expect("marker room");
     writer.finish()
+}
+
+impl Share {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_credit(&self) -> u64 {
+        self.credit
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_run(&self) -> Option<Id<Run>> {
+        self.run
+    }
 }

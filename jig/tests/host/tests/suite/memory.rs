@@ -193,6 +193,33 @@ fn assignment(run: u64, limits: &Limits) -> RunAssignment {
     }
 }
 
+#[test]
+fn a_named_workspace_delivery_is_not_a_host_relay() {
+    let limits = jig_host_world::Settings::calm(1).host;
+    let mut host = Measured::new(limits);
+    let [Asked::Prepare { owner }] = host.step(jig_host_world::fixtures::assign(assignment(1, &limits)))[..] else {
+        panic!("prepare one hosted workspace");
+    };
+    assert_eq!(host.step(Event::Prepared { owner, workspace: Token::new(1) }), [Asked::Start]);
+    assert_eq!(host.step(Event::Agent(FromAgent::Started { owner, agent: Token::new(1) })), []);
+    let call = jig_protocol_charter::call_name(&jig_protocol_charter::CallKey {
+        activation: 1001,
+        completion: 3,
+        position: 1,
+    });
+    let requests = host.step(Event::Agent(FromAgent::Called {
+        owner,
+        call,
+        ask: jig_host_world::fixtures::deliver(b"title".as_slice().into()),
+    }));
+    assert!(matches!(requests.as_slice(), [Asked::Delivery { .. }]), "{requests:?}");
+
+    let mut inspection = skein_world::inspect::Inspection::new("jig host", &[]);
+    jig_inspect::host(&host.domain, &mut inspection);
+    let [slot] = inspection.relateds() else { panic!("only the slot: {:?}", inspection.relateds()) };
+    assert_eq!(slot.holds, "a hosted slot");
+}
+
 /// Fills every slot with an assignment of exactly the limits and a full hold
 /// of inbound events of exactly their limit; starts each run, has it land a
 /// change in every item and make as many calls as it may, the last a

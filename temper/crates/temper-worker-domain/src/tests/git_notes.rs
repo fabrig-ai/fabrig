@@ -46,6 +46,7 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                 command: b"app/check".as_slice().into(),
                 request: Box::new([]),
                 refusal: false,
+                result: 512,
                 outdated: false,
                 fallback: None,
             }),

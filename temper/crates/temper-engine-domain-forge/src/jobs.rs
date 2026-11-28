@@ -3,7 +3,10 @@
 use alloc::boxed::Box;
 use skein_forge::api::Commit;
 use skein_lib::{List, bytes};
-use temper_protocol_worker_wire::v1::{self, Record};
+use temper_protocol_worker_wire::{
+    CLOSE_RESULT_BYTES, DEFAULT_JOB_RESULT_BYTES,
+    v1::{self, Record},
+};
 
 pub const CLOSE_HOOK: &[u8] = b".temper/hooks/close";
 const MERGE_HOOK: &[u8] = b".temper/hooks/merge";
@@ -19,6 +22,7 @@ fn find_hook(
         command: bytes::concat(&[repository, b"/", hook]),
         request,
         refusal,
+        result: if refusal { CLOSE_RESULT_BYTES } else { DEFAULT_JOB_RESULT_BYTES },
         outdated: refusal,
         find: true,
         fallback: match fallback {

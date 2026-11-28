@@ -41,6 +41,7 @@ pub fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {
         command: Box::new([]),
         request: json.finish(),
         refusal: false,
+        result: temper_protocol_worker_wire::DEFAULT_JOB_RESULT_BYTES,
         outdated: false,
         find: false,
         fallback: Box::new([]),

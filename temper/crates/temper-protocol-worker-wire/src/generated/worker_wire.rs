@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 12;
 pub const LAYOUT: [u8; 32] = [
-    0x97, 0xb2, 0x0d, 0x7c, 0x73, 0x7d, 0xf4, 0xc9, 0x9f, 0x74, 0xdf, 0x6c, 0x7a, 0x70, 0x63, 0x5e, 0x08, 0xbc, 0x14,
-    0xde, 0xfd, 0x7d, 0x24, 0x71, 0xaf, 0x17, 0xca, 0xd5, 0xd0, 0xc3, 0xd0, 0x9c,
+    0xb9, 0xab, 0x85, 0x57, 0xaa, 0xf0, 0x4f, 0xf2, 0x36, 0x8f, 0xe9, 0x95, 0xc2, 0xa6, 0x7b, 0xa3, 0xe2, 0x9c, 0xd6,
+    0x99, 0xdc, 0x2a, 0xcf, 0x0d, 0x07, 0xa7, 0xc2, 0xcb, 0xe8, 0x10, 0xd9, 0x67,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -346,6 +346,7 @@ pub mod paths {
     pub const JOB_SPEC_COMMAND: Path = Path::new("JobSpec.command");
     pub const JOB_SPEC_REQUEST: Path = Path::new("JobSpec.request");
     pub const JOB_SPEC_REFUSAL: Path = Path::new("JobSpec.refusal");
+    pub const JOB_SPEC_RESULT: Path = Path::new("JobSpec.result");
     pub const JOB_SPEC_OUTDATED: Path = Path::new("JobSpec.outdated");
     pub const JOB_SPEC_FIND: Path = Path::new("JobSpec.find");
     pub const JOB_SPEC_FALLBACK: Path = Path::new("JobSpec.fallback");
@@ -1049,6 +1050,7 @@ pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
     pub refusal: bool,
+    pub result: u32,
     pub outdated: bool,
     pub find: bool,
     pub fallback: Box<[u8]>,
@@ -1060,14 +1062,15 @@ impl JobSpec {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_command) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_request) },
         skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_fallback) },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 15;
+    pub const ENCODED_AT_ZERO: u64 = 19;
 }
 
 impl Record for JobSpec {
@@ -1095,6 +1098,7 @@ impl Record for JobSpec {
         field::write(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, &self.command, limits, out, paths::JOB_SPEC_COMMAND)?;
         field::write(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, &self.request, limits, out, paths::JOB_SPEC_REQUEST)?;
         field::write(field::Boolean, &self.refusal, limits, out, paths::JOB_SPEC_REFUSAL)?;
+        field::write(field::U32, &self.result, limits, out, paths::JOB_SPEC_RESULT)?;
         field::write(field::Boolean, &self.outdated, limits, out, paths::JOB_SPEC_OUTDATED)?;
         field::write(field::Boolean, &self.find, limits, out, paths::JOB_SPEC_FIND)?;
         field::write(field::Bytes { limit: limits.job_spec_fallback.min(CEILINGS.job_spec_fallback) }, &self.fallback, limits, out, paths::JOB_SPEC_FALLBACK)?;
@@ -1106,6 +1110,7 @@ impl Record for JobSpec {
             command: field::read(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, limits, reader, paths::JOB_SPEC_COMMAND)?,
             request: field::read(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, limits, reader, paths::JOB_SPEC_REQUEST)?,
             refusal: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_REFUSAL)?,
+            result: field::read(field::U32, limits, reader, paths::JOB_SPEC_RESULT)?,
             outdated: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_OUTDATED)?,
             find: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_FIND)?,
             fallback: field::read(field::Bytes { limit: limits.job_spec_fallback.min(CEILINGS.job_spec_fallback) }, limits, reader, paths::JOB_SPEC_FALLBACK)?,

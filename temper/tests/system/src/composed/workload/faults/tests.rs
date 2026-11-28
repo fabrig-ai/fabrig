@@ -16,16 +16,31 @@ fn digest(planned: &[(Kind, &str)], acts: &[Action]) -> u64 {
 #[test]
 fn composed_draw_keeps_seed_six() {
     let draw = FaultDraw::new(6, GATE_KINDS);
-    assert_eq!(digest(&draw.planned(), draw.acts()), 15_246_353_655_105_236_273);
+    let (cell, previous): (Vec<_>, Vec<_>) =
+        draw.planned().into_iter().partition(|(kind, _)| cells::KINDS.contains(kind));
+    assert_eq!(digest(&previous, draw.acts()), 15_246_353_655_105_236_273);
+    let target = draw.cell.as_ref().expect("seed 6 arms the job-running cell");
+    assert_eq!(target.producer, "g1.c0");
+    assert_eq!(cell, [(cells::JOB_RUNNING, "g1"), (cells::CELL, "g1")]);
 }
 
 #[test]
 fn composed_draw_classifies_every_kind() {
+    let mut cell_ineligible = false;
     for seed in (0..128).chain([u64::MAX]) {
         let workload = Workload::draw(&Streams::new(seed), &COMPOSED);
         let draw = FaultDraw::new(seed, GATE_KINDS);
         let planned = draw.planned();
         let ineligible = draw.ineligible();
+        if let Some(target) = &draw.cell {
+            let (goal, change) = workload.change(&target.producer).expect("cell's producer exists");
+            assert_eq!(goal.name, target.goal, "seed {seed}");
+            assert!(!change.asks, "seed {seed}: {} asks", change.name);
+        } else {
+            assert!(workload.goals.iter().flat_map(|goal| &goal.changes).all(|change| change.asks), "seed {seed}");
+            assert!(cells::KINDS.iter().all(|kind| ineligible.contains(kind)), "seed {seed}");
+            cell_ineligible = true;
+        }
         for &kind in GATE_KINDS {
             assert_ne!(
                 planned.iter().any(|(planned, _)| *planned == kind),
@@ -56,6 +71,7 @@ fn composed_draw_classifies_every_kind() {
             );
         }
     }
+    assert!(cell_ineligible, "the range covers a case with no eligible producer");
 }
 
 #[test]

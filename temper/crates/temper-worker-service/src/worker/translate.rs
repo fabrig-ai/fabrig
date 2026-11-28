@@ -57,6 +57,7 @@ pub(crate) fn job_spec_to_domain(spec: v1::JobSpec) -> worker::JobSpec {
         command: spec.command,
         request: spec.request,
         refusal: spec.refusal,
+        result: spec.result,
         outdated: spec.outdated,
         fallback: if spec.find { Some(spec.fallback) } else { None },
     }

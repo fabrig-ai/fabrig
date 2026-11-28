@@ -140,9 +140,13 @@ fn open_service(inherited: &Inherited) -> Proc {
 fn drawn_service(inherited: &Inherited) -> Proc {
     service_chat(inherited, fixtures::Chat::Drawn)
 }
+fn park_service(inherited: &Inherited) -> Proc {
+    service_chat(inherited, fixtures::Chat::DelegateWait)
+}
 fn service_factory(chat: fixtures::Chat) -> fn(&Inherited) -> Proc {
     match chat {
         fixtures::Chat::Drawn => drawn_service,
+        fixtures::Chat::DelegateWait => park_service,
         fixtures::Chat::OpenText => open_service,
         fixtures::Chat::Finite | fixtures::Chat::FiniteText => service,
     }
@@ -150,15 +154,17 @@ fn service_factory(chat: fixtures::Chat) -> fn(&Inherited) -> Proc {
 fn service_chat(inherited: &Inherited, chat: fixtures::Chat) -> Proc {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("store root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
-    let agent = if chat == fixtures::Chat::Drawn { fixtures::drawn::worker_agent() } else { channel::agent() };
-    Proc::Service(Box::new(start_service_with_agent(
-        root,
-        worker,
-        Some(inherited.signal),
-        &fixtures::document(chat),
-        None,
-        &agent,
-    )))
+    let agent = match chat {
+        fixtures::Chat::Drawn => fixtures::drawn::worker_agent(),
+        fixtures::Chat::DelegateWait => fixtures::park::worker_agent(),
+        fixtures::Chat::Finite | fixtures::Chat::OpenText | fixtures::Chat::FiniteText => channel::agent(),
+    };
+    let mut host =
+        start_service_with_agent(root, worker, Some(inherited.signal), &fixtures::document(chat), None, &agent);
+    if chat == fixtures::Chat::DelegateWait {
+        host.wire = crate::referee::agent::Wire::for_park();
+    }
+    Proc::Service(Box::new(host))
 }
 pub(super) fn start_service(
     root: skein_io::kernel::Fd,

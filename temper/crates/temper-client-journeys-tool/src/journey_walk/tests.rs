@@ -53,7 +53,7 @@ fn fixture() -> (skein_scratch::Scratch, Roots, drive::Options) {
 }
 
 fn ready(options: drive::Options) -> Machine {
-    let plan = Plan::new(options, "/chromium".into(), OsStr::new("/bin"));
+    let plan = Plan::new(options, "/chromium".into(), OsStr::new("/bin"), drive::testing::SESSION_PID);
     let (mut machine, _) = Machine::start(plan, Time::ZERO);
     for event in [
         Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/sign-in?secret=first\n".as_slice().into() },

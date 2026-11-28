@@ -215,9 +215,9 @@ Each list has one entry per line; `#` starts a comment line.
 - **`.temper/hooks/deliver`** checks the delivery in the worker workspace using
   the changed packages, their immediate consumers and named integration
   targets. `.temper/hooks/finish` links to `deliver`.
-  A checker-only Gate runs the checker's Python suite. Explicit diagnostic
-  dispatch can check an accumulated goal using `.temper/goal-pre-pr HEAD DESTINATION`
-  (`tools/pre-pr/design.md`, 1).
+  A checker-only Gate runs the checker's Python suite
+  (`tools/pre-pr/design.md`, 1). A goal is checked once, by its close,
+  before it reaches the landing's gate.
 
 - **`.temper/hooks/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).

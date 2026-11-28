@@ -48,6 +48,7 @@ fn an_outdated_close_ends_on_its_first_job() {
         entry: None,
         evidence: None,
         close_at: None,
+        close_refusal: None,
     };
     let stored_at = c::CloseAt { outdated: Some(c::CloseOutdated::Ancestry), ..at };
     let mut decided = false;

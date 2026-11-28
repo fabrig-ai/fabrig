@@ -97,7 +97,8 @@ pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 
 /// The close job's bounds (temper/docs/design/domain/worker/jobs.md).
 pub const CLOSE_SPEC_BYTES: u32 = 16_384;
-pub const CLOSE_RESULT_BYTES: u32 = 512;
+pub use temper_protocol_worker_wire::CLOSE_RESULT_BYTES;
+pub const CLOSE_PLACED_RESULT_BYTES: u32 = temper_protocol_worker_wire::DEFAULT_JOB_RESULT_BYTES;
 
 const CHECKOUT: Checkout = Checkout {
     // Cached workspaces before the worker’s slots derive its places (configuration/derived.md, 5.2).

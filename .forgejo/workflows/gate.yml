@@ -1,7 +1,7 @@
 name: Gate
 # The landing's gate under `by: turn`: dispatched by temper alone, at a
 # landing's candidate, with the round's base. What it runs is the runner
-# host's `$CI_GATE`, the same as ci.yml's. temper also dispatches it at a
+# host's `$CI_GATE`. temper also dispatches it at a
 # search's probes, with `temper_probe` `yes`, given to `$CI_GATE` as
 # `CI_GATE_PROBE` so that it may stop at its first red. `temper_tests`,
 # given as `CI_GATE_TESTS`, selects cases; failed-tests lists the failed ids.

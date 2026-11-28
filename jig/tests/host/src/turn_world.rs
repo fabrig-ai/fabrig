@@ -175,6 +175,11 @@ impl World {
     }
 
     #[must_use]
+    pub const fn hub(&self) -> &host::Hub {
+        &self.host
+    }
+
+    #[must_use]
     pub fn answer(&self) -> Option<&RunAnswer> {
         self.answer.as_ref()
     }

@@ -4183,9 +4183,10 @@ fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Cause> {
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
-    change_decision_from_read(domain, env, task, choice, None, None);
+    change_decision_from_read(domain, env, task, choice, None, None, None);
 }
 
+#[expect(clippy::too_many_lines, reason = "keeps the exhaustive decision and its procedure handoff together")]
 fn change_decision_from_read(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -4193,6 +4194,7 @@ fn change_decision_from_read(
     mut choice: forge_change::Decision,
     evidence: Option<&forge::ChangeEvidence>,
     close_at: Option<forge_change::CloseAt>,
+    close_refusal: Option<&[u8]>,
 ) {
     if choice == forge_change::Decision::None
         && let Some(why) = change_rehold(domain, task)
@@ -4223,7 +4225,7 @@ fn change_decision_from_read(
     };
     domain.forge.offered_change(task);
     let mut again = false;
-    let decision = match choice {
+    let mut decision = match choice {
         forge_change::Decision::Failed => {
             let row = domain.forge.change(task).expect("failed taking row");
             let Some(forge::Ending::Failed { line }) = &row.ending else { unreachable!("taking retains its failure") };
@@ -4278,6 +4280,11 @@ fn change_decision_from_read(
     };
     let hold =
         if let forge_change::Decision::Hold(_) = choice { Some(change_hold_event(task, &decision.end)) } else { None };
+    if let Some(words) = close_refusal
+        && let Some(message) = decision.messages.first_mut()
+    {
+        message.words = forge::text::fit(words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
+    }
     let mut decision = append_change_replies(domain, env, task, decision);
     if let Some(cancel) = cancel_close {
         decision.cancels = Box::new([cancel]);
@@ -5070,115 +5077,134 @@ pub(crate) fn outputs(
                 change_decision(domain, env, task, forge_change::Decision::Hold(replay.cause()));
             }
             forge::Request::RelayRefusal { .. } => {}
-            forge::Request::ChangeDecision { task, decision: choice, entry, evidence, close_at } => match choice {
-                forge_change::Decision::Effect(effect) => {
-                    if let Some(entry) = entry
-                        && let Some(evidence) = evidence
-                    {
-                        match describe_change_effect(domain, env, task, effect, &evidence) {
-                            Some(description) => {
-                                let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) else {
-                                    continue;
-                                };
-                                let writer = change_effect_hold(domain, env, task, description.effect.kind);
-                                if let Some(resource) = &writer
-                                    && !domain.engine.core().tasks.effect_writer_ready(
-                                        &env.limits.tasks,
-                                        task,
-                                        resource,
-                                        Some(entry),
-                                    )
-                                {
+            forge::Request::ChangeDecision { task, decision: choice, entry, evidence, close_at, close_refusal } => {
+                match choice {
+                    forge_change::Decision::Effect(effect) => {
+                        if let Some(entry) = entry
+                            && let Some(evidence) = evidence
+                        {
+                            match describe_change_effect(domain, env, task, effect, &evidence) {
+                                Some(description) => {
+                                    let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) else {
+                                        continue;
+                                    };
+                                    let writer = change_effect_hold(domain, env, task, description.effect.kind);
+                                    if let Some(resource) = &writer
+                                        && !domain.engine.core().tasks.effect_writer_ready(
+                                            &env.limits.tasks,
+                                            task,
+                                            resource,
+                                            Some(entry),
+                                        )
+                                    {
+                                        domain.work.push(Work::Forge(forge::Event::VetoChange {
+                                            task,
+                                            entry,
+                                            prior: evidence.prior,
+                                            leaves_queue: task_leaves_queue(domain, env, task),
+                                        }));
+                                        change_decision(
+                                            domain,
+                                            env,
+                                            task,
+                                            forge_change::Decision::Wait { until: None },
+                                        );
+                                        continue;
+                                    }
+                                    let owner = effect_owner(domain);
+                                    if let Some(resource) = &writer {
+                                        // Reserve before yielding to authority; another admission must see this slot.
+                                        let routed = crate::engine::step(
+                                            &mut domain.engine,
+                                            env,
+                                            jig_domain_core::engine::In::Core(jig_domain_core::Event::Tasks(
+                                                tasks::Event::EffectInFlight {
+                                                    reply_to: ReplyTo::new(owner),
+                                                    task,
+                                                    resource: resource.clone(),
+                                                    entry,
+                                                },
+                                            )),
+                                        );
+                                        super::route_engine_requests(domain, env, decision, routed);
+                                    }
+                                    assert!(
+                                        domain
+                                            .forge_effects
+                                            .insert(
+                                                owner,
+                                                EffectFlight::Procedure {
+                                                    description: Box::new(description),
+                                                    entry,
+                                                    task,
+                                                    evidence: Box::new(evidence),
+                                                    writer,
+                                                }
+                                            )
+                                            .is_ok(),
+                                        "admitted procedure effect handoff"
+                                    );
+                                    domain.work.push(Work::Core(jig_domain_core::Event::EffectStart {
+                                        owner,
+                                        connector: domain.config.forge_connector,
+                                        origin: jig_domain_core::EffectOrigin::Procedure {
+                                            task,
+                                            step,
+                                            entry: Some(entry),
+                                        },
+                                    }));
+                                }
+                                None => {
                                     domain.work.push(Work::Forge(forge::Event::VetoChange {
                                         task,
                                         entry,
                                         prior: evidence.prior,
-                                        leaves_queue: task_leaves_queue(domain, env, task),
+                                        leaves_queue: true,
                                     }));
-                                    change_decision(domain, env, task, forge_change::Decision::Wait { until: None });
-                                    continue;
-                                }
-                                let owner = effect_owner(domain);
-                                if let Some(resource) = &writer {
-                                    // Reserve before yielding to authority; another admission must see this slot.
-                                    let routed = crate::engine::step(
-                                        &mut domain.engine,
+                                    change_decision(
+                                        domain,
                                         env,
-                                        jig_domain_core::engine::In::Core(jig_domain_core::Event::Tasks(
-                                            tasks::Event::EffectInFlight {
-                                                reply_to: ReplyTo::new(owner),
-                                                task,
-                                                resource: resource.clone(),
-                                                entry,
-                                            },
-                                        )),
+                                        task,
+                                        forge_change::Decision::Hold(forge_change::Cause::Failed),
                                     );
-                                    super::route_engine_requests(domain, env, decision, routed);
                                 }
-                                assert!(
-                                    domain
-                                        .forge_effects
-                                        .insert(
-                                            owner,
-                                            EffectFlight::Procedure {
-                                                description: Box::new(description),
-                                                entry,
-                                                task,
-                                                evidence: Box::new(evidence),
-                                                writer,
-                                            }
-                                        )
-                                        .is_ok(),
-                                    "admitted procedure effect handoff"
-                                );
-                                domain.work.push(Work::Core(jig_domain_core::Event::EffectStart {
-                                    owner,
-                                    connector: domain.config.forge_connector,
-                                    origin: jig_domain_core::EffectOrigin::Procedure { task, step, entry: Some(entry) },
-                                }));
-                            }
-                            None => {
-                                domain.work.push(Work::Forge(forge::Event::VetoChange {
-                                    task,
-                                    entry,
-                                    prior: evidence.prior,
-                                    leaves_queue: true,
-                                }));
-                                change_decision(
-                                    domain,
-                                    env,
-                                    task,
-                                    forge_change::Decision::Hold(forge_change::Cause::Failed),
-                                );
                             }
                         }
                     }
-                }
-                forge_change::Decision::Failed
-                | forge_change::Decision::None
-                | forge_change::Decision::CancelProducer
-                | forge_change::Decision::Wait { .. }
-                | forge_change::Decision::Delegate(_)
-                | forge_change::Decision::CancelGates { .. }
-                | forge_change::Decision::CancelRepair { .. }
-                | forge_change::Decision::CancelMovedDelegate { .. }
-                | forge_change::Decision::RepairEnded { .. }
-                | forge_change::Decision::Ready
-                | forge_change::Decision::QueueRepair
-                | forge_change::Decision::NoChange
-                | forge_change::Decision::Finish { .. }
-                | forge_change::Decision::Hold(_) => {
-                    if choice == forge_change::Decision::None {
-                        save_restored_hold(domain, env, task, out);
+                    forge_change::Decision::Failed
+                    | forge_change::Decision::None
+                    | forge_change::Decision::CancelProducer
+                    | forge_change::Decision::Wait { .. }
+                    | forge_change::Decision::Delegate(_)
+                    | forge_change::Decision::CancelGates { .. }
+                    | forge_change::Decision::CancelRepair { .. }
+                    | forge_change::Decision::CancelMovedDelegate { .. }
+                    | forge_change::Decision::RepairEnded { .. }
+                    | forge_change::Decision::Ready
+                    | forge_change::Decision::QueueRepair
+                    | forge_change::Decision::NoChange
+                    | forge_change::Decision::Finish { .. }
+                    | forge_change::Decision::Hold(_) => {
+                        if choice == forge_change::Decision::None {
+                            save_restored_hold(domain, env, task, out);
+                        }
+                        change_decision_from_read(
+                            domain,
+                            env,
+                            task,
+                            choice,
+                            evidence.as_ref(),
+                            close_at,
+                            close_refusal.as_deref(),
+                        );
                     }
-                    change_decision_from_read(domain, env, task, choice, evidence.as_ref(), close_at);
+                    forge_change::Decision::ReplayJudgement(_) => {
+                        unreachable!("the forge carries the account evidence separately")
+                    }
+                    forge_change::Decision::Cancel => cancel_change(domain, task),
+                    forge_change::Decision::EndHold => end_change_hold(domain, task),
                 }
-                forge_change::Decision::ReplayJudgement(_) => {
-                    unreachable!("the forge carries the account evidence separately")
-                }
-                forge_change::Decision::Cancel => cancel_change(domain, task),
-                forge_change::Decision::EndHold => end_change_hold(domain, task),
-            },
+            }
             forge::Request::ProjectionSettled { goal } => {
                 domain.forge.projection_settled(goal);
                 domain.work.push(Work::Core(jig_domain_core::Event::ProjectionSettled {

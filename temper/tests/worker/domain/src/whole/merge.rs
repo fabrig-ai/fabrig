@@ -157,6 +157,7 @@ fn assign(world: &mut World, head: u64, base: u64, program: &[u8], find: bool) -
             command: program.into(),
             request: b"request".as_slice().into(),
             refusal: false,
+            result: 512,
             outdated: false,
             fallback: if find { Some(Box::new([])) } else { None },
         }),

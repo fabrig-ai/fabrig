@@ -300,6 +300,16 @@ change's due step.
 - **Reservations count as entries,** so that a waiter refused while the
   line's room is reserved for another is no finding (skein's
   `testing/inspection.md`, 4.2).
+- **The room's census** (`../draft/misbehaving-agents.md`, 3.2 and 7):
+  the forge room's taken (`../domain/forge/room.md`, 2) is the count of
+  `forge write entries`' entries, its outbox entries and its holders'
+  reservations, each reservation by its holder: an asked waiter, an agent
+  call or a goal projection. A reservation is pending while its owner
+  lives: the asked waiter's task waiting for room, the agent call's run
+  live, the projection's goal live; and due once its owner has ended.
+  Where the taken and the census differ, the adapter's own check finds
+  it, naming the room, both counts and the holders by kind, beside the
+  shared ones, wherever `forge` or `inspect` is called.
 - **Build places** are the worker's, not the engine's
   (`../domain/worker/README.md`; `checks.md`, 6.1, the worker's adapter):
   the engine keeps none.

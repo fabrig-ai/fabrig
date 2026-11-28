@@ -65,4 +65,8 @@ pub use boundary::{
 pub use domain::{Domain, fire, resume, step};
 pub use facts::{Choice, Compacted, Fact, FactKind, ResponseInfo, ToolCall, ToolSource};
 pub use limits::{Derivation, ENCODED_BYTES, Field, Limits, MAX_PARALLEL, completion_reserve, derive, valid};
+pub use session::{
+    InspectionBatch, InspectionClaim, InspectionShare, InspectionState, RoomHeld, Run as InspectionCall,
+    Session as InspectionSession,
+};
 pub use session::{append_messages, preview_completion, preview_reservation, reserve_completion};

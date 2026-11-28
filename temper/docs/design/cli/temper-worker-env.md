@@ -20,6 +20,14 @@ Generated from temper-worker's table (`skein/docs/design/runtime/shell-table.md`
 - **Absent:** The close command uses its exit statuses from before typed refusals.
 - Asks the close command to report a typed refusal with exit status 3.
 
+### `TEMPER_CLOSE_RESULT_BYTES`
+
+- **Set:** public
+- **Sets**
+- **Form:** BYTES
+- **Absent:** The close checker uses 512 bytes, also used for values that are not whole decimals of at least 512.
+- Maximum bytes in the close command's typed refusal, including its newline.
+
 ### `TEMPER_CLOSE_OUTDATED`
 
 - **Set:** public

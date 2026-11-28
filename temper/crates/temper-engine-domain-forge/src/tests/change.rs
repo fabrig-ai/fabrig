@@ -517,6 +517,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
                         entry: None,
                         evidence: None,
                         close_at: None,
+                        close_refusal: None,
                     };
             }
             assert!(decided, "{out:?}");
@@ -976,6 +977,7 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }),
         "the newest wake unkeeps the change: {finished:?}"
     );
@@ -993,6 +995,7 @@ fn a_lower_chain_waiting_without_an_entry_releases_the_later_entry() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }),
         "lower wait: {waited:?}"
     );
@@ -1090,6 +1093,7 @@ fn an_unwoken_chain_finishes_with_its_single_decision() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }
     );
     assert_eq!(ready(&mut d).as_ref(), &[]);
@@ -1420,6 +1424,7 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }),
             "watch {watch:?}, compared {compared}: the pull wake replaces complete gathers, with a deadline: {finished:?}"
         );
@@ -1657,6 +1662,7 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }),
             "title wait: {finished:?}"
         );
@@ -1872,6 +1878,7 @@ fn a_producer_title_wait_past_the_stall_waits_for_dependencies() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }),
         "{finished:?}"
     );
@@ -1904,6 +1911,7 @@ fn unknown_catch_up_retries_at_backoff_even_with_pending_dependencies() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }),
         "{finished:?}"
     );
@@ -1955,6 +1963,7 @@ fn a_catch_up_without_a_merge_job_holds_on_the_reason() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }),
             "{finished:?}"
         );
@@ -2021,6 +2030,7 @@ fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }),
             end
         );
@@ -2062,6 +2072,7 @@ fn a_live_producer_title_wait_rearms_the_stall() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }),
         "{finished:?}"
     );
@@ -2095,6 +2106,7 @@ fn a_delegate_result_starts_the_stall_at_its_end_but_a_gate_does_not() {
         entry: None,
         evidence: None,
         close_at: None,
+        close_refusal: None,
     }));
     fixtures::missing_pull(&mut d);
     fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
@@ -2168,6 +2180,7 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }),
             ends
         );
@@ -2231,6 +2244,7 @@ fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
         entry: None,
         evidence: None,
         close_at: None,
+        close_refusal: None,
     }));
     assert_eq!(
         d.change(fixtures::CHANGE).expect("change").change.state,
@@ -2243,6 +2257,7 @@ fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
         entry: None,
         evidence: None,
         close_at: None,
+        close_refusal: None,
     }));
 }
 
@@ -2271,6 +2286,7 @@ fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }));
         let row = d.change(fixtures::CHANGE).expect("change");
         assert_eq!(row.change.state, held);
@@ -2528,6 +2544,7 @@ fn a_let_go_update_is_decided_again() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }));
             decide_update_again(&mut d, preparing, 2);
         }
@@ -2720,6 +2737,7 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }),
         "{made:?}"
     );
@@ -3470,6 +3488,7 @@ fn only_a_live_askers_question_exempts_a_title_wait() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             }),
             "live={live}: {finished:?}"
         );

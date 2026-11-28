@@ -1783,8 +1783,12 @@ mod merge_tests {
         let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else {
             panic!("ready declares capabilities");
         };
-        let close =
-            JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(86_400) };
+        let close = JobBound {
+            kind: JobKind(4),
+            spec: 16_384,
+            result: 8_192,
+            deadline: skein_lib::Duration::from_secs(86_400),
+        };
         assert!(hello.jobs.contains(&close));
         assert_eq!(hello.jobs.len(), 3, "the refusal ask is not a new kind");
         let kinds = crate::worker_settings::job_kinds();

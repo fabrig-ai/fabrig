@@ -477,6 +477,7 @@ fn the_outbox_line_waits_for_a_branch_record_then_asks_its_write_again() {
         entry: None,
         evidence: None,
         close_at: None,
+        close_refusal: None,
     }));
     assert!(d.entries.is_empty());
     let report = crate::room::waited(&d, &env().limits, TASK, 1).expect("a branch's room is reported");

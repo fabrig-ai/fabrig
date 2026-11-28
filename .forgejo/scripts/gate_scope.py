@@ -8,8 +8,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 HOOKS = {'.temper/hooks/deliver', '.temper/hooks/finish', '.temper/hooks/close',
-         '.temper/pre-pr', '.temper/close', '.temper/checked-close',
-         '.temper/goal-child-pre-pr', '.temper/goal-pre-pr'}
+         '.temper/pre-pr', '.temper/close', '.temper/checked-close'}
 HOOK_INPUTS = HOOKS | {'.temper/hooks/config.toml'}
 PYTHON = ['python3', '-I', '-B']
 SCRIPTS = Path(__file__).resolve().parent

@@ -278,6 +278,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
         command: b"app/.temper/hooks/close".as_slice().into(),
         request: b"{}".as_slice().into(),
         refusal: true,
+        result: 512,
         outdated: true,
         find: true,
         fallback: b"app/tools/close".as_slice().into(),
@@ -322,6 +323,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
                     command: b"app/.temper/hooks/close".as_slice().into(),
                     request: b"{}".as_slice().into(),
                     refusal: true,
+                    result: 512,
                     outdated: true,
                     fallback: Some(b"app/tools/close".as_slice().into()),
                 })

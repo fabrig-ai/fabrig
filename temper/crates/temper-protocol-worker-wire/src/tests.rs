@@ -102,6 +102,7 @@ fn a_job_specs_fields_stop_at_their_bounds_when_encoded_and_decoded() {
                 command: b"tool".as_slice().into(),
                 request: b"{}".as_slice().into(),
                 refusal: false,
+                result: 512,
                 outdated: false,
                 find: true,
                 fallback: b"other".as_slice().into(),

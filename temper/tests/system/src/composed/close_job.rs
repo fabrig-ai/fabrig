@@ -58,7 +58,8 @@ pub(super) fn worker_kinds(declared: &[JobBound], limits: &mut worker::Limits) -
     let kinds: Box<[_]> = temper_worker_service::worker_settings::job_kinds()
         .into_vec()
         .into_iter()
-        .filter(|kind| declared.contains(&kind.bound))
+        // The worker advertises its own limits for the kinds in this world, not the engine's placement minima.
+        .filter(|kind| declared.iter().any(|bound| bound.kind == kind.bound.kind))
         .collect();
     for kind in &kinds {
         limits.tooling.file_bytes = limits.tooling.file_bytes.max(kind.bound.spec).max(kind.bound.result);

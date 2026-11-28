@@ -157,6 +157,25 @@ impl<T> Slab<T> {
         self.retired.push(id.slot());
     }
 
+    /// Borrow the first non-retired entry at or after `slot`, by slot number.
+    /// Returns the next slot to read, the entry's handle, and the entry.
+    #[must_use]
+    pub fn live_from(&self, slot: u32) -> Option<(u32, Id<T>, &T)> {
+        if self.is_empty() {
+            return None;
+        }
+        for (slot, entry) in self.slots.iter().enumerate().skip(usize_of(slot)) {
+            match entry {
+                Slot::Occupied { generation, retired: false, value } => {
+                    let slot = u32::try_from(slot).ok()?;
+                    return Some((slot.checked_add(1)?, Id::new(slot, *generation), value));
+                }
+                Slot::Occupied { retired: true, .. } | Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
+    }
+
     /// Its entities with their handles, in slot order, those retired since
     /// the last `reclaim` included: their handles still reach them.
     pub fn iter(&self) -> Iter<'_, T> {

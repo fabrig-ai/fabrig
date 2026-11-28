@@ -355,6 +355,7 @@ fn entering_checking_arms_the_first_execution_reading() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             };
     }
     assert!(scheduled, "first reading within poll_max: {out:?}");
@@ -541,6 +542,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 };
         }
         assert!(requested, "the conflict requests a merge job in the same step: {out:?}");
