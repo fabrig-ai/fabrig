@@ -83,7 +83,7 @@ pub enum HoldingsRefusal {
 }
 
 /// One member's concrete identity passed to a connector for its own holdings.
-#[derive(Clone, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct HoldingsNeed {
     pub project: u32,
     pub root: u64,
@@ -113,7 +113,7 @@ pub enum Writer {
 }
 
 /// What the engine asks of a resource connector.
-#[derive(Clone, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     /// Notification: a task was erased and its names need not be kept; no answer.
     Unname { task: u64 },

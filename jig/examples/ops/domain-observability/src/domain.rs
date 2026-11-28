@@ -16,6 +16,7 @@ struct Question {
 /// Observability's bounded working set.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) port: crate::port::State,
     pub(crate) client_subjects: Map<Token, crate::ClientSubject>,
     restart: Option<crate::RestartStage>,
     /// Restores are passive until the scripted read-afresh step (domain/engine/restart.md).
@@ -42,6 +43,7 @@ impl Domain {
     pub fn new(limits: &Limits) -> Self {
         assert!(crate::valid(limits), "connector limits fit");
         Self {
+            port: crate::port::State::new(),
             lead_templates: Map::with_capacity(limits.watches),
             delegations: Map::with_capacity(crate::watch_steps::capacity(limits).expect("step association bound")),
             alerts: Map::with_capacity(crate::incidents::capacity(limits).expect("alert bound")),
@@ -169,6 +171,46 @@ fn verdict(fact: Option<&Fact>, question: &Question, now: u64) -> Verdict {
             }
         }
     }
+}
+
+pub(crate) fn end_topic(domain: &mut Domain, task: u64, subscription: u64, out: &mut Queue<Request>) {
+    let mut ended = List::uncapped();
+    for ((topic, owner), (number, _, _)) in &domain.subscriptions {
+        if *owner == task && *number == subscription {
+            ended.push(topic.clone()).expect("live subscription fits");
+        }
+    }
+    for topic in ended.into_boxed() {
+        domain.subscriptions.remove(&(topic.clone(), task));
+        out.push(Request::Erase { key: RecordKey::Subscription(topic, task) });
+    }
+}
+
+pub(crate) fn resolve(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    again: bool,
+    out: &mut Queue<Request>,
+) -> Option<Key> {
+    let mut found = None;
+    for (_, entry) in &domain.effects {
+        if entry.number == number && entry.phase == Phase::Held {
+            found = Some(entry.key);
+            break;
+        }
+    }
+    if let Some(key) = found {
+        if again {
+            domain.effects.get_mut(&key).expect("held entry").phase = Phase::Kept;
+            make(domain, env, key, out);
+        } else {
+            domain.effects.remove(&key);
+            out.push(Request::Erase { key: RecordKey::Outbox(key) });
+            return Some(key);
+        }
+    }
+    None
 }
 
 fn question(
@@ -543,8 +585,11 @@ fn make(domain: &mut Domain, env: &Env<Limits>, key: Key, out: &mut Queue<Reques
 
 /// Handles one routed event.
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
-pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub fn step_system(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Ask(_) | Event::Released(_) | Event::StageEffect { .. } | Event::WakeReleased { .. } => {
+            unreachable!("the connector port handles engine inputs")
+        }
         Event::DocumentPrepare { token, subject } => {
             crate::client_documents::prepare(domain, &env.limits, token, subject);
         }
@@ -681,9 +726,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             whole @ SystemEvent::Fact { .. } => {
                 let (settle, rest) = split(domain, env, whole).expect("a whole fact splits");
                 let mut parts = Queue::uncapped();
-                step(domain, env, Event::System(settle), &mut parts);
+                step_system(domain, env, Event::System(settle), &mut parts);
                 if let Some(rest) = rest {
-                    step(domain, env, Event::System(rest), &mut parts);
+                    step_system(domain, env, Event::System(rest), &mut parts);
                 }
                 while let Some(request) = parts.pop() {
                     out.push(request);
@@ -717,7 +762,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 }
 
 /// Rechecks uncertain keyed effects when their absolute retry deadline passes.
-pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn fire_system(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.restoring {
         return;
     }

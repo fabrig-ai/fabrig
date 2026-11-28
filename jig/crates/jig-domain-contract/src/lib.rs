@@ -51,7 +51,7 @@ impl Declaration {
 }
 
 /// What the engine asks a connector (jig/docs/design/domain/engine/vocabulary.md, 2.5).
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     Lifecycle(lifecycle::Ask),
     Resources(resources::Ask),

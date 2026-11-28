@@ -3,12 +3,13 @@
 //! (domain/root.md, 3–4; skein's `programming-model.md`, 7.2).
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
-use jig_domain_contract::StartProblem;
+use jig_domain_contract::{self as jig, StartProblem};
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, Hello};
+use jig_ops_domain_connectors::{Connector, number};
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::{Decision, Env, Journal, Queue, Token, length::len_u64};
@@ -62,8 +63,6 @@ pub(crate) struct Start {
     reason = "rehearsal selection and completion are independent of journal writes and stop reporting"
 )]
 pub struct Domain {
-    pub(crate) environment_closed_reason: Box<[u8]>,
-    pub(crate) environment_close_grace: skein_lib::Duration,
     pub(crate) deployment: [u8; 16],
     pub(crate) engine: Engine,
     pub(crate) observability: observability::Domain,
@@ -138,14 +137,18 @@ impl Domain {
             turn_rng,
         );
         hub_link.connect(Token::new(0));
+        let observability = crate::translate::observability(config.triage_templates, config.lead_templates, limits);
+        let infrastructure = infrastructure::Domain::new(config.backend, &limits.infrastructure).with_contract(
+            jig::Connector(number(Connector::Infrastructure)),
+            deployment,
+            config.environment_closed_reason,
+            config.environment_close_grace,
+        );
         Ok(Self {
-            environment_closed_reason: config.environment_closed_reason,
-            environment_close_grace: config.environment_close_grace,
             deployment,
             engine,
-            observability: observability::Domain::with_templates(&limits.observability, config.triage_templates)
-                .with_leads(&limits.observability, config.lead_templates),
-            infrastructure: infrastructure::Domain::new(config.backend, &limits.infrastructure),
+            observability,
+            infrastructure,
             host: host::Hub::new(&limits.host),
             journal: Journal::uncapped(limits.release, 0),
             charter_endpoints: config.charter_endpoints,
@@ -234,7 +237,7 @@ pub(crate) enum Work {
     Event(Event),
     Core(core::Event),
     Store(engine_store::In),
-    Effect { owner: Token, origin: core::EffectOrigin, effect: infrastructure::Effect },
+    Connector(jig::Connector, jig::Up),
     ResumeFleet,
     Finish,
     Infrastructure(infrastructure::Event),
@@ -303,7 +306,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         Work::Event(_)
         | Work::Core(_)
         | Work::Store(_)
-        | Work::Effect { .. }
+        | Work::Connector(..)
         | Work::ResumeFleet
         | Work::Infrastructure(_)
         | Work::Observability(_)

@@ -2,7 +2,7 @@ use jig_ops_domain_observability as obs;
 use skein_lib::{Env, Queue, Time, Wall};
 
 fn step(domain: &mut obs::Domain, env: &Env<obs::Limits>, input: obs::Event, out: &mut Queue<obs::Request>) {
-    obs::step(domain, env, input, out);
+    obs::step_system(domain, env, input, out);
     while out.pop().is_some() {}
 }
 
@@ -72,7 +72,7 @@ fn full_retained_leads_alert_accounts_and_maximum_templates_keep_their_associati
         obs::Event::DocumentPrepare { token: read, subject: obs::ClientSubject::Project { project: 1 } },
         &mut out,
     );
-    obs::step(
+    obs::step_system(
         &mut domain,
         &env,
         obs::Event::ReadDocument { scope: obs::ClientScope::Project(1), read, party: 1 },
