@@ -47,9 +47,8 @@ fn configured(hooks: bool) -> fixtures::ConfiguredEngine {
 }
 fn record_answers(service: &mut crate::Service) {
     let engine = service.engine.as_mut().unwrap();
-    while let Some(event) = engine.store.host.above.pop() {
-        answer(engine, event);
-    }
+    // Startup's repository observations share the store queue with setup writes.
+    crate::engine::answer(engine);
     while engine.setup.answers.pop().is_some() {}
     advance(engine);
 }
@@ -97,6 +96,8 @@ fn records_reconciled(hooks: bool, handover: bool) -> (crate::Service, Face, Box
     restore_local(&mut service);
     let mut face = Face::new();
     if handover {
+        // Route the startup store replies before holding the AdminToken acknowledgement.
+        crate::engine::answer(service.engine.as_mut().unwrap());
         assert_eq!(service.engine.as_ref().unwrap().setup.runs.first().unwrap().1.kind, Kind::LocalTakeOver);
         let remove = takeover_done(&mut service, &mut face);
         face.hold_done = false;

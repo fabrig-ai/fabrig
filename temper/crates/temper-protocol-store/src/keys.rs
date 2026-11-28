@@ -56,7 +56,7 @@ pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspac
         (MILESTONE, "temper.milestones"),
         (LIMIT_HOLD, "temper.limit-holds"),
         (WRITES, "temper.writes"),
-        (TEMPER_REVISION, "temper.temper_revision"),
+        (TEMPER_REVISION, "temper.temper-revision"),
         (127, "temper.history-project"),
         (128, "temper.landing-history"),
         (129, "temper.history-change"),
