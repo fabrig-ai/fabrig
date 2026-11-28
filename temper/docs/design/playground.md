@@ -100,7 +100,7 @@ desktop browsers are well supported (the user, 10-26).
   fake machine's disk, handed the schemas of `OWNER_SETS`' texts, prepared
   once in the process and kept across its services' starts, as are the
   stores the one-process world rehearses over its disks (jig's
-  `protocol/store/opening.md`, 3); smith's agents hosted (smith's `shell/README.md`, 2.5);
+  `protocol/store/opening-owners.md`, 1); smith's agents hosted (smith's `shell/README.md`, 2.5);
   the fake LLM and fake forge peers on simulated sockets; the fake git
   program; skein's visitor (skein's `playground.md`, 4). Its process
   type and its program registry are the composition's; the harness's

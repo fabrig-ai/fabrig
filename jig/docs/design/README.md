@@ -207,10 +207,6 @@ application root    routing between its children, translation; its store, channe
   charters. The batch check then refuses tasks with agent executors, and
   the fleet and accounts stay idle.
 
-## 6. The rails
-
-Moved to [`rails.md`](rails.md), section 1.
-
 ## 7. Connectors
 
 - **The vocabulary between the root and a connector is jig's API**
@@ -326,10 +322,6 @@ Moved to [`rails.md`](rails.md), section 1.
   engine has no workspace, by policy.
 - **Host tools:** the engine's tools are jig's, and each connector's
   reads are declared by the application.
-
-## 10. The client
-
-Moved to [`client-stack.md`](client-stack.md), section 1.
 
 ## 11. Building an application on jig
 
@@ -457,7 +449,3 @@ open (`domain/README.md`, section 5), and the client's on its own
   the engine's parts from one pin of jig, and each owner's client
   records are versioned apart, with a typed refusal
   (`client/domain/contract/README.md`, section 6).
-
-## 15. Crates' names
-
-Moved to [`crate-names.md`](crate-names.md), section 1.

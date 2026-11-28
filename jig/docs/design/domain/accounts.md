@@ -175,14 +175,6 @@ in a record of its own (`accounts-lists.md`, 1).
   own, with its own email, so one host may carry several Claude Code
   logins of one person.
 
-### 3.4 Sources
-
-Moved to [`accounts-sources.md`](accounts-sources.md), section 1.
-
-### 3.5 States
-
-Moved to [`accounts-sources.md`](accounts-sources.md), section 2.
-
 ### 3.6 Bounds
 
 Accounts in the deployment, accounts per holder, sources per account,
@@ -212,14 +204,6 @@ source's key and what it links to (`engine/restart.md`).
 alongside the individual bounds. This sizes the retained source table;
 it does not reserve an output queue's room. Internal outputs are
 uncapped and grow with the admitted work.
-
-### 3.7 An account's list and what a provider says
-
-Moved to [`accounts-lists.md`](accounts-lists.md), section 1.
-
-## 4. Uses: whose work an account pays for
-
-Moved to [`accounts-uses.md`](accounts-uses.md), section 1.
 
 ## 5. What people do
 

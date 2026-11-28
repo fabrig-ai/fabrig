@@ -138,18 +138,6 @@ The contract's documents include:
 - **`me`** (`documents.md`, 1) says who the party is, so a client never decides it
   from what it kept.
 
-## 3. Answers
-
-Moved to [`answers.md`](answers.md), section 1.
-
-## 4. Reads
-
-Moved to [`reads.md`](reads.md), section 1.
-
-## 5. Watches
-
-Moved to [`watches.md`](watches.md), section 1.
-
 ## 6. Versions
 
 - **Each owner's documents and requests are versioned,** jig's by jig and

@@ -133,14 +133,6 @@ only where its login is usable; the engine never takes one. A program source's
 run is granted its source's name and runs on smith's program backend, for the
 program its endpoint names (`../../protocol/configuration-engine.md`, section 1).
 
-## 2. Transcripts
-
-Moved to [`executors-transcripts.md`](executors-transcripts.md), section 1.
-
-## 3. The engine's tools
-
-Moved to [`executors-tools.md`](executors-tools.md), section 1.
-
 ## 4. Answers, waiting and parking
 
 - **A run answers once:** finished, with its result; parked; or failed,

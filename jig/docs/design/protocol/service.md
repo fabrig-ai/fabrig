@@ -403,10 +403,6 @@ down:  released and door outputs → components → io submissions
   jig's channel world runs too (`channel/testing.md`, section 1), since `ops`
   has none.
 
-## 8. Testing
-
-Moved to [`service-testing.md`](service-testing.md), section 1.
-
 ## 9. Open questions
 
 - **Approval on a listener beyond loopback** (3): the public-name flow
@@ -520,7 +516,3 @@ between hosts.
   Joined sockets are io's own and never reach skein's simulator (skein's
   `runtime/io/sockets.md`, 5), so the link's cuts and stalls are the channel's protocol
   world's, over streams cut at random (`channel/testing.md`, section 1).
-
-## 11. The service parts
-
-Moved to [`service-parts.md`](service-parts.md), section 1.

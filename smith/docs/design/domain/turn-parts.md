@@ -310,7 +310,7 @@ before it asks any completion:
 
 - **What a resumed turn's host calls made:** a host keys what a turn's
   calls made by their names in the turn's activation (jig's
-  `domain/engine/executors.md`, 2); a call answered from an earlier
+  `domain/engine/executors-transcripts.md`, 1); a call answered from an earlier
   activation's record names nothing there. Default: so, as a call told
   in a waking prompt names nothing today.
 - **Parts for a local host,** which resumes its chats in one process:

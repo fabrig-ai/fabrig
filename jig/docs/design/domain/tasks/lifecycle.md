@@ -236,10 +236,6 @@ which may amend, cancel or re-address it. Kept, it stays in the inbox,
 shown waiting on its dependencies, and an answer is refused, naming
 them (8).
 
-## 6. Failures and holds
-
-Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 1.
-
 ## 7. Results
 
 - **Checked twice.** An agent's run checks its result against the
@@ -301,22 +297,6 @@ Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 1.
   past it would be: a deployment whose bound is 0 keeps no reason at
   all, its own choice, and one whose bound is smaller than the words
   keeps their beginning (the standard's holds them whole).
-
-## 8. Kept by a dependency
-
-Moved to [`lifecycle-endings.md`](lifecycle-endings.md), section 1.
-
-## 9. Ended by its requester
-
-Moved to [`lifecycle-endings.md`](lifecycle-endings.md), section 2.
-
-## 10. Placed holds: owners, modes and scopes
-
-Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 2.
-
-## 11. Ended by its closer
-
-Moved to [`lifecycle-endings.md`](lifecycle-endings.md), section 3.
 
 ## 12. What is kept of it
 

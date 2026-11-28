@@ -341,18 +341,6 @@ charter, template, policy or model numbered
   its project's policy's and its chain's as they stand (../authority.md,
   section 6); only what its runs are given is its charter version's.
 
-## 5. An application's settings
-
-Moved to [`settings-application.md`](settings-application.md), section 1.
-
-## 6. A proposal of settings
-
-Moved to [`settings-proposals.md`](settings-proposals.md), section 1.
-
-## 7. In the store, and at a start
-
-Moved to [`settings-store.md`](settings-store.md), section 1.
-
 ## 8. Bounds
 
 - **Two limits of the core's, sized at the start**
@@ -539,11 +527,3 @@ forgotten and names the oldest kept (2026-11-04).
 The proposal's reason is `restores revision R: ` followed by the party's
 reason. The combined text is cut to the reason's byte bound at a character
 boundary (2026-11-04).
-
-## 11. The catalogue
-
-Moved to [`settings-catalogue.md`](settings-catalogue.md), section 1.
-
-## 12. A provider's list
-
-Moved to [`settings-catalogue.md`](settings-catalogue.md), section 2.

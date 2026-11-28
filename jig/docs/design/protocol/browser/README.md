@@ -114,10 +114,6 @@ jig-protocol-engine-clients       the clients' component (client.md)
   clients' component, `jig-protocol-engine-clients`, which knows no HTTP
   (`../client/README.md`, section 2; `../service.md`, section 2).
 
-## 3. What an application writes
-
-Moved to [`application.md`](application.md), section 1.
-
 ## 4. The toolchain and the bundle
 
 skein's (skein's `ui/web/bundle.md`): the toolchain, skein's
@@ -173,22 +169,6 @@ skein's bundler's, which names the digest directory by absolute path,
 not reserve, and at the printed link's route (`serving.md`, section 1); it loads
 `skein-ui.css`, `jig.css` and then its own stylesheet, and its title is
 the application's name.
-
-## 5. The loop, the application's
-
-Moved to [`loop.md`](loop.md), section 1.
-
-## 6. The tree as elements
-
-Moved to [`loop.md`](loop.md), section 2.
-
-## 7. Patches and acts
-
-Moved to [`loop.md`](loop.md), section 3.
-
-## 8. Scenes as SVG
-
-Moved to [`loop.md`](loop.md), section 4.
 
 ## 9. Addresses and history
 
@@ -299,14 +279,6 @@ data (skein's `ui/web/effects.md`, section 1; `loop.md`, 1.1).
   does not warn; ordinary or mixed kept acts still do. Closing, reload
   or crash silently loses an unanswered `Seen`; the next opening checks
   and sends the forward-only watermark again (`../client/small-store.md`, section 1).
-
-## 11. Signing in and out
-
-Moved to [`sign-in.md`](sign-in.md), section 1.
-
-## 12. Served by the application's server
-
-Moved to [`serving.md`](serving.md), section 1.
 
 ## 13. Stylesheets
 

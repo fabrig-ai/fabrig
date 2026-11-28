@@ -320,18 +320,6 @@ the application's part with the application's codecs.
   page in the same load. Each answer goes back as the engine's, tagged
   with the load's token.
 
-## 4. Keys
-
-Moved to [`keys.md`](keys.md), section 1.
-
-## 5. Commits
-
-Moved to [`commits.md`](commits.md), section 1.
-
-## 6. Growth
-
-Moved to [`growth.md`](growth.md), section 1.
-
 ## 7. The application's part
 
 - **Its families,** under its tag (`keys.md`, 1.2), keyed by its own encoder by the
@@ -394,10 +382,6 @@ Moved to [`growth.md`](growth.md), section 1.
   force.
 
 `jig_protocol_store::host` hosts the three file drivers around the store for any engine: the drivers, their kernel hand-offs and their adoption and close. An application's service routes its own keys and records to it and writes no driver of its own.
-
-## 9. Testing
-
-Moved to [`testing.md`](testing.md), section 1.
 
 ## 10. What it owes and is owed
 

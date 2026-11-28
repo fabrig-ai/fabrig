@@ -198,10 +198,6 @@ An application that mixes the last two has both.
   reaches the engine through the application's server, over TCP on
   loopback.
 
-## 5. Components
-
-Moved to [`components.md`](components.md), section 1.
-
 ## 6. What an application writes
 
 | Part | In | Written |
@@ -351,14 +347,6 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
   - **opening** before the root starts, refusing a store of another
     format, or one whose records disagree with its own header.
 
-## 10. What jig needs from skein
-
-Moved to [`needs.md`](needs.md), section 1.
-
-## 11. What jig needs from smith
-
-Moved to [`needs.md`](needs.md), section 2.
-
 ## 12. What the domain owes
 
 What the protocol layer relies on from jig's domain is designed there:
@@ -384,10 +372,6 @@ What the protocol layer relies on from jig's domain is designed there:
   `../client/domain/contract/README.md`, section 7.
 
 What the store asks of the domain is `store/README.md`, section 10.
-
-## 13. Decisions this design takes
-
-Moved to [`decisions.md`](decisions.md), section 1.
 
 ## 14. Open questions
 

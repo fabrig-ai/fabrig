@@ -259,7 +259,7 @@ follow from the limits that bound each kind (4).
   by the call's key, and puts it in the assignment as it makes it
   (`../channel/owners.md`, 1.2), so jig keeps none of another owner's bytes.
 
-A kept part of a turn in flight (`../../domain/engine/executors.md`, 2;
+A kept part of a turn in flight (`../../domain/engine/executors-transcripts.md`, 1;
 `../channel/records.md`, 5) is the core family's value type `part`, the
 family's next number and key range, an added part with its version
 unmoved (`layouts.md`, 2), until a committed turn or the task's end

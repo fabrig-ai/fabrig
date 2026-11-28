@@ -342,14 +342,6 @@ recipient.
   without a commit, marked provisional. Reasoning has no client surface.
   Only conversations are asked for text and input (`../channel/owners.md`, 1.4).
 
-## 6. Versions
-
-Moved to [`versions.md`](versions.md), section 1.
-
-## 7. The small store
-
-Moved to [`small-store.md`](small-store.md), section 1.
-
 ## 8. An application's documents and requests
 
 - **On the same messages and stream:** a keyed request names its owner,
@@ -369,10 +361,6 @@ Moved to [`small-store.md`](small-store.md), section 1.
   15), and the application decodes them with its wire.
 - **An application's wire,** `ops`'s for one: `../../examples.md`,
   section 8.
-
-## 9. Shells
-
-Moved to [`shells.md`](shells.md), section 1.
 
 ## 10. Limits and the worst case
 
@@ -454,10 +442,6 @@ Moved to [`shells.md`](shells.md), section 1.
   queues and transport edges keep their limits; fixed scenarios check
   their measured heap peaks against ceilings
   (`../../client/domain/testing.md`, section 6).
-
-## 11. Testing
-
-Moved to [`testing.md`](testing.md), section 1.
 
 ## 12. Open questions
 
