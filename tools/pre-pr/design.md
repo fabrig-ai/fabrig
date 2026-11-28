@@ -220,10 +220,14 @@ receipts, this section takes precedence.
   each failing check and test with its log's tail, then the flakes and
   the inherited ones (section 6).
 - **Every failure's key kept.** Before the summary prints, it writes every
-  failure it found, new, flake and inherited alike, with its key, to
-  `target/temper/pre-pr-failures.json` under the checkout's root, ignored
-  by git and outside the git directory, so that an agent's `read` reaches
-  it; the file stays until the next completed check replaces it (section 6).
+  failure it found, new, flake and inherited alike, with its key, to its
+  mode's file under the checkout's root, a delivery's
+  `target/temper/pre-pr-light-failures.json` and a close's
+  `target/temper/goal-close-pre-pr.json`, ignored by git and outside the
+  git directory, so that an agent's `read` reaches it; the file stays
+  until the next completed check replaces it. Section 6 gives their
+  shape under the name `target/temper/pre-pr-failures.json`, which no
+  mode writes now.
 - **Its results for temper.** Under temper's marker it writes
   `temper/check-results` at its end, passed or refused: its tree, base
   and verdict, the goal's reds it passed or failed, and its flakes with
