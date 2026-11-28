@@ -54,10 +54,10 @@ pub fn bridge_ask(Connector(connector): Connector, ask: contract::Ask) -> Reques
             effects::Ask::Release { task, root, ending, entry } => Ask::Release { task, root, ending, entry },
         },
         contract::Ask::Topics(ask) => match ask {
-            topics::Ask::Subscribed { request, key, subscription } => {
+            topics::Ask::Subscribed { request, key, subscription, .. } => {
                 Ask::SubscriptionDone { request, key, subscription }
             }
-            topics::Ask::Unsubscribed { request, key } => Ask::UnsubscriptionDone { request, key },
+            topics::Ask::Unsubscribed { request, key, .. } => Ask::UnsubscriptionDone { request, key },
             topics::Ask::Refused { request } => Ask::DropSubscription { request },
             topics::Ask::Ended { task, subscription } => Ask::EndTopic { task, subscription },
         },

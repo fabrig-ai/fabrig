@@ -221,9 +221,9 @@ fn call_refused(
         | RoutedCall::Decide { key, .. }
         | RoutedCall::Withdraw { key, .. }
         | RoutedCall::Accepting { key, .. } => (key, CallPart::ProposalRefused(problem)),
-        RoutedCall::Subscribe { key, connector, .. } | RoutedCall::Unsubscribe { key, connector } => {
+        RoutedCall::Subscribe { key, topic, .. } | RoutedCall::Unsubscribe { key, topic, .. } => {
             call_decision(core, out, ReplyTo::new(request), key, CallPart::SubscriptionRefused(problem));
-            if let Some(connector) = connector {
+            if let Some((connector, _)) = topic {
                 out.push(connector_ask(connector, contract::Ask::Topics(contract::topics::Ask::Refused { request })));
             }
             return;

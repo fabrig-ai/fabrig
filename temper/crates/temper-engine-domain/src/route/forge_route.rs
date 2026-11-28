@@ -492,7 +492,7 @@ pub(crate) fn subscribe_call(
     let flight = domain
         .engine
         .core_mut()
-        .reserve_connector_subscription(token, key, number, connector)
+        .reserve_connector_subscription(token, key, number, connector, number)
         .expect("one routed call");
     assert!(domain.forge_subscribing.insert(token, subscriber) == Ok(None), "one connector interest");
     domain.work.push(Work::Tasks(tasks::Event::SubscribeTopic {

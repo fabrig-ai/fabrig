@@ -15,9 +15,9 @@ use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 
-fn topic_connector(kind: tasks::SubscriptionKind) -> Option<u16> {
+fn connector_topic(kind: tasks::SubscriptionKind) -> Option<(u16, u64)> {
     match kind {
-        tasks::SubscriptionKind::Topic { connector, .. } => Some(connector),
+        tasks::SubscriptionKind::Topic { connector, topic } => Some((connector, topic)),
         tasks::SubscriptionKind::Task { .. } | tasks::SubscriptionKind::Timer { .. } => None,
     }
 }
@@ -631,8 +631,8 @@ pub(crate) fn named_action(
                 );
                 return out;
             };
-            let connector = topic_connector(kind);
-            let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription, connector });
+            let topic = connector_topic(kind);
+            let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription, topic });
             work.push(Work::Event(Event::Tasks(tasks::Event::Subscribe {
                 reads_project: false,
                 reply_to: ReplyTo::new(token),
@@ -641,16 +641,20 @@ pub(crate) fn named_action(
             })));
         }
         NamedAction::Unsubscribe { subscription } => {
-            let mut connector = None;
+            let mut route = RoutedCall::Unsubscribe { key, subscription, topic: None };
             if let Some(task) = core.tasks.task(key.task) {
                 for interest in &task.subscriptions {
                     if interest.number == subscription {
-                        connector = topic_connector(interest.kind);
+                        route = RoutedCall::Unsubscribe {
+                            key,
+                            subscription: interest.number,
+                            topic: connector_topic(interest.kind),
+                        };
                         break;
                     }
                 }
             }
-            let token = core.fly_call(token, RoutedCall::Unsubscribe { key, connector });
+            let token = core.fly_call(token, route);
             work.push(Work::Event(Event::Tasks(tasks::Event::Unsubscribe {
                 reply_to: ReplyTo::new(token),
                 task: key.task,

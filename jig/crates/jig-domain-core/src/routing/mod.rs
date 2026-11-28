@@ -87,12 +87,13 @@ impl Core {
         key: CallKey,
         subscription: u64,
         connector: u16,
+        topic: u64,
     ) -> Option<Token> {
         self.start_runtime_input();
         if !self.reserve_call(key, CallHolder::Routed) {
             return None;
         }
-        Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription, connector: Some(connector) }))
+        Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription, topic: Some((connector, topic)) }))
     }
 }
 

@@ -191,20 +191,20 @@ fn call_done(
             );
             return;
         }
-        RoutedCall::Subscribe { key, subscription, connector } => {
-            if let Some(connector) = connector {
+        RoutedCall::Subscribe { key, subscription, topic } => {
+            if let Some((connector, topic)) = topic {
                 out.push(connector_ask(
                     connector,
-                    contract::Ask::Topics(contract::topics::Ask::Subscribed { request, key, subscription }),
+                    contract::Ask::Topics(contract::topics::Ask::Subscribed { request, key, subscription, topic }),
                 ));
             }
             (key, CallPart::Subscribed { subscription })
         }
-        RoutedCall::Unsubscribe { key, connector } => {
-            if let Some(connector) = connector {
+        RoutedCall::Unsubscribe { key, subscription, topic } => {
+            if let Some((connector, topic)) = topic {
                 out.push(connector_ask(
                     connector,
-                    contract::Ask::Topics(contract::topics::Ask::Unsubscribed { request, key }),
+                    contract::Ask::Topics(contract::topics::Ask::Unsubscribed { request, key, subscription, topic }),
                 ));
             }
             (key, CallPart::Unsubscribed)

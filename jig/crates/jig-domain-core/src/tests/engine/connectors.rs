@@ -16,6 +16,8 @@ const DECLARER: Connector = Connector(1);
 const EMPTY: Connector = Connector(2);
 const OWNER: Token = Token::new(31);
 const TASK: u64 = 1;
+const TOPIC: u64 = 3;
+const SUBSCRIPTION: u64 = 2; // One message-family number is already used by the subscribing run fixture.
 const ENTRY: u64 = 7;
 const PERSON: u64 = 1;
 const PROJECT: u32 = 1;
@@ -197,12 +199,22 @@ fn a_description_is_outstanding_until_its_owner_answers_on_either_entrance() {
 #[test]
 fn topics_port() {
     ask(
-        Ask::SubscriptionDone { request: OWNER, key: CALL, subscription: 2 },
-        contract::Ask::Topics(topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: 2 }),
+        Ask::SubscriptionDone { request: OWNER, key: CALL, subscription: SUBSCRIPTION },
+        contract::Ask::Topics(topics::Ask::Subscribed {
+            request: OWNER,
+            key: CALL,
+            subscription: SUBSCRIPTION,
+            topic: TOPIC,
+        }),
     );
     ask(
         Ask::UnsubscriptionDone { request: OWNER, key: CALL },
-        contract::Ask::Topics(topics::Ask::Unsubscribed { request: OWNER, key: CALL }),
+        contract::Ask::Topics(topics::Ask::Unsubscribed {
+            request: OWNER,
+            key: CALL,
+            subscription: SUBSCRIPTION,
+            topic: TOPIC,
+        }),
     );
     answer(
         Up::Topics(topics::Up::News {
@@ -663,10 +675,18 @@ fn a_lost_attempt_names_only_each_declarers_own_writes() {
     drop(crate::finish_decision(engine.core_mut(), &env));
 }
 
+fn engine_with_subscribing_run() -> (Engine, Env<Limits>) {
+    let (mut engine, env) = engine_with_effect_grant(PROJECT);
+    let core = engine.core_mut();
+    crate::tests::make_task(core, &env.limits, TASK);
+    let proof = crate::RunProof::claimed(TASK, CALL.attempt, TASK, None, jig_domain_fleet::HostKind::Worker);
+    core.proofs.insert(TASK, proof).expect("proof for the subscribing run");
+    let _previous_message = crate::fresh(&mut core.counters, crate::Family::Message).expect("one prior message");
+    (engine, env)
+}
+
 #[test]
 fn the_core_settles_subscriptions_after_any_connector_notification() {
-    const TOPIC: u64 = 3;
-    const SUBSCRIPTION: u64 = 1; // The first message-family number in a fresh engine.
     const UNSUBSCRIBE: crate::CallKey = crate::CallKey { position: 1, ..CALL };
     let subscribe = |kind| Event::NamedAction {
         to: ReplyTo::new(OWNER),
@@ -682,16 +702,17 @@ fn the_core_settles_subscriptions_after_any_connector_notification() {
                 topic: TOPIC,
                 resources: Box::new([effect()]),
             },
-            Some(topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: SUBSCRIPTION }),
-            Some(topics::Ask::Unsubscribed { request: OWNER, key: UNSUBSCRIBE }),
+            Some(topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: SUBSCRIPTION, topic: TOPIC }),
+            Some(topics::Ask::Unsubscribed {
+                request: OWNER,
+                key: UNSUBSCRIBE,
+                subscription: SUBSCRIPTION,
+                topic: TOPIC,
+            }),
         ),
         (subscribe(tasks::SubscriptionKind::Timer { at: fixtures::TASK_ALARM_AT, period: None }), None, None),
     ] {
-        let (mut engine, env) = engine_with_effect_grant(PROJECT);
-        let core = engine.core_mut();
-        crate::tests::make_task(core, &env.limits, TASK);
-        let proof = crate::RunProof::claimed(TASK, CALL.attempt, TASK, None, jig_domain_fleet::HostKind::Worker);
-        core.proofs.insert(TASK, proof).expect("proof for the subscribing run");
+        let (mut engine, env) = engine_with_subscribing_run();
         let unsubscribe = Event::NamedAction {
             to: ReplyTo::new(OWNER),
             key: UNSUBSCRIBE,
@@ -707,6 +728,33 @@ fn the_core_settles_subscriptions_after_any_connector_notification() {
             assert!(!engine.core().pending_calls.contains_key(&key));
             drop(crate::finish_decision(engine.core_mut(), &env));
         }
+    }
+}
+
+#[test]
+fn an_accepted_named_subscribe_notifies_only_for_a_topic() {
+    use crate::routing::{Work, run::calls::named_action};
+    const WATCHED_TASK: u64 = 2;
+    for (kind, ask) in [
+        (
+            tasks::SubscriptionKind::Topic { connector: DECLARER.0, topic: TOPIC },
+            Some(topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: SUBSCRIPTION, topic: TOPIC }),
+        ),
+        (tasks::SubscriptionKind::Task { target: WATCHED_TASK, held: true, result: false }, None),
+    ] {
+        let (mut engine, env) = engine_with_subscribing_run();
+        let core = engine.core_mut();
+        let mut work = Queue::uncapped();
+        let requests =
+            named_action(core, &env, &mut work, ReplyTo::new(OWNER), CALL, crate::NamedAction::Subscribe { kind });
+        let Some(Work::Event(Event::Tasks(tasks::Event::Subscribe { reply_to, .. }))) = work.pop() else {
+            panic!("a task subscription was routed: {requests:?}");
+        };
+        let mut out = Queue::uncapped();
+        engine::append(requests, &mut out);
+        // Script acceptance at the task boundary; the child reserves topic admission for SubscribeTopic.
+        append_task_answer(core, &env, tasks::Request::Done { reply_to }, &mut out);
+        assert_subscription_answer(&out, CALL, ask, &crate::CallPart::Subscribed { subscription: SUBSCRIPTION });
     }
 }
 
@@ -742,6 +790,14 @@ fn assert_subscription_answer(out: &Queue<Out>, key: crate::CallKey, ask: Option
     assert!(outputs.pop().is_none(), "one answer and no other notification");
 }
 
+fn append_task_answer(core: &mut Core, env: &Env<Limits>, answer: tasks::Request, out: &mut Queue<Out>) {
+    let mut child = Queue::uncapped();
+    child.push(answer);
+    let mut requests = Queue::uncapped();
+    crate::routing::start_task_outputs(core, env, child, &mut requests);
+    engine::append(requests, out);
+}
+
 #[test]
 fn a_topic_notifies_only_its_connector() {
     for (remove, accepted) in [(false, true), (true, true), (false, false), (true, false)] {
@@ -749,30 +805,34 @@ fn a_topic_notifies_only_its_connector() {
         let core = engine.core_mut();
         assert!(core.reserve_call(CALL, crate::CallHolder::Routed));
         let route = if remove {
-            crate::RoutedCall::Unsubscribe { key: CALL, connector: Some(EMPTY.0) }
+            crate::RoutedCall::Unsubscribe { key: CALL, subscription: SUBSCRIPTION, topic: Some((EMPTY.0, TOPIC)) }
         } else {
-            crate::RoutedCall::Subscribe { key: CALL, subscription: 2, connector: Some(EMPTY.0) }
+            crate::RoutedCall::Subscribe { key: CALL, subscription: SUBSCRIPTION, topic: Some((EMPTY.0, TOPIC)) }
         };
         let reply_to = ReplyTo::new(core.fly_call(OWNER, route));
-        let mut child = Queue::uncapped();
-        child.push(if accepted {
+        let answer = if accepted {
             tasks::Request::Done { reply_to }
         } else {
             tasks::Request::Refused { reply_to, problem: tasks::Problem::new(Some(TASK), tasks::Refusal::Subscription) }
-        });
-        let mut requests = Queue::uncapped();
-        crate::routing::start_task_outputs(core, &env, child, &mut requests);
+        };
         let mut out = Queue::uncapped();
-        engine::append(requests, &mut out);
+        append_task_answer(core, &env, answer, &mut out);
         let mut found = 0_u32;
         while let Some(output) = out.pop() {
             if let Out::Ask(number, contract::Ask::Topics(ask)) = output {
                 assert_eq!(number, EMPTY, "ownership comes from the topic, not capability declarations");
                 match ask {
-                    topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: 2 } => {
+                    topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: SUBSCRIPTION, topic: TOPIC } => {
                         assert!(accepted && !remove);
                     }
-                    topics::Ask::Unsubscribed { request: OWNER, key: CALL } => assert!(accepted && remove),
+                    topics::Ask::Unsubscribed {
+                        request: OWNER,
+                        key: CALL,
+                        subscription: SUBSCRIPTION,
+                        topic: TOPIC,
+                    } => {
+                        assert!(accepted && remove);
+                    }
                     topics::Ask::Refused { request: OWNER } => assert!(!accepted),
                     other @ (topics::Ask::Subscribed { .. }
                     | topics::Ask::Unsubscribed { .. }

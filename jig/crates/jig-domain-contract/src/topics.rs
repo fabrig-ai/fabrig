@@ -16,9 +16,9 @@ pub enum NewsClass {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     /// Notification: a topic subscription was accepted; no answer.
-    Subscribed { request: Token, key: CallKey, subscription: u64 },
+    Subscribed { request: Token, key: CallKey, subscription: u64, topic: u64 },
     /// Notification: a topic unsubscription was accepted; no answer.
-    Unsubscribed { request: Token, key: CallKey },
+    Unsubscribed { request: Token, key: CallKey, subscription: u64, topic: u64 },
     /// Notification: a topic subscription was refused; no answer.
     Refused { request: Token },
     /// Notification: a task's interest in a topic ended; no answer.
