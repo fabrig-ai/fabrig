@@ -3,7 +3,6 @@
 2026-11-28. Where the tree's code lags or departs from [results.md](results.md).
 
 
-- **Not yet:** 2: a call prints no `answer` [in flight: change 22195].
 - **Not yet:** 1: ctl's amount: text prints spend raw but in `task show`, and argv's AMOUNT takes spend units; 2: a `--call`'s AMOUNT and `help --json`'s type `amount` [in flight: change 7671].
 - **Not yet:** 1: a deletion's outcome prints `removed: project 3, fabrig`, not `deleted: project 3, fabrig`, and its kept form `kept: remove-project, removed: project 3` [in flight: change 634].
 
