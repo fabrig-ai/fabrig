@@ -4792,7 +4792,7 @@ fn empty_gate_receipt(key: &ReceiptKey, receipt: &Receipt) -> bool {
     }
     match &receipt.report {
         ReceiptReport::Unread => true,
-        ReceiptReport::Tests(tests) => tests.is_empty(),
+        ReceiptReport::Tests(tests) => tests.tests.is_empty(),
         ReceiptReport::Unset | ReceiptReport::Many { .. } => false,
     }
 }
@@ -5356,7 +5356,7 @@ fn start_flake_rerun(
         return false;
     }
     let tests = match report {
-        ReceiptReport::Tests(tests) => tests,
+        ReceiptReport::Tests(tests) => &tests.tests,
         ReceiptReport::Unset | ReceiptReport::Unread | ReceiptReport::Many { .. } => return false,
     };
     let gate = match &key.check {
@@ -6921,13 +6921,17 @@ fn receipt_report(
         Ok(NamedFailures::Tests(tests)) => {
             let mut kept = List::with_capacity(limits.failing_tests);
             for test in tests {
-                let fuzzy = match &report.fuzzy {
+                let matched = match &report.fuzzy {
                     Some(prefix) => test.name.starts_with(prefix),
                     None => false,
                 };
-                kept.push(crate::ReceiptTest { key: test.key, fuzzy }).expect("bounded report");
+                kept.push(crate::ReceiptTest { key: test.key, matched }).expect("bounded report");
             }
-            ReceiptReport::Tests(kept.into_boxed())
+            ReceiptReport::Tests(crate::ReceiptTests {
+                tests: kept.into_boxed(),
+                matched: report.matched.clone(),
+                rest: report.rest.clone(),
+            })
         }
     }
 }
@@ -7052,7 +7056,7 @@ fn judge_end(
     let shown = match &ended.report {
         ReceiptReport::Unset if workflow_failed => policy::Shown::Failures,
         ReceiptReport::Many { .. } => policy::Shown::Failures,
-        ReceiptReport::Tests(tests) if !tests.is_empty() => policy::Shown::Failures,
+        ReceiptReport::Tests(tests) if !tests.tests.is_empty() => policy::Shown::Failures,
         ReceiptReport::Unset | ReceiptReport::Unread | ReceiptReport::Tests(_) => policy::Shown::Nothing,
     };
     let (runner, job) = if let Some((fault, job)) = job_fault {

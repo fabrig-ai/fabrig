@@ -235,7 +235,7 @@ fn frame(work: Work, name: &str) -> c::Me {
     let chat = project.templates.get(0).expect("chat template").clone();
     project.templates = List::with_capacity(3);
     project.templates.push(chat.clone()).expect("chat");
-    let mut goal = super::goal_template(&chat, 2, "Draft first");
+    let mut goal = super::goal_template(&chat, 2, None, "Draft first");
     goal.label = 2;
     project.templates.push(goal).expect("goal");
     project.templates.push(super::asking_template(&chat)).expect("Ask temper");

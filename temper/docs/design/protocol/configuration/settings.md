@@ -19,7 +19,7 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
 |---|---|---|
 | Models in the deployment and agent files, refused under passed defaults | jig's models | temper's stock models, numbered (`stock.md`) |
 | jig's `engine.charters` | jig's charters | temper's stock charters: a chat's (1), the implementer's (2), a reviewer's (4), the goal's agent's (5), the status agent's (9), a trial's (10) and Ask temper's (11) |
-| jig's `engine.templates` | jig's templates | jig's chat (1) and goal (2), a goal for a draft (4), and temper's Ask temper (5) |
+| jig's `engine.templates` | jig's templates | jig's chat (1) and goal (2), a goal landed whole (4), and temper's Ask temper (5) |
 | jig's `engine.policies` | jig's policies projects are made from | the stock policy (1) |
 | jig's `engine.rules` | jig's rules | temper's stock rules, the landing's two requirements among them (3) |
 | `application.landing` | temper's kinds 1 and 2: the deployment's landing rules, and each project's (`settings-kinds.md`, 1) | each project's rule 1: CI passed, up to date and gate 1's agent review on every branch of each of its repositories; no deployment rule |

@@ -31,9 +31,7 @@ fn value(line: &c::TaskLine) -> Option<&[u8]> {
 
 #[must_use]
 pub fn goal(line: &c::TaskLine) -> Option<GoalPart> {
-    let mut reader = Reader::new(value(line)?);
-    let part = GoalPart::decode(&wire::v1::CEILINGS, &mut reader).ok()?;
-    if reader.is_empty() { Some(part) } else { None }
+    wire::decode_goal_part(value(line)?, &wire::v1::CEILINGS)
 }
 
 #[must_use]

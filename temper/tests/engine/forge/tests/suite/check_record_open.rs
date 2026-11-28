@@ -55,6 +55,8 @@ fn a_gate_repair_names_its_failed_tests() {
                     artifact: b"failed".as_slice().into(),
                     format: landing::Format::Lines,
                     fuzzy: None,
+                    matched: None,
+                    rest: None,
                 }),
             }]),
         }]),
@@ -106,7 +108,10 @@ fn a_gate_repair_names_its_failed_tests() {
     brief.extend_from_slice(&world.ci_brief(CHANGE, head));
     let brief = String::from_utf8(brief).expect("repair brief text");
     for test in tests {
-        assert!(brief.contains(&format!("Failed test: {test} (focused)")), "repair brief must name {test}: {brief}");
+        assert!(
+            brief.lines().any(|line| line == format!("Failed test: {test}")),
+            "repair brief must name {test}: {brief}"
+        );
     }
 }
 

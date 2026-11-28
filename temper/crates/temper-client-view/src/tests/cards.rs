@@ -394,10 +394,14 @@ pub(crate) fn settings_root_in(page: c::ReadValue, asking: bool) -> (d::Domain, 
     for template in &me.projects.get(0).unwrap().templates {
         templates.push(template.clone()).unwrap();
     }
-    for (number, name) in [(8, b"goal for a draft".as_slice()), (4, b"goal".as_slice())] {
+    for (number, name, shown) in [
+        (8, b"draft-goal".as_slice(), b"goal landed whole".as_slice()),
+        (4, b"goal".as_slice(), b"Separate goals".as_slice()),
+    ] {
         let mut way = templates.get(0).unwrap().clone();
         way.number = number;
-        way.shown = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
+        way.name = Some(name.into());
+        way.shown = c::DocumentText::complete(c::Text::new(shown.into(), 32).unwrap());
         way.tracked = Some(1);
         templates.push(way).unwrap();
     }

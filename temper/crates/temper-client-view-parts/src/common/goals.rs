@@ -32,19 +32,11 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
         order.sort_unstable();
         for (_, index) in &order {
             let template = member.templates.get(*index).expect("ordered template");
-            let way = match template.shown.bytes() {
-                b"goal" => Way {
-                    number: template.number,
-                    name: way_name(template.shown.bytes(), words),
-                    line: Some(words.say(Word::GoalTaskByTaskLine, &[])),
-                },
-                b"goal for a draft" => Way {
-                    number: template.number,
-                    name: way_name(template.shown.bytes(), words),
-                    line: Some(words.say(Word::GoalLandWholeLine, &[])),
-                },
-                name => Way { number: template.number, name: way_name(name, words), line: None },
+            let (name, line) = match way_words(template) {
+                Some((name, line)) => (words.say(name, &[]), Some(words.say(line, &[]))),
+                None => (template.shown.bytes().into(), None),
             };
+            let way = Way { number: template.number, name, line };
             result.push(way).expect("ways grow with templates");
         }
     }
@@ -53,10 +45,19 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
 
 /// A template's name in the person's words (client/pages/README.md, client/pages/settings.md, 2).
 #[must_use]
-pub fn way_name(name: &[u8], words: &Words) -> Box<[u8]> {
+pub fn way_name(template: &c::Template, words: &Words) -> Box<[u8]> {
+    match way_words(template) {
+        Some((name, _line)) => words.say(name, &[]),
+        None => template.shown.bytes().into(),
+    }
+}
+
+fn way_words(template: &c::Template) -> Option<(Word, Word)> {
+    // A deployment may change the shown words without changing the template's name.
+    let name = template.name.as_deref()?;
     match name {
-        b"goal" => words.say(Word::GoalTaskByTask, &[]),
-        b"goal for a draft" => words.say(Word::GoalLandWhole, &[]),
-        name => name.into(),
+        b"goal" => Some((Word::GoalTaskByTask, Word::GoalTaskByTaskLine)),
+        b"draft-goal" => Some((Word::GoalLandWhole, Word::GoalLandWholeLine)),
+        _name => None,
     }
 }

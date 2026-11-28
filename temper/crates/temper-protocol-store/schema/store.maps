@@ -388,7 +388,7 @@ record TierProbeBranch by hand
 record TierFlight = d::TierFlight { start via s::time, since via s::time, next via s::time, pending slice }
 record ReceiptJob = d::ReceiptJob
 record ReceiptTest = d::ReceiptTest
-record ReceiptTests stands for tests
+record ReceiptTests = d::ReceiptTests { tests slice }
 record ReceiptMany
 enum ReceiptReport by hand
 record Receipt by hand

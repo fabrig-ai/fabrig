@@ -57,6 +57,8 @@ pub(super) fn reported_gate(seed: u64, failing_tests: &[&[u8]], blame: bool) -> 
                     artifact: b"failed".as_slice().into(),
                     format: landing::Format::Lines,
                     fuzzy: None,
+                    matched: None,
+                    rest: None,
                 }),
             }]),
         }]),

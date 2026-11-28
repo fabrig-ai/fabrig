@@ -732,7 +732,7 @@ fn goal_states() {
         for (index, (item, template)) in list.items.iter().zip(expected).enumerate() {
             let (way, description) = match template {
                 2 => ("Task by task", "The same plan; each task lands on its own once checked."),
-                4 => ("Plan, tasks, land whole", "A plan from the draft, its tasks on a goal branch, landed as one change once all are checked."),
+                4 => ("Plan, tasks, land whole", "A plan, its tasks on a goal branch, landed as one change once all are checked."),
                 8 => ("Custom", ""),
                 _ => unreachable!(),
             };

@@ -103,9 +103,10 @@
   forge's API gives it, the one `read_ci what=job` takes, PREFIX the commit the
   gate ran at (the candidate, or the red prefix) and BASE the round's
   base, each in full, `base unknown` where the receipt keeps none; then
-  `Failed test: KEY (PROFILE)` for each test the run reports failed
+  `Failed test: KEY (LABEL)` for each test the run reports failed
   (`../../landing-proof.md`, 2.3), KEY as the check's summary names it
-  (`test <binary_id> <name>`) and PROFILE `focused` or `fuzzy`, or
+  (`test <binary_id> <name>`) and LABEL the receipt's label for its
+  side, or `Failed test: KEY` alone where that side has none, or
   `Failed tests: more than N` past the report's bound; then `Failed job:
   NAME: read_ci what=job commit=PREFIX run=RUN job=JOB attempt=ATTEMPT` for each
   failed job the receipt keeps (`../../landing-proof.md`, 1.2). KEY is `test
@@ -113,8 +114,14 @@
   and a KEY or a job's NAME is made text as it is written (each byte
   outside UTF-8 a `?`, skein's `runtime/lib-bytes.md`, 1), so a report's bytes
   never make the repair's words refused;
-  PROFILE `fuzzy` where the name (the case's, or the line's last word)
-  starts with the report's `fuzzy` prefix, else `focused`. A gate that
+  a test's side is `matched` where its name (the case's, or the line's
+  last word) started with the report's `fuzzy` prefix as the receipt
+  was made, else `rest`, and its LABEL the label the receipt keeps for
+  that side, made text as KEY is: the gate's labels as they stood at
+  the run, never as its settings stand when the repair is made
+  (`../../landing-search-by-test.md`, 2, *Its labels* and *Kept with
+  the receipt*), and a receipt kept before labels `fuzzy` for
+  `matched` and `focused` for `rest`. A gate that
   names no report, or whose run's report could not be read, gives
   `Failed tests: not known (the gate names no report)`, or `(its report
   could not be read)`, and the jobs alone. Where the landing keeps no

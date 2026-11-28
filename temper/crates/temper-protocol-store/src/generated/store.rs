@@ -5256,19 +5256,80 @@ pub fn receipt_job_to_domain(record: crate::v25::ReceiptJob) -> temper_engine_do
 
 #[must_use]
 pub fn receipt_test_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptTest) -> crate::v25::ReceiptTest {
-    let temper_engine_domain_forge_vocabulary::ReceiptTest { key: field_000000, fuzzy: field_000001 } = value;
+    let temper_engine_domain_forge_vocabulary::ReceiptTest { key: field_000000, matched: field_000001 } = value;
     crate::v25::ReceiptTest {
         key: field_000000.clone(),
-        fuzzy: *field_000001
+        matched: *field_000001
     }
 }
 
 #[must_use]
 pub fn receipt_test_to_domain(record: crate::v25::ReceiptTest) -> temper_engine_domain_forge_vocabulary::ReceiptTest {
-    let crate::v25::ReceiptTest { key: field_000000, fuzzy: field_000001 } = record;
+    let crate::v25::ReceiptTest { key: field_000000, matched: field_000001 } = record;
     temper_engine_domain_forge_vocabulary::ReceiptTest {
         key: field_000000,
-        fuzzy: field_000001
+        matched: field_000001
+    }
+}
+
+pub fn receipt_tests_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptTests) -> Result<crate::v25::ReceiptTests, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::ReceiptTests { tests: field_000000, matched: field_000001, rest: field_000002 } = value;
+    Ok(crate::v25::ReceiptTests {
+        tests: {
+            let source = field_000000;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::RECEIPT_TESTS_TESTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = receipt_test_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        matched: match field_000001 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        rest: match field_000002 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn receipt_tests_to_domain(record: crate::v25::ReceiptTests) -> temper_engine_domain_forge_vocabulary::ReceiptTests {
+    let crate::v25::ReceiptTests { tests: field_000000, matched: field_000001, rest: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::ReceiptTests {
+        tests: {
+            let source = field_000000;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = receipt_test_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        matched: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        rest: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
@@ -6320,11 +6381,25 @@ pub fn settings_report_format_to_domain(record: crate::v25::SettingsReportFormat
 
 #[must_use]
 pub fn settings_gate_report_to_record(value: &temper_engine_domain_forge_landing::GateReport) -> crate::v25::SettingsGateReport {
-    let temper_engine_domain_forge_landing::GateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002 } = value;
+    let temper_engine_domain_forge_landing::GateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002, matched: field_000003, rest: field_000004 } = value;
     crate::v25::SettingsGateReport {
         artifact: field_000000.clone(),
         format: settings_report_format_to_record(field_000001),
         fuzzy: match field_000002 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        matched: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        rest: match field_000004 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
@@ -6336,11 +6411,25 @@ pub fn settings_gate_report_to_record(value: &temper_engine_domain_forge_landing
 
 #[must_use]
 pub fn settings_gate_report_to_domain(record: crate::v25::SettingsGateReport) -> temper_engine_domain_forge_landing::GateReport {
-    let crate::v25::SettingsGateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002 } = record;
+    let crate::v25::SettingsGateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002, matched: field_000003, rest: field_000004 } = record;
     temper_engine_domain_forge_landing::GateReport {
         artifact: field_000000,
         format: settings_report_format_to_domain(field_000001),
         fuzzy: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        matched: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        rest: match field_000004 {
             Some(item) => {
                 let converted = item;
                 Some(converted)

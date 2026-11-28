@@ -40,15 +40,16 @@ impl Sheet {
         let member = me.projects.get_mut(0).unwrap();
         let stock = super::goals::template(FIRST, b"goal", true);
         member.templates = List::with_capacity(4);
-        for (number, name, tracked) in [
-            (SECOND, b"goal for a draft".as_slice(), true),
-            (7, b"chat", false),
-            (FIRST, b"goal", true),
-            (CUSTOM, b"Custom way", true),
+        for (number, name, shown, tracked) in [
+            (SECOND, Some(b"draft-goal".as_slice().into()), b"goal landed whole".as_slice(), true),
+            (7, None, b"chat", false),
+            (FIRST, Some(b"goal".as_slice().into()), b"goal", true),
+            (CUSTOM, None, b"Custom way", true),
         ] {
             let mut template = stock.clone();
             template.number = number;
-            template.shown = c::DocumentText::complete(c::Text::new(name.into(), TEXT).unwrap());
+            template.name = name;
+            template.shown = c::DocumentText::complete(c::Text::new(shown.into(), TEXT).unwrap());
             template.tracked = if tracked { Some(1) } else { None };
             member.templates.push(template).unwrap();
         }

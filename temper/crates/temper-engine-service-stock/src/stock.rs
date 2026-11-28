@@ -1040,7 +1040,7 @@ fn draft_goal(result_bytes: u32) -> Template {
     Template {
         number: 4,
         name: Some(bytes::copy_of(b"draft-goal")),
-        shown: bytes::copy_of(b"goal for a draft"),
+        shown: bytes::copy_of(b"goal landed whole"),
         executor: TemplateExecutor::Charter(5),
         resources: Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]),
         flags: Flags {

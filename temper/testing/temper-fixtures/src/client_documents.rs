@@ -108,9 +108,14 @@ pub fn result(position: u64, at: Wall, result: c::Result) -> c::DecodedActivityL
 
 /// A goal query's first part, including its milestone even when it has no report.
 pub fn goal_part(report: Option<(&[u8], Wall)>, milestone: Option<u64>) -> c::RowPart {
+    goal_part_with_branch(report, milestone, false)
+}
+
+/// A goal part with the forge's branch-hold fact.
+pub fn goal_part_with_branch(report: Option<(&[u8], Wall)>, milestone: Option<u64>, own_branch: bool) -> c::RowPart {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let report = report.map(|(headline, at)| w::GoalReport { headline: headline.into(), at: at.as_nanos() });
-    let part = w::GoalPart { report, milestone };
+    let part = w::GoalPart { report, milestone, own_branch };
     let mut writer = skein_lib::Writer::new(
         part.measure(&temper_client_protocol_wire::v1::CEILINGS)
             .expect("within ceilings")

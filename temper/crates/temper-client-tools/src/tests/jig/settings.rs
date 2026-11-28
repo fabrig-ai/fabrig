@@ -2308,7 +2308,7 @@ fn forge_value(kind: u32) -> Box<[u8]> {
     let json = if kind == 4 {
         br#"{"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":4,"temper_dir_sign_off":true}}]}"#.as_slice()
     } else if kind == 5 {
-        br#"{"items":[{"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}}]}"#.as_slice()
+        br#"{"items":[{"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"slow::","matched":"slow","rest":"quick"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}}]}"#.as_slice()
     } else if kind == 8 {
         br#"{"items":[{"setting":{"kind":"project-classes","project":7},"set":{"items":[{"kind":"wording","class":"decide"},{"kind":"implementation","words":"keep the format","class":"ask"},{"set":2,"class":"ask-away"}],"sets":[{"number":2,"name":"protocol","patterns":["src/protocol.*","docs/protocol/**"]}]}}]}"#.as_slice()
     } else if kind == 7 {

@@ -499,10 +499,12 @@
   its requester, is never a way (`../../domain/milestones.md`, section 10), and
   every part that picks a way, the start sheet, the forge's default way,
   the engine's start of a goal and a row's way, takes the same rule.
-  Template `goal`: "Task by task", "The same plan; each task lands on its own
-  once checked." Template `goal for a draft`: "Plan, tasks, land whole", "A plan
-  from the draft, its tasks on a goal branch, landed as one change once all are
-  checked." Any other: its own name, no line. The filter's and the page's
+  A way's words go by its template's name, never its shown words, which a
+  deployment may set (`../../protocol/configuration/stock-settings.md`, 1,
+  *The stock's names*): template `goal`: "Task by task", "The same plan; each
+  task lands on its own once checked." Template `draft-goal`: "Plan, tasks,
+  land whole", "A plan, its tasks on a goal branch, landed as one change once
+  all are checked." Any other: its shown name, no line. The filter's and the page's
   words are drawn in the terminal as a page of its own, heading, filters as
   numbered buttons, a row a numbered link with its state and headline.
 

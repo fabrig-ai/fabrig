@@ -4393,36 +4393,44 @@ fn milestone_rows_and_change_membership_round_trip_in_family_order() {
     assert_eq!(records::row(&key, &records::encode(&record), &bounds), Ok(record));
 }
 
+fn receipt_row_with_report(report: forge::ReceiptReport) -> forge::Stored {
+    forge::Stored::Receipt {
+        key: forge::ReceiptKey {
+            project: 5,
+            repository: fixtures::REPO,
+            check: forge::Check::Gate(b"gate".as_slice().into()),
+            key: [7; 32],
+        },
+        receipt: forge::Receipt {
+            report,
+            base: Some([1; 32]),
+            jobs: Box::new([]),
+            logs: Box::new([]),
+            failures: None,
+            passed: false,
+            run: forge::ReceiptRun { id: 7, number: 8, url: b"run/7".as_slice().into() },
+            candidate: [3; 32],
+            ended: Wall::EPOCH,
+        },
+    }
+}
+
 #[test]
 fn receipt_reports_round_trip_their_states_and_owned_bytes() {
     for report in [
         forge::ReceiptReport::Unset,
         forge::ReceiptReport::Unread,
         forge::ReceiptReport::Many { bound: 16 },
-        forge::ReceiptReport::Tests(Box::new([
-            forge::ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), fuzzy: true },
-            forge::ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false },
-        ])),
+        forge::ReceiptReport::Tests(forge::ReceiptTests {
+            tests: Box::new([
+                forge::ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), matched: true },
+                forge::ReceiptTest { key: b"test binary b".as_slice().into(), matched: false },
+            ]),
+            matched: Some(b"slow".as_slice().into()),
+            rest: Some(b"quick".as_slice().into()),
+        }),
     ] {
-        let row = forge::Stored::Receipt {
-            key: forge::ReceiptKey {
-                project: 5,
-                repository: fixtures::REPO,
-                check: forge::Check::Gate(b"gate".as_slice().into()),
-                key: [7; 32],
-            },
-            receipt: forge::Receipt {
-                report,
-                base: Some([1; 32]),
-                jobs: Box::new([]),
-                logs: Box::new([]),
-                failures: None,
-                passed: false,
-                run: forge::ReceiptRun { id: 7, number: 8, url: b"run/7".as_slice().into() },
-                candidate: [3; 32],
-                ended: Wall::EPOCH,
-            },
-        };
+        let row = receipt_row_with_report(report);
         new_family_round_trip(&row);
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
@@ -4431,6 +4439,47 @@ fn receipt_reports_round_trip_their_states_and_owned_bytes() {
         assert_eq!(forge::stored_bytes(&cloned), Some(held));
         drop(cloned);
     }
+}
+
+#[test]
+fn a_receipt_at_devs_layout_keeps_bits_and_defaults_the_labels() {
+    use super::dev_layouts::Dev;
+    use skein_codec::layout::Mode;
+    use temper_engine_domain_forge_change::{Repair, State};
+    let stored = receipt_row_with_report(forge::ReceiptReport::Tests(forge::ReceiptTests {
+        tests: Box::new([
+            forge::ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), matched: true },
+            forge::ReceiptTest { key: b"test binary b".as_slice().into(), matched: false },
+        ]),
+        matched: Some(b"slow".as_slice().into()),
+        rest: Some(b"quick".as_slice().into()),
+    }));
+    let mut dev = Dev::new();
+    let old = dev.row_in(Mode::Keep, &stored, "receipt");
+    let forge::Stored::Receipt { receipt, .. } = dev.read(&old, "receipt") else { panic!("receipt row") };
+    let forge::ReceiptReport::Tests(tests) = &receipt.report else { panic!("named tests") };
+    assert_eq!(tests.matched.as_deref(), Some(b"fuzzy".as_slice()));
+    assert_eq!(tests.rest.as_deref(), Some(b"focused".as_slice()));
+    assert!(tests.tests[0].matched);
+    assert!(!tests.tests[1].matched);
+    let failure = forge::LandingFailure {
+        gate: b"gate".as_slice().into(),
+        report: receipt.report,
+        run: receipt.run,
+        prefix: receipt.candidate,
+        base: receipt.base,
+        jobs: receipt.jobs,
+    };
+    let why = Repair::LandingAt { gate: 0, candidate: failure.prefix, below: None };
+    let row = fixtures::change_row(State::Ended);
+    let words = forge::change_words::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    assert!(
+        skein_lib::bytes::find(
+            &words,
+            b"\nFailed test: test binary fuzzy::a (fuzzy)\nFailed test: test binary b (focused)"
+        )
+        .is_some()
+    );
 }
 
 #[test]

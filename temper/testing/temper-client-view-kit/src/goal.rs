@@ -89,6 +89,7 @@ pub fn reds(project: u32, rows: &[w::FindingRow], cut: bool) -> w::Findings {
 }
 
 pub struct Side {
+    pub own_branch: bool,
     pub reds: Option<w::Findings>,
     pub requester: Option<c::Task>,
     pub activity: Option<c::ActivityPage>,
@@ -103,6 +104,7 @@ impl Side {
     #[must_use]
     pub fn empty() -> Self {
         Self {
+            own_branch: false,
             reds: None,
             requester: None,
             activity: None,
@@ -329,6 +331,7 @@ pub fn read_value(
             line.chip = task.chip.clone();
             line.delegates_done = done;
             line.delegates_total = total;
+            line.parts = List::from_boxed(Box::new([documents::goal_part_with_branch(None, None, side.own_branch)]));
             let mut rows = List::uncapped();
             rows.push(line).unwrap();
             Some(c::ReadValue::Tasks(Box::new(c::TaskPage {

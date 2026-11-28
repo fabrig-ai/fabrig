@@ -770,6 +770,27 @@ pub fn decode_finding_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Fi
     if reader.is_empty() { Some(record) } else { None }
 }
 
+/// Decode a complete goal row part (temper/docs/design/client/forge/parts.md, 3).
+#[must_use]
+pub fn decode_goal_part(bytes: &[u8], limits: &v1::Limits) -> Option<v1::GoalPart> {
+    let mut reader = Reader::new(bytes);
+    match v1::GoalPart::decode(limits, &mut reader) {
+        Ok(part) if reader.is_empty() => Some(part),
+        Err(problem) if problem == v1::paths::GOAL_PART_OWN_BRANCH.problem(skein_codec::Reason::Short) => {
+            // Row parts carry the owner's version only. A part ending exactly
+            // before own_branch takes that field's default.
+            let mut out = skein_lib::Writer::new(bytes.len().checked_add(1)?);
+            out.put(bytes).ok()?;
+            out.put(&[0]).ok()?;
+            let corrected = out.finish();
+            let mut reader = Reader::new(&corrected);
+            let part = v1::GoalPart::decode(limits, &mut reader).ok()?;
+            if reader.is_empty() { Some(part) } else { None }
+        }
+        Ok(_) | Err(_) => None,
+    }
+}
+
 /// Encode a milestone's totals (temper/docs/design/domain/milestones.md, 7).
 #[must_use]
 pub fn milestone_answer(record: &v1::MilestoneAnswer) -> Box<[u8]> {

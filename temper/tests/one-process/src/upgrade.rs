@@ -427,6 +427,13 @@ fn registry_orders(before: &maps::Maps, after: &maps::Maps, layouts: &BTreeSet<V
 fn current_registry_layouts(before: &maps::Maps, after: &maps::Maps, temper_text: [u8; 32]) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
+    let schema_for = |family: &jig_protocol_store::KeptFamily| {
+        crate::schemas::current_schemas()
+            .iter()
+            .copied()
+            .find(|schema| schema.text() == family.current.as_bytes())
+            .expect("current family schema")
+    };
     let family = CURRENT_SETS
         .sets
         .iter()
@@ -436,7 +443,7 @@ fn current_registry_layouts(before: &maps::Maps, after: &maps::Maps, temper_text
         .iter()
         .find(|family| family.name == "jig-store-people")
         .expect("people family");
-    let people = skein_codec::schema::parse(family.current.as_bytes()).expect("people production text");
+    let people = schema_for(family);
     let mut changed = BTreeSet::new();
     for (owner, name, root_or_variant) in [
         (Owner::Jig, "jig-store-people", "answer"),
@@ -469,14 +476,14 @@ fn current_registry_layouts(before: &maps::Maps, after: &maps::Maps, temper_text
             .iter()
             .find(|family| family.name == name)
             .expect("family");
-        let schema = skein_codec::schema::parse(family.current.as_bytes()).expect("production text");
+        let schema = schema_for(family);
         let ty = family
             .types
             .iter()
             .find(|ty| ty.variant.unwrap_or(ty.root) == root_or_variant)
             .unwrap_or_else(|| panic!("retained type {name}/{root_or_variant}"));
         let root = schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).expect("root");
-        let digest = schema.layout(root, &[&people]).expect("fingerprint").digest();
+        let digest = schema.layout(root, &[people]).expect("fingerprint").digest();
         for (key, value) in &before.store {
             if matches!(keys::decode_own(key), Some(keys::Own::Layout { family: ref name, number, .. })
                 if name.as_ref() == family.name && number == ty.number)

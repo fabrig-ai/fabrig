@@ -3423,10 +3423,14 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
     use skein_forge::api::{self, Answer};
     use temper_engine_domain_forge_tiers::{Failures, Format};
     let xml = br#"<testsuite name="skein-lib::suite"><testcase name="fuzzy::a" classname="skein-lib::suite"><failure/></testcase><testcase name="b" classname="skein-lib::suite"><failure/></testcase></testsuite>"#;
-    let tests = ReceiptReport::Tests(Box::new([
-        ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
-        ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
-    ]));
+    let tests = ReceiptReport::Tests(ReceiptTests {
+        tests: Box::new([
+            ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), matched: false },
+            ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), matched: true },
+        ]),
+        matched: None,
+        rest: None,
+    });
     let mut lines = skein_lib::List::with_capacity(1024);
     for n in 0..=LIMITS.tiers.failing_tests {
         for part in [b"test binary fuzzy::".as_slice(), skein_lib::Decimal::of(u64::from(n)).as_bytes(), b"\n"] {
@@ -3451,10 +3455,14 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
             Format::Lines,
             b"test binary fuzzy::a\ntest binary b\n".as_slice(),
             false,
-            ReceiptReport::Tests(Box::new([
-                ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false },
-                ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), fuzzy: true },
-            ])),
+            ReceiptReport::Tests(ReceiptTests {
+                tests: Box::new([
+                    ReceiptTest { key: b"test binary b".as_slice().into(), matched: false },
+                    ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), matched: true },
+                ]),
+                matched: None,
+                rest: None,
+            }),
             Some(Failures::Tests(Box::new([
                 b"test binary b".as_slice().into(),
                 b"test binary fuzzy::a".as_slice().into(),
@@ -3481,7 +3489,11 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
             Format::Lines,
             b"test binary b\n".as_slice(),
             false,
-            ReceiptReport::Tests(Box::new([ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false }])),
+            ReceiptReport::Tests(ReceiptTests {
+                tests: Box::new([ReceiptTest { key: b"test binary b".as_slice().into(), matched: false }]),
+                matched: None,
+                rest: None,
+            }),
             Some(Failures::Tests(Box::new([b"test binary b".as_slice().into()]))),
             true,
         ),
@@ -3570,6 +3582,44 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
     }
 }
 
+#[test]
+fn a_failed_gate_receipt_keeps_the_labels_and_prefix_match() {
+    use skein_forge::api::Answer;
+    use temper_engine_domain_forge_tiers::Format;
+    let slow = Some(Box::<[u8]>::from(b"slow".as_slice()));
+    let quick = Some(Box::<[u8]>::from(b"quick".as_slice()));
+    for (matched, rest) in [(slow.clone(), quick), (None, None), (slow, None)] {
+        let (mut d, key, run) = reporting_failed_gate(Format::Lines);
+        let report = d.landing.projects.get_mut(&5).unwrap().1[0].gates[0].report.as_mut().unwrap();
+        report.fuzzy = Some(b"slow::".as_slice().into());
+        report.matched = matched.clone();
+        report.rest = rest.clone();
+        unreported::gather_requests(
+            &mut d,
+            &run,
+            Ok(Answer::File {
+                head: run.commit,
+                path: b"report".as_slice().into(),
+                bytes: b"test binary slow::a\ntest binary b\n".as_slice().into(),
+                truncated: false,
+            }),
+        );
+        let receipt = d.receipt(&key).expect("failed receipt");
+        assert!(!receipt.passed);
+        assert_eq!(
+            receipt.report,
+            ReceiptReport::Tests(ReceiptTests {
+                tests: Box::new([
+                    ReceiptTest { key: b"test binary b".as_slice().into(), matched: false },
+                    ReceiptTest { key: b"test binary slow::a".as_slice().into(), matched: true },
+                ]),
+                matched,
+                rest,
+            })
+        );
+    }
+}
+
 fn reporting_failed_gate(
     format: temper_engine_domain_forge_tiers::Format,
 ) -> (Domain, ReceiptKey, skein_forge::api::Run) {
@@ -3598,7 +3648,9 @@ fn reporting_gate(format: temper_engine_domain_forge_tiers::Format) -> (Domain, 
                 report: Some(GateReport {
                     artifact: b"report".as_slice().into(),
                     format,
-                    fuzzy: Some(b"fuzzy::".as_slice().into())
+                    fuzzy: Some(b"fuzzy::".as_slice().into()),
+                    matched: None,
+                    rest: None,
                 }),
             }]),
         }]),

@@ -1419,6 +1419,53 @@ fn a_candidate_repair_reads_its_receipt_after_the_landing_retires() {
 }
 
 #[test]
+fn rebuilding_a_repair_after_a_settings_change_keeps_the_receipts_labels() {
+    use temper_engine_domain_forge_landing as policy;
+    let why = change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None };
+    let mut d = landing_repair(why);
+    kept_candidate_failure(&mut d);
+    let key = d.landing.receipts.iter().next().unwrap().0.clone();
+    let report = GateReport {
+        artifact: b"report".as_slice().into(),
+        format: policy::Format::Lines,
+        fuzzy: Some(b"slow::".as_slice().into()),
+        matched: Some(b"slow".as_slice().into()),
+        rest: Some(b"quick".as_slice().into()),
+    };
+    let gate = &mut d.landing.projects.get_mut(&5).unwrap().1[0].gates[0];
+    gate.report = Some(report.clone());
+    let definition = policy::definition(gate);
+    d.landing.receipts.get_mut(&key).unwrap().report = ReceiptReport::Tests(ReceiptTests {
+        tests: Box::new([
+            ReceiptTest { key: b"test binary slow::a".as_slice().into(), matched: true },
+            ReceiptTest { key: b"test binary b".as_slice().into(), matched: false },
+        ]),
+        matched: report.matched,
+        rest: report.rest,
+    });
+    let gate = &mut d.landing.projects.get_mut(&5).unwrap().1[0].gates[0];
+    gate.report = Some(GateReport {
+        fuzzy: Some(b"x::".as_slice().into()),
+        matched: Some(b"long".as_slice().into()),
+        rest: Some(b"light".as_slice().into()),
+        ..report
+    });
+    assert_eq!(policy::definition(gate), definition);
+    for _ in 0..2_u32 {
+        let failure = d.landing_failure(fixtures::CHANGE, why).expect("pinned failure");
+        let words = change_words::repair_words(d.change(fixtures::CHANGE).unwrap(), why, Some(&failure), &[], 4096)
+            .expect("repair words");
+        assert!(
+            skein_lib::bytes::find(
+                &words,
+                b"\nFailed test: test binary slow::a (slow)\nFailed test: test binary b (quick)"
+            )
+            .is_some()
+        );
+    }
+}
+
+#[test]
 fn landing_repairs_without_their_failure_answer_at_gather() {
     const PULL: Token = Token::new(100);
     const REASON: &[u8] = b"the landing no longer keeps its failure";

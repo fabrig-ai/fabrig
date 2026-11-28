@@ -1087,7 +1087,7 @@ fn template_name(root: &temper_client_domain::Domain, setting: c::Setting, words
     for project in &root.pages().me(root.client())?.projects {
         for template in &project.templates {
             if template.number == number.number {
-                return Some(crate::common::goals::way_name(template.shown.bytes(), words));
+                return Some(crate::common::goals::way_name(template, words));
             }
         }
     }
