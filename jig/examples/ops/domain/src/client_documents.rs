@@ -118,6 +118,8 @@ pub(crate) fn document(
     for _ in 0..out.len() {
         let request = match out.pop().expect("document completion count") {
             Out::Core(request) => request,
+            Out::Ask(connector, ask) => engine::bridge_ask(connector, ask),
+            Out::Held(Peer::Connector(connector, released)) => engine::bridge_released(connector, released),
             Out::Held(Peer::Store(load)) => {
                 held(decision, Output::Store(load));
                 continue;
@@ -174,6 +176,7 @@ pub(crate) fn document(
                 | core::Held::StopRun { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
+                | core::Held::ConnectorActed { .. }
                 | core::Held::NotesDeleted { .. }) => {
                     core_request(domain, env, decision, core::Request::Held(Box::new(output)), work);
                 }

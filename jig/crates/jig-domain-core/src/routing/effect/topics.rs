@@ -45,7 +45,7 @@ pub(crate) fn subscribe(
         crate::routing::run::calls::call_decision(core, &mut out, to, key, part);
     } else if let Some(subscription) = fresh(&mut core.counters, Family::Message) {
         let token = to.into_token();
-        let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
+        let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription, connector: Some(connector) });
         work.push(Work::Event(Event::Tasks(tasks::Event::SubscribeTopic {
             reply_to: ReplyTo::new(token),
             task: key.task,

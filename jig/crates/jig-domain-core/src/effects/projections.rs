@@ -212,12 +212,24 @@ fn eligible(core: &Core, number: u64, state: &Projection) -> bool {
         Some(task) => task.tracked.is_none(),
         None => false,
     };
+    if !state.pending.is_empty() && !awaits_projection(core, state) {
+        return true;
+    }
     if untracked && !state.pending.is_empty() {
         return false;
     }
     untracked
         || state.changed
         || (!state.milestones.is_empty() && state.fed_at != Some(core.counters.deployment().commits))
+}
+
+fn awaits_projection(core: &Core, state: &Projection) -> bool {
+    for number in &state.pending {
+        if core.connector_recipients.projections.contains(number) {
+            return true;
+        }
+    }
+    false
 }
 
 pub(crate) fn owed(core: &Core) -> bool {
@@ -243,7 +255,13 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         goals.push(*number).expect("bounded tracked goals");
     }
     for number in &goals {
-        if !eligible(core, *number, core.projections.get(number).expect("retained projection")) {
+        let state = core.projections.get(number).expect("retained projection");
+        if !eligible(core, *number, state) {
+            continue;
+        }
+        // A restored closing feed can still name connectors that never project.
+        if !state.pending.is_empty() && !awaits_projection(core, state) {
+            forget(core, *number, &mut out);
             continue;
         }
         let untracked = match core.tasks.task(*number) {
@@ -263,7 +281,7 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
                 | tasks::Phase::Held { .. } => false,
             } || untracked;
             if closing && state.pending.is_empty() {
-                state.pending.clone_from(&core.connectors);
+                state.pending.clone_from(&core.connector_recipients.projections);
             }
             for milestone in &state.milestones {
                 out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(milestone_key(
@@ -272,7 +290,7 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
                 ))))));
             }
             let milestones = core::mem::replace(&mut state.milestones, Box::new([]));
-            if core.connectors.is_empty() {
+            if core.connector_recipients.projections.is_empty() {
                 None
             } else {
                 Some(ProjectionFeed { goal: state.goal.clone(), plan: state.plan.clone(), milestones, closing })
@@ -281,7 +299,7 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         state.changed = false;
         write(&mut out, header(state));
         if let Some(feed) = feed
-            && let Some((&last, earlier)) = core.connectors.split_last()
+            && let Some((&last, earlier)) = core.connector_recipients.projections.split_last()
         {
             for &connector in earlier {
                 out.push(Request::Ask { connector, ask: Ask::ProjectGoal { feed: Box::new(feed.clone()) } });
@@ -294,7 +312,7 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
                 false
             }
         };
-        if (ended || untracked) && core.connectors.is_empty() {
+        if (ended || untracked) && core.connector_recipients.projections.is_empty() {
             forget(core, *number, &mut out);
         }
     }
@@ -310,12 +328,12 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 
 pub(crate) fn settled(core: &mut Core, goal: u64, connector: u16, out: &mut Queue<Request>) {
     let Some(state) = core.projections.get_mut(&goal) else { return };
-    if !state.pending.contains(&connector) {
+    if !core.connector_recipients.projections.contains(&connector) || !state.pending.contains(&connector) {
         return;
     }
     let mut pending = List::with_capacity(u32::try_from(state.pending.len()).expect("bounded connectors"));
     for &number in &state.pending {
-        if number != connector {
+        if number != connector && core.connector_recipients.projections.contains(&number) {
             pending.push(number).expect("connector subset");
         }
     }
@@ -347,7 +365,7 @@ fn forget(core: &mut Core, goal: u64, out: &mut Queue<Request>) {
     }
     out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::GoalWords(goal))))));
     out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal))))));
-    for &connector in core.connectors.as_ref() {
+    for &connector in core.connector_recipients.projections.as_ref() {
         out.push(Request::Ask { connector, ask: Ask::ForgetProjection { goal } });
     }
 }

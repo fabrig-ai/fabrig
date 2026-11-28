@@ -11,12 +11,11 @@ pub(crate) fn start(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    reply_to: ReplyTo,
+    reply_to: Option<ReplyTo>,
     key: people::ActKey,
     act: Box<people::Act>,
     carried: Option<Carried>,
 ) -> Queue<Request> {
-    let people::ActKey { connector, key } = key;
     let digest = match &*act {
         people::Act::AddKey { digest, .. } => Some(*digest),
         people::Act::MakeProject { .. }
@@ -30,19 +29,35 @@ pub(crate) fn start(
         None => digest.is_none(),
     };
     if !valid {
-        let mut out = Queue::uncapped();
-        out.push(Request::Held(Box::new(Held::Acted {
-            to: reply_to,
-            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-        })));
-
-        return crate::routing::application_routes::first(crate::routing::application_routes::number(carried), out);
+        return answer(reply_to, key, carried, people::Outcome::Refused(people::Refusal::NotOffered));
     }
     assert!(core.key_input.is_none(), "one key admission at a time");
     core.key_input = carried;
-    let routed = super::people::route_people(core, env, work, people::Event::Act { reply_to, connector, key, act });
+    let event = match reply_to {
+        Some(reply_to) => people::Event::Act { reply_to, connector: key.connector, key: key.key, act },
+        None => people::Event::ConnectorAct { key, act },
+    };
+    let routed = super::people::route_people(core, env, work, event);
     let unused = crate::routing::application_routes::number(core.key_input.take());
     crate::routing::application_routes::first(unused, routed)
+}
+
+pub(crate) fn answer(
+    reply_to: Option<ReplyTo>,
+    key: people::ActKey,
+    carried: Option<Carried>,
+    outcome: people::Outcome,
+) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    out.push(Request::Held(Box::new(acted(reply_to, key, outcome))));
+    crate::routing::application_routes::first(crate::routing::application_routes::number(carried), out)
+}
+
+pub(super) fn acted(reply_to: Option<ReplyTo>, key: people::ActKey, outcome: people::Outcome) -> Held {
+    match reply_to {
+        Some(to) => Held::Acted { to, outcome },
+        None => Held::ConnectorActed { connector: key.connector, key: key.key, outcome },
+    }
 }
 
 pub(crate) fn route(

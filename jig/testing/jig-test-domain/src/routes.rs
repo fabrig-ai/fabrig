@@ -5,7 +5,7 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_core::engine::{Out, Peer};
+use jig_domain_core::engine::{self, Out, Peer};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -23,7 +23,7 @@ pub(super) fn route_core(
     work: &mut Queue<Work>,
 ) {
     let mut out = Queue::with_capacity(requests.len());
-    core::engine::append(requests, &mut out);
+    engine::append(requests, &mut out);
     route_engine(domain, env, decision, out, work);
 }
 
@@ -37,6 +37,12 @@ pub(super) fn route_engine(
     for _ in 0..out.len() {
         match out.pop().expect("engine output count") {
             Out::Core(request) => route_request(domain, env, decision, request, work),
+            Out::Ask(connector, ask) => {
+                route_request(domain, env, decision, engine::bridge_ask(connector, ask), work);
+            }
+            Out::Held(Peer::Connector(connector, released)) => {
+                route_request(domain, env, decision, engine::bridge_released(connector, released), work);
+            }
             Out::Held(Peer::Store(load)) => hold(decision, Delivery::Store(load)),
         }
     }
@@ -139,6 +145,7 @@ pub(super) fn route_request(
             | core::Held::StopRun { .. }
             | core::Held::NotesWritten { .. }
             | core::Held::Acted { .. }
+            | core::Held::ConnectorActed { .. }
             | core::Held::NotesDeleted { .. }) => hold(decision, crate::link::down(domain, Delivery::Core(other))),
         },
         core::Request::Now(now) => route_now(domain, env, decision, *now, work),
@@ -332,7 +339,8 @@ fn route_ask(
         }
         core::Ask::Release { task, .. } => {
             work.push(Work::Connector { number, event: connector::Event::Unnamed { task } });
-            if number == 1 {
+            // The fake has no asynchronous release work. Answer once, on the first effect connector.
+            if number == 1 || !domain.first_releases_effects {
                 work.push(Work::Core(core::Event::Tasks(tasks::Event::Settled { task })));
             }
         }

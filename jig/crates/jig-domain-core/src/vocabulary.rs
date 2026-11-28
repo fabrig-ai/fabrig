@@ -2,6 +2,7 @@
 
 pub use jig_domain_core_vocabulary::vocabulary::*;
 
+use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_notes as notes;
 use skein_lib::List;
@@ -15,6 +16,11 @@ use skein_lib::List;
 pub(crate) enum Work {
     Event(Event),
     Store(crate::engine::store::In),
+    ConnectorAct {
+        key: jig_domain_people::ActKey,
+        act: Box<jig_domain_people::Act>,
+        carried: Option<Carried>,
+    },
     /// Resume a report-ready batch without resetting its first park's deadline.
     Resources(crate::effects::resources::Batch),
     /// A required preparation read or connector section could not be assembled.

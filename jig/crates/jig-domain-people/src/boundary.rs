@@ -808,6 +808,8 @@ pub enum Event {
     ForgetProject { project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },
+    /// Admit a deployment act whose answer goes back under the connector’s key.
+    ConnectorAct { key: ActKey, act: Box<Act> },
     /// Move a live conversation and start its new requester with nothing read.
     MoveChat { task: u64, project: u32, from: u64, to: u64 },
     /// Authentic committed chat header; live headers replace their previous contribution.
@@ -921,6 +923,8 @@ pub enum Request {
     Act { request: Token, connector: u16, act: Box<Act> },
     /// Terminal answer held by the parent until durable.
     Acted { to: ReplyTo, outcome: Outcome },
+    /// Terminal connector answer held by the parent until durable.
+    ConnectorActed { key: ActKey, outcome: Outcome },
     /// Terminal for one service creation after its person and role saves.
     ServiceMade { request: Token, outcome: Outcome },
     /// Terminal for `ApplyRoles`; success `Save` precedes this output, but the root completes the

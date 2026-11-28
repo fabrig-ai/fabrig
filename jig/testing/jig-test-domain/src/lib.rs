@@ -383,6 +383,7 @@ pub struct Domain {
     engine: Engine,
     first: connector::Domain,
     second: connector::Domain,
+    first_releases_effects: bool,
     journal: Journal<Write, Delivery>,
     now: Queue<Request>,
     catalogue_pending: bool,
@@ -598,6 +599,12 @@ impl Domain {
             settings_connectors.push(kind.connector).expect("one owner per kind");
         }
         let declarations = config.declarations();
+        let mut first_releases_effects = false;
+        for declaration in &declarations {
+            if declaration.connector == Connector(1) {
+                first_releases_effects = !declaration.effects.is_empty();
+            }
+        }
         Domain {
             scripted_project_releases: None,
             scripted_workspaces: None,
@@ -618,6 +625,7 @@ impl Domain {
             engine: Engine::new(config.core, &declarations, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
+            first_releases_effects,
             journal: Journal::uncapped(limits.journal.release, 0),
             now: Queue::uncapped(),
             catalogue_pending: false,
@@ -1140,6 +1148,7 @@ fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &
             unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
         }
         other @ (core::Held::Acted { .. }
+        | core::Held::ConnectorActed { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }

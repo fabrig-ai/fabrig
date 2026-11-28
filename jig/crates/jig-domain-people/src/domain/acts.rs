@@ -8,7 +8,7 @@ use skein_lib::{Env, Id, List, Queue, ReplyTo, Time, Wall};
 pub(crate) struct PendingAct {
     key: ActKey,
     act: Act,
-    replies: List<ReplyTo>,
+    replies: List<ActReply>,
 }
 #[derive(Hash, Debug)]
 pub(crate) struct Acted {
@@ -80,14 +80,23 @@ fn kind(act: &Act) -> ActKind {
         Act::Adopt { .. } => ActKind::Adopt,
     }
 }
-fn answer(to: ReplyTo, outcome: Outcome, out: &mut Queue<Request>) {
-    out.push(Request::Acted { to, outcome });
+#[derive(Hash, Debug)]
+pub(super) enum ActReply {
+    Root(ReplyTo),
+    Connector(ActKey),
+}
+
+fn answer(to: ActReply, outcome: Outcome, out: &mut Queue<Request>) {
+    out.push(match to {
+        ActReply::Root(to) => Request::Acted { to, outcome },
+        ActReply::Connector(key) => Request::ConnectorActed { key, outcome },
+    });
 }
 
 pub(super) fn admit(
     domain: &mut Domain,
     env: &Env<Limits>,
-    to: ReplyTo,
+    to: ActReply,
     key: ActKey,
     act: Act,
     out: &mut Queue<Request>,
@@ -160,7 +169,7 @@ pub(super) fn admit(
     out.push(Request::Act { request: id.token(), connector: key.connector, act: Box::new(act) });
 }
 
-fn busy(domain: &mut Domain, to: ReplyTo, out: &mut Queue<Request>) {
+fn busy(domain: &mut Domain, to: ActReply, out: &mut Queue<Request>) {
     // The existing capacity feed names party keys; count unsampled deployment pressure
     // without inventing a person or changing that client document.
     domain.room_refusals_lost = domain.room_refusals_lost.saturating_add(1);

@@ -627,7 +627,8 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
     );
     let problem = tasks::Problem::naming(Some(procedure), tasks::Refusal::Dependencies, &[dependency]);
     let mut named = false;
-    while let Some(Out::Core(output)) = outputs.pop() {
+    while let Some(next) = outputs.pop() {
+        let Out::Core(output) = next else { continue };
         if let core::Request::Now(now) = output
             && let core::Now::Link(core::LinkNow::RefusedPayload { problem: refused, .. }) = *now
         {

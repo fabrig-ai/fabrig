@@ -47,6 +47,30 @@ fn empty_declarations(config: &Config) -> Box<[Declaration]> {
     declarations.into_boxed()
 }
 
+fn declared_write() -> jig_domain_contract::effects::EffectKind {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    EffectKind { kind: 1, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false }
+}
+
+fn shared_holds() -> Box<[tasks::ResourceKind]> {
+    Box::new([tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Shared }])
+}
+
+fn fixture_declarations(config: &Config, resources: &[u16], effects: &[u16], projects: &[u16]) -> Box<[Declaration]> {
+    let mut declarations = empty_declarations(config);
+    for declaration in &mut declarations {
+        let connector = declaration.connector.0;
+        if resources.contains(&connector) {
+            declaration.resources = shared_holds();
+        }
+        if effects.contains(&connector) {
+            declaration.effects = Box::new([declared_write()]);
+        }
+        declaration.projects_goals = projects.contains(&connector);
+    }
+    declarations
+}
+
 pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let connectors = empty_declarations(&config);
     Core::new(config, &connectors, limits)
@@ -793,7 +817,12 @@ fn core_with_limits(limits: &Limits) -> Core {
 }
 
 fn core_with_config(config: Config, limits: &Limits) -> Core {
-    let mut core = seeded_core(config, limits).expect("fixture core configuration");
+    let declarations = empty_declarations(&config);
+    core_with_declarations(config, limits, &declarations)
+}
+
+fn core_with_declarations(config: Config, limits: &Limits, declarations: &[Declaration]) -> Core {
+    let mut core = seeded_core_with_declarations(config, declarations, limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     restore_key_account(&mut core, limits, 0, 1, 1);
     let mut out = Queue::uncapped();
@@ -1086,6 +1115,15 @@ fn tree_core_with_kinds(
     effects: Box<[jig_domain_contract::effects::EffectKind]>,
     resources: Box<[tasks::ResourceKind]>,
 ) -> (Core, Limits) {
+    tree_core_with_capabilities(effects, resources, &[], &[])
+}
+
+fn tree_core_with_capabilities(
+    effects: Box<[jig_domain_contract::effects::EffectKind]>,
+    resources: Box<[tasks::ResourceKind]>,
+    more_effects: &[u16],
+    projects: &[u16],
+) -> (Core, Limits) {
     let (old, mut limits) = core();
     limits.views.watchers = 8;
     limits.views.watchers_per_party = 8;
@@ -1103,10 +1141,12 @@ fn tree_core_with_kinds(
     given.delegation.tasks = 17;
     given.delegation.depth = 5;
     set_seed_role_authority(&mut config, given);
-    let mut connectors = empty_declarations(&config);
+    let mut connectors = fixture_declarations(&config, &[], more_effects, projects);
     let first = connectors.first_mut().expect("first connector");
     assert_eq!(first.connector, jig_domain_contract::Connector(1));
-    first.effects = effects;
+    if !effects.is_empty() {
+        first.effects = effects;
+    }
     let Some(declaration) = connectors.get_mut(1) else { panic!("second connector") };
     assert_eq!(declaration.connector, jig_domain_contract::Connector(2));
     declaration.resources = resources;
@@ -1175,11 +1215,15 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
 
 /// A live parent with three delegates, one held for budget.
 pub(crate) fn make_tree() -> (Core, Limits) {
-    let (mut core, limits) = tree_core();
+    let (core, limits) = tree_core();
+    (make_tree_in(core, &limits), limits)
+}
+
+fn make_tree_in(mut core: Core, limits: &Limits) -> Core {
     let root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     send_task(
         &mut core,
-        &limits,
+        limits,
         tasks::Event::Make {
             reads_project: false,
             maker: None,
@@ -1196,7 +1240,7 @@ pub(crate) fn make_tree() -> (Core, Limits) {
     ];
     send_task(
         &mut core,
-        &limits,
+        limits,
         tasks::Event::Make {
             reads_project: false,
             maker: None,
@@ -1207,8 +1251,8 @@ pub(crate) fn make_tree() -> (Core, Limits) {
         },
     );
     assert!(core.tasks.task(4).is_some());
-    send_task(&mut core, &limits, tasks::Event::Hold { task: 3, why: tasks::Hold::Budget });
-    (core, limits)
+    send_task(&mut core, limits, tasks::Event::Hold { task: 3, why: tasks::Hold::Budget });
+    core
 }
 
 #[test]
@@ -3780,6 +3824,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
                 people::Request::Route { request, .. } => routed = Some(request),
                 people::Request::Act { .. }
                 | people::Request::Acted { .. }
+                | people::Request::ConnectorActed { .. }
                 | people::Request::Save { .. }
                 | people::Request::Erase { .. }
                 | people::Request::Reply { .. }

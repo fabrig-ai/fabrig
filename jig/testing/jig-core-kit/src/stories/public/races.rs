@@ -2,7 +2,7 @@
 //! (jig/docs/design/domain/people/public-reading.md, 10).
 use super::{World, delegate, delete, move_out, read, untrack, visibility};
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, In, Out};
+use jig_domain_core::engine::{self, In, Out, Peer};
 use skein_lib::{Queue, ReplyTo, Token};
 
 #[derive(Clone, Copy, Debug)]
@@ -37,7 +37,16 @@ fn step(world: &mut World, event: core::Event) -> Queue<Out> {
     let mut raw = Queue::uncapped();
     engine::step(world.domain.engine_mut(), &env.with(env.limits.core), In::Core(event), &mut raw);
     let mut out = Queue::uncapped();
-    while let Some(Out::Core(request)) = raw.pop() {
+    while let Some(output) = raw.pop() {
+        let request = match output {
+            Out::Core(request) => request,
+            Out::Ask(connector, ask) => engine::bridge_ask(connector, ask),
+            Out::Held(Peer::Connector(connector, released)) => engine::bridge_released(connector, released),
+            Out::Held(Peer::Store(load)) => {
+                out.push(Out::Held(Peer::Store(load)));
+                continue;
+            }
+        };
         if let core::Request::Held(held) = request {
             if matches!(*held, core::Held::PublicRead { .. }) {
                 let mut output = jig_test_domain::Request::Deliver(jig_test_domain::Delivery::Core(*held));

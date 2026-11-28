@@ -1,5 +1,6 @@
 //! Pass-through decisions and timer admission (`jig/docs/design/domain/engine/vocabulary.md`, 2).
 
+mod connectors;
 use crate::{
     Config, Core, Event, Limits, Request, Timer,
     engine::{self, Admit, Engine, In, Out},

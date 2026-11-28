@@ -193,15 +193,11 @@ fn a_pool_the_period_cannot_carve_refuses_the_repair_make() {
     let seed = core.pool_seed(POOL_PROJECT, ALICE).expect("an unopened pool reads its role's allotment");
     let number = seed.number();
     let out = step(&mut core, &env, repair(seed));
-    assert!(out.into_iter().any(|request| {
-        let Request::Ask { connector: 1, ask: Ask::RepairRefused { repair: None, number: refused, why } } = request
-        else {
-            return false;
-        };
-        assert_eq!(*refused, number);
-        assert_eq!(*why, tasks::Refusal::Funding);
-        true
-    }));
+    for request in &out {
+        if let Request::Ask { ask: Ask::RepairRefused { .. }, .. } = request {
+            panic!("the configured connector does not declare resources");
+        }
+    }
     assert!(core.tasks.task(number).is_none());
     assert!(core.tasks.funding(POOL).is_none());
     assert_eq!(core.tasks.funding(PERIOD), Some(&period_before));

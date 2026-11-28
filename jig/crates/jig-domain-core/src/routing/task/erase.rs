@@ -230,7 +230,7 @@ fn task_rows(
     }
 }
 fn unname(core: &Core, task: u64, out: &mut Queue<Request>) {
-    for &connector in core.connectors.as_ref() {
+    for &connector in core.connector_recipients.resources.as_ref() {
         out.push(Request::Ask { connector, ask: crate::Ask::Effect(crate::effects::connector::Ask::Unname { task }) });
     }
 }
@@ -370,6 +370,7 @@ fn forget_party(core: &mut Core, env: &Env<Limits>, record: &tasks::TaskSummary,
             people::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::People(key)))),
             people::Request::Act { .. }
             | people::Request::Acted { .. }
+            | people::Request::ConnectorActed { .. }
             | people::Request::ServiceMade { .. }
             | people::Request::ReadingLost { .. }
             | people::Request::RolesApplied { .. }

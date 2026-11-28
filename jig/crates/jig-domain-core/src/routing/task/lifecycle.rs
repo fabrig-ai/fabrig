@@ -153,9 +153,20 @@ pub(crate) fn ended(
     }
 }
 
-pub(crate) fn close(core: &mut Core, task: u64, ending: tasks::Ending, out: &mut Queue<Request>) {
+pub(crate) fn close(
+    core: &mut Core,
+    env: &Env<Limits>,
+    task: u64,
+    ending: tasks::Ending,
+    pending: &mut Queue<tasks::Request>,
+    out: &mut Queue<Request>,
+) {
+    if core.connector_recipients.effects.is_empty() {
+        super::follow(core, env, tasks::Event::EffectsSettled { task }, pending);
+        return;
+    }
     let ancestor_number = core.tasks.root(task).unwrap_or(task);
-    for &connector in core.connectors.as_ref() {
+    for &connector in core.connector_recipients.effects.as_ref() {
         core.closing_connectors.insert((task, connector), ()).expect("bounded closing connectors");
         out.push(Request::Ask { connector, ask: Ask::Close { task, root: ancestor_number, ending: ending.clone() } });
     }
@@ -170,8 +181,13 @@ pub(crate) fn release(
     out: &mut Queue<Request>,
 ) {
     let ancestor_number = core.tasks.root(task).unwrap_or(task);
-    let mut entries = List::with_capacity(u32::try_from(core.connectors.len()).expect("connector count fits u32"));
-    for &connector in core.connectors.as_ref() {
+    let count = u32::try_from(core.connector_recipients.effects.len()).expect("connector count fits u32");
+    if count == 0 {
+        super::follow(core, env, tasks::Event::Settled { task }, pending);
+        return;
+    }
+    let mut entries = List::with_capacity(count);
+    for &connector in core.connector_recipients.effects.as_ref() {
         let Some(entry) = crate::fresh(&mut core.counters, crate::Family::ConnectorRow) else {
             let mut follow = Queue::uncapped();
             crate::routing::step::step_tasks(
@@ -187,7 +203,7 @@ pub(crate) fn release(
         };
         entries.push((connector, entry)).expect("one outbox entry per connector");
     }
-    if entries.len() != u32::try_from(core.connectors.len()).expect("connector count fits u32") {
+    if entries.len() != count {
         return;
     }
     for &(connector, entry) in &entries {

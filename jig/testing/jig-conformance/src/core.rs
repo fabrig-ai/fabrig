@@ -982,6 +982,7 @@ impl Observer {
             // The application's use of need arrivals is its own.
             core::Held::NeedArrived { .. }
             | core::Held::Acted { .. }
+            | core::Held::ConnectorActed { .. }
             | core::Held::Drained
             | core::Held::Restarting { .. }
             | core::Held::ApplicationDelivery { .. }

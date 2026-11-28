@@ -132,7 +132,7 @@ fn refuse_flight(
             crate::admission::deletion::compound_done(core, project);
         }
         Flight::Internal(Internal::Repair { number }) => {
-            for &connector in core.connectors.as_ref() {
+            for &connector in core.connector_recipients.resources.as_ref() {
                 out.push(Request::Ask {
                     connector,
                     ask: Ask::RepairRefused { repair: problem.task, number, why: problem.why },
@@ -140,7 +140,7 @@ fn refuse_flight(
             }
         }
         Flight::Internal(Internal::Delegate | Internal::Acknowledge) => {
-            for &connector in core.connectors.as_ref() {
+            for &connector in core.connector_recipients.resources.as_ref() {
                 out.push(Request::Ask { connector, ask: Ask::DelegateRefused { task: problem.task } });
             }
         }
@@ -212,9 +212,9 @@ fn call_refused(
         | RoutedCall::Decide { key, .. }
         | RoutedCall::Withdraw { key, .. }
         | RoutedCall::Accepting { key, .. } => (key, CallPart::ProposalRefused(problem)),
-        RoutedCall::Subscribe { key, .. } | RoutedCall::Unsubscribe(key) => {
+        RoutedCall::Subscribe { key, connector, .. } | RoutedCall::Unsubscribe { key, connector } => {
             call_decision(core, out, ReplyTo::new(request), key, CallPart::SubscriptionRefused(problem));
-            for &connector in core.connectors.as_ref() {
+            if let Some(connector) = connector {
                 out.push(Request::Ask { connector, ask: Ask::DropSubscription { request } });
             }
             return;

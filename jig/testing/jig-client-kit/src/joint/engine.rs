@@ -190,6 +190,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         core::Held::WatchEnded { watcher, why } => Event::WatchEnded { watcher, why },
         core::Held::CarriedUnused { number } => Event::Application(clients::FromApplication::Unused { number }),
         core::Held::Acted { .. }
+        | core::Held::ConnectorActed { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }

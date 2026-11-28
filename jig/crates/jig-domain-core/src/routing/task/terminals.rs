@@ -42,7 +42,7 @@ pub(crate) fn relay(core: &mut Core, env: &Env<Limits>, task: u64, out: &mut Que
 }
 
 pub(crate) fn resolve_uncertain(core: &mut Core, entry: u64, again: bool, out: &mut Queue<Request>) {
-    for connector in &core.connectors {
+    for connector in &core.connector_recipients.effects {
         out.push(Request::Ask {
             connector: *connector,
             ask: Ask::Effect(crate::effects::connector::Ask::ResolveUncertain { entry, again }),
@@ -167,7 +167,7 @@ pub(crate) fn acknowledged(
         out.push(Request::Write(Write::Save(Record::Core(CoreRecord::RunProof(proof.clone())))));
     }
     out.push(Request::Held(Box::new(Held::TaskTerminalAcknowledged { task, attempt })));
-    for &connector in core.connectors.as_ref() {
+    for &connector in core.connector_recipients.resources.as_ref() {
         out.push(Request::Ask { connector, ask: Ask::Lost { task, attempt } });
     }
 }

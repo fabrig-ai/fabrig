@@ -97,6 +97,8 @@ fn effect_start(
     for _ in 0..out.len() {
         let request = match out.pop().expect("effect start outputs") {
             Out::Core(request) => request,
+            Out::Ask(connector, ask) => engine::bridge_ask(connector, ask),
+            Out::Held(Peer::Connector(connector, released)) => engine::bridge_released(connector, released),
             Out::Held(Peer::Store(load)) => {
                 held(decision, Output::Store(load));
                 continue;
@@ -266,6 +268,12 @@ fn engine_out(
     for _ in 0..out.len() {
         match out.pop().expect("engine output count") {
             Out::Core(request) => core_request(domain, env, decision, request, work),
+            Out::Ask(connector, ask) => {
+                core_request(domain, env, decision, engine::bridge_ask(connector, ask), work);
+            }
+            Out::Held(Peer::Connector(connector, released)) => {
+                core_request(domain, env, decision, engine::bridge_released(connector, released), work);
+            }
             Out::Held(Peer::Store(load)) => held(decision, Output::Store(load)),
         }
     }
@@ -349,6 +357,7 @@ fn core_held(
                 .expect("kept people token has its retained connector outcome");
             held(decision, Output::Application { to, outcome });
         }
+        core::Held::ConnectorActed { .. } => unreachable!("this root sends acts with reply tokens"),
         core::Held::Acted { to, outcome } => {
             let token = to.into_token();
             let key = domain.hub_link.take_close_reply(token).expect("infrastructure act reply");
@@ -757,8 +766,13 @@ fn core_ask(
                 work.push(Work::Core(core::Event::ProjectionSettled { goal: feed.goal.number, connector: number }));
             }
         }
-        (Some(Connector::Observability), core::Ask::SubscriptionDone { request: _, key, subscription }) => {
+        (Some(Connector::Observability), core::Ask::SubscriptionDone { request, key, subscription }) => {
             work.push(Work::Observability(observability::Event::LinkWatch { task: key.task, subscription }));
+            work.push(Work::Core(core::Event::NamedAnswer {
+                to: ReplyTo::new(request),
+                key,
+                part: core::CallPart::Subscribed { subscription },
+            }));
         }
         (Some(Connector::Infrastructure), core::Ask::SubscriptionDone { request, key, subscription }) => {
             work.push(Work::Core(core::Event::NamedAnswer {
@@ -767,7 +781,10 @@ fn core_ask(
                 part: core::CallPart::Subscribed { subscription },
             }));
         }
-        (Some(Connector::Infrastructure), core::Ask::UnsubscriptionDone { request, key }) => {
+        (
+            Some(Connector::Infrastructure | Connector::Observability),
+            core::Ask::UnsubscriptionDone { request, key },
+        ) => {
             work.push(Work::Core(core::Event::NamedAnswer {
                 to: ReplyTo::new(request),
                 key,
@@ -776,12 +793,15 @@ fn core_ask(
         }
         (
             Some(Connector::Observability) | None,
-            core::Ask::DropApplication { .. }
-            | core::Ask::ClaimDone { .. }
-            | core::Ask::JobClaimed { .. }
+            core::Ask::DropApplication { .. } | core::Ask::ClaimDone { .. } | core::Ask::JobClaimed { .. },
+        )
+        | (
+            None,
+            core::Ask::Close { .. }
+            | core::Ask::Release { .. }
+            | core::Ask::SubscriptionDone { .. }
             | core::Ask::UnsubscriptionDone { .. },
         )
-        | (None, core::Ask::Close { .. } | core::Ask::Release { .. } | core::Ask::SubscriptionDone { .. })
         | (
             Some(Connector::Infrastructure | Connector::Observability) | None,
             core::Ask::Providers(_)

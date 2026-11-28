@@ -173,6 +173,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
 /// Consume making replies; pass every other held output to the root's routes.
 pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> {
     match held {
+        core::Held::ConnectorActed { .. } => unreachable!("this root sends acts with reply tokens"),
         core::Held::Acted { to, outcome } => {
             let token = to.into_token();
             match domain.making_replies.remove(&token) {

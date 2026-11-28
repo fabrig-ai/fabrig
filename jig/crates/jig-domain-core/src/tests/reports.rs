@@ -30,7 +30,8 @@ fn with_live_names(live: u8) -> (Core, Env<Limits>) {
     given.delegation.tasks = 16;
     given.delegation.depth = 5;
     set_seed_role_authority(&mut config, given);
-    let mut core = seeded_core(config, &limits).expect("fixture core");
+    let declarations = fixture_declarations(&config, &[1], &[], &[]);
+    let mut core = seeded_core_with_declarations(config, &declarations, &limits).expect("fixture core");
     core.counters.deployment.projects = 1;
     core.people = old.people;
     core.accounts = old.accounts;
@@ -110,28 +111,16 @@ fn begin_at(core: &mut Core, env: &Env<Limits>, count: usize, position: u32) -> 
         },
     );
     let mut request = None;
-    let mut asks = 0_u32;
     while let Some(next) = out.pop() {
         if let Request::Held(ref held) = next {
             panic!("early answer: {held:?}");
         }
-        if let Request::Ask { ask: Ask::DelegateHoldings { request: token, .. }, .. } = next {
-            request = Some(token);
-            asks = asks.checked_add(1).unwrap();
+        if let Request::Ask { connector, ask: Ask::DelegateHoldings { request: token, .. } } = next {
+            assert_eq!(connector, 1);
+            assert!(request.replace(token).is_none());
         }
     }
-    assert_eq!(asks, 2);
-    let request = request.expect("delegation asks holdings");
-    let mut holdings = List::with_capacity(env.limits.tasks.batch);
-    for _ in 0..count {
-        holdings.push(Box::from([])).unwrap();
-    }
-    drop(step(
-        core,
-        env,
-        Event::DelegateHoldings { request, connector: 2, holdings: Some(holdings.into_boxed()), refused: None },
-    ));
-    request
+    request.expect("delegation asks holdings")
 }
 
 fn answer(core: &mut Core, env: &Env<Limits>, request: Token, count: u8) -> Queue<Request> {

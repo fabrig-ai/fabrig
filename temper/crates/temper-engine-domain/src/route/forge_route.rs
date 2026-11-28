@@ -488,7 +488,12 @@ pub(crate) fn subscribe_call(
         return;
     }
     let token = to.into_token();
-    let flight = domain.engine.core_mut().reserve_connector_subscription(token, key, number).expect("one routed call");
+    let connector = domain.config.forge_connector;
+    let flight = domain
+        .engine
+        .core_mut()
+        .reserve_connector_subscription(token, key, number, connector)
+        .expect("one routed call");
     assert!(domain.forge_subscribing.insert(token, subscriber) == Ok(None), "one connector interest");
     domain.work.push(Work::Tasks(tasks::Event::SubscribeTopic {
         reply_to: ReplyTo::new(flight),

@@ -4,7 +4,10 @@
 pub use jig_domain_core_vocabulary::engine::*;
 
 use crate::{Config, Core, Held, Limits, Request, Timer};
-use jig_domain_contract::{Declaration, StartProblem};
+use jig_domain_contract::{Connector, Declaration, Released, StartProblem};
+
+mod connectors;
+pub use connectors::{bridge_ask, bridge_released};
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// The core behind the functions a root calls.
@@ -43,6 +46,20 @@ pub fn step(engine: &mut Engine, env: &Env<Limits>, input: In, out: &mut Queue<O
     let requests = match input {
         In::Core(event) => crate::step(&mut engine.core, env, event),
         In::Store(event) => crate::routing::step_store(&mut engine.core, env, event),
+        In::Connector(connector, up) => match connectors::input(connector, up) {
+            connectors::Input::Event(event) => crate::step(&mut engine.core, env, event),
+            connectors::Input::CatchUp(stage) => {
+                engine.core.catch_up_done(connector.0, stage);
+                Queue::uncapped()
+            }
+            connectors::Input::Act { key, act, carried } => crate::routing::step_connector_act(
+                &mut engine.core,
+                env,
+                jig_domain_people::ActKey { connector: connector.0, key },
+                act,
+                carried,
+            ),
+        },
     };
     append(requests, out);
 }
@@ -77,20 +94,67 @@ pub fn idle(engine: &Engine) -> bool {
     engine.core.quiescent(true)
 }
 
-/// Append requests from a direct core entrance, keeping each held load at its place.
-#[expect(clippy::wildcard_enum_match_arm, reason = "only the store port leaves the core request vocabulary")]
+/// Append requests from a direct core entrance, keeping every output at its place.
 pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
     for _ in 0..requests.len() {
         let request = requests.pop().expect("core request count");
         let output = match request {
-            Request::Held(held) => {
-                if let Held::Store(load) = *held {
-                    Out::Held(Peer::Store(load))
-                } else {
-                    Out::Core(Request::Held(held))
+            Request::Ask { connector, ask } => match connectors::ask(ask) {
+                Ok(ask) => Out::Ask(Connector(connector), ask),
+                Err(ask) => Out::Core(Request::Ask { connector, ask }),
+            },
+            Request::Held(held) => match *held {
+                Held::Store(load) => Out::Held(Peer::Store(load)),
+                Held::MakeEffect { connector, entry } => {
+                    Out::Held(Peer::Connector(Connector(connector), Released::Make { entry }))
                 }
-            }
-            other => Out::Core(other),
+                Held::ConnectorActed { connector, key, outcome } => {
+                    Out::Held(Peer::Connector(Connector(connector), Released::Answered { key, outcome }))
+                }
+                Held::Acted { .. }
+                | Held::Drained
+                | Held::Restarting { .. }
+                | Held::ApplicationDelivery { .. }
+                | Held::ApplicationWatchEnded { .. }
+                | Held::Read { .. }
+                | Held::Applied { .. }
+                | Held::CarriedUnused { .. }
+                | Held::Delivery { .. }
+                | Held::WatchEnded { .. }
+                | Held::SettledCall { .. }
+                | Held::Assign { .. }
+                | Held::ReadUsage { .. }
+                | Held::ReadList { .. }
+                | Held::Sources { .. }
+                | Held::CheckSource { .. }
+                | Held::PauseWorker { .. }
+                | Held::SignOutSource { .. }
+                | Held::SourceSignedOut { .. }
+                | Held::Grant { .. }
+                | Held::Relayed { .. }
+                | Held::Inbound { .. }
+                | Held::Relay { .. }
+                | Held::PeopleReply { .. }
+                | Held::CallAnswer { .. }
+                | Held::Result { .. }
+                | Held::Acknowledge { .. }
+                | Held::TaskTerminalAcknowledged { .. }
+                | Held::TaskPartKept { .. }
+                | Held::AcknowledgePart { .. }
+                | Held::PartBusy { .. }
+                | Held::TaskTurnKept { .. }
+                | Held::AcknowledgeTurn { .. }
+                | Held::Cancel { .. }
+                | Held::Refuse { .. }
+                | Held::TurnBusy { .. }
+                | Held::StopRun { .. }
+                | Held::NotesWritten { .. }
+                | Held::NotesDeleted { .. }
+                | Held::PublicRead { .. }
+                | Held::PublicWait { .. }
+                | Held::NeedArrived { .. } => Out::Core(Request::Held(held)),
+            },
+            other @ (Request::ProjectMade { .. } | Request::Write(_) | Request::Now(_)) => Out::Core(other),
         };
         out.push(output);
     }

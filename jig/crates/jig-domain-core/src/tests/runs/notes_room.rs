@@ -467,7 +467,7 @@ fn a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken() {
             })) => {
                 assert!(load_token.replace(load).is_none(), "one held request for the entire window");
             }
-            other @ (Out::Core(_) | Out::Held(_)) => panic!("unexpected preparation output: {other:?}"),
+            other @ (Out::Core(_) | Out::Held(_) | Out::Ask(..)) => panic!("unexpected preparation output: {other:?}"),
         }
     }
     let token = load_token.expect("the engine loads the window on the held port");

@@ -102,13 +102,11 @@ pub(super) fn subscribed(
             }
         }
     }
-    if number == 1 {
-        work.push(Work::Core(core::Event::NamedAnswer {
-            to: ReplyTo::new(request),
-            key,
-            part: core::CallPart::Subscribed { subscription },
-        }));
-    }
+    work.push(Work::Core(core::Event::NamedAnswer {
+        to: ReplyTo::new(request),
+        key,
+        part: core::CallPart::Subscribed { subscription },
+    }));
 }
 
 pub(super) fn sync(domain: &mut Domain, number: u16, task: u64, work: &mut Queue<Work>) {
@@ -135,13 +133,11 @@ pub(super) fn unsubscribed(
     work: &mut Queue<Work>,
 ) {
     sync(domain, number, key.task, work);
-    if number == 1 {
-        work.push(Work::Core(core::Event::NamedAnswer {
-            to: ReplyTo::new(request),
-            key,
-            part: core::CallPart::Unsubscribed,
-        }));
-    }
+    work.push(Work::Core(core::Event::NamedAnswer {
+        to: ReplyTo::new(request),
+        key,
+        part: core::CallPart::Unsubscribed,
+    }));
 }
 
 pub(super) fn news(

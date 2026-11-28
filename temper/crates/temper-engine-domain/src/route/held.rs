@@ -180,6 +180,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::NotesWritten { .. } | core::Held::NotesDeleted { .. } => {
             unreachable!("the current application has no note caller")
         }
+        core::Held::ConnectorActed { .. } => unreachable!("this root sends acts with reply tokens"),
         core::Held::Acted { to, outcome } => {
             let token = to.into_token();
             if domain.playground_replies.contains_key(&token) {

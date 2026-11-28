@@ -100,6 +100,7 @@ impl ClientPeer {
                 | core::Held::WatchEnded { .. }
                 | core::Held::CarriedUnused { .. } => true,
                 core::Held::Acted { .. }
+                | core::Held::ConnectorActed { .. }
                 | core::Held::ApplicationDelivery { .. }
                 | core::Held::ApplicationWatchEnded { .. }
                 | core::Held::Applied { .. }

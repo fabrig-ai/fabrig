@@ -189,19 +189,21 @@ fn call_done(
             );
             return;
         }
-        RoutedCall::Subscribe { key, subscription } => {
-            core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
-            for &connector in core.connectors.as_ref() {
+        RoutedCall::Subscribe { key, subscription, connector } => {
+            if let Some(connector) = connector {
+                core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
                 out.push(Request::Ask { connector, ask: Ask::SubscriptionDone { request, key, subscription } });
+                return;
             }
-            return;
+            (key, CallPart::Subscribed { subscription })
         }
-        RoutedCall::Unsubscribe(key) => {
-            core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
-            for &connector in core.connectors.as_ref() {
+        RoutedCall::Unsubscribe { key, connector } => {
+            if let Some(connector) = connector {
+                core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
                 out.push(Request::Ask { connector, ask: Ask::UnsubscriptionDone { request, key } });
+                return;
             }
-            return;
+            (key, CallPart::Unsubscribed)
         }
         RoutedCall::Message(_)
         | RoutedCall::MarkRead(_)

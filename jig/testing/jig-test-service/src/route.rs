@@ -270,7 +270,10 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         }
         // The application's use of need arrivals is its own.
         core::Held::NeedArrived { .. } | core::Held::Restarting { .. } => {}
-        held @ (core::Held::Acted { .. } | core::Held::Result { .. } | core::Held::SourceSignedOut { .. }) => {
+        held @ (core::Held::Acted { .. }
+        | core::Held::ConnectorActed { .. }
+        | core::Held::Result { .. }
+        | core::Held::SourceSignedOut { .. }) => {
             engine.outputs.push(PartyOutput::Held(root::Delivery::Core(held)));
         }
         core::Held::MakeEffect { connector: number, entry } => {

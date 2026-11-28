@@ -55,10 +55,13 @@ fn decide(world: &mut World, task: u64, child: core::Delegate) -> core::StepRefu
     let env = world.env().with(world.env().limits.core);
     let mut requests = Queue::uncapped();
     engine::step(world.domain.engine_mut(), &env, In::Core(event), &mut requests);
-    let Some(Out::Core(core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: named, why, .. } })) =
-        requests.pop()
-    else {
+    let Some(Out::Ask(connector, ask)) = requests.pop() else {
         panic!("core refused the procedure step: {requests:?}");
+    };
+    let core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: named, why, .. } } =
+        engine::bridge_ask(connector, ask)
+    else {
+        panic!("step refusal ask from the procedure's connector")
     };
     assert_eq!(named, task);
     assert!(requests.is_empty());

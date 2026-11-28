@@ -318,6 +318,12 @@ pub enum Held {
         to: ReplyTo,
         outcome: people::Outcome,
     },
+    /// Terminal act answer addressed to a connector under its own key.
+    ConnectorActed {
+        connector: u16,
+        key: [u8; 16],
+        outcome: people::Outcome,
+    },
     /// Every earlier commit is durable when the journal releases this terminal.
     Drained,
     /// A settled stop has durably kept its restart word (domain/engine/restart.md, 5).
@@ -1736,6 +1742,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
 fn people_new_work(event: &people::Event) -> bool {
     match event {
         people::Event::Act { .. }
+        | people::Event::ConnectorAct { .. }
         | people::Event::Seed { .. }
         | people::Event::SignedIn { .. }
         | people::Event::Whose { .. }

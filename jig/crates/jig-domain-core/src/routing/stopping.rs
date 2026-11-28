@@ -140,12 +140,11 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::ChangeSettings { reply_to, .. }
         | Event::ProposeSettings { reply_to, .. }
         | Event::SignIn { reply_to, .. } => Err(party(reply_to)),
-        Event::Act { reply_to, carried, .. } => Err(routing::application_routes::first(
-            routing::application_routes::number(carried),
-            answer(Some(Request::Held(Box::new(Held::Acted {
-                to: reply_to,
-                outcome: people::Outcome::Again(people::Again::NotReady),
-            })))),
+        Event::Act { reply_to, connector, key, carried, .. } => Err(super::party::deployment_acts::answer(
+            Some(reply_to),
+            people::ActKey { connector, key },
+            carried,
+            people::Outcome::Again(people::Again::NotReady),
         )),
         Event::Key { reply_to, carried, .. } => {
             Err(routing::application_routes::first(Some(carried.number), party(reply_to)))
@@ -220,6 +219,9 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
 }
 fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
     match event {
+        people::Event::ConnectorAct { key, .. } => {
+            Err(super::party::deployment_acts::answer(None, key, None, people::Outcome::Again(people::Again::NotReady)))
+        }
         people::Event::Act { reply_to, .. } => Err(answer(Some(Request::Held(Box::new(Held::Acted {
             to: reply_to,
             outcome: people::Outcome::Again(people::Again::NotReady),

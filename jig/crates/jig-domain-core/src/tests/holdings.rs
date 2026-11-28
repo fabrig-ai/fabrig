@@ -1,6 +1,6 @@
 //! A member's symbols and connector refusals (domain/tasks/holds.md, 1 and 2).
 use super::{
-    fill::{ask, filled_core, goal, signed_in},
+    fill::{ask, goal, signed_in},
     *,
 };
 
@@ -16,7 +16,15 @@ const SECOND_RESOURCE: u16 = 2;
 const CONNECTORS: usize = 2;
 
 fn party_core() -> (Core, Env<Limits>) {
-    let (mut core, env) = filled_core(0);
+    party_core_declaring(&[FIRST_CONNECTOR, SYMBOL_CONNECTOR])
+}
+
+fn party_core_declaring(resources: &[u16]) -> (Core, Env<Limits>) {
+    let limits = limits();
+    let config = config(41);
+    let declarations = fixture_declarations(&config, resources, &[], &[]);
+    let mut core = core_with_declarations(config, &limits, &declarations);
+    let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
     signed_in(&mut core, &env);
     (core, env)
 }
@@ -132,15 +140,18 @@ fn a_symbol_naming_no_connector_refuses_the_batch_before_any_ask() {
 }
 
 fn refused_person(refused: Option<HoldingsRefusal>, which: people::LimitKind) {
-    let (mut core, env) = party_core();
-    let request = holdings_request(ask(&mut core, &env, symbolic_goal(SYMBOL_CONNECTOR)));
-    drop(step(&mut core, &env, Event::Holdings { request, connector: SYMBOL_CONNECTOR, holdings: None, refused }));
+    let (mut core, env) = party_core_declaring(&[SYMBOL_CONNECTOR]);
+    let mut requests = ask(&mut core, &env, symbolic_goal(SYMBOL_CONNECTOR));
+    let mut requested = None;
+    while let Some(next) = requests.pop() {
+        if let Request::Ask { connector, ask: Ask::TaskHoldings { request, .. } } = next {
+            assert_eq!(connector, SYMBOL_CONNECTOR);
+            assert!(requested.replace(request).is_none());
+        }
+    }
+    let request = requested.expect("only the resource declarer is asked");
     person_refusal(
-        step(
-            &mut core,
-            &env,
-            Event::Holdings { request, connector: FIRST_CONNECTOR, holdings: Some(Box::new([])), refused: None },
-        ),
+        step(&mut core, &env, Event::Holdings { request, connector: SYMBOL_CONNECTOR, holdings: None, refused }),
         which,
     );
     assert!(core.tasks.task(OWNER).is_none());
@@ -297,7 +308,7 @@ fn an_unnamed_holdings_failure_keeps_the_delegate_holds_refusal() {
 }
 
 fn refused_procedure(refused: Option<HoldingsRefusal>, expected: tasks::Problem) {
-    let (mut core, env) = party_core();
+    let (mut core, env) = party_core_declaring(&[SYMBOL_CONNECTOR]);
     let mut parent = new_row(&core, OWNER, tasks::Funder::Period { project: 1, period: 1 }, None);
     parent.executor = tasks::Executor::Procedure { connector: SYMBOL_CONNECTOR, code: 1 };
     send_task(
@@ -326,14 +337,15 @@ fn refused_procedure(refused: Option<HoldingsRefusal>, expected: tasks::Problem)
             decision: ProcedureStep { batch, ..ProcedureStep::new(StepEnd::Wait) },
         },
     );
-    let mut asks = 0_usize;
+    let mut asks = 0_u32;
     while let Some(next) = out.pop() {
-        if let Request::Ask { ask: Ask::ProcedureHoldings { .. }, .. } = next {
+        if let Request::Ask { connector, ask: Ask::ProcedureHoldings { .. } } = next {
+            assert_eq!(connector, SYMBOL_CONNECTOR);
             asks = asks.checked_add(1).unwrap();
         }
     }
-    assert_eq!(asks, CONNECTORS);
-    drop(step(
+    assert_eq!(asks, 1);
+    let mut out = step(
         &mut core,
         &env,
         Event::ProcedureHoldings {
@@ -342,17 +354,6 @@ fn refused_procedure(refused: Option<HoldingsRefusal>, expected: tasks::Problem)
             connector: SYMBOL_CONNECTOR,
             holdings: None,
             refused,
-        },
-    ));
-    let mut out = step(
-        &mut core,
-        &env,
-        Event::ProcedureHoldings {
-            task: OWNER,
-            step: step_number,
-            connector: FIRST_CONNECTOR,
-            holdings: Some(Box::new([Box::new([])])),
-            refused: None,
         },
     );
     let mut refusal = None;

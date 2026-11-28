@@ -94,22 +94,11 @@ fn a_chat_at_the_fill_mark_is_answered_busy() {
 fn a_goal_below_the_fill_mark_is_made() {
     let (mut core, env) = filled_core(limits().fill_mark - 1);
     signed_in(&mut core, &env);
-    let mut out = ask(&mut core, &env, goal());
-    let mut request = None;
-    while let Some(next) = out.pop() {
-        if let Request::Ask { ask: Ask::TaskHoldings { request: token, tracked, symbols, .. }, .. } = next {
-            assert!(tracked);
-            assert!(symbols.is_empty());
-            request = Some(token);
+    let out = ask(&mut core, &env, goal());
+    for request in &out {
+        if let Request::Ask { ask: Ask::TaskHoldings { .. }, .. } = request {
+            panic!("no connector declares holdings");
         }
-    }
-    let request = request.expect("goal asks for connector holdings");
-    for connector in [1, 2] {
-        drop(step(
-            &mut core,
-            &env,
-            Event::Holdings { refused: None, request, connector, holdings: Some(Box::new([])) },
-        ));
     }
     assert!(core.tasks.task(1).is_some(), "the goal was made below the mark");
 }
@@ -195,7 +184,10 @@ fn take_write_holdings(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 
 #[test]
 fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
-    let (mut core, limits) = tree_core_with_write_hold();
+    let (mut core, limits) = tree_core_with_kinds(
+        Box::new([declared_write()]),
+        Box::new([tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } }]),
+    );
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = take_write_holdings(&mut core, &env);
     let mut entries = List::with_capacity(2);
@@ -216,7 +208,7 @@ fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
         resources.as_slice(),
         &[Box::from([Box::from(b"first".as_slice())]), Box::from([Box::from(b"second".as_slice())])]
     );
-    drop(step(
+    let close = step(
         &mut core,
         &env,
         Event::Tasks(tasks::Event::Cancel {
@@ -224,20 +216,32 @@ fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
             by: tasks::Party::Person(1),
             operation: tasks::Cancel { task: 1, reason: Box::new([]), grace: None, message: None },
         }),
-    ));
+    );
+    let mut closes = 0_u32;
+    for request in &close {
+        if let Request::Ask { connector, ask: Ask::Close { task, .. } } = request {
+            assert_eq!((*connector, *task), (1, 1));
+            closes += 1;
+        }
+    }
+    assert_eq!(closes, 1);
+    let before = core.counters.deployment().connector_rows;
     let mut releases = 0_u32;
-    for connector in [1, 2] {
+    for connector in [2, 1] {
         let mut out = step(&mut core, &env, Event::EffectConnector(connector::Event::Closed { task: 1, connector }));
         while let Some(request) = out.pop() {
-            if let Request::Ask { ask: Ask::Release { task, entry, .. }, .. } = request {
-                assert_eq!(task, 1);
+            if let Request::Ask { connector: number, ask: Ask::Release { task, entry, .. } } = request {
+                assert_eq!((connector, number, task), (1, 1, 1));
                 assert_ne!(entry, 0);
                 assert!(!entries.as_slice().contains(&entry));
                 releases += 1;
             }
         }
     }
-    assert_eq!(releases, 2);
+    assert_eq!(releases, 1);
+    assert_eq!(core.counters.deployment().connector_rows, before.checked_add(1).unwrap());
+    drop(step(&mut core, &env, Event::Tasks(tasks::Event::Settled { task: 1 })));
+    assert!(core.tasks.task(1).is_none(), "one declarer's answer closes the task");
 }
 
 #[test]

@@ -86,12 +86,18 @@ impl Core {
 
     /// Retain a connector subscription's task-hub continuation with its named call.
     #[must_use]
-    pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> Option<Token> {
+    pub fn reserve_connector_subscription(
+        &mut self,
+        token: Token,
+        key: CallKey,
+        subscription: u64,
+        connector: u16,
+    ) -> Option<Token> {
         self.start_runtime_input();
         if !self.reserve_call(key, CallHolder::Routed) {
             return None;
         }
-        Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription }))
+        Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription, connector: Some(connector) }))
     }
 }
 
@@ -365,6 +371,20 @@ pub(crate) fn step_store(core: &mut Core, env: &Env<Limits>, input: crate::engin
     decide(core, env, Work::Store(input))
 }
 
+pub(crate) fn step_connector_act(
+    core: &mut Core,
+    env: &Env<Limits>,
+    key: people::ActKey,
+    act: Box<people::Act>,
+    carried: Option<crate::Carried>,
+) -> Queue<Request> {
+    core.start_input();
+    if core.start_failure().is_some() {
+        return Queue::uncapped();
+    }
+    decide(core, env, Work::ConnectorAct { key, act, carried })
+}
+
 fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
     let oldest = core.current.oldest;
     core.run_now = env.now;
@@ -495,6 +515,17 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
+        Work::ConnectorAct { key, act, carried } => {
+            if core.stopping {
+                return party::deployment_acts::answer(
+                    None,
+                    key,
+                    carried,
+                    people::Outcome::Again(people::Again::NotReady),
+                );
+            }
+            party::deployment_acts::start(core, env, work, None, key, act, carried)
+        }
         Work::Store(event) => crate::loads::loaded(core, env, work, event),
         Work::Resources(batch) => {
             let mut out = task::resume_resources(core, env, work, batch);
@@ -576,9 +607,15 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         }
         Event::Waits { connector, task, waits } => crate::runs::waits::report(core, env, connector, task, waits),
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
-        Event::Act { reply_to, connector, key, act, carried } => {
-            party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)
-        }
+        Event::Act { reply_to, connector, key, act, carried } => party::deployment_acts::start(
+            core,
+            env,
+            work,
+            Some(reply_to),
+            people::ActKey { connector, key },
+            act,
+            carried,
+        ),
         Event::Key { reply_to, sign_in, key, ask, carried } => {
             party::key_routes::start(core, env, work, party::dispatch::Signed { reply_to, sign_in, key }, *ask, carried)
         }
@@ -743,7 +780,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Activate { context, ready } => route_activate(core, env, work, context, ready),
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
-        Event::Delegate { to, key, batch } => delegate(core, env, to, key, batch),
+        Event::Delegate { to, key, batch } => delegate(core, env, work, to, key, batch),
         Event::DelegateHoldings { request, connector, holdings, refused } => {
             delegate_holdings(core, env, work, request, connector, holdings, refused)
         }

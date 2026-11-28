@@ -98,8 +98,8 @@ fn finish_rows(core: &mut Core, limits: &Limits, rows: &Queue<Request>) -> (Queu
 }
 
 #[test]
-fn every_connector_is_told_in_the_decision_that_erases_the_record() {
-    let (mut core, limits) = make_tree();
+fn the_resource_connector_is_told_in_the_decision_that_erases_the_record() {
+    let (mut core, limits) = tree_core_with_write_hold();
     let record = fixtures::ended_report(9, tasks::Party::Person(1));
     let out = ended(&mut core, &limits, record);
     assert!(unnamed(&out).is_empty());
@@ -108,7 +108,7 @@ fn every_connector_is_told_in_the_decision_that_erases_the_record() {
     let (cleanup, record_out) = finish_rows(&mut core, &limits, &rows);
     assert!(unnamed(&cleanup).is_empty());
     assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9)), Key::Tasks(tasks::Key::Summary(9))]);
-    assert_eq!(unnamed(&record_out).as_ref(), &[(1, 9), (2, 9)]);
+    assert_eq!(unnamed(&record_out).as_ref(), &[(2, 9)]);
     assert!(drops_history(&record_out));
     assert!(!drops_history(&cleanup), "not before owner");
 }

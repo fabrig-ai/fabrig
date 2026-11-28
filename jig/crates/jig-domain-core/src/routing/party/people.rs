@@ -84,6 +84,7 @@ pub(crate) fn route_people(
         | people::Event::SignedIn { .. }
         | people::Event::Roles { .. }
         | people::Event::Act { .. }
+        | people::Event::ConnectorAct { .. }
         | people::Event::Whose { .. }
         | people::Event::Ask { .. }
         | people::Event::Restore { .. }) => other,
@@ -170,6 +171,12 @@ pub(crate) fn tag_people_part(
             }
             people::Request::NeedArrived { party, project, task, needs } => {
                 Request::Held(Box::new(Held::NeedArrived { party, project, task, needs }))
+            }
+            people::Request::ConnectorActed { key, outcome } => {
+                if outcome == people::Outcome::Again(people::Again::Busy) {
+                    core.touch_deployment();
+                }
+                Request::Held(Box::new(super::deployment_acts::acted(None, key, outcome)))
             }
             people::Request::Acted { to, outcome } => {
                 if outcome == people::Outcome::Again(people::Again::Busy) {

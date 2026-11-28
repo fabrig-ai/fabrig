@@ -35,8 +35,8 @@ const CASES: [(&str, tasks::Retention, tasks::Party, Reading, Option<u64>); 6] =
 ];
 
 #[test]
-fn a_forget_tells_every_connector_the_task_is_erased() {
-    let (mut core, _) = make_tree();
+fn a_forget_tells_only_resource_connectors_the_task_is_erased() {
+    let (mut core, _) = tree_core_with_write_hold();
     let mut row = fixtures::ended_report(TASK, tasks::Party::Person(PARTY));
     row.flags.retention = tasks::Retention::ForgottenOnceRead;
     let owner = Owner::of_row(&row).unwrap();
@@ -56,7 +56,7 @@ fn a_forget_tells_every_connector_the_task_is_erased() {
         }
         if messages == 7 {
             assert!(erases.into_boxed().contains(&Key::Tasks(tasks::Key::Ended(TASK))));
-            assert_eq!(unnamed.into_boxed().as_ref(), &[(1, TASK), (2, TASK)]);
+            assert_eq!(unnamed.into_boxed().as_ref(), &[(2, TASK)]);
         } else {
             assert!(out.is_empty());
             assert!(work.is_empty());

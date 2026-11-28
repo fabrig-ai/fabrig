@@ -196,7 +196,8 @@ fn projection_feed_writes_hot_header_and_last_settlement_erases_every_part() {
         Request, Write, effects::projections, tasks,
     };
     use skein_lib::{Env, Queue, Time, Wall};
-    let (mut core, limits) = super::make_tree();
+    let (core, limits) = super::tree_core_with_capabilities(Box::new([]), Box::new([]), &[], &[1]);
+    let (mut core, limits) = (super::make_tree_in(core, &limits), limits);
     let mut out = Queue::uncapped();
     let milestone = ProjectionMilestone {
         identity: MilestoneId::Lifecycle { task: 2, position: 900 },
@@ -214,7 +215,7 @@ fn projection_feed_writes_hot_header_and_last_settlement_erases_every_part() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = projections::finish_decision(&mut core, &env);
     let mut keys = skein_lib::List::uncapped();
-    let mut feeds = 0;
+    let mut feeds = 0_u32;
     while let Some(request) = out.pop() {
         match request {
             Request::Write(Write::Erase(Key::Core(CoreKey::Projection(key)))) => assert_eq!(key, history_key),
@@ -222,7 +223,8 @@ fn projection_feed_writes_hot_header_and_last_settlement_erases_every_part() {
                 let R::GoalHot { changed: false, fed_at: Some(_), .. } = &row else { panic!("fed hot header") };
                 keys.push(row.key()).expect("uncapped test keys");
             }
-            Request::Ask { ask: crate::Ask::ProjectGoal { feed }, .. } => {
+            Request::Ask { connector, ask: crate::Ask::ProjectGoal { feed } } => {
+                assert_eq!(connector, 1);
                 assert_eq!(feed.plan, plan);
                 assert_eq!(feed.milestones.as_ref(), core::slice::from_ref(&milestone));
                 assert!(feed.closing);
@@ -236,21 +238,18 @@ fn projection_feed_writes_hot_header_and_last_settlement_erases_every_part() {
         }
     }
     assert_eq!(keys.as_slice(), &[K::Goal(1)]);
-    assert_eq!(feeds, core.connectors.len());
-    let connectors = core.connectors.clone();
-    for connector in &connectors {
-        projections::settled(&mut core, 1, *connector, &mut out);
-        if core.projections.contains_key(&1) {
-            assert_eq!(projection_keys(&projection_puts(&mut out)).as_ref(), [K::Goal(1)]);
-        }
-    }
+    assert_eq!(feeds, 1);
+    projections::settled(&mut core, 1, 2, &mut out);
+    assert!(out.is_empty(), "connector without a projection cannot settle one");
+    projections::settled(&mut core, 1, 1, &mut out);
+    assert!(!core.projections.contains_key(&1));
     let mut erased = skein_lib::List::uncapped();
     while let Some(request) = out.pop() {
         match request {
             Request::Write(Write::Erase(Key::Core(CoreKey::Projection(key)))) => {
                 erased.push(key).expect("uncapped test erasures");
             }
-            Request::Ask { ask: crate::Ask::ForgetProjection { goal: 1 }, .. } => {}
+            Request::Ask { connector: 1, ask: crate::Ask::ForgetProjection { goal: 1 } } => {}
             other @ (Request::Write(_)
             | Request::Ask { .. }
             | Request::ProjectMade { .. }

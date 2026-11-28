@@ -303,9 +303,9 @@ fn person_and_task_escalations_choose_their_own_terminal() {
 }
 
 #[test]
-fn internal_repair_and_delegate_refusals_notify_each_connector_in_order() {
+fn internal_repair_and_delegate_refusals_notify_only_resource_connectors() {
     for repair in [false, true] {
-        let (mut core, limits) = core();
+        let (mut core, limits) = tree_core_with_write_hold();
         let token = core.internal(if repair { Internal::Repair { number: 91 } } else { Internal::Delegate });
         let mut out = outputs(
             &mut core,
@@ -315,9 +315,8 @@ fn internal_repair_and_delegate_refusals_notify_each_connector_in_order() {
                 problem: tasks::Problem::new(Some(4), tasks::Refusal::Unknown),
             },
         );
-        for connector in core.connectors.as_ref() {
-            let Some(Request::Ask { connector: named, ask }) = out.pop() else { panic!("connector refusal") };
-            assert_eq!(named, *connector);
+        {
+            let Some(Request::Ask { connector: 2, ask }) = out.pop() else { panic!("connector refusal") };
             if repair {
                 let Ask::RepairRefused { repair, number, why } = ask else { panic!("repair refused") };
                 assert_eq!(repair, Some(4));

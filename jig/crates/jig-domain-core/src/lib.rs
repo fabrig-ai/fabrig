@@ -187,6 +187,7 @@ pub struct Core {
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
     declarations: Box<[Declaration]>,
+    connector_recipients: declarations::Recipients,
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     /// Subjects owned by the parent; the child echoes each watch token.
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
@@ -483,6 +484,7 @@ impl Core {
             public_reads: skein_lib::Slab::with_capacity(limits.load_slots),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
+            connector_recipients: declarations::recipients(&config.connectors, connectors),
             connectors: config.connectors,
             declarations: Box::from(connectors),
             jobs: config.jobs,

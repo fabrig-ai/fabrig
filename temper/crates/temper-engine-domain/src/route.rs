@@ -488,6 +488,8 @@ fn route_engine_with_job(
     for _ in 0..outputs.len() {
         let request = match outputs.pop().expect("engine output count") {
             Out::Core(request) => request,
+            Out::Ask(connector, ask) => core::engine::bridge_ask(connector, ask),
+            Out::Held(Peer::Connector(connector, released)) => core::engine::bridge_released(connector, released),
             Out::Held(Peer::Store(load)) => {
                 emit(decision, &env.limits, Delivery::EngineStore(load));
                 continue;

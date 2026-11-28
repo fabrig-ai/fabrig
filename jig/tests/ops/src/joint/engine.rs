@@ -369,6 +369,7 @@ impl Application for OpsApplication {
                 | core::Held::StopRun { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
+                | core::Held::ConnectorActed { .. }
                 | core::Held::NotesDeleted { .. },
             )
             | root::Output::Now(

@@ -1548,7 +1548,9 @@ fn a_stock_landing_can_start_its_prepare_job() {
         &mut out,
     );
     let mut refused = None;
-    while let Some(Out::Core(request)) = out.pop() {
+    while let Some(output) = out.pop() {
+        let Out::Ask(connector, ask) = output else { continue };
+        let request = jig_domain_core::engine::bridge_ask(connector, ask);
         if let jig_domain_core::Request::Ask { ask: jig_domain_core::Ask::StepRefused { why, .. }, .. } = request {
             refused = Some(why);
         }

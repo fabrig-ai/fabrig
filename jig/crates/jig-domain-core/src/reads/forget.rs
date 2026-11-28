@@ -104,7 +104,7 @@ pub(crate) fn forget(core: &mut Core, now: Wall, work: &mut Queue<Work>, owner: 
         out.push(crate::Request::Write(crate::Write::Save(crate::Record::Tasks(tasks::Stored::Retention(
             tasks::RetentionRow { stage: tasks::RetentionStage::Forgotten, since: now, number: owner.task },
         )))));
-        for &connector in core.connectors.as_ref() {
+        for &connector in core.connector_recipients.resources.as_ref() {
             out.push(crate::Request::Ask {
                 connector,
                 ask: crate::Ask::Effect(crate::effects::connector::Ask::Unname { task: owner.task }),

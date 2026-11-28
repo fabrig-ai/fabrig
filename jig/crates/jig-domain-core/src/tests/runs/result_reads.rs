@@ -171,7 +171,9 @@ fn two_preparations_share_one_load_slot_without_failing() {
                 assert!(second.replace(load).is_none());
             }
             Out::Core(Request::Now(now)) => assert_no_failure(&now),
-            Out::Core(Request::Held(_) | Request::Write(_) | Request::Ask { .. } | Request::ProjectMade { .. }) => {}
+            Out::Core(Request::Held(_) | Request::Write(_) | Request::Ask { .. } | Request::ProjectMade { .. })
+            | Out::Ask(..)
+            | Out::Held(Peer::Connector(..)) => {}
         }
     }
     engine::step(

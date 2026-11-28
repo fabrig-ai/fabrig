@@ -198,7 +198,8 @@ fn chip_changes_refresh_inline_inbox_and_named_documents() {
 
 #[test]
 fn chip_closing_names_the_connectors_waited_on_without_counting_their_effects() {
-    let (mut core, limits) = make_tree();
+    let (core, limits) = tree_core_with_capabilities(Box::new([]), Box::new([]), &[1, 2], &[]);
+    let mut core = make_tree_in(core, &limits);
     watch_outputs(
         &mut core,
         &limits,

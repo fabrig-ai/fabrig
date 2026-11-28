@@ -161,10 +161,11 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
         };
         assert_eq!(received, key);
     }
-    let Some(Out::Core(core::Request::Ask { connector, ask: core::Ask::ForgetProjection { goal: received } })) =
-        out.pop()
+    let Some(Out::Ask(connector, ask)) = out.pop() else { panic!("core forgets the settled connector projection") };
+    let core::Request::Ask { connector, ask: core::Ask::ForgetProjection { goal: received } } =
+        engine::bridge_ask(connector, ask)
     else {
-        panic!("core forgets the settled connector projection");
+        panic!("forget the settled goal")
     };
     assert_eq!(received, goal);
     assert_eq!(connector, domain.config.forge_connector);
