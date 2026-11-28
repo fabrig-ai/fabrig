@@ -45,10 +45,10 @@ put it. The kind of each ask: ◆ judgement, · notification, ▷ operation that
 | | `Unsubscribed { request, key, subscription, topic }` | · | `C::UnsubscriptionDone`; the same, its call settled `Unsubscribed`; `subscription` and `topic` are the interest the call ended, as the core read it from the task's row to find its connector |
 | | `Refused { request }` | · | `C::DropSubscription` |
 | | `Ended { task, subscription }` | · | `C::EndTopic` |
-| `parts` | `Document { watcher, scope, subject, party, window }` | ◆ `Made` | `C::Document` |
+| `parts` | `Document { watcher, scope, subject, party, window }` | ▷ `Made`, whenever its connector has read what it needs; the core's watcher waits for it | `C::Document` |
 | | `DropDocument { subject }` | · | `C::DropDocument` |
 | | `Read { reply, scope, read, party, window }` | ·, its answer the connector's own held output | `C::Read` |
-| | `Lines(PartsAsk)` | ◆ `Lines` | `C::Parts` |
+| | `Lines(PartsAsk)` | ▷ `Lines`, whenever its connector has read what it needs (a store's held load); the core's pending read, under `token`, waits for it | `C::Parts` |
 | | `Public { reply, kind, version, project, task, public }` | ◆ `Public` | `C::Public` |
 | `procedures` | `Start { context, step, chat }` | · | `C::StartProcedure`; `chat: Option<u64>` is the conversation the task serves, as `Tasks::served_chat` gives it when the core makes the ask |
 | | `StepMade { task, step, first, revisions }` | · | `C::StepMade` |
