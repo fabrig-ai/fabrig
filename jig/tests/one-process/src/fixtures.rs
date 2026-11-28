@@ -3,6 +3,7 @@ use crate::{Script, world::Settings};
 use jig_channel_kit::fixtures as channel;
 
 pub(crate) mod drawn;
+pub(crate) mod park;
 pub(crate) use jig_protocol_accounts_kit::fixtures::{ROOM, limits};
 
 pub const SEED: u64 = 7;
@@ -10,6 +11,7 @@ pub const SEED: u64 = 7;
 pub enum Chat {
     Finite,
     Drawn,
+    DelegateWait,
     OpenText,
     FiniteText,
 }
@@ -29,6 +31,7 @@ pub(crate) fn document(chat: Chat) -> Vec<u8> {
     let engine = match chat {
         Chat::OpenText => engine.replace(r#""conversation": true"#, r#""conversation": true, "ended_by": "requester""#),
         Chat::Drawn => drawn::document(&engine),
+        Chat::DelegateWait => park::document(&engine),
         Chat::Finite | Chat::FiniteText => engine,
     };
     let worker = std::str::from_utf8(channel::WORKER_DOCUMENT).expect("worker JSON");
@@ -92,8 +95,10 @@ pub(crate) fn files() -> jig_test_service::Files {
     engine
 }
 pub(crate) fn provider(chat: Chat, seed: u64) -> skein_fake_peers::llm::Peer {
-    if chat == Chat::Drawn {
-        return drawn::provider(seed);
+    match chat {
+        Chat::Drawn => return drawn::provider(seed),
+        Chat::DelegateWait => return park::provider(seed),
+        Chat::Finite | Chat::OpenText | Chat::FiniteText => {}
     }
     let mut script = channel::one_chat(b"Hello");
     // Keep the worker alive beyond its first committed turn for the mid-run cuts.

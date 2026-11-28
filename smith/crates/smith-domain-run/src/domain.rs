@@ -30,6 +30,18 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_runs(&self) -> &Slab<Run> {
+        &self.runs
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_calls(&self) -> &Slab<crate::call::Call> {
+        self.calls.inspection_slab()
+    }
+
     /// A domain with room for `limits`, drawing absent identities from `seed`.
     #[must_use]
     pub fn new(limits: &Limits, seed: u64) -> Domain {

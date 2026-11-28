@@ -70,6 +70,7 @@ fn git_ids_and_counts_share_the_forge_codec() {
 fn spawn(command: &Command) -> k::Spawn {
     let kind = match command {
         Command::CountObjects { .. } | Command::Repack { .. } => Some(temper_worker_domain_checkout::git::Kind::Pack),
+        Command::ReadMessage { .. } => Some(temper_worker_domain_checkout::git::Kind::Message),
         Command::MergeBases { .. } | Command::BringsList { .. } => {
             Some(temper_worker_domain_checkout::git::Kind::Brings)
         }
@@ -771,6 +772,27 @@ fn a_lost_push_answer_does_not_send_the_write_again() {
         output::classify(&answer.stderr, temper_worker_domain_checkout::git::Kind::Push),
         temper_worker_domain_checkout::git::Fault::Unreachable
     );
+}
+
+#[test]
+fn cat_file_returns_the_stored_commit_message() {
+    let call = object_call(TOPIC);
+    let command = Command::ReadMessage { commit: commit(TOPIC) };
+    let (answer, disk, net) = run(&command, vec![(call.clone(), objects(TOPIC))]);
+    assert_eq!(answer.exit, 0);
+    assert_eq!(answer.stdout, b"tree fake\n\nmessage");
+    assert_eq!(answer.stderr, []);
+    assert_eq!(net.seen, [call]);
+    assert_eq!(disk.written, [] as [Vec<u8>; 0]);
+}
+
+#[test]
+fn cat_file_refuses_a_commit_not_in_the_checkout() {
+    let command = Command::ReadMessage { commit: commit(STORED) };
+    let (answer, _, net) = run(&command, vec![]);
+    assert_eq!(answer.exit, 128);
+    assert_eq!(answer.stdout, []);
+    assert_eq!(net.seen, [] as [Call; 0]);
 }
 
 #[test]

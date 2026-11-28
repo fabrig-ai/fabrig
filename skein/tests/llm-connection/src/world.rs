@@ -431,7 +431,8 @@ impl World {
             match request {
                 IoRequest::Connect { owner, .. } => {
                     let socket = owner;
-                    self.peers.insert(socket, Peer::new(owner, self.seed + owner.raw()));
+                    let peer_seed = self.seed.wrapping_add(owner.raw());
+                    self.peers.insert(socket, Peer::new(owner, peer_seed));
                     self.component.up(
                         &self.env,
                         IoEvent::Connecting { owner, socket },

@@ -70,7 +70,7 @@ fn a_prepared_link_opens_as_a_new_link() {
 fn a_prepared_link_refuses_an_invalid_table() {
     use jig_protocol_worker_wire as wire;
     let mut table = wire::schema(&fixtures::codec()).expect("table");
-    table.versions.get_mut(0).expect("floor").kinds.get_mut(0).expect("first kind").largest = u32::MAX;
+    table.kinds.get_mut(0).expect("first kind").largest = u32::MAX;
     assert!(!crate::valid_with_schema(&fixtures::LIMITS, &table));
     assert_eq!(
         crate::Component::with_schema(&fixtures::LIMITS, wire::spoken(), fixtures::credential(), 1, table).err(),

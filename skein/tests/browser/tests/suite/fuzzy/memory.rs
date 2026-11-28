@@ -1,10 +1,13 @@
 //! Seeded loads at varied limits, checked against measured peak ceilings.
+//! The sweep takes cases from skein/docs/design/testing/sweeps.md, 4.2.
 
 use skein_browser::Limits;
 use skein_browser::boundary::Request;
 use skein_browser_world::world::{Fault, World};
 use skein_heap::Meter;
 use skein_lib::{Time, Token};
+use skein_world::{sweep::cases, this_test};
+use std::convert::Infallible;
 
 // Whole-world ceiling across seeds 0..96, using the largest measured peak
 // (16,987 B), plus a quarter rounded up to two significant digits.
@@ -12,7 +15,8 @@ const BROWSER_SEEDED_LOAD_PEAK_CEILING: u64 = 22_000;
 
 #[test]
 fn random_load_stays_under_the_peak_ceiling() {
-    for seed in 0..96_u64 {
+    let test = this_test!("random_load_stays_under_the_peak_ceiling");
+    cases(test, 0..96, |seed| {
         let limits = Limits {
             persons: 2,
             pages: 2,
@@ -55,5 +59,7 @@ fn random_load_stays_under_the_peak_ceiling() {
         );
         drop(world);
         assert_eq!(meter.held(), 0, "seed {seed}: all storage released");
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

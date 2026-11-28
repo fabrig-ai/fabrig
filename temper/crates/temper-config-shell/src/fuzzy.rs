@@ -157,3 +157,37 @@ fn rendered_files_round_trip_without_materializing_defaults() {
         }
     }
 }
+
+#[test]
+fn old_spelling_converts_and_round_trips_at_the_newest_format() {
+    use crate::{
+        formats::tests::TWO,
+        parse::parse_at,
+        render::{quote, render_at},
+    };
+    use std::fmt::Write;
+
+    let facts = tests::facts();
+    for case in 1..=512 {
+        for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
+            let mut f = file(&mut Seed(case), shape);
+            let git = f.programs.git.take();
+            let listen = f.listen.take();
+            let mut old = String::from("seed_count = 11\nretired_flag = true\n");
+            if let Some(git) = &git {
+                writeln!(old, "git_binary = {}", quote(git.to_str().expect("git path"))).expect("string");
+            }
+            if let Some(listen) = listen {
+                writeln!(old, "listen_on = [\"{listen}\"]").expect("string");
+            }
+            let text = [old.as_bytes(), &render(&f, shape)].concat();
+            f.programs.git = git;
+            f.listen = listen;
+            let parsed = parse_at(&text, shape, &facts, TWO).expect("old format parses");
+            assert_eq!(parsed.file, f, "old format, seed {case}, {shape:?}");
+            let newest = render_at(&parsed.file, shape, TWO);
+            let again = parse_at(&newest, shape, &facts, TWO).expect("newest format parses");
+            assert_eq!(again.file, f, "newest format, seed {case}, {shape:?}");
+        }
+    }
+}

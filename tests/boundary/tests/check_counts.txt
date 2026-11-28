@@ -1,7 +1,6 @@
 hearth/testing/hearth-test-fixtures/src/hostile.rs
 hearth/testing/hearth-test-render/src/properties.rs
 hearth/testing/hearth-test-render/src/repositories.rs
-hearth/tests/builder/src/fixtures/inputs.rs
 hearth/tests/builder/src/fixtures/worlds.rs
 hearth/tests/builder/src/fixtures/worlds/protocol_world.rs
 hearth/tests/git/src/fixtures.rs

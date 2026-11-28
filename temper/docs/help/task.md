@@ -68,6 +68,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   dependencies`, `Waiting for delegates`, `Waiting for news`,
   `Waiting for an answer to its question N`, `Nothing
   awaited`, or a party and what it must answer: `you: question 3 of task 44 · 1 waiting`.
+  A task that otherwise would say `Nothing awaited` names its first wait,
+  if it has one, as `waits:` names it: `dependency task 1`, for example.
   When there is a first wait, the line adds `since` and when it began,
   then the nearest bound and what happens at it, if there is one.
   If that bound is another wait's, its kind comes first.

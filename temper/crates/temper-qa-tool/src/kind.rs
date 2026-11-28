@@ -25,6 +25,12 @@ impl Kind {
             Self::Deployment => "deployment",
         }
     }
+    pub(crate) const fn failure_prefix(self) -> &'static str {
+        match self {
+            Self::Box => "box failed: ",
+            Self::Deployment => "deployment failed: ",
+        }
+    }
     #[must_use]
     pub const fn pinned(self) -> &'static str {
         match self {

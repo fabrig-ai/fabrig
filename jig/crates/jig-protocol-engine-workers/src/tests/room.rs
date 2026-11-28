@@ -5,7 +5,7 @@ use jig_domain_host as hub;
 use jig_protocol_worker_wire::{self as wire, sizes};
 use skein_lib::{Duration, List, Queue, Time, Token};
 
-fn config() -> jig_protocol_config::Engine {
+pub(super) fn config() -> jig_protocol_config::Engine {
     use jig_protocol_config as config;
     let document = config::document(
         br#"{

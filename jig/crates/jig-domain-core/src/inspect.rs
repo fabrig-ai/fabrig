@@ -1,5 +1,6 @@
 //! Borrow the core-owned facts an inspection of its children cannot know.
-use crate::{Core, Timer, routing::flight::Flight};
+use crate::{CallKey, Core, Timer, routing::flight::Flight};
+use core::ops::Bound::{Excluded, Unbounded};
 use jig_domain_tasks::New;
 use skein_lib::{Map, ReplyTo, Time, Token, Wall};
 
@@ -75,6 +76,17 @@ impl Core {
     #[must_use]
     pub fn inspection_placement(&self, task: u64) -> Option<Token> {
         self.proofs.get(&task)?.placement
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// The first pending call if `after` is `None`, otherwise the next key strictly after it.
+    #[must_use]
+    pub fn inspection_pending_call_after(&self, after: Option<CallKey>) -> Option<CallKey> {
+        let (&key, _) = match after {
+            None => self.pending_calls.first(),
+            Some(key) => self.pending_calls.range((Excluded(key), Unbounded)).next(),
+        }?;
+        Some(key)
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).

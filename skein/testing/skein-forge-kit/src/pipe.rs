@@ -215,6 +215,16 @@ impl Pipe {
         }
         up
     }
+    /// Arms a cut relative to the next bytes this pipe carries.
+    pub fn cut_after(&mut self, bytes: u64) {
+        self.cut = Cut::At(self.carried.saturating_add(bytes));
+    }
+    /// Disarms a cut before either end has seen its reset.
+    pub fn disarm_cut(&mut self) {
+        if !self.client.failed && !self.server.failed {
+            self.cut = Cut::Never;
+        }
+    }
     pub(crate) fn freeze(&mut self) {
         self.frozen = true;
     }

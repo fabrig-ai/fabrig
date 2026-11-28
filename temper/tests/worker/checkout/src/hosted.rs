@@ -25,6 +25,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
         Command::CountObjects { .. } | Command::Repack { .. } => Some(git::Kind::Pack),
         Command::Reds(_) => Some(git::Kind::Reds),
         Command::MergeBases { .. } | Command::BringsList { .. } => Some(git::Kind::Brings),
+        Command::ReadMessage { .. } => Some(git::Kind::Message),
         Command::Format | Command::Clone { .. } | Command::Remote { .. } | Command::UpdateRef { .. } => {
             Some(git::Kind::Clone)
         }

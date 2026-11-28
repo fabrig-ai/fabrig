@@ -1,8 +1,13 @@
 //! Seeded public decoders (jig/docs/design/client/domain/contract/README.md, section 10;
 //! jig/docs/design/protocol/client/public-reads.md).
+//! Cases follow jig/docs/design/domain/testing-workloads.md, section 7.
 use jig_client_protocol_wire::{PublicIndexBounds, public_limits, public_v1::*};
 use skein_lib::{Reader, Rng, Writer};
-use std::fmt::Arguments;
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::{convert::Infallible, fmt::Arguments};
 
 const FIRST_SEED: u64 = 0x7075_b11c;
 const SEEDS: u64 = 4;
@@ -97,23 +102,28 @@ fn public_values() -> Vec<skein_codegen::FixedValue> {
 }
 
 #[test]
-fn public_records_decode_without_panic_and_re_encode_what_they_decode() {
+fn public_records_decode_without_panic_and_re_encode_what_they_decode() -> Result<(), Case<Infallible>> {
     let mut fixed_values = public_values();
     fixed_values.sort_by(|left, right| left.name.cmp(&right.name));
-    assert!(!fixed_values.is_empty(), "public fixed_value corpus, seed {FIRST_SEED:#x}");
-    for seed in FIRST_SEED..FIRST_SEED.checked_add(SEEDS).expect("seed range") {
-        let mut rng = Rng::new(seed);
-        for (bounds_name, bounds) in [
-            ("zero", PublicIndexBounds { goals: 0, ended: 0, lines: 0, depth: 0, projects: 0 }),
-            ("small", PublicIndexBounds { goals: 1, ended: 2, lines: 3, depth: 4, projects: 5 }),
-            ("medium", PublicIndexBounds { goals: 20, ended: 20, lines: 50, depth: 16, projects: 64 }),
-            ("large", PublicIndexBounds { goals: 256, ended: 256, lines: 256, depth: 64, projects: 4096 }),
-        ] {
-            let limits = public_limits(&bounds).expect("public bounds within ceilings");
-            arbitrary(seed, &mut rng, &limits, bounds_name);
-            for (fixed_value_index, fixed_value) in fixed_values.iter().enumerate() {
-                mutated(seed, &mut rng, &limits, bounds_name, &fixed_value.bytes, fixed_value_index);
+    assert!(!fixed_values.is_empty(), "public fixed_value corpus");
+    cases(
+        this_test!("public_records_decode_without_panic_and_re_encode_what_they_decode"),
+        FIRST_SEED..FIRST_SEED.checked_add(SEEDS).expect("seed range"),
+        |seed| {
+            let mut rng = Rng::new(seed);
+            for (bounds_name, bounds) in [
+                ("zero", PublicIndexBounds { goals: 0, ended: 0, lines: 0, depth: 0, projects: 0 }),
+                ("small", PublicIndexBounds { goals: 1, ended: 2, lines: 3, depth: 4, projects: 5 }),
+                ("medium", PublicIndexBounds { goals: 20, ended: 20, lines: 50, depth: 16, projects: 64 }),
+                ("large", PublicIndexBounds { goals: 256, ended: 256, lines: 256, depth: 64, projects: 4096 }),
+            ] {
+                let limits = public_limits(&bounds).expect("public bounds within ceilings");
+                arbitrary(seed, &mut rng, &limits, bounds_name);
+                for (fixed_value_index, fixed_value) in fixed_values.iter().enumerate() {
+                    mutated(seed, &mut rng, &limits, bounds_name, &fixed_value.bytes, fixed_value_index);
+                }
             }
-        }
-    }
+            Ok(())
+        },
+    )
 }

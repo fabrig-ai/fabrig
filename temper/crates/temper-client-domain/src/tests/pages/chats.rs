@@ -1418,10 +1418,7 @@ fn documents_arrive_in_both_row_windows_and_leave_with_their_rows() {
 fn unavailable_chat_parts_wait_for_the_next_delivery_without_reads() {
     for part in [
         RowPart::Unknown,
-        RowPart::NotServed(NotServed {
-            owner: Owner::Family(temper_client_protocol_wire::FORGE),
-            served: List::with_capacity(0),
-        }),
+        RowPart::NotServed(NotServed { owner: Owner::Family(temper_client_protocol_wire::FORGE) }),
         RowPart::Failed(PartFailure::Unreadable),
         document_part(None),
     ] {

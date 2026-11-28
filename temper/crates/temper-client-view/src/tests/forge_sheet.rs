@@ -64,11 +64,7 @@ fn the_out_of_date_form_uses_its_shells_words_and_disables_adoption() {
         &mut root,
         temper_client_domain::Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed {
-                    family: temper_client_protocol_wire::FORGE,
-                    versions: None,
-                    served: false,
-                },
+                up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, served: false },
             },
         },
     );

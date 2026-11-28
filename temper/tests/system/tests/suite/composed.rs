@@ -353,6 +353,19 @@ fn a_parked_smith_run_resumes_from_the_prefix_restored_through_both_roots() {
 }
 
 #[test]
+fn dropping_a_held_host_relay_names_the_open_call_and_its_missing_match() {
+    use temper_system_world::composed::restarts::Point;
+
+    let point = Point::HostCall(1);
+    let mut world = World::mid_turn_chat(925, report_script(true), b"Check the plan.", point);
+    world.until_mid_turn(point);
+    let finding = world.without_held_host_relay().expect_err("smith's call has no matching relay");
+    assert!(finding.contains("smith a run's host calls task 1 attempt 1 completion 1 position 0"), "{finding}");
+    assert!(finding.contains("holds an open call, matched by none of jig's a call record"), "{finding}");
+    assert!(finding.contains("links' a relay in flight"), "{finding}");
+}
+
+#[test]
 fn an_answered_producer_delivers_again_after_its_first_delivery() {
     let mut world = World::questioning_producer(924);
     world.continue_delivered_producer();

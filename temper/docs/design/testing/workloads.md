@@ -648,7 +648,20 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   Its sweep counts the shapes its cases reached in the shapes' shared
   vocabulary (`../draft/misbehaving-agents.md`, 8), beside its sample's
   size.
-- **Its streams:** the workload from `Workload`; the acts from `Parties`;
+- **Parks against wakes** (`jig/docs/design/domain/testing-cells.md`):
+  the composed world's driver draws, from `Faults`, part `cells`, a
+  producer eligible for `JOB_RUNNING_PARKS_ON_NOTHING`, a change's
+  producer that doesn't ask, and arms both halves: its first activation
+  starts a yielding shell and calls `wait` with nothing queued before
+  its work, so it parks with its job running and nothing to await; jig
+  wakes it with Nothing left to await's notice; its resumed activation
+  names the old job, refused as unknown, then works, delivers and
+  finishes. The driver keys the park by the producer's task, its attempt
+  and park 1, feeds smith's half, seen in the activation's turns and its
+  parked answer, and jig's, seen when the task's next attempt starts with
+  the notice, to a `jig_core_kit::cells::Pairing`, and checks the cell's
+  expectation. Its goal expects `Ends`; the park spends one run try. A
+  case with no eligible producer records the cell ineligible, as any kind. the workload from `Workload`; the acts from `Parties`;
   the world's scheduling from `Scheduling`, part `system`; each injector
   from its `Faults` part.
 - **Its checks:** the engine's world kit and `Ends` at its ticks and quiet
@@ -854,6 +867,8 @@ all and the fewest seeds make each fall:
 | worker | `temper_worker_inspect::faults::DISK_FULL` | `Faults`, `worker` |
 | people and parties | `HOLDS_A_MEMBER` and `RELEASES_A_MEMBER`, on the train | `Parties` |
 | runs that park, resume and move | `DELIVERED_THEN_PARKED` | `Faults`, `worker` |
+| a session's state at a park | `smith_faults::parks::JOB_RUNNING` | `Faults`, `cells`, armed with the cell |
+| parks against wakes | `jig_core_kit::cells::JOB_RUNNING_PARKS_ON_NOTHING` | `Faults`, `cells` |
 | the engine's own bounds | `FORGE_READ_ADMISSIONS` | observed (2.4) |
 | restarts | `ENGINE_CRASH_MID_TURN` | `Faults`, `restarts` |
 
@@ -878,6 +893,12 @@ all and the fewest seeds make each fall:
 - **The kinds are a list the caller gives,** and each family's draw keeps
   a fixed place in its part, so that leaving one kind out moves no other
   kind's draw.
+- **The two halves' kinds of the cell** are recorded as they fall: smith's
+  `JOB_RUNNING` is its family's kind here, and jig's `PARKS_ON_NOTHING`
+  falls beside `DELIVERED_THEN_PARKED`, which stays its family's kind. The
+  cell is the production incident's (`../draft/misbehaving-agents.notes.md`,
+  *The incident and its fix*), and is configured only where the gate's
+  seed shows it falls (`../draft/misbehaving-agents.execution.md`, 4).
 - **3.3 for runs** holds where the provider's fault falls, by the account
   runs' judge (`checks.md`, 6.3); 3.3 for gates where CI's falls, by
   `temper_blame` (`blame.md`).

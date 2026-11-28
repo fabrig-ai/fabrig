@@ -23,6 +23,18 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_kits(&self) -> &Slab<Kit> {
+        &self.kits
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_flights(&self) -> &Slab<Flight> {
+        &self.flights
+    }
+
     /// A domain with room for `limits`.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {

@@ -343,7 +343,7 @@ fn task_with_specification(
     llm::text_choice(task.llm.as_ref(), out);
     llm::text_wait(task, limits, out);
     out.put(b"\nwaiting on: ");
-    waiting(task, me, book, out);
+    waiting(task, me, book, vocabulary, out);
     out.put(b"\n");
     unread::text(task, me, out);
     waits::text(task, me, vocabulary, out);
@@ -413,7 +413,13 @@ fn project(number: u32, me: Option<&Me>, out: &mut Text) {
     out.put(b"project ");
     out.number(u64::from(number));
 }
-fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
+fn waiting(
+    task: &Task,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
     match &task.waits_on {
         WaitsOn::Party { whom, task: at_task, kind, entries } => {
             match whom {
@@ -450,12 +456,19 @@ fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
             out.put(&book.say(0, Word::waiting(&task.waits_on).id(), &[]).expect("waiting phrase").text);
         }
         WaitsOn::Nothing => {
-            let word = match &task.hold {
-                Some(_) => Word::Waiting(WaitingWord::Held),
-                None if llm::waits_for_account(task) => Word::Waiting(WaitingWord::Account),
-                None => Word::waiting(&task.waits_on),
+            let word = if task.hold.is_some() {
+                Some(Word::Waiting(WaitingWord::Held))
+            } else if llm::waits_for_account(task) {
+                Some(Word::Waiting(WaitingWord::Account))
+            } else if let Some(wait) = &task.wait {
+                waits::object_text(wait, me, vocabulary, out);
+                None
+            } else {
+                Some(Word::waiting(&task.waits_on))
             };
-            out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);
+            if let Some(word) = word {
+                out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);
+            }
         }
     }
     waits::summary(task.wait.as_ref(), task.nearest, out);

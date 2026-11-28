@@ -80,13 +80,23 @@ Run an engine alone's document until stopped; temper-worker serve runs a worker 
 
 Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure. Refuses a worker alone's document, naming temper-worker serve, or an engine and its worker in one process, naming temper-box serve.
 
+### temper-engine config upgrade
+
+`temper-engine config upgrade [DIRECTORIES]`
+
+print temper.toml at the newest format
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+
+Prints the configuration on stdout and any notices on stderr. Writes no files and starts nothing.
+
 ### temper-engine versions
 
 `temper-engine versions`
 
-Print this binary's patch levels, its store's and families' versions, and its wires, one line each.
+Print levels, store and family versions, wire fingerprints, the host tools' contract floor and version, and bounds.
 
-Reads no configuration and no store.
+Each entry takes one line. Reads no configuration and no store.
 
 ### temper-engine upgrade --check
 
@@ -114,11 +124,11 @@ Uses the configuration serve would read and a scratch of links and small copies 
 
 `temper-engine upgrade --back [DIRECTORIES]`
 
-Makes the previous generation active again, before the patched one's first commit.
+Makes the previous generation active again, before the upgraded one's first commit.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+Stop the deployment first, then start the old binary after going back. Past the upgraded generation's first commit, going back is restoring a backup.
 
 ### temper-engine checkpoint
 
@@ -242,6 +252,12 @@ Run a worker alone's document until stopped; temper-engine serve runs an engine 
 
 Its stderr carries its startup notes, its linked and lost lines and the reason of a failure. A first termination signal runs its worker's ending; a second aborts. Exit 0 after its ending, 1 on a refused start or any failure. Refuses an engine alone's document, naming temper-engine serve, or an engine and its worker in one process, naming the box's temper-box serve.
 
+### temper-worker config upgrade
+
+`temper-worker config upgrade [DIRECTORIES]`
+
+As temper-engine config upgrade, above.
+
 ### temper-worker program-login
 
 `temper-worker program-login [DIRECTORIES] NAME`
@@ -347,6 +363,12 @@ Run the engine and its worker in one process until stopped.
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
 Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.
+
+### temper-box config upgrade
+
+`temper-box config upgrade [DIRECTORIES]`
+
+As temper-engine config upgrade, above.
 
 ### temper-box program-login
 

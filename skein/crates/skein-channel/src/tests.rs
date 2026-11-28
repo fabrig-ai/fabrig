@@ -7,7 +7,7 @@ use skein_lib::{List, Queue, Token, stream};
 
 use super::{
     Control, Direction, Event, FrameError, Kind, Limits, Lower, LowerEvent, Machine, Request, Role, Room, Schema,
-    SchemaError, StreamMode, Term, Unsent, Version, control_frame, decode_control, frame_writer, parse_header,
+    SchemaError, StreamMode, Term, Unsent, control_frame, decode_control, frame_writer, parse_header,
 };
 
 fn limits() -> Limits {
@@ -15,37 +15,25 @@ fn limits() -> Limits {
 }
 
 fn schema() -> Schema {
-    let mut kinds = List::with_capacity(2);
-    kinds.push(Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 32 }).expect("kind fits");
-    let mut versions = List::with_capacity(2);
-    versions.push(Version { version: 1, kinds }).expect("version fits");
-    let mut kinds = List::with_capacity(2);
-    kinds.push(Kind { kind: 0x0101, direction: Direction::FromResponder, largest: 64 }).expect("kind fits");
-    versions.push(Version { version: 2, kinds }).expect("version fits");
-    Schema { magic: *b"test", versions }
+    let kinds = kind_table(&[
+        Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 32 },
+        Kind { kind: 0x0101, direction: Direction::FromResponder, largest: 64 },
+    ]);
+    Schema { magic: *b"test", version: 2, kinds }
 }
 
 #[test]
-fn checked_schema_rejects_gaps_duplicates_reserved_and_oversize() {
+fn checked_schema_rejects_duplicate_reserved_and_oversize_kinds() {
     let mut source = schema();
     assert_eq!(source.check(Role::Responder, &limits()), Ok(()));
-    assert_eq!(source.range(), Some((1, 2)));
-    assert_eq!(source.version(2).expect("version 2").kind(0x0101).expect("kind").largest, 64);
-    source.versions.get_mut(1).expect("second version").version = 3;
-    assert_eq!(source.check(Role::Responder, &limits()), Err(SchemaError::Versions));
-    source.versions.get_mut(1).expect("second version").version = 2;
-    source
-        .versions
-        .get_mut(1)
-        .expect("second version")
-        .kinds
-        .push(Kind { kind: 0x0101, direction: Direction::FromResponder, largest: 1 })
-        .expect("second kind");
+    assert_eq!(source.kind(0x0101).expect("kind").largest, 64);
+    source.kinds.get_mut(1).expect("second kind").kind = 0x0100;
     assert_eq!(source.check(Role::Responder, &limits()), Err(SchemaError::Kind));
-    source.versions.get_mut(1).expect("second version").kinds.get_mut(1).expect("second kind").kind = 6;
+    source.kinds.get_mut(1).expect("second kind").kind = 6;
     assert_eq!(source.check(Role::Responder, &limits()), Err(SchemaError::Kind));
-    source.versions.get_mut(1).expect("second version").kinds.get_mut(1).expect("second kind").kind = 0x0102;
-    source.versions.get_mut(1).expect("second version").kinds.get_mut(1).expect("second kind").largest = 1017;
+    let last = source.kinds.get_mut(1).expect("second kind");
+    last.kind = 0x0101;
+    last.largest = 1017;
     assert_eq!(source.check(Role::Responder, &limits()), Err(SchemaError::Kind));
 }
 
@@ -163,9 +151,10 @@ impl Peer {
 
 #[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "the test fails on every unexpected event")]
-fn opening_round_trip_exposes_peer_terms_and_owner_can_refuse_limits() {
+fn different_versions_open_with_peer_terms_and_owner_can_refuse_limits() {
     let mut initiator = Peer::new(Role::Initiator);
-    let mut responder = Peer::new(Role::Responder);
+    let other = Schema { version: 0xabcd, ..schema() };
+    let mut responder = Peer::with_schema(other, Role::Responder, limits(), StreamMode::One);
     initiator.down(Request::Open { credential: Box::from(*b"key") });
     let mut opening_seen = false;
     let mut ready_initiator = false;
@@ -175,15 +164,13 @@ fn opening_round_trip_exposes_peer_terms_and_owner_can_refuse_limits() {
         responder.step(&mut initiator);
         while let Some(event) = responder.events.pop() {
             match event {
-                Event::Opening { credential, lowest, highest } => {
+                Event::Opening { credential } => {
                     assert_eq!(&*credential, b"key");
-                    assert_eq!((lowest, highest), (1, 2));
                     opening_seen = true;
-                    responder.down(Request::Accept { version: 2 });
+                    responder.down(Request::Accept);
                 }
-                Event::Ready { version, terms } => {
-                    assert_eq!(version, 2);
-                    assert_eq!(terms.len(), 1);
+                Event::Ready { terms } => {
+                    assert_eq!(terms.as_slice(), &[Term { kind: 0x0101, largest: 64 }]);
                     ready_responder = true;
                 }
                 Event::Drained | Event::Closed { .. } => {}
@@ -192,9 +179,8 @@ fn opening_round_trip_exposes_peer_terms_and_owner_can_refuse_limits() {
         }
         while let Some(event) = initiator.events.pop() {
             match event {
-                Event::Ready { version, terms } => {
-                    assert_eq!(version, 2);
-                    assert_eq!(terms.len(), 0);
+                Event::Ready { terms } => {
+                    assert_eq!(terms.as_slice(), &[Term { kind: 0x0100, largest: 32 }]);
                     ready_initiator = true;
                     initiator.down(Request::Refuse { reason: 2, text: Box::from(*b"kind 257") });
                 }
@@ -221,39 +207,76 @@ fn opening_round_trip_exposes_peer_terms_and_owner_can_refuse_limits() {
         }
         _ => panic!("expected Refuse"),
     }
-    assert_eq!(initiator.machine.version(), None);
-    assert_eq!(responder.machine.version(), Some(2));
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the test fails on an unexpected control message")]
-fn opening_refusal_reasons_cover_magic_range_version_and_owner() {
-    let cases = [(*b"bad!", 1_u16, 2_u16, 3_u16), (*b"test", 2, 1, 3), (*b"test", 3, 4, 1)];
-    for (magic, lowest, highest, expected) in cases {
-        let mut initiator = Peer::new(Role::Initiator);
-        let mut responder = Peer::new(Role::Responder);
-        let frame = control_frame(
-            &Control::Open { magic, lowest, highest, features: 0, credential: Box::from(*b"key") },
-            &limits(),
-        )
-        .expect("bounded Open");
-        responder.input.extend(frame.bytes().iter().copied());
-        for _ in 0_u32..30_u32 {
-            responder.step(&mut initiator);
-        }
-        let mut bytes = Vec::new();
-        while let Some(byte) = initiator.input.pop_front() {
-            bytes.push(byte);
-        }
-        let header = parse_header(bytes.get(..8).expect("Refuse header")).expect("valid header");
-        assert_eq!(header.kind, 3);
-        let control = decode_control(3, bytes.get(8..).expect("Refuse body"), &limits()).expect("Refuse");
-        match control {
-            Control::Refuse { reason, .. } => assert_eq!(reason, expected),
-            _ => panic!("expected Refuse"),
-        }
+fn machine_writes_the_frozen_open_and_accept_bytes() {
+    let source = Schema { version: 0x1234, ..schema() };
+    let mut initiator = Peer::with_schema(source, Role::Initiator, limits(), StreamMode::One);
+    let mut responder = Peer::new(Role::Responder);
+    initiator.down(Request::Open { credential: Box::from(*b"xy") });
+    for _ in 0..TABLE_STEPS {
+        initiator.step(&mut responder);
     }
+    // The same bytes a single-version schema emitted when ranges were compared.
+    assert_eq!(
+        responder.input.make_contiguous(),
+        &[0, 1, 0, 0, 0, 0, 0, 16, b't', b'e', b's', b't', 0x12, 0x34, 0x12, 0x34, 0, 0, 0, 0, 0, 2, b'x', b'y'],
+    );
+    run_responder(&mut responder, &mut initiator);
+    let Some(Event::Opening { credential }) = responder.events.pop() else { panic!("expected Opening") };
+    assert_eq!(credential.as_ref(), b"xy");
+    responder.down(Request::Accept);
+    run_responder(&mut responder, &mut initiator);
+    let expected = [0, 2, 0, 0, 0, 0, 0, 4, 0, 2, 0, 0];
+    assert_eq!(initiator.input.make_contiguous().get(..expected.len()), Some(expected.as_slice()));
+}
 
+#[test]
+fn open_passes_disjoint_and_reversed_ranges_to_the_owner_as_credentials_only() {
+    for (lowest, highest) in [(3, 4), (u16::MAX, 0)] {
+        let mut peer = Peer::new(Role::Initiator);
+        let mut responder = Peer::new(Role::Responder);
+        feed_control(
+            &mut responder,
+            &Control::Open { magic: *b"test", lowest, highest, features: 0, credential: Box::from(*b"key") },
+        );
+        run_responder(&mut responder, &mut peer);
+        let Some(Event::Opening { credential }) = responder.events.pop() else { panic!("expected Opening") };
+        assert_eq!(credential.as_ref(), b"key");
+        assert!(responder.events.is_empty());
+        assert!(peer.input.is_empty(), "no automatic refusal");
+        responder.down(Request::Accept);
+        run_responder(&mut responder, &mut peer);
+        assert_eq!(take_accept(&mut peer), (2, 0));
+    }
+}
+
+#[test]
+fn wrong_magic_and_unknown_features_are_refused_as_framing() {
+    for (magic, features) in [(*b"bad!", 0), (*b"test", 1)] {
+        let mut peer = Peer::new(Role::Initiator);
+        let mut responder = Peer::new(Role::Responder);
+        feed_control(
+            &mut responder,
+            &Control::Open { magic, lowest: 2, highest: 2, features, credential: Box::from(*b"unread") },
+        );
+        run_responder(&mut responder, &mut peer);
+        let (reason, text) = take_refusal(&mut peer);
+        assert_eq!(reason, 3);
+        assert!(text.is_empty());
+        let Some(Event::Drained) = responder.events.pop() else { panic!("expected refusal to drain") };
+        let Some(Event::Closed { why: super::Closed::Framing, text }) = responder.events.pop() else {
+            panic!("expected framing terminal")
+        };
+        assert!(text.is_empty());
+        assert!(responder.events.is_empty(), "the owner never sees the credential");
+        assert!(peer.input.is_empty());
+    }
+}
+
+#[test]
+fn responder_owner_can_refuse_an_opening() {
     let mut initiator = Peer::new(Role::Initiator);
     let mut responder = Peer::new(Role::Responder);
     initiator.down(Request::Open { credential: Box::from(*b"key") });
@@ -291,44 +314,21 @@ fn opening_refusal_reasons_cover_magic_range_version_and_owner() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the test fails on unexpected opening events")]
-fn a_version_refusal_names_both_ranges_to_the_peer_and_its_owner() {
-    let mut peer = Peer::new(Role::Initiator);
-    let mut responder = Peer::new(Role::Responder);
-    let frame = control_frame(
-        &Control::Open { magic: *b"test", lowest: 3, highest: 4, features: 0, credential: Box::from(*b"unread") },
-        &limits(),
-    )
-    .expect("Open");
-    responder.input.extend(frame.bytes().iter().copied());
-    for _ in 0_u32..30 {
-        responder.step(&mut peer);
-    }
-    let mut sent = Vec::new();
-    for byte in peer.input {
-        sent.push(byte);
-    }
-    let Control::Refuse { reason, text } =
-        decode_control(3, sent.get(8..).expect("Refuse body"), &limits()).expect("Refuse")
-    else {
-        panic!("refusal")
+fn a_legacy_version_refusal_reaches_the_owner_unchanged() {
+    let mut initiator = Peer::new(Role::Initiator);
+    let mut peer = Peer::new(Role::Responder);
+    initiator.down(Request::Open { credential: Box::from([]) });
+    let legacy = b"speaks 3..4, offered 2..2";
+    feed_control(&mut initiator, &Control::Refuse { reason: 1, text: Box::from(*legacy) });
+    run_responder(&mut initiator, &mut peer);
+    let Some(Event::Drained) = initiator.events.pop() else { panic!("expected Open to drain") };
+    let Some(Event::Refused { reason: 1, text }) = initiator.events.pop() else { panic!("expected version refusal") };
+    assert_eq!(text.as_ref(), legacy);
+    let Some(Event::Closed { why: super::Closed::RefusedPeer(1), text }) = initiator.events.pop() else {
+        panic!("expected peer refusal terminal")
     };
-    assert_eq!(reason, 1);
-    assert_eq!(text.as_ref(), b"speaks 1..2, offered 3..4");
-    let mut terminal = 0_u32;
-    while let Some(event) = responder.events.pop() {
-        match event {
-            Event::Opening { .. } => panic!("the credential must not reach the owner"),
-            Event::Closed { why, text: sent } => {
-                assert_eq!(why, super::Closed::RefusedHere(reason));
-                assert_eq!(sent, text);
-                terminal += 1;
-            }
-            Event::Drained => {}
-            event => panic!("unexpected opening event {event:?}"),
-        }
-    }
-    assert_eq!(terminal, 1);
+    assert_eq!(text.as_ref(), legacy);
+    assert!(initiator.events.is_empty());
 }
 
 const TABLE_VERSION: u16 = 1;
@@ -346,22 +346,19 @@ const TABLE_OUTPUT_CAP: u32 = 8 + PEER_SEND_LARGEST;
 // Two opening frames each way and one application frame fit within this script.
 const TABLE_STEPS: u32 = 32;
 
-fn kind_table(version: u16, kinds: &[Kind]) -> Version {
-    Version { version, kinds: List::from_boxed(Box::from(kinds)) }
+fn kind_table(kinds: &[Kind]) -> List<Kind> {
+    List::from_boxed(Box::from(kinds))
 }
 
-fn peer_table() -> Version {
-    kind_table(
-        TABLE_VERSION,
-        &[
-            Kind {
-                kind: PEER_RECEIVE,
-                direction: Direction::FromInitiator,
-                largest: u32::try_from(PEER_RECEIVE_LARGEST).expect("fixture body fits"),
-            },
-            Kind { kind: PEER_SEND, direction: Direction::FromResponder, largest: PEER_SEND_LARGEST },
-        ],
-    )
+fn peer_table() -> List<Kind> {
+    kind_table(&[
+        Kind {
+            kind: PEER_RECEIVE,
+            direction: Direction::FromInitiator,
+            largest: u32::try_from(PEER_RECEIVE_LARGEST).expect("fixture body fits"),
+        },
+        Kind { kind: PEER_SEND, direction: Direction::FromResponder, largest: PEER_SEND_LARGEST },
+    ])
 }
 
 fn run_responder(responder: &mut Peer, peer: &mut Peer) {
@@ -398,14 +395,11 @@ fn take_refusal(peer: &mut Peer) -> (u16, Box<[u8]>) {
 }
 
 fn table_opening() -> (Peer, Peer) {
-    let native = kind_table(
-        TABLE_VERSION,
-        &[
-            Kind { kind: NATIVE_RECEIVE, direction: Direction::FromInitiator, largest: NATIVE_RECEIVE_LARGEST },
-            Kind { kind: NATIVE_SEND, direction: Direction::FromResponder, largest: PEER_SEND_LARGEST },
-        ],
-    );
-    let source = Schema { magic: *b"test", versions: List::from_boxed(Box::new([native])) };
+    let native = kind_table(&[
+        Kind { kind: NATIVE_RECEIVE, direction: Direction::FromInitiator, largest: NATIVE_RECEIVE_LARGEST },
+        Kind { kind: NATIVE_SEND, direction: Direction::FromResponder, largest: PEER_SEND_LARGEST },
+    ]);
+    let source = Schema { magic: *b"test", version: TABLE_VERSION, kinds: native };
     let bounds = Limits { output_bytes: TABLE_OUTPUT_CAP, kinds: TABLE_KIND_CAP, ..limits() };
     let mut responder = Peer::with_schema(source, Role::Responder, bounds, StreamMode::One);
     let mut peer = Peer::new(Role::Initiator);
@@ -467,11 +461,11 @@ fn accept_with_checks_peer_terms_against_the_replacement_sends() {
     let (responder, _) = accept_with_terms(PEER_TERM);
     let mut ready = None;
     for event in &responder.events {
-        if let Event::Ready { version, terms } = event {
-            ready = Some((*version, terms.as_slice()));
+        if let Event::Ready { terms } = event {
+            ready = Some(terms.as_slice());
         }
     }
-    assert_eq!(ready, Some((TABLE_VERSION, &[PEER_TERM][..])));
+    assert_eq!(ready, Some(&[PEER_TERM][..]));
 }
 
 #[test]
@@ -584,7 +578,7 @@ fn accept_with_refuses_invalid_tables_with_limits_and_text() {
     ];
     for (kinds, expected) in cases {
         let (mut responder, mut peer) = table_opening();
-        responder.down(Request::AcceptWith { table: kind_table(TABLE_VERSION, kinds) });
+        responder.down(Request::AcceptWith { table: kind_table(kinds) });
         run_responder(&mut responder, &mut peer);
         let (reason, text) = take_refusal(&mut peer);
         assert_eq!((reason, text.as_ref()), (2, expected));
@@ -599,18 +593,6 @@ fn accept_with_refuses_invalid_tables_with_limits_and_text() {
         }
         assert!(responder.events.is_empty());
     }
-}
-
-#[test]
-fn accept_with_ignores_a_version_neither_peer_offered() {
-    let (mut responder, mut peer) = table_opening();
-    responder.down(Request::AcceptWith { table: kind_table(TABLE_VERSION + 1, &[]) });
-    run_responder(&mut responder, &mut peer);
-    assert!(peer.input.is_empty());
-    assert!(responder.events.is_empty());
-    responder.down(Request::Accept { version: TABLE_VERSION });
-    run_responder(&mut responder, &mut peer);
-    assert_eq!(take_accept(&mut peer), (TABLE_VERSION, 0));
 }
 
 fn ready_pair() -> (Peer, Peer) {
@@ -629,15 +611,15 @@ fn ready_pair_mode(mode: StreamMode) -> (Peer, Peer) {
         responder.step(&mut initiator);
         while let Some(event) = responder.events.pop() {
             match event {
-                Event::Opening { .. } => responder.down(Request::Accept { version: 2 }),
-                Event::Ready { version: 2, .. } => second_ready = true,
+                Event::Opening { .. } => responder.down(Request::Accept),
+                Event::Ready { .. } => second_ready = true,
                 Event::Drained => {}
                 event => panic!("unexpected responder opening event: {event:?}"),
             }
         }
         while let Some(event) = initiator.events.pop() {
             match event {
-                Event::Ready { version: 2, .. } => first_ready = true,
+                Event::Ready { .. } => first_ready = true,
                 Event::Drained => {}
                 event => panic!("unexpected initiator opening event: {event:?}"),
             }
@@ -778,31 +760,28 @@ fn send_checks_direction_peer_terms_size_and_room_in_order() {
     let frame = writer.finish().expect("complete frame");
     let mut terms = List::with_capacity(1);
     assert_eq!(
-        super::write::admit(&source, Role::Initiator, 2, &terms, Room { bytes: 1024, frames: 4 }, &frame),
+        super::write::admit(&source, Role::Initiator, &terms, Room { bytes: 1024, frames: 4 }, &frame),
         Err(Unsent::WrongDirection)
     );
     assert_eq!(
-        super::write::admit(&source, Role::Responder, 2, &terms, Room { bytes: 1024, frames: 4 }, &frame),
+        super::write::admit(&source, Role::Responder, &terms, Room { bytes: 1024, frames: 4 }, &frame),
         Err(Unsent::PeerDoesNotTake)
     );
     terms.push(Term { kind: 0x0101, largest: 8 }).expect("term fits");
     assert_eq!(
-        super::write::admit(&source, Role::Responder, 2, &terms, Room { bytes: 1024, frames: 4 }, &frame),
+        super::write::admit(&source, Role::Responder, &terms, Room { bytes: 1024, frames: 4 }, &frame),
         Err(Unsent::TooLarge)
     );
     terms.get_mut(0).expect("term").largest = 64;
     assert_eq!(
-        super::write::admit(&source, Role::Responder, 2, &terms, Room { bytes: 16, frames: 4 }, &frame),
+        super::write::admit(&source, Role::Responder, &terms, Room { bytes: 16, frames: 4 }, &frame),
         Err(Unsent::Full)
     );
     assert_eq!(
-        super::write::admit(&source, Role::Responder, 2, &terms, Room { bytes: 1024, frames: 0 }, &frame),
+        super::write::admit(&source, Role::Responder, &terms, Room { bytes: 1024, frames: 0 }, &frame),
         Err(Unsent::Full)
     );
-    assert_eq!(
-        super::write::admit(&source, Role::Responder, 2, &terms, Room { bytes: 1024, frames: 4 }, &frame),
-        Ok(())
-    );
+    assert_eq!(super::write::admit(&source, Role::Responder, &terms, Room { bytes: 1024, frames: 4 }, &frame), Ok(()));
 }
 
 #[test]
@@ -1147,33 +1126,25 @@ fn role_aware_schema_accepts_large_received_kinds_and_refuses_large_sent_kinds()
     for role in [Role::Initiator, Role::Responder] {
         let mut source = schema();
         let bounds = Limits { output_bytes: 128, ..limits() };
-        for version_index in 0..source.versions.len() {
-            let version = source.versions.get_mut(version_index).unwrap();
-            for kind_index in 0..version.kinds.len() {
-                let kind = version.kinds.get_mut(kind_index).unwrap();
-                let sent = match role {
-                    Role::Initiator => kind.direction == Direction::FromInitiator,
-                    Role::Responder => kind.direction == Direction::FromResponder,
-                };
-                kind.largest = if sent { 120 } else { 4096 };
-            }
+        for kind in source.kinds.iter_mut() {
+            let sent = match role {
+                Role::Initiator => kind.direction == Direction::FromInitiator,
+                Role::Responder => kind.direction == Direction::FromResponder,
+            };
+            kind.largest = if sent { 120 } else { 4096 };
         }
         assert_eq!(source.check(role, &bounds), Ok(()));
         Machine::new(source.clone(), role, bounds).expect("large received body is independent of output");
         for mode in [StreamMode::One, StreamMode::Two] {
             Machine::with_mode(source.clone(), role, bounds, mode).expect("both transports admit the same local role");
         }
-        for version_index in 0..source.versions.len() {
-            let version = source.versions.get_mut(version_index).unwrap();
-            for kind_index in 0..version.kinds.len() {
-                let kind = version.kinds.get_mut(kind_index).unwrap();
-                let sent = match role {
-                    Role::Initiator => kind.direction == Direction::FromInitiator,
-                    Role::Responder => kind.direction == Direction::FromResponder,
-                };
-                if sent {
-                    kind.largest = 121;
-                }
+        for kind in source.kinds.iter_mut() {
+            let sent = match role {
+                Role::Initiator => kind.direction == Direction::FromInitiator,
+                Role::Responder => kind.direction == Direction::FromResponder,
+            };
+            if sent {
+                kind.largest = 121;
             }
         }
         assert_eq!(source.check(role, &bounds), Err(SchemaError::Kind));
@@ -1192,9 +1163,9 @@ fn valid_accepts_test_limits() {
 #[test]
 fn valid_refuses_an_invalid_schema() {
     let mut source = schema();
-    source.versions.get_mut(1).unwrap().version = 3;
+    source.kinds.get_mut(1).expect("second kind").kind = 6;
     assert!(!super::valid(&source, Role::Initiator, &limits()));
-    assert_eq!(Machine::new(source, Role::Initiator, limits()).err(), Some(SchemaError::Versions));
+    assert_eq!(Machine::new(source, Role::Initiator, limits()).err(), Some(SchemaError::Kind));
 }
 
 #[test]
@@ -1223,15 +1194,11 @@ fn debug_of_an_opening_shows_the_credentials_length_never_its_bytes() {
     const CANARY: &[u8; 13] = b"canary-c42e8b";
     let canary_bytes = alloc::format!("{CANARY:?}");
     let request = Request::Open { credential: Box::from(*CANARY) };
-    let event = Event::Opening { credential: Box::from(*CANARY), lowest: 1, highest: 2 };
+    let event = Event::Opening { credential: Box::from(*CANARY) };
     let control = Control::Open { magic: *b"test", lowest: 1, highest: 2, features: 0, credential: Box::from(*CANARY) };
     for (debug, pretty, expected) in [
         (alloc::format!("{request:?}"), alloc::format!("{request:#?}"), "Open { credential_len: 13 }"),
-        (
-            alloc::format!("{event:?}"),
-            alloc::format!("{event:#?}"),
-            "Opening { credential_len: 13, lowest: 1, highest: 2 }",
-        ),
+        (alloc::format!("{event:?}"), alloc::format!("{event:#?}"), "Opening { credential_len: 13 }"),
         (
             alloc::format!("{control:?}"),
             alloc::format!("{control:#?}"),
@@ -1311,16 +1278,16 @@ fn debug_of_a_frame_and_a_body_shows_lengths_never_bytes() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "Debug regression tests preserve derived record formatting")]
 fn debug_of_records_without_a_credential_is_the_derived_form() {
-    let request = Request::Refuse { reason: 1, text: Box::from(*b"busy") };
+    let request = Request::Refuse { reason: 256, text: Box::from(*b"busy") };
     let mut terms = List::with_capacity(1);
     terms.push(Term { kind: 256, largest: 32 }).expect("one term fits");
-    let event = Event::Ready { version: 2, terms };
+    let event = Event::Ready { terms };
     let control = Control::Accept { version: 2, features: 0 };
     for (debug, expected) in [
-        (alloc::format!("{request:?}"), "Refuse { reason: 1, text: [98, 117, 115, 121] }"),
+        (alloc::format!("{request:?}"), "Refuse { reason: 256, text: [98, 117, 115, 121] }"),
         (
             alloc::format!("{event:?}"),
-            "Ready { version: 2, terms: List { items: [Term { kind: 256, largest: 32 }], capacity: 1 } }",
+            "Ready { terms: List { items: [Term { kind: 256, largest: 32 }], capacity: 1 } }",
         ),
         (alloc::format!("{control:?}"), "Accept { version: 2, features: 0 }"),
     ] {
@@ -1510,7 +1477,7 @@ fn two_pipes_read_failure_during_opening_drains_terms_before_terminal() {
         Some(Event::Opening { .. }) => {}
         event => panic!("expected opening: {event:?}"),
     }
-    responder.down(Request::Accept { version: 2 });
+    responder.down(Request::Accept);
     responder.machine.up(
         LowerEvent::Read(stream::Up::Failed(stream::Fault::Reset)),
         &mut responder.events,

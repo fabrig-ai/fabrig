@@ -226,7 +226,7 @@ fn every_shape_has_one_form_and_is_reached_from_the_file() {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum Edit {
+pub(crate) enum Edit {
     Base,
     Alternative(Shape, usize),
     Word(&'static Field, usize),
@@ -485,7 +485,7 @@ fn file(edit: Edit, out: &mut Encoder) -> bool {
     out.object_end();
     changed
 }
-fn generated(edit: Edit) -> (Box<[u8]>, bool) {
+pub(crate) fn generated(edit: Edit) -> (Box<[u8]>, bool) {
     let limits = JsonLimits { depth: 32, length: u32::try_from(Limits::standard().ask_bytes).expect("file bound") };
     let mut measure = Encoder::measure(&limits);
     file(edit, &mut measure);
@@ -588,6 +588,7 @@ fn every_generated_file_decodes() {
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
         if field.shape == Shape::Overlay
+            || (field.shape == Shape::File && field.name == b"format")
             || field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
@@ -753,7 +754,7 @@ const PAGE_FIELDS: [Field; 14] = [
 
 #[test]
 fn the_page_writes_each_type_as_the_table_says() {
-    let page = super::render::page_of(&PAGE_FORMS, &PAGE_FIELDS, &Limits::standard());
+    let page = super::render::page_of(&PAGE_FORMS, &PAGE_FIELDS, &Limits::standard(), super::formats::FORMATS);
     for expected in [
         b"# Settings fields\n\nKind: reference".as_slice(),
         b"- number:u8",

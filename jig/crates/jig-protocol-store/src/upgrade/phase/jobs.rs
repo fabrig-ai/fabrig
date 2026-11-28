@@ -1,5 +1,5 @@
-//! Jobs follow patches and closed windows, before the seal (protocol/store/jobs.md, 2–3).
-use super::{Patching, refuse, sealing, state, take};
+//! Jobs run after the copy opens and windows close, before the seal (protocol/store/jobs.md, 2–3).
+use super::{Upgrading, refuse, sealing, state, take};
 use crate::{
     Below, Cursor, Event, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, Limits,
     OpenRefusal, Owner, Store, commits, keys, open, pages,
@@ -104,7 +104,7 @@ pub(super) fn begin(
     }
     state(
         store,
-        Patching::Jobs(Box::new(Running {
+        Upgrading::Jobs(Box::new(Running {
             sealing,
             pending,
             index: 0,
@@ -244,17 +244,17 @@ fn load_values(
     None
 }
 pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
-    let Patching::Jobs(mut running) = *take(store) else { unreachable!("resume routed jobs") };
+    let Upgrading::Jobs(mut running) = *take(store) else { unreachable!("resume routed jobs") };
     if !running.registered {
         if !running.ready() {
-            state(store, Patching::Jobs(running));
+            state(store, Upgrading::Jobs(running));
             return;
         }
         let Some(ops) = store.registry.batch(&store.limits) else { return refuse(store, above) };
         if !ops.is_empty() {
             let Some(number) = store.stores.store.last().checked_add(1) else { return refuse(store, above) };
             running.waiting = Waiting::Registry { number };
-            state(store, Patching::Jobs(running));
+            state(store, Upgrading::Jobs(running));
             commits::submit(store, env, number, ops, above, below);
             return;
         }
@@ -269,7 +269,7 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
     if running.ready() && load(store, &mut running, above).is_none() {
         return refuse(store, above);
     }
-    state(store, Patching::Jobs(running));
+    state(store, Upgrading::Jobs(running));
 }
 fn invalid(key: Option<Box<[u8]>>, why: &str) -> JobRefusal {
     JobRefusal { key, why: Box::from(why) }
@@ -360,10 +360,10 @@ pub(crate) fn answer(
     above: &mut Queue<Event>,
     below: &mut Below,
 ) {
-    if owner != store.directory.owner || crate::directory::patching(store).is_none() {
+    if owner != store.directory.owner || crate::directory::upgrading(store).is_none() {
         return refuse(store, above);
     }
-    let Patching::Jobs(mut running) = *take(store) else { return refuse(store, above) };
+    let Upgrading::Jobs(mut running) = *take(store) else { return refuse(store, above) };
     let (of, job) = running.current();
     let Waiting::Page { rows, end } = core::mem::replace(&mut running.waiting, Waiting::Ready) else {
         return refuse(store, above);
@@ -390,7 +390,7 @@ pub(crate) fn answer(
     }
     running.after = through;
     running.waiting = Waiting::Commit { number, end };
-    state(store, Patching::Jobs(running));
+    state(store, Upgrading::Jobs(running));
     commits::submit(store, env, number, ops, above, below);
     super::resume(store, env, above, below);
 }

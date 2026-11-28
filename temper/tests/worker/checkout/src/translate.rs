@@ -69,6 +69,7 @@ pub fn workspace(op: &Op) -> Option<Token> {
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
         | Op::DiffPaths { at, .. }
+        | Op::Message { at, .. }
         | Op::Brings { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
@@ -98,6 +99,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Make { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::IsAncestor { .. } => None,
     }
@@ -124,6 +126,7 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
         | Op::Merge { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::IsAncestor { .. } => None,
     }
@@ -341,6 +344,13 @@ fn perform_unchecked(forge: &mut impl temper_fake_git::counts::Remote, disk: &mu
             let upstream = ancestors(forge, fake(upstream));
             let base = ancestors(forge, fake(base));
             Done::Brings { brings: shared.intersection(&upstream).any(|commit| !base.contains(commit)) }
+        }
+        Op::Message { at, commit } => {
+            let head = fake(commit);
+            if !git::object_present(disk, &path(&at), head) {
+                return Done::Failed { fault: Fault::Broken };
+            }
+            Done::Message { message: Some(forge.message(head).into_boxed_slice()) }
         }
         Op::IsAncestor { at, ancestor, commit } => {
             assert_cloned(disk, &at);

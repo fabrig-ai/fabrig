@@ -13,13 +13,22 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell-table.md`
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`, `--record`
 - **Notes:** Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure. Refuses a worker alone's document, naming temper-worker serve, or an engine and its worker in one process, naming temper-box serve.
 
+### `temper-engine config upgrade`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`
+- print temper.toml at the newest format
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Prints the configuration on stdout and any notices on stderr. Writes no files and starts nothing.
+
 ### `temper-engine versions`
 
 - **Set:** public
 - **Forms:** ``
-- Print this binary's patch levels, its store's and families' versions, and its wires, one line each.
+- Print levels, store and family versions, wire fingerprints, the host tools' contract floor and version, and bounds.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Reads no configuration and no store.
+- **Notes:** Each entry takes one line. Reads no configuration and no store.
 
 ### `temper-engine upgrade --check`
 
@@ -43,10 +52,10 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell-table.md`
 
 - **Set:** public
 - **Forms:** `[DIRECTORIES]`
-- Makes the previous generation active again, before the patched one's first commit.
+- Makes the previous generation active again, before the upgraded one's first commit.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+- **Notes:** Stop the deployment first, then start the old binary after going back. Past the upgraded generation's first commit, going back is restoring a backup.
 
 ### `temper-engine checkpoint`
 

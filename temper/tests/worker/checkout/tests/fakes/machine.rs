@@ -249,6 +249,25 @@ fn a_capacity_limited_merge_keeps_the_conflict_bound() {
 }
 
 #[test]
+fn a_fetched_commit_s_message_is_read_whole() {
+    const REMOTE: &[u8] = b"forge/r";
+    const BRANCH: &[u8] = b"main";
+    const MESSAGE: &[u8] = b"Change the page\n\nLook-request: 12\n";
+    let (mut forge, mut disk, base) = fixture();
+    let tree = git::Remote::tree(&forge, base);
+    let head = git::Remote::store(&mut forge, base, None, true, tree, MESSAGE).expect("a fresh commit");
+    git::Remote::push(&mut forge, REMOTE, BRANCH, head, Some(base)).expect("another party advances the branch");
+    perform(&mut forge, &mut disk, fetch(Into::Fetched));
+    forge.set_reachable(REMOTE, false);
+    let before = snapshot(&disk);
+    assert_eq!(
+        perform_with_capacity(&mut forge, &mut disk, Op::Message { at: place(), commit: commit(head) }, Some(0)),
+        Done::Message { message: Some(MESSAGE.into()) }
+    );
+    assert_eq!(snapshot(&disk), before);
+}
+
+#[test]
 fn capacity_counts_regular_bytes_and_exempts_reads_make_and_pack() {
     assert_eq!(used(&Checkout::new()), 0);
     let (mut forge, mut disk, head) = fixture();

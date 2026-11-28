@@ -1,5 +1,5 @@
 //! Seeded actor, store and crash interleavings, with outside observations checked
-//! after every root iteration. Each failing seed is printed for direct replay.
+//! after every root iteration.
 
 use jig_core_world::Fault as StoreFault;
 use jig_core_world::faults;
@@ -10,87 +10,84 @@ use jig_core_world::world::fixture;
 use jig_fake_workers::Fault as WorkerFault;
 use jig_test_connector as connector;
 use skein_lib::{Duration, Rng};
-
-fn replay(seed: u64, scenario: impl FnOnce()) {
-    eprintln!("fault scenario seed {seed}");
-    scenario();
-}
+use skein_world::{sweep::cases, this_test};
+use std::convert::Infallible;
 
 #[test]
 fn random_host_worlds_draw_link_store_and_cold_restart_faults() {
-    for seed in 1..=64 {
-        replay(seed, || {
-            let mut rng = Rng::new(seed);
-            let engine = rng.below(2) == 0;
-            let count = 1 + u32::try_from(rng.below(3)).expect("three workers");
-            let mut world = faults::workers(seed, count, engine);
-            let owner = world
-                .peers
-                .as_ref()
-                .expect("peers")
-                .workers
-                .iter()
-                .position(|worker| !worker.seen.is_empty())
-                .expect("host assignment");
-            let channel = world.peers.as_ref().expect("peers").workers[owner].channel;
-            match rng.below(7) {
-                0 => {
-                    faults::worker_fault(&mut world, owner, WorkerFault::Slow { by: Duration::from_secs(1) });
-                    faults::say(&mut world, 2);
-                    world.advance(Duration::from_secs(1));
-                }
-                1 | 2 if channel != 0 => {
-                    let by = if rng.below(2) == 0 { 1 } else { 7 };
-                    faults::worker_fault(&mut world, owner, WorkerFault::DropChannel { for_: Duration::from_secs(by) });
-                    world.advance(Duration::from_secs(by));
-                    world.advance(Duration::from_secs(2));
-                }
-                3 if channel != 0 => {
-                    faults::worker_fault(&mut world, owner, WorkerFault::Vanish);
-                    world.advance(Duration::from_secs(6));
-                    world.advance(Duration::from_secs(2));
-                }
-                4 => {
-                    world.store.fault(StoreFault::Hold { commits: 1 });
-                    faults::say(&mut world, 2);
-                    world.release_commits();
-                }
-                5 => {
-                    world.store.fault(StoreFault::Fail { commit: world.store.applied + 1 });
-                    faults::say(&mut world, 2);
-                    assert!(world.stopped);
-                    faults::restart(&mut world, seed, engine);
-                }
-                _ => {
-                    let next = world.store.applied + 1;
-                    let cut = if rng.below(2) == 0 { Cut::Submitted(next) } else { Cut::Durable(next) };
-                    world.cut = Some(cut);
-                    faults::say(&mut world, 2);
-                    assert_eq!(world.reached_cut, Some(cut));
-                    world
-                        .store
-                        .fault(StoreFault::SlowPages { by: u32::try_from(rng.below(4)).expect("small page delay") });
-                    faults::restart(&mut world, seed, engine);
-                    faults::restart(&mut world, seed, engine);
-                }
+    cases(this_test!("random_host_worlds_draw_link_store_and_cold_restart_faults"), 1..=64, |seed| {
+        let mut rng = Rng::new(seed);
+        let engine = rng.below(2) == 0;
+        let count = 1 + u32::try_from(rng.below(3)).expect("three workers");
+        let mut world = faults::workers(seed, count, engine);
+        let owner = world
+            .peers
+            .as_ref()
+            .expect("peers")
+            .workers
+            .iter()
+            .position(|worker| !worker.seen.is_empty())
+            .expect("host assignment");
+        let channel = world.peers.as_ref().expect("peers").workers[owner].channel;
+        match rng.below(7) {
+            0 => {
+                faults::worker_fault(&mut world, owner, WorkerFault::Slow { by: Duration::from_secs(1) });
+                faults::say(&mut world, 2);
+                world.advance(Duration::from_secs(1));
             }
-            assert!(world.domain.ready());
-            assert!(!world.stopped);
-            let peers = world.peers.as_ref().expect("peers");
-            assert!(peers.workers.iter().all(|worker| worker.expenses.values().all(|cost| cost.spent <= 10)));
-            assert!(peers.parties[0].quiescent());
-            if engine {
-                // Engine 6 step 3 settles live engine claims (seed 18); their phase, reserve and activity change durably.
-                world.broken();
+            1 | 2 if channel != 0 => {
+                let by = if rng.below(2) == 0 { 1 } else { 7 };
+                faults::worker_fault(&mut world, owner, WorkerFault::DropChannel { for_: Duration::from_secs(by) });
+                world.advance(Duration::from_secs(by));
+                world.advance(Duration::from_secs(2));
             }
-        });
-    }
+            3 if channel != 0 => {
+                faults::worker_fault(&mut world, owner, WorkerFault::Vanish);
+                world.advance(Duration::from_secs(6));
+                world.advance(Duration::from_secs(2));
+            }
+            4 => {
+                world.store.fault(StoreFault::Hold { commits: 1 });
+                faults::say(&mut world, 2);
+                world.release_commits();
+            }
+            5 => {
+                world.store.fault(StoreFault::Fail { commit: world.store.applied + 1 });
+                faults::say(&mut world, 2);
+                assert!(world.stopped);
+                faults::restart(&mut world, seed, engine);
+            }
+            _ => {
+                let next = world.store.applied + 1;
+                let cut = if rng.below(2) == 0 { Cut::Submitted(next) } else { Cut::Durable(next) };
+                world.cut = Some(cut);
+                faults::say(&mut world, 2);
+                assert_eq!(world.reached_cut, Some(cut));
+                world.store.fault(StoreFault::SlowPages { by: u32::try_from(rng.below(4)).expect("small page delay") });
+                faults::restart(&mut world, seed, engine);
+                faults::restart(&mut world, seed, engine);
+            }
+        }
+        assert!(world.domain.ready());
+        assert!(!world.stopped);
+        let peers = world.peers.as_ref().expect("peers");
+        assert!(peers.workers.iter().all(|worker| worker.expenses.values().all(|cost| cost.spent <= 10)));
+        assert!(peers.parties[0].quiescent());
+        if engine {
+            // Engine 6 step 3 settles live engine claims (seed 18); their phase, reserve and activity change durably.
+            world.broken();
+        }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn random_effect_worlds_recover_lost_answers_and_late_copies_by_their_declared_class() {
-    for seed in 65..=128 {
-        replay(seed, || {
+    cases(
+        this_test!("random_effect_worlds_recover_lost_answers_and_late_copies_by_their_declared_class"),
+        65..=128,
+        |seed| {
             let mut rng = Rng::new(seed);
             let recovery = match rng.below(4) {
                 0 => connector::Recovery::Keyed,
@@ -180,44 +177,47 @@ fn random_effect_worlds_recover_lost_answers_and_late_copies_by_their_declared_c
                 assert!(made >= 1);
                 assert!(world.systems[0].observed().iter().filter(|row| row.applied).all(|row| row.target == 13));
             }
-        });
-    }
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn random_drawn_commit_cuts_preserve_whole_turns_and_atomic_effect_decisions() {
-    for seed in 129..=160 {
-        replay(seed, || {
-            let mut rng = Rng::new(seed);
-            let mut world = World::new(Setup { seed, ..Setup::default() });
-            let next = world.store.applied + 1;
-            let cut = if rng.below(2) == 0 { Cut::Submitted(next) } else { Cut::Durable(next) };
-            world.cut = Some(cut);
-            world.turn(1, 1 + rng.below(5), None, b"one whole turn at the cut");
-            assert_eq!(world.reached_cut, Some(cut));
-            world.restart(seed, false);
-            let turns: Vec<_> = world
-                .store
-                .rows
-                .values()
-                .filter_map(|row| match row {
-                    jig_test_domain::Record::Core(jig_domain_core::Record::Core(
-                        jig_domain_core::CoreRecord::Turn(turn),
-                    )) => Some(turn),
-                    jig_test_domain::Record::Core(_) | jig_test_domain::Record::Connector { .. } => None,
-                })
-                .collect();
-            match cut {
-                Cut::Submitted(_) => assert_eq!(turns.len(), 0),
-                Cut::Durable(_) => assert_eq!(turns.len(), 1),
-                Cut::Disk { .. } | Cut::Failed(_) => panic!("this table selects transaction cuts"),
-            }
-            assert!(turns.iter().all(|turn| turn.transcript.as_ref() == b"one whole turn at the cut"));
-            assert!(world.domain.ready());
-        });
-    }
+    cases(this_test!("random_drawn_commit_cuts_preserve_whole_turns_and_atomic_effect_decisions"), 129..=160, |seed| {
+        let mut rng = Rng::new(seed);
+        let mut world = World::new(Setup { seed, ..Setup::default() });
+        let next = world.store.applied + 1;
+        let cut = if rng.below(2) == 0 { Cut::Submitted(next) } else { Cut::Durable(next) };
+        world.cut = Some(cut);
+        world.turn(1, 1 + rng.below(5), None, b"one whole turn at the cut");
+        assert_eq!(world.reached_cut, Some(cut));
+        world.restart(seed, false);
+        let turns: Vec<_> = world
+            .store
+            .rows
+            .values()
+            .filter_map(|row| match row {
+                jig_test_domain::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(
+                    turn,
+                ))) => Some(turn),
+                jig_test_domain::Record::Core(_) | jig_test_domain::Record::Connector { .. } => None,
+            })
+            .collect();
+        match cut {
+            Cut::Submitted(_) => assert_eq!(turns.len(), 0),
+            Cut::Durable(_) => assert_eq!(turns.len(), 1),
+            Cut::Disk { .. } | Cut::Failed(_) => panic!("this table selects transaction cuts"),
+        }
+        assert!(turns.iter().all(|turn| turn.transcript.as_ref() == b"one whole turn at the cut"));
+        assert!(world.domain.ready());
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
+// These crash sweeps keep their fixture seeds: they enumerate commits, not seed draws.
 #[test]
 fn every_commit_of_a_turn_effect_and_terminal_survives_both_crash_cuts() {
     let mut reference = World::new(Setup { seed: 300, ..Setup::default() });

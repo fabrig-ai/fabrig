@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+smith-inspect.workspace = true
 smith-domain-session-fixtures.workspace = true
 skein-llm-kit.workspace = true
 skein-llm.workspace = true

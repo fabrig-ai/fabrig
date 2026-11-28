@@ -9,6 +9,7 @@ use temper_worker_domain_checkout::git;
 fn each_operation_s_next_invocation_is_git_md_s() {
     standard_rows();
     counts_rows();
+    message_rows();
     let create = git::Op::Create {
         at: fixtures::at(),
         remote: Box::from(fixtures::REMOTE),
@@ -245,6 +246,35 @@ fn brings_lists_merge_bases_then_commits_missing_from_the_base_and_refuses_other
             expected,
             "{command:?}: {code}"
         );
+    }
+}
+
+fn message_rows() {
+    const FATAL: &[u8] = b"fatal: invalid object\n";
+    let op = git::Op::Message { at: fixtures::at(), commit: fixtures::COMMIT };
+    let command = Command::ReadMessage { commit: fixtures::COMMIT };
+    assert_eq!(sequence::first(&op), Next::Run(command.clone()));
+    assert!(!op.is_remote(), "a message uses the local deadline");
+    let checkout = fixtures::checkout();
+    for (stdout, message) in [
+        (
+            b"tree T\nparent P\nauthor A\ncommitter C\n\nFix the page\n\nLook-request: 12\n".as_slice(),
+            b"Fix the page\n\nLook-request: 12\n".as_slice(),
+        ),
+        (b"tree T\nauthor A\ncommitter C\n\n", b""),
+        (b"tree T\n\n\xff\0\r\nno final newline", b"\xff\0\r\nno final newline"),
+    ] {
+        assert_eq!(
+            sequence::after(&op, &command, 0, stdout, b"", 0, &checkout),
+            Next::End(git::Done::Message { message: Some(Box::from(message)) })
+        );
+    }
+    let broken = Next::End(git::Done::FailedWithOutput {
+        fault: git::Fault::Broken,
+        diagnostic: git::PushDiagnostic::new(FATAL, 0),
+    });
+    for (code, stdout) in [(128, b"tree T\n\nmessage\n".as_slice()), (0, b"tree T\ncommitter C\n")] {
+        assert_eq!(sequence::after(&op, &command, code, stdout, FATAL, 0, &checkout), broken);
     }
 }
 

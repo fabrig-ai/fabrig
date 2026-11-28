@@ -329,6 +329,7 @@ dependencies = [
  "hearth-protocol-accounts",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -489,6 +490,7 @@ dependencies = [
  "skein-checks",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -624,6 +626,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -692,6 +695,7 @@ dependencies = [
  "skein-checks",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -959,6 +963,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "skein-http",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -1394,6 +1399,7 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-channel",
+ "smith-faults",
 ]
 
 [[package]]
@@ -1689,6 +1695,8 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "jig-inspect",
+ "jig-protocol-charter",
  "skein-lib",
  "skein-world",
 ]
@@ -1698,8 +1706,10 @@ name = "jig-inspect"
 version = "0.0.0"
 dependencies = [
  "jig-domain-core",
+ "jig-domain-host",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-charter",
  "jig-protocol-engine-clients",
  "skein-lib",
  "skein-world",
@@ -1725,6 +1735,7 @@ dependencies = [
  "jig-client-protocol-kit",
  "jig-client-shell-native",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-host",
@@ -1763,6 +1774,7 @@ dependencies = [
  "smith-channel",
  "smith-charter",
  "smith-domain",
+ "smith-faults",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-protocol-channel",
@@ -2379,6 +2391,7 @@ dependencies = [
  "skein-lib",
  "skein-oauth",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -2409,6 +2422,7 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-sim",
+ "skein-world",
  "tempfile",
 ]
 
@@ -2510,6 +2524,7 @@ dependencies = [
  "skein-codegen",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -2570,6 +2585,10 @@ dependencies = [
 [[package]]
 name = "jig-test-layouts"
 version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-test-profile"
@@ -2726,13 +2745,17 @@ dependencies = [
 name = "jig-worker-link-world"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "jig-test-layouts",
  "jig-test-service",
  "skein-channel",
  "skein-codec",
@@ -2755,6 +2778,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
  "smith-channel",
  "smith-charter",
 ]
@@ -3131,6 +3155,7 @@ dependencies = [
  "skein-scratch",
  "skein-ui",
  "skein-ui-web",
+ "skein-world",
 ]
 
 [[package]]
@@ -3148,6 +3173,7 @@ dependencies = [
  "skein-channel",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3173,6 +3199,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-ui-example-view-codec",
+ "skein-world",
 ]
 
 [[package]]
@@ -3219,6 +3246,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-sim",
+ "skein-world",
 ]
 
 [[package]]
@@ -3226,6 +3254,7 @@ name = "skein-deflate"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3323,6 +3352,7 @@ name = "skein-fake-checkout-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
+ "skein-world",
 ]
 
 [[package]]
@@ -3614,6 +3644,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -3671,6 +3702,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3705,6 +3737,7 @@ dependencies = [
  "skein-lib",
  "skein-rows",
  "skein-tls-kit",
+ "skein-world",
 ]
 
 [[package]]
@@ -3754,6 +3787,7 @@ dependencies = [
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -3805,6 +3839,7 @@ dependencies = [
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -3844,6 +3879,7 @@ version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3940,6 +3976,7 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -4015,6 +4052,7 @@ dependencies = [
  "skein-oauth",
  "skein-oauth-issuer",
  "skein-tls",
+ "skein-world",
 ]
 
 [[package]]
@@ -4030,6 +4068,7 @@ dependencies = [
  "skein-llm-kit",
  "skein-oauth",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -4155,6 +4194,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-sim",
+ "skein-world",
 ]
 
 [[package]]
@@ -4665,6 +4705,7 @@ dependencies = [
  "smith-faults",
  "smith-host-domain",
  "smith-host-world",
+ "smith-inspect",
  "smith-protocol-events",
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
@@ -5058,6 +5099,17 @@ dependencies = [
  "skein-lib",
  "smith-domain",
  "smith-inline-agent",
+]
+
+[[package]]
+name = "smith-inspect"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-world",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
 ]
 
 [[package]]
@@ -5546,6 +5598,7 @@ dependencies = [
  "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-inspect",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-shapes",
@@ -6818,6 +6871,7 @@ dependencies = [
  "temper-engine-domain-ways",
  "temper-limits-fixtures",
  "temper-protocol-brief",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
 ]
@@ -6855,6 +6909,7 @@ dependencies = [
  "temper-engine-domain-forge-vocabulary",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-store",
 ]
@@ -7123,6 +7178,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-inspect",
  "temper-faults",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-workload",
 ]
@@ -7486,6 +7542,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-service",
+ "temper-engine-smith",
  "temper-fake",
  "temper-fetch-shell",
  "temper-fixtures",
@@ -7849,6 +7906,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-people",
@@ -7898,9 +7956,11 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-fake-claude",
+ "smith-faults",
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "smith-transcript",
  "temper-agent-fixtures",
  "temper-client-domain",
  "temper-client-protocol-wire",
@@ -8082,6 +8142,14 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
  "smith-domain-run",
+]
+
+[[package]]
+name = "temper-protocol-member-message"
+version = "0.0.0"
+dependencies = [
+ "skein-forge",
+ "skein-lib",
 ]
 
 [[package]]
@@ -8493,6 +8561,7 @@ name = "temper-system-world"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -8531,6 +8600,7 @@ dependencies = [
  "smith-domain-session",
  "smith-faults",
  "smith-host-domain",
+ "smith-inspect",
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
@@ -8662,6 +8732,7 @@ name = "temper-worker-domain-checkout"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "temper-protocol-member-message",
 ]
 
 [[package]]

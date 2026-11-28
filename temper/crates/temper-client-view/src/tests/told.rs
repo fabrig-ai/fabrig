@@ -40,7 +40,7 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
         &mut root,
         Event::Start { address: Address::Told, kept: List::uncapped(), with: Some(jig_client::With::Transport) },
     );
-    append(&mut out, up(&mut root, Up::Served { served: true, versions: None }));
+    append(&mut out, up(&mut root, Up::Served { served: true }));
     append(&mut out, opened_me(&mut root, me));
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };

@@ -31,10 +31,10 @@ fn parse_with_status<'a>(words: &[&'a [u8]]) -> Result<Call<'a>, (u8, String)> {
 }
 
 fn start((directory, parsed): Call<'_>, clock: &Clock) -> Result<u8, String> {
-    let help = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if arguments::class(call) == arguments::Class::Help);
+    let offline = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if matches!(arguments::class(call), arguments::Class::Help | arguments::Class::SettingsUpgrade));
     let mut owned = Vec::new();
     let result = (|| {
-        let (parent, directory) = if let Some(directory) = directory.filter(|_| !help) {
+        let (parent, directory) = if let Some(directory) = directory.filter(|_| !offline) {
             let path = path(directory);
             let leaf = path.file_name().ok_or("DIRECTORY requires a last component")?;
             let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));

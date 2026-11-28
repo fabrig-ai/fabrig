@@ -23,8 +23,7 @@ pub fn settings() -> Settings {
     served
         .push(Served {
             family: None,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
+            version: jig_client_protocol_wire::VERSION,
             layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("one range");

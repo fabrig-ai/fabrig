@@ -109,6 +109,7 @@ pub struct World {
     iteration: u64,
     pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
+    checked_quiet: Option<(u64, Time, u64, bool)>,
     auto_prepare: bool,
     restart_config: engine::Config,
     /// Delivered forge documents, including updates to a live watch.
@@ -375,12 +376,15 @@ fn configure_close_job(
     command: Option<&[u8]>,
     authority: bool,
 ) {
-    // Retain the close request and both whole change word fields in the fixture carrier.
+    // Make room for the contract and the inbox's reserved delegate results,
+    // without changing what the workers advertise for placement.
     limits.tasks.spec_bytes = 16_384;
-    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
-    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(65_536);
-    limits.loads.bytes = limits.loads.bytes.max(65_536);
-    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
+    let result = limits.tasks.result_bytes.max(temper_engine_service_vocabulary::limits::CLOSE_RESULT_BYTES);
+    let growth = result - limits.tasks.result_bytes;
+    limits.tasks.result_bytes = result;
+    limits.tasks.inbox_bytes += growth * limits.tasks.inbox_messages;
+    limits.forge.client.op_bytes = limits.forge.client.op_bytes.max(result);
+    limits.journal.result_bytes = limits.journal.result_bytes.max(result);
     config.core.jobs = Box::new([temper_engine_service_vocabulary::limits::close_bound()]);
     if authority {
         let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
@@ -399,6 +403,16 @@ fn configure_close_job(
     }
     crate::oracle::config::landing(config, 1).close_job = command.map(Into::into);
     limits.documents = paths::document_limits(limits.documents, limits);
+}
+
+fn fit_close_carriers(limits: &mut engine::Limits) {
+    let carrier = u32::try_from(engine::row_bound(limits).expect("close task row bound"))
+        .expect("close task row fits a fixture carrier")
+        .max(65_536);
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(carrier);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(carrier);
+    limits.loads.bytes = limits.loads.bytes.max(carrier);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
 }
 
 fn configure_goal_closer(config: &mut engine::Config, limits: &mut engine::Limits) {
@@ -1311,14 +1325,6 @@ impl World {
                 bound.result = bound.result.min(limits.tasks.result_bytes);
                 config.core.jobs = if omit_prepare { Box::new([]) } else { Box::new([bound]) };
             }
-            if merge_kind {
-                let mut bound = protocol::merge_bound();
-                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
-                bound.result = bound.result.min(limits.tasks.result_bytes);
-                let mut jobs = config.core.jobs.to_vec();
-                jobs.push(bound);
-                config.core.jobs = jobs.into_boxed_slice();
-            }
             if merge_authority {
                 let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
                 let mut extended = kinds.to_vec();
@@ -1463,6 +1469,15 @@ impl World {
             if let Some((command, authority)) = &timing.close_job {
                 configure_close_job(&mut config, &mut limits, command.as_deref(), *authority);
             }
+            if merge_kind {
+                let mut bound = protocol::merge_bound();
+                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
+                bound.result = bound.result.min(limits.tasks.result_bytes);
+                let mut jobs = config.core.jobs.to_vec();
+                jobs.push(bound);
+                jobs.sort_by_key(|job| job.kind.0);
+                config.core.jobs = jobs.into_boxed_slice();
+            }
             if timing.goal_closer {
                 configure_goal_closer(&mut config, &mut limits);
             }
@@ -1539,6 +1554,9 @@ impl World {
         }
         if let Some(rules) = &timing.landing_deployment {
             configure_landing_deployment(&mut runtime, rules);
+        }
+        if timing.close_job.is_some() {
+            fit_close_carriers(&mut limits);
         }
         [(bootstrap, limits), (runtime, limits)]
     }
@@ -1795,6 +1813,7 @@ impl World {
             ends,
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
+            checked_quiet: None,
             oracle_documents: Vec::new(),
             forges_documents: Vec::new(),
             documents: Vec::new(),
@@ -2368,6 +2387,7 @@ impl World {
     pub fn with_close_job(mut self, command: Option<&[u8]>, authority: bool) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "close configuration precedes startup");
         configure_close_job(&mut self.restart_config, &mut self.env.limits, command, authority);
+        fit_close_carriers(&mut self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
         let mut codec = self.env.limits;
@@ -2633,6 +2653,7 @@ impl World {
         assert!(self.store.pending.is_empty(), "store answers precede a restart");
         assert!(self.pending.is_empty(), "API answers precede a restart");
         self.idle_revision = None;
+        self.checked_quiet = None;
         self.root =
             engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
         self.restart_config = config;
@@ -3468,7 +3489,15 @@ impl World {
 
     fn check_quiet(&mut self) {
         if self.quiet() {
-            self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            // The next tick can see the same frozen point. The operator's
+            // landing hold is a separate input that does not bump the revision.
+            let point = (self.root.revision(), self.env.now, self.iteration, self.root.forge().landing_held());
+            if self.checked_quiet != Some(point) {
+                self.checks
+                    .quiet(&self.root, self.env.now, self.iteration)
+                    .unwrap_or_else(|finding| panic!("{finding}"));
+                self.checked_quiet = Some(point);
+            }
             if let Some((kinds, ledger)) = &mut self.bounds {
                 let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
                 temper_engine_inspect::inspect(&self.root, &mut inspection);
@@ -4391,6 +4420,7 @@ impl World {
         }
         self.root = engine::Domain::new(config, &self.env.limits).expect("restart configuration");
         self.idle_revision = None;
+        self.checked_quiet = None;
         self.out = Queue::uncapped();
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.drained = None;

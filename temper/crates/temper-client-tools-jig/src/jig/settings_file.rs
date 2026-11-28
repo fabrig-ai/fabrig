@@ -310,8 +310,39 @@ pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box
     Ok(out)
 }
 
-/// Directories named by a bounded, decoded input file; the host never parses JSON.
-pub fn directories(bytes: &[u8], limits: &Limits) -> Result<List<settings_form::overlay::DirectoryName>, Box<[u8]>> {
-    let items = settings_form::file::decode(bytes, &settings_adapter::limits(limits))?;
-    Ok(settings_form::overlay::directories(&items))
+/// What the client needs before sending a settings file: directories to read and format notices.
+#[derive(Debug)]
+pub struct Input {
+    pub directories: List<settings_form::overlay::DirectoryName>,
+    pub notices: List<Box<[u8]>>,
+}
+
+pub fn inspect(bytes: &[u8], limits: &Limits) -> Result<Input, Box<[u8]>> {
+    let read = settings_form::file::read(bytes, &settings_adapter::limits(limits))?;
+    Ok(Input { directories: settings_form::overlay::directories(&read.items), notices: read.notices })
+}
+
+/// Upgrade uses the same decoder as apply without opening or assembling overlay directories.
+#[must_use]
+pub fn upgrade(bytes: &[u8], limits: &Limits) -> super::Printed {
+    let limits = settings_adapter::limits(limits);
+    let read = match settings_form::file::read(bytes, &limits) {
+        Ok(read) => read,
+        Err(why) => return super::render::failure(&why, false, 1),
+    };
+    let stdout = match settings_form::file::render(read.items.as_slice(), &limits) {
+        Ok(bytes) => bytes,
+        Err(why) => return super::render::failure(&why, false, 1),
+    };
+    let mut measure = settings_form::Text::measure();
+    for notice in &read.notices {
+        measure.put(notice);
+        measure.put(b"\n");
+    }
+    let mut out = settings_form::Text::writing_exact(measure);
+    for notice in &read.notices {
+        out.put(notice);
+        out.put(b"\n");
+    }
+    super::Printed { status: 0, stdout, stderr: out.finish(), file: super::FileEnd::Keep }
 }

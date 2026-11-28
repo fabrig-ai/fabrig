@@ -127,14 +127,12 @@ impl Composition {
             served: list([
                 clients::Served {
                     family: None,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
+                    version: jig_client_protocol_wire::VERSION,
                     layout: jig_client_protocol_wire::LAYOUT,
                 },
                 clients::Served {
                     family: Some(temper_client_protocol_wire::FORGE),
-                    first: temper_client_protocol_wire::CLIENT_VERSION,
-                    last: temper_client_protocol_wire::CLIENT_VERSION,
+                    version: temper_client_protocol_wire::CLIENT_VERSION,
                     layout: temper_client_protocol_wire::CLIENT_LAYOUT,
                 },
             ]),
@@ -1027,10 +1025,8 @@ impl Composition {
                 jig_client::Up::WatchEnded { watch, end }
             }
             link::Request::FamilyDelivery { watch, record } => jig_client::Up::FamilyDelivered { watch, record },
-            link::Request::Hello { family: None, versions, served } => jig_client::Up::Served { served, versions },
-            link::Request::Hello { family: Some(family), versions, served } => {
-                jig_client::Up::FamilyServed { family, versions, served }
-            }
+            link::Request::Hello { family: None, served } => jig_client::Up::Served { served },
+            link::Request::Hello { family: Some(family), served } => jig_client::Up::FamilyServed { family, served },
             link::Request::Save { .. } | link::Request::Erase { .. } => {
                 self.link(client, link::Event::Stored);
                 return;
