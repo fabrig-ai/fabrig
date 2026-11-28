@@ -101,7 +101,12 @@ fn subject(ask: &contract::Ask) -> Option<Subject> {
             | parts::Ask::Lines(_)
             | parts::Ask::DropDocument { .. }
             | parts::Ask::Read { .. }
-            | parts::Ask::Public { .. },
+            | parts::Ask::Public { .. }
+            | parts::Ask::Plan(_)
+            | parts::Ask::Abandon { .. }
+            | parts::Ask::Gather { .. }
+            | parts::Ask::Cut { .. }
+            | parts::Ask::Drop { .. },
         )
         | contract::Ask::Requests(
             requests::Ask::Decide { .. } | requests::Ask::Drop { .. } | requests::Ask::PartAnswered { .. },

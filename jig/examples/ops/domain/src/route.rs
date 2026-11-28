@@ -478,14 +478,7 @@ fn core_ask(
         }
         return;
     }
-    // Ops supplies no connector brief sections.
-    if let core::Ask::Gather { .. }
-    | core::Ask::CutTo { .. }
-    | core::Ask::Drop { .. }
-    | core::Ask::Providers(_)
-    | core::Ask::Workers(_)
-    | core::Ask::Catalogue { .. } = ask
-    {
+    if let core::Ask::Providers(_) | core::Ask::Workers(_) | core::Ask::Catalogue { .. } = ask {
         return;
     }
     unreachable!("connector asks cross the engine port: {ask:?}");
@@ -606,15 +599,6 @@ fn core_now(
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        core::Now::BriefCorePlanned { task, sections, .. } => {
-            let budget = env.limits.core.brief.brief_bytes;
-            let deadline = env.now.saturating_add(env.limits.policy.brief_timeout);
-            work.push(Work::Core(jig_domain_hub_link::brief_plan(task, sections, budget, deadline)));
-        }
-        core::Now::CompleteBrief { brief, order } => {
-            domain.hub_link.keep_brief(brief.raw(), order);
-            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), failure: None }));
-        }
         core::Now::WorkspaceRequest { task, attempt, .. } => {
             work.push(Work::Core(core::Event::WorkspacePrepared {
                 task,
@@ -635,10 +619,10 @@ fn core_now(
             messages,
             transcript,
             grants,
+            brief,
             ..
         } => {
             let budget = run.budget;
-            let brief = domain.hub_link.take_brief(task).expect("completed brief parts");
             let assignment = jig_domain_hub_link::Assignment {
                 parts: Box::new([]),
                 charter,
@@ -663,7 +647,6 @@ fn core_now(
         core::Now::BriefFailed { .. } => {}
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {
             drop(domain.hub_link.take_assignment(task));
-            drop(domain.hub_link.take_brief(task));
         }
         core::Now::RestoreRefused => {
             assert!(domain.engine.core().start_failure().is_some(), "a refused row records its start failure");

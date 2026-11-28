@@ -67,7 +67,7 @@ fn planned(out: &[Request]) -> List<u64> {
     let mut tasks = List::with_capacity(TASKS);
     for request in out {
         if let Request::Now(now) = request
-            && let Now::BriefCorePlanned { task, .. } = now.as_ref()
+            && let Now::WorkspaceRequest { task, .. } = now.as_ref()
         {
             tasks.push(*task).expect("two fixture tasks");
         }

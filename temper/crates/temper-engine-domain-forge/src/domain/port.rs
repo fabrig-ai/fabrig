@@ -25,6 +25,13 @@ pub(super) fn ask(d: &mut Domain, env: &Env<Limits>, ask: Ask, out: &mut Queue<R
         ) => {
             unreachable!("the root keeps subscription flights and replies")
         }
+        Ask::Parts(
+            parts::Ask::Plan(_)
+            | parts::Ask::Abandon { .. }
+            | parts::Ask::Gather { .. }
+            | parts::Ask::Cut { .. }
+            | parts::Ask::Drop { .. },
+        ) => unreachable!("the forge route keeps brief bindings and reads the root's workspace"),
         Ask::Lifecycle(lifecycle::Ask::Restore) | Ask::Parts(parts::Ask::DropDocument { .. }) => {}
         Ask::Parts(
             parts::Ask::Document { .. } | parts::Ask::Read { .. } | parts::Ask::Lines(_) | parts::Ask::Public { .. },

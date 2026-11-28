@@ -21,8 +21,10 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
     let mut core_limits = jig_test_profile::limits().core;
     core_limits.fleet.engine_slots = 1;
     core_limits.tasks.hold_kinds = 3;
+    let policy = crate::Policy::reference();
+    core_limits.brief.gather = policy.brief_timeout;
     let limits = Limits {
-        policy: crate::Policy::reference(),
+        policy,
         core: core_limits,
         infrastructure: fixtures::infrastructure_limits(),
         observability: fixtures::limits(),

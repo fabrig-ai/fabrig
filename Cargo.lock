@@ -768,6 +768,7 @@ name = "jig-brief-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-brief",
+ "jig-domain-contract",
  "skein-lib",
  "skein-world",
 ]
@@ -1473,6 +1474,7 @@ dependencies = [
 name = "jig-domain-brief"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 
@@ -1542,7 +1544,6 @@ name = "jig-domain-hub-link"
 version = "0.0.0"
 dependencies = [
  "jig-domain-authority",
- "jig-domain-brief",
  "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-host",

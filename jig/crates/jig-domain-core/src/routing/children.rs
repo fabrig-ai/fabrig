@@ -1,13 +1,12 @@
-//! Brief, fleet and account outputs translated for the root, with sibling continuations
+//! Fleet and account outputs translated for the root, with sibling continuations
 //! (`domain/engine/vocabulary.md`, section 1.4).
 
 use crate::{
-    Ask, Core, CoreRecord, Event, Held, Key, Limits, LinkNow, Now, Record, Request, Write,
+    Core, CoreRecord, Event, Held, Key, Limits, LinkNow, Now, Record, Request, Write,
     routing::{Work, task::tag_task_outputs},
 };
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
-use jig_domain_brief as brief;
 use jig_domain_fleet as fleet;
 use jig_domain_link::GrantTable;
 use jig_domain_people as people;
@@ -52,50 +51,6 @@ fn release_outputs(mut child: Queue<tasks::Request>) -> Queue<tasks::Request> {
             tasks::Request::Activate { .. } | tasks::Request::Relay { .. } => {}
             request => out.push(request),
         }
-    }
-    out
-}
-
-pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<brief::GatherRequest>) -> Queue<Request> {
-    let mut out = Queue::uncapped();
-    for _ in 0..child.len() {
-        let request = match child.pop().expect("brief output count") {
-            brief::GatherRequest::Gather { connector, section, budget } => {
-                Request::Ask { connector, ask: Ask::Gather { section, budget } }
-            }
-            brief::GatherRequest::CutTo { connector, section, size } => {
-                Request::Ask { connector, ask: Ask::CutTo { section, size } }
-            }
-            brief::GatherRequest::Drop { connector, section } => Request::Ask { connector, ask: Ask::Drop { section } },
-            brief::GatherRequest::Failed { brief, failure, .. } | brief::GatherRequest::Refused { brief, failure } => {
-                let task = brief.raw();
-                super::run::results::clear(core, task);
-                drop(core.contexts.remove(&task));
-                drop(core.dependency_results.remove(&task));
-                core.discard_transcript(task);
-                let event = super::run::preparation::preparation_failure(task, failure, &mut out);
-                append_tasks(core, env, event, &mut out);
-                out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-                continue;
-            }
-            brief::GatherRequest::Complete { brief, order } => {
-                let task = brief.raw();
-                let current = match core.contexts.get(&task) {
-                    Some(context) => super::run::parts::preparation_current(core, context),
-                    None => false,
-                };
-                if !current {
-                    for placed in order {
-                        if let brief::GatherPlaced::Connector { connector, token, .. } = placed {
-                            out.push(Request::Ask { connector, ask: Ask::Drop { section: token } });
-                        }
-                    }
-                    continue;
-                }
-                Request::Now(Box::new(Now::CompleteBrief { brief, order }))
-            }
-        };
-        out.push(request);
     }
     out
 }
@@ -831,12 +786,6 @@ pub(crate) fn route_account(
         core.touch_account_rate(holder);
     }
     tag_account(core, env, work, out)
-}
-
-pub(crate) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::GatherEvent) -> Queue<Request> {
-    let mut out = Queue::uncapped();
-    super::step::step_brief(core, env, event, &mut out);
-    tag_brief(core, env, out)
 }
 
 #[expect(clippy::too_many_lines, reason = "the fleet entrance keeps its fences and refusal routing together")]

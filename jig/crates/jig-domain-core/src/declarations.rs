@@ -21,12 +21,13 @@ impl Core {
     }
 }
 
-/// Broadcast recipients in configuration order, independent of declaration order.
+/// Broadcast recipients derived once from configuration and declarations.
 #[derive(Hash, Debug)]
 pub(crate) struct Recipients {
     pub(crate) resources: Box<[u16]>,
     pub(crate) effects: Box<[u16]>,
     pub(crate) projections: Box<[u16]>,
+    pub(crate) sections: Set<u16>,
 }
 
 pub(crate) fn recipients(configured: &[u16], declarations: &[Declaration]) -> Recipients {
@@ -34,6 +35,7 @@ pub(crate) fn recipients(configured: &[u16], declarations: &[Declaration]) -> Re
     let mut resources = List::with_capacity(count);
     let mut effects = List::with_capacity(count);
     let mut projections = List::with_capacity(count);
+    let mut sections = Set::with_capacity(count);
     for &number in configured {
         for declaration in declarations {
             if declaration.connector != Connector(number) {
@@ -48,6 +50,9 @@ pub(crate) fn recipients(configured: &[u16], declarations: &[Declaration]) -> Re
             if declaration.projects_goals {
                 projections.push(number).expect("configured connector bound");
             }
+            if declaration.sections {
+                sections.insert(number).expect("configured connector bound");
+            }
             break;
         }
     }
@@ -55,6 +60,7 @@ pub(crate) fn recipients(configured: &[u16], declarations: &[Declaration]) -> Re
         resources: resources.into_boxed(),
         effects: effects.into_boxed(),
         projections: projections.into_boxed(),
+        sections,
     }
 }
 

@@ -199,9 +199,9 @@ iterate, after the step:
   in the step that runs the activation. The core goes on with an
   admitted agent in that step, loading the transcript window it names
   through the store's port when a load is free (engine/vocabulary.md,
-  2.4; engine/decisions.md, 1.3), and hands its root a step of a run's
-  preparation only where a root does real work: the brief
-  (`Now::BriefCorePlanned`, `Now::CompleteBrief`) and the workspace
+  2.4; engine/decisions.md, 1.3), plans and gathers its brief with its
+  connectors (engine/briefs.md, 1.4), and hands its root a step of a run's
+  preparation only where a root does real work: the workspace
   (`Now::WorkspaceRequest`). A task the root is not ready for, and an
   admitted agent with a window to load while no load is free, wait in
   the core's due set; the root takes the next with `take_due` when it
@@ -328,10 +328,10 @@ It inspects nothing it holds. What jig asks of it:
   (engine/vocabulary.md, 2.5). The root reads neither. What the core says
   of a procedure's step, the task it made, goes to the procedure's
   connector in the same decision, and is never dropped
-  (connectors-procedures.md, 1.3). A brief section's gathering and cutting
-  and a run's workspace still go by the core's own requests, which the
-  root routes by the section's or the task's connector
-  (engine/vocabulary.md, 3).
+  (connectors-procedures.md, 1.3). A brief's plan and its sections'
+  gathering and cutting go by the same port (engine/briefs.md, 1.4); a
+  run's workspace still goes by the core's own requests, which the
+  root routes by the task's connector (engine/vocabulary.md, 3).
 - **Settings of the application's kinds** (engine/settings-application.md, 1): a change's
   items of a kind go, as a hand-off within the change's step, to the
   connector the kind names, and its judgement back to the core; the
@@ -407,11 +407,13 @@ What leaves the engine is often made of parts that different children
 own (model.md, section 5). The root puts each together in the step it is
 decided:
 
-- **An assignment:** the core's part (the run, its attempt, its charter,
-  its core sections, its transcript's current window, its calls, the
-  start's messages) names the connectors' sections and workspace items
-  by token; the root asks each connector to hand over what it keeps
-  under those tokens, and wraps the whole in the application's
+- **An assignment:** the core's part, the prepared run (the run, its
+  attempt, its charter, its brief's sections in order with the core's
+  text, its transcript's current window, its calls, the start's
+  messages), names the connectors' sections and workspace items by
+  connector and token; the root asks each connector to hand over what it
+  keeps under those tokens, a section no longer held going in as missing
+  (engine/briefs.md, 1.4), and wraps the whole in the application's
   assignment, which the journal holds until the claim commits.
 - **A call's answer:** the core's part (status, the effect's key, why it
   was refused) and, for an effect made, the connector's part (what it
@@ -575,14 +577,13 @@ application's.
   wrapping, which have one shape, are best copied and filled by agents
   (section 12), or generated from a short description, which the subset's
   rules on macros would confine to a build step.
-- **The fixed answers two roots keep.** `ops`'s and the test root's
-  answers to `Now::BriefCorePlanned`, and `ops`'s to
-  `Now::WorkspaceRequest`, are fixed, and the values stay, since temper's
-  do real work there (engine/executors.md, 1, and engine/briefs.md, 1, and engine/settings.md, 9; `root.md`, section 7). Taking
-  those steps from the roots would need a new hand-off for connectors'
-  sections and a gather timeout in the core. Default: the steps stay in
-  the roots, and `jig-domain-hub-link`'s `brief_plan`, which takes the
-  deadline, spells the first once.
+- **The fixed answer `ops` keeps.** `ops`'s answer to
+  `Now::WorkspaceRequest` is fixed, and the value stays, since temper's
+  does real work there (engine/executors.md, 1; `root.md`, section 7).
+  Default: the step stays in the roots until a run's workspace is
+  planned with its brief (engine/briefs.md, 3). A brief's plan is the
+  engine's (engine/briefs.md, 1.4), its gather time a core limit
+  (`brief.gather`).
 - **What a root keeps beside the journal.** Section 11 leaves a root
   nothing between steps but its children and the journal, and `ops`,
   with no store answers to queue and no public reads, keeps nothing

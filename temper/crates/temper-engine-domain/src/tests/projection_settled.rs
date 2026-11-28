@@ -24,6 +24,18 @@ pub(crate) fn make_task(
     executor: tasks::Executor,
     creator: tasks::Party,
 ) -> u64 {
+    make_task_with_budget(domain, env, tracked, executor, creator, super::held_assignment().run.authority, 1)
+}
+
+pub(super) fn make_task_with_budget(
+    domain: &mut crate::Domain,
+    env: &Env<crate::Limits>,
+    tracked: Option<u32>,
+    executor: tasks::Executor,
+    creator: tasks::Party,
+    authority: tasks::Authority,
+    budget: u64,
+) -> u64 {
     let goal = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Task).unwrap();
     let task_env = env.with(env.limits.tasks);
     let mut out = Queue::uncapped();
@@ -52,8 +64,8 @@ pub(crate) fn make_task(
                 },
                 contract: tasks::Contract::Report { words: 1 },
                 deadline: tasks::Deadline::Named,
-                authority: super::held_assignment().run.authority,
-                numbers: tasks::Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                authority,
+                numbers: tasks::Numbers { budget, spent: 0, spent_below: 0, reserved: 0 },
                 funder: tasks::Funder::Period { project: 1, period: 1 },
                 dependencies: Box::new([]),
                 holdings: Box::new([]),

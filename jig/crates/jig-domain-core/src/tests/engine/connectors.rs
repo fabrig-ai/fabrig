@@ -37,6 +37,7 @@ fn declarations() -> [Declaration; 2] {
                 waits_for_dependencies: false,
             }]),
             projects_goals: true,
+            sections: false,
         },
     ]
 }
@@ -349,9 +350,6 @@ fn uncased_asks_keep_their_core_request_mark() {
         Ask::Workers(Box::new([])),
         Ask::Providers(Box::new([])),
         Ask::Catalogue { models: Box::new([]) },
-        Ask::Gather { section: OWNER, budget: 3 },
-        Ask::CutTo { section: OWNER, size: 2 },
-        Ask::Drop { section: OWNER },
         Ask::ClaimDone { task: TASK, attempt: 1, kinds: Kinds::Both, version: Version { charter: 1, revision: 2 } },
         Ask::JobClaimed {
             task: TASK,
@@ -375,6 +373,32 @@ fn uncased_asks_keep_their_core_request_mark() {
     while let Some(request) = expected.pop() {
         let Some(Out::Core(wrapped)) = out.pop() else { panic!("uncased ask stays on the core port") };
         assert_eq!(hash.hash_one(wrapped), request);
+    }
+    assert!(out.is_empty());
+
+    for ask in [
+        parts::Ask::Plan(Box::new(parts::Preparation {
+            task: TASK,
+            project: PROJECT,
+            requester: tasks::Party::Person(PERSON),
+            root: TASK,
+            documents: Box::new([]),
+            core: Box::new([]),
+            slots: 1,
+            budget: 3,
+        })),
+        parts::Ask::Gather { task: TASK, section: OWNER, budget: 3, deadline: Time::from_nanos(10) },
+        parts::Ask::Cut { task: TASK, section: OWNER, size: 2 },
+        parts::Ask::Drop { task: TASK, section: OWNER },
+        parts::Ask::Abandon { task: TASK },
+    ] {
+        let ask = contract::Ask::Parts(ask);
+        let expected = hash.hash_one(&ask);
+        let mut requests = Queue::uncapped();
+        requests.push(crate::vocabulary::connector_ask(DECLARER.0, ask));
+        engine::append(requests, &mut out);
+        let Some(Out::Ask(DECLARER, observed)) = out.pop() else { panic!("brief ask takes the connector port") };
+        assert_eq!(hash.hash_one(observed), expected);
     }
     assert!(out.is_empty());
 }

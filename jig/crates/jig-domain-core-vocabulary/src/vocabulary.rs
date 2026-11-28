@@ -42,14 +42,6 @@ pub struct Assignment {
     pub grants: Box<[jig_domain_link::Grant]>,
 }
 
-/// A charter document's section in a core plan, for the root to give its connector
-/// (domain/engine/settings.md, 9).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PlannedDocument {
-    pub token: Token,
-    pub document: crate::Document,
-}
-
 /// A request from the core to its application root. Its variant fixes the
 /// commit relationship before the root translates or wraps it.
 #[derive(Hash, Debug)]
@@ -79,20 +71,6 @@ pub enum Ask {
         models: Box<[crate::settings::CatalogueModel]>,
     },
 
-    /// Gather a section within the brief's budget.
-    Gather {
-        section: Token,
-        budget: u32,
-    },
-    /// Cut a retained section to a smaller bound.
-    CutTo {
-        section: Token,
-        size: u32,
-    },
-    /// Release a retained section.
-    Drop {
-        section: Token,
-    },
     /// Complete a prepared claim through the connector that owns its writes.
     ClaimDone {
         task: u64,
@@ -571,19 +549,6 @@ pub enum Now {
     Activate {
         context: Box<tasks::RunContext>,
     },
-    /// Assemble connector-held sections for a still-current brief.
-    CompleteBrief {
-        brief: Token,
-        order: Box<[brief::GatherPlaced]>,
-    },
-    /// Core-owned sections and charter documents are ready; the root may append its connector
-    /// sections (domain/engine/settings.md, 9).
-    BriefCorePlanned {
-        task: u64,
-        parent: Option<u64>,
-        sections: List<brief::Planned>,
-        documents: Box<[PlannedDocument]>,
-    },
     /// The root assembles a numbered connector workspace for this core-selected attempt.
     WorkspaceRequest {
         task: u64,
@@ -613,6 +578,7 @@ pub enum Now {
         parts: Box<[jig_domain_link::KeptPart]>,
         answered: Box<[CallKey]>,
         grants: Box<[jig_domain_link::Grant]>,
+        brief: Box<[brief::GatherPlaced]>,
     },
     /// The first child admitted from a connector procedure's batch, if any.
     /// A restored task row was refused; the root must fail startup.
@@ -820,8 +786,6 @@ pub enum Event {
     Tasks(tasks::Event),
     /// An application asks for one admitted recurring core procedure.
     StartRecurring { project: u32, authority: tasks::Authority, template: tasks::RecurringTemplate },
-    /// The root assembled all selected connector sections, or found a missing owner.
-    BriefAssembled { task: u64, failure: Option<brief::GatherFailure> },
     /// The root translated the selected connector's workspace writes.
     WorkspacePrepared {
         task: u64,
@@ -912,8 +876,6 @@ pub enum Event {
     Delegate { to: ReplyTo, key: CallKey, batch: Box<[Delegate]> },
     /// A numbered connector's procedure choice in the core's vocabulary.
     ProcedureStep { task: u64, step: u64, connector: u16, code: u32, decision: ProcedureStep },
-    /// A gathered section.
-    Brief(brief::GatherEvent),
     /// An account refresh or grant.
     Account(accounts::Event),
     /// A live view.
@@ -1168,7 +1130,6 @@ impl Event {
             | Self::RunCall { .. }
             | Self::RunInput { .. }
             | Self::RunText { .. }
-            | Self::BriefAssembled { .. }
             | Self::WorkspacePrepared { .. }
             | Self::ClaimPrepared { .. }
             | Self::ClaimRefused { .. }
@@ -1182,8 +1143,7 @@ impl Event {
             | Self::Activate { .. }
             | Self::NamedAnswer { .. }
             | Self::Delegate { .. }
-            | Self::ProcedureStep { .. }
-            | Self::Brief(..) => false,
+            | Self::ProcedureStep { .. } => false,
         }
     }
 }

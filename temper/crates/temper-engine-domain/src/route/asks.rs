@@ -1,11 +1,9 @@
 //! Route the engine's connector port and temper's application asks
 //! (jig's `domain/root.md`, 5; `examples/ops/domain/src/route.rs`).
 use super::{
-    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, emit, forge,
-    forge_release_ending, forge_route,
+    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, emit, forge, forge_release_ending, forge_route,
 };
 use alloc::boxed::Box;
-use jig_domain_brief as brief;
 use jig_domain_contract::{
     Ask, Connector, Released, Up, effects, lifecycle, parts, procedures, projections, requests, resources, settings,
     topics,
@@ -24,6 +22,23 @@ pub(super) fn connector_ask(
     ask: Ask,
 ) {
     match ask {
+        Ask::Parts(parts::Ask::Plan(context)) if connector == domain.config.forge_connector => {
+            super::now::plan_brief(domain, env, context);
+        }
+        Ask::Parts(parts::Ask::Abandon { task }) if connector == domain.config.forge_connector => {
+            super::now::abandon_brief(domain, task);
+        }
+        Ask::Parts(parts::Ask::Gather { task, section, budget, deadline })
+            if connector == domain.config.forge_connector =>
+        {
+            crate::assemble::gather(domain, &env.limits, task, section, budget, deadline);
+        }
+        Ask::Parts(parts::Ask::Cut { task, section, size }) if connector == domain.config.forge_connector => {
+            crate::assemble::cut(domain, task, section, size);
+        }
+        Ask::Parts(parts::Ask::Drop { task, section }) if connector == domain.config.forge_connector => {
+            crate::assemble::drop_section(domain, task, section);
+        }
         Ask::Parts(parts::Ask::Lines(ask)) => {
             super::parts::ask(domain, env, decision, connector, ask);
         }
@@ -421,6 +436,13 @@ pub(super) fn connector_ask(
             assert_eq!(connector, domain.config.forge_connector, "the configured restore connector");
             crate::store_route::load_forge(domain, env, decision, None);
         }
+        Ask::Parts(
+            parts::Ask::Plan(_)
+            | parts::Ask::Abandon { .. }
+            | parts::Ask::Gather { .. }
+            | parts::Ask::Cut { .. }
+            | parts::Ask::Drop { .. },
+        ) => {}
         ask @ (Ask::Lifecycle(lifecycle::Ask::CatchUp | lifecycle::Ask::ReleaseProject { .. })
         | Ask::Resources(resources::Ask::Hold { .. } | resources::Ask::Unname { .. })
         | Ask::Effects(effects::Ask::Resolve { .. } | effects::Ask::DropProposal { .. })
@@ -494,7 +516,6 @@ pub(super) fn connector_released(
 }
 
 /// Application routes that are not connector capabilities.
-#[expect(clippy::too_many_lines, reason = "one dispatcher for the remaining application hand-offs")]
 pub(super) fn application(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -502,12 +523,11 @@ pub(super) fn application(
     connector: u16,
     ask: core::Ask,
 ) {
-    let request = if let core::Ask::Workers(workers) = ask {
+    if let core::Ask::Workers(workers) = ask {
         assert!(
             super::now(domain, crate::Request::Worker(crate::WorkerRequest::Settings(workers))),
             "worker table door reserved"
         );
-        None
     } else if let core::Ask::Catalogue { models } = ask {
         domain.catalogue_pending = true;
         let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
@@ -519,16 +539,8 @@ pub(super) fn application(
             super::now(domain, crate::Request::Party(crate::PartyRequest::Catalogue { models })),
             "catalogue clients door reserved"
         );
-        None
     } else if let core::Ask::Providers(providers) = ask {
         emit(decision, &env.limits, Delivery::Providers(providers));
-        None
-    } else if let core::Ask::Gather { section, budget } = ask {
-        Some(brief::GatherRequest::Gather { connector, section, budget })
-    } else if let core::Ask::CutTo { section, size } = ask {
-        Some(brief::GatherRequest::CutTo { connector, section, size })
-    } else if let core::Ask::Drop { section } = ask {
-        Some(brief::GatherRequest::Drop { connector, section })
     } else if let core::Ask::ClaimDone { task, attempt, kinds, version } = ask {
         if connector == domain.config.forge_connector {
             let workspace = &domain.assignment_parts.get(&task).expect("admitted assignment").workspace;
@@ -555,7 +567,6 @@ pub(super) fn application(
                 emit(decision, &env.limits, Delivery::Fleet(event));
             }
         }
-        None
     } else if let core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } = ask {
         if connector == domain.config.forge_connector {
             forge_route::job_history::claimed(domain, task, attempt, kind.0);
@@ -598,14 +609,8 @@ pub(super) fn application(
                 emit(decision, &env.limits, Delivery::Fleet(event));
             }
         }
-        None
     } else {
         unreachable!("the engine separates connector asks from application asks: {ask:?}")
-    };
-    if let Some(request) = request {
-        let mut child = Queue::with_capacity(1);
-        child.push(request);
-        brief_outputs(domain, env, decision, &mut child);
     }
 }
 

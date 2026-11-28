@@ -1,5 +1,5 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
+use crate::boundary::{BriefConnector, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::route::{
     forge_route, host_route, policy_translate, route_core_requests, route_engine_requests, route_into, step_routed,
@@ -99,9 +99,8 @@ pub struct Domain {
     pub(crate) rehearsal: Option<bool>,
     pub(crate) core_header_loaded: bool,
     pub(crate) restored_commits: Option<u64>,
-    pub(crate) brief_connectors: Slab<BriefConnector>,
+    pub(crate) brief_connectors: Map<Token, BriefConnector>,
     pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
-    pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::boundary::JobWorkspace>,
     pub(crate) push_claims: Map<u64, forge_route::push_admission::Claim>,
@@ -660,9 +659,8 @@ impl Domain {
             core_header_loaded: false,
             restored_commits: None,
             engine,
-            brief_connectors: Slab::with_capacity(brief_connector_capacity(limits)),
-            brief_document_titles: Map::with_capacity(limits.brief.briefs),
-            forge_briefs: Map::uncapped(),
+            brief_connectors: Map::uncapped(),
+            brief_document_titles: Map::with_capacity(limits.tasks.tasks),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
             job_workspaces: Map::with_capacity(limits.tasks.tasks),
             push_claims: Map::with_capacity(limits.tasks.tasks),
@@ -867,7 +865,6 @@ impl Domain {
             && self.hub_link.payload_count() == 0
             && self.answer_parts.is_empty()
             && self.refused_calls.is_empty()
-            && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
             && self.revision_reads.is_empty()
             && self.history_reads.is_empty()
@@ -922,7 +919,6 @@ impl Domain {
         self.changed();
         self.settled = None;
         self.engine.core_mut().reclaim();
-        self.brief_connectors.reclaim();
         self.forge.reclaim();
         self.archive_reads.reclaim();
         loads::reclaim(&mut self.loads);
@@ -1690,16 +1686,6 @@ fn add_configured_requirements(
     };
     rules.requirements = combined;
     authority::valid_rules(rules, limits)
-}
-
-fn brief_connector_capacity(limits: &Limits) -> u32 {
-    limits
-        .brief
-        .briefs
-        .checked_mul(limits.brief.sections)
-        .expect("validated brief count")
-        .checked_mul(2)
-        .expect("validated brief connector room")
 }
 
 // A turn needs its carriers and resource slots before it may be selected by settings.

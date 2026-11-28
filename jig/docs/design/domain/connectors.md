@@ -81,7 +81,7 @@ application root            routes between the core and every connector
   | `resources` | · a task is erased, so nothing it named need be kept for it (3.4); · a task took a write hold, with the taking's entry (`connectors-effects.md`, 1.7); · a fenced attempt was lost; ◆ the holdings a batch member needs, whoever made the batch (3.1); · a repair or a delegation it made was refused | the holdings, or refused with the symbol or the holder; unasked: a resource's role and kind of hold, a pool's slots, drift, a resource read afresh after a lost attempt |
   | `effects` | ◆ describe this effect, or the one kept under a proposal; ◆ judge this requirement for this effect's state (section 7); · keep it under its key or the proposal's number, or drop it, with why; ▷ resolve an uncertain entry; ▷ settle a closing task's effects; ▷ release what a closing task held, through its entry | its description: kind, resources, purpose, condition, price; refused; busy; a verdict: met, wait for what, refuse on which fact; a closing task's effects settled; its holds released; unasked: an outbox entry's outcome (made, failed, uncertain), and an effect its procedure's step or projection makes |
   | `topics` | · a subscription to its topic taken, or refused; · an unsubscription taken; · a task's interest in its topic ended | unasked: news for these subscribers, classified (connectors-facts.md, 1.3) |
-  | `parts` | ▷ make a party's document of an application subject; · drop a subject's binding; · answer a party's read of an application subject, which it holds itself; ▷ make the parts of these task lines, after any read of its store; ◆ a public document | the document made, or why not; the lines' parts; the public document; unasked: the tasks whose parts changed |
+  | `parts` | ▷ make a party's document of an application subject; · drop a subject's binding; · answer a party's read of an application subject, which it holds itself; ▷ make the parts of these task lines, after any read of its store; ◆ a public document; for one that serves sections, ▷ plan your sections of this run's brief, from its preparation context; · forget a plan still being made; ▷ gather a section by the brief's deadline; ▷ cut it to a size; · drop it (engine/briefs.md, 1.4) | the document made, or why not; the lines' parts; the public document; the brief's sections it would give; a section gathered or cut, with its size, or why it failed; unasked: the tasks whose parts changed |
   | `procedures` | · start this procedure task, with its context; · what its step made, with the revisions it names; · its step refused, and why; · its waits refused, and why | a step's decision: effects, batches, amendments, cancels, proposals, messages, a hold, a result (connectors-procedures.md); unasked: a task's waits, whenever they change, and a procedure to step again |
   | `projections`, for one that projects goals | ▷ project this goal: its state, its plan, its milestones (section 8); · forget a goal's projection | the projection settled; unasked: its outbox entry's outcome |
   | `settings` | ◆ judge these items of your kinds, for the revision they would make, or as restored (section 17); · keep these items' values: a change committed, a removal, a reset; a proposal's items made, accepted, ended; · forget values replaced before a revision; · save the defaults | judged: accept; refuse, why; leave it as it is; at a start, which of the application's defaults of its kinds differ, with their sizes, and a stored value of its kinds it cannot hold |
@@ -90,10 +90,10 @@ application root            routes between the core and every connector
   | after a commit | make this outbox entry (the journal released it) | its outcome, as above |
 
 - **Still through the root, for now** (engine/vocabulary.md, 3): a brief
-  section's gathering, cutting and handing over (engine/briefs.md, 1.1);
-  what a run of a task needs prepared, its workspace items and their
-  credentials, and its claim; what a run left on its resources; and its
-  operations on jig's work
+  section's handing over, as the root puts the assignment together
+  (root.md, section 7); what a run of a task needs prepared past its brief,
+  its workspace items and their credentials, and its claim; what a run
+  left on its resources; and its operations on jig's work
   beyond a step's decision (subscribing, cancelling, holding or releasing
   a task, a repair or a person's task, a request's core part).
 - **A connector speaks the contract at its own step's edge**
@@ -151,7 +151,8 @@ application root            routes between the core and every connector
   ```rust
   // jig-domain-contract: the crate's root, `resources` and `effects`
   pub struct Declaration { pub connector: Connector, pub resources: Box<[ResourceKind]>,
-                           pub effects: Box<[EffectKind]>, pub projects_goals: bool }
+                           pub effects: Box<[EffectKind]>, pub projects_goals: bool,
+                           pub sections: bool }   // serves a run's brief sections (engine/briefs.md, 1.4)
   pub struct ResourceKind { pub kind: u16, pub hold: Rule }
   pub enum Rule { Shared, Exclusive { taken: Taken }, Pooled { taken: Taken } }
   pub enum Taken { Refuses, Waits }
@@ -183,8 +184,9 @@ application root            routes between the core and every connector
     decides none (`ops`'s observability, with its one silence) leaves
     them to its root's declaration, the one place they are stated.
   - **A capability is taken by declaring a kind of it,** and a connector
-    that projects goals says so (section 8): the engine asks a goal's
-    projection, or anything else it asks of every connector, only of
+    that projects goals says so (section 8), as one that serves a run's
+    brief sections does (section 9): the engine asks a goal's projection,
+    a brief's plan, or anything else it asks of every connector, only of
     those that declare the capability (engine/vocabulary.md, 2.5). Of the
     capabilities whose kinds are not yet declared here (topics, parts,
     procedures, settings, requests), a connector is asked only about the
@@ -399,18 +401,20 @@ release the writer; Uncertain and Held retain it for connector recovery.
   core checks the read grant (authority-checks.md, 1.5); the connector serves
   it; its answer goes out through the journal's door for outputs that
   decide nothing (root.md, section 3). The core never holds it.
-- **Sections a brief carries** for the resources a task names, and for
+- **Sections a brief carries** for what a task names of its system, and for
   the documents its charter names (engine/settings.md, 9): a service's recent
   errors, an environment's state, a pull request against its base, a
-  file at a branch's head. The brief child domain plans them (engine/briefs.md,
-  section 1) by kind and budget; the connector gathers each, keeps it,
+  file at a branch's head. A connector that serves them says so in its
+  declaration (section 2), and plans its sections of each run's brief from
+  the run's preparation context; the engine places them by slot,
+  priority and budget (engine/briefs.md, 1.4); the connector gathers each, keeps it,
   and says its size, or says why it could not, in fixed words and how
   that counts (engine/briefs.md, 1.1). It gathers within the brief's
-  deadline, which the root gives it with the gather: a section it reads
+  deadline, which the engine gives it with the gather: a section it reads
   in several reads ends at its cutoff, ahead of the deadline, with what
   it has and a marker for the rest (engine/briefs.md, 1, *Within the
   deadline*); asked to cut it to a smaller size, it cuts it by its
-  own rules and says the new size; when the brief is complete, it hands
+  own rules and says the new size; once the run is prepared, it hands
   the section to the root, which puts the assignment together (root.md,
   section 7).
 - **A connector's result** reaches a dependent's brief the same way: the

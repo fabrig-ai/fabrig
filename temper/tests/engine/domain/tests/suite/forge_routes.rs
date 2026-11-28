@@ -1191,13 +1191,15 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
         else {
             continue;
         };
-        if row.refusals > 0 && row.last_message == 2 {
+        if row.last_message == 2 {
             assert_eq!(row.spec.words.as_ref(), b"revised repair");
+            assert_eq!(row.refusals, 0, "a stale brief does not count as a refusal");
+            assert!(matches!(row.phase, tasks::Phase::Active(tasks::Active::Due | tasks::Active::Preparing)));
             assert_eq!(row.attempt, 0, "old preparation was not claimed");
             assert_eq!(row.tries, tasks::Tries::NONE);
             assert_eq!(world.assigned.len(), 2);
             world.advance_ticks(250);
-            // The amended repair may retry; the abandoned preparation may never claim.
+            // The amended repair may prepare again; the abandoned preparation may never claim.
             for assignment in &world.assigned[boundary..] {
                 assert_eq!(assignment.task, repair, "only the revised repair may be assigned");
                 assert!(!prior_attempts.contains(&assignment.attempt), "no prior attempt can return");

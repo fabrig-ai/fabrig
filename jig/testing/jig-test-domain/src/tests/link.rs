@@ -232,52 +232,6 @@ fn core_request(request: core::Request) -> Queue<core::Request> {
     out.push(request);
     out
 }
-fn gather_brief(
-    domain: &mut crate::Domain,
-    env: &skein_lib::Env<crate::Limits>,
-    decision: &mut skein_lib::Decision<crate::Write, Delivery>,
-    work: &mut Queue<crate::Work>,
-) {
-    use jig_domain_brief::{Core, Planned};
-    let mut sections = skein_lib::List::with_capacity(2);
-    for (kind, text) in [(Core::Task, b"request".as_slice()), (Core::Results, b"previous".as_slice())] {
-        sections
-            .push(Planned::Core { kind, text: text.into(), limit: 32, priority: 0, required: true })
-            .expect("sections");
-    }
-    crate::routes::route_core(
-        domain,
-        env,
-        decision,
-        core_request(core::Request::Now(Box::new(core::Now::BriefCorePlanned {
-            task: fixtures::RUN.raw(),
-            parent: None,
-            documents: Box::new([]),
-            sections,
-        }))),
-        work,
-    );
-    let crate::Work::Core(core::Event::Brief(event)) = work.pop().expect("brief planned") else {
-        panic!("brief child");
-    };
-    let mut completed = Queue::uncapped();
-    jig_domain_brief::gather_step(
-        &mut domain.engine.core_mut().brief,
-        &env.with(env.limits.core.brief),
-        event,
-        &mut completed,
-    );
-    let jig_domain_brief::GatherRequest::Complete { brief, order } = completed.pop().expect("completed brief") else {
-        panic!("complete typed sections");
-    };
-    crate::routes::route_core(
-        domain,
-        env,
-        decision,
-        core_request(core::Request::Now(Box::new(core::Now::CompleteBrief { brief, order }))),
-        work,
-    );
-}
 fn prepare_brief_assignment(
     domain: &mut crate::Domain,
     env: &skein_lib::Env<crate::Limits>,
@@ -285,6 +239,13 @@ fn prepare_brief_assignment(
     work: &mut Queue<crate::Work>,
 ) {
     let fixture = fixtures::assignment();
+    let brief = Box::new([
+        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Task, text: b"request".as_slice().into() },
+        jig_domain_brief::GatherPlaced::Core {
+            kind: jig_domain_brief::Core::Results,
+            text: b"previous".as_slice().into(),
+        },
+    ]);
     domain.workspace_writes.insert(fixture.task, Box::default()).expect("workspace");
     crate::routes::route_core(
         domain,
@@ -303,6 +264,7 @@ fn prepare_brief_assignment(
             answered: Box::default(),
             parts: Box::default(),
             grants: fixture.grants,
+            brief,
         }))),
         work,
     );
@@ -326,7 +288,6 @@ fn an_assignment_carries_its_brief_s_sections_in_order() {
     let env = fixtures::env();
     let mut decision = domain.journal.decide();
     let mut work = fixtures::work();
-    gather_brief(&mut domain, &env, &mut decision, &mut work);
     prepare_brief_assignment(&mut domain, &env, &mut decision, &mut work);
     domain.journal.accept(decision);
     let mut released = Queue::uncapped();

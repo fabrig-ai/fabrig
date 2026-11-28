@@ -54,7 +54,10 @@ impl In {
                     parts::Up::Made { .. }
                     | parts::Up::Lines { .. }
                     | parts::Up::Public { .. }
-                    | parts::Up::Marked { .. },
+                    | parts::Up::Marked { .. }
+                    | parts::Up::Planned { .. }
+                    | parts::Up::Sized { .. }
+                    | parts::Up::Failed { .. },
                 )
                 | Up::Procedures(
                     procedures::Up::Step { .. } | procedures::Up::Waits { .. } | procedures::Up::Wake { .. },

@@ -60,8 +60,6 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::NoteBusy { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::CompleteBrief { .. }
-        | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }

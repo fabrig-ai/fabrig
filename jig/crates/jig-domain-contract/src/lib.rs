@@ -30,6 +30,8 @@ pub struct Declaration {
     pub resources: Box<[ResourceKind]>,
     pub effects: Box<[EffectKind]>,
     pub projects_goals: bool,
+    /// Whether this connector plans and holds sections of a run's brief.
+    pub sections: bool,
 }
 
 /// Why the engine refuses construction (jig/docs/design/domain/engine/vocabulary.md, 2.1).
@@ -46,7 +48,7 @@ pub enum StartProblem {
 impl Declaration {
     #[must_use]
     pub fn empty(connector: Connector) -> Declaration {
-        Self { connector, resources: Box::new([]), effects: Box::new([]), projects_goals: false }
+        Self { connector, resources: Box::new([]), effects: Box::new([]), projects_goals: false, sections: false }
     }
 }
 

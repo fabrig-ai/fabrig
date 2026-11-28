@@ -74,8 +74,8 @@ pub use crate::{
     },
     funding::pools::CreateStart,
     limits::{
-        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY,
-        brief_holds_documents, charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
+        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY, brief_holds_documents,
+        charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
     },
     numbers::{Counters, Deployment, Family, fresh},
     public::{
@@ -121,8 +121,8 @@ pub use crate::{
     },
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
-        NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
-        StepRefusal, Timer, ToolKind, WatchRefusal, Write,
+        NamedAction, Now, PayloadRefusal, ProposalChoice, PublicIndexLimits, Request, RetentionLimits, StepRefusal,
+        Timer, ToolKind, WatchRefusal, Write,
     },
 };
 
@@ -252,6 +252,8 @@ pub struct Core {
     pub counters: Counters,
     /// Live task preparation contexts.
     pub(crate) contexts: Map<u64, Box<tasks::RunContext>>,
+    /// Plans awaited and completed briefs, one per live preparation.
+    pub(crate) brief_sections: Map<u64, routing::run::briefs::Sections>,
     pub(crate) workspace_credentials: Map<u64, Box<[u32]>>,
     pub(crate) job_workspaces: Map<u64, Box<[u8]>>,
     /// Recent transcript windows for runs being prepared.
@@ -507,6 +509,7 @@ impl Core {
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),
+            brief_sections: Map::with_capacity(limits.tasks.tasks),
             workspace_credentials: Map::with_capacity(limits.tasks.tasks),
             job_workspaces: Map::with_capacity(limits.tasks.tasks),
             transcripts: Map::with_capacity(limits.tasks.tasks),

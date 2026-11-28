@@ -465,7 +465,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::RunText { .. }
         | core::Event::Tasks(_)
         | core::Event::StartRecurring { .. }
-        | core::Event::BriefAssembled { .. }
         | core::Event::WorkspacePrepared { .. }
         | core::Event::ClaimPrepared { .. }
         | core::Event::ClaimRefused { .. }
@@ -485,7 +484,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::NamedAction { .. }
         | core::Event::Delegate { .. }
         | core::Event::ProcedureStep { .. }
-        | core::Event::Brief(_)
         | core::Event::Account(_)
         | core::Event::View(_)
         | core::Event::Notes(_) => None,
