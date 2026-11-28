@@ -144,6 +144,9 @@ fn split_chat_allowance(config: &mut engine::Config, chats: u32) {
     }
 }
 
+// Owned payload of the fixture's largest restored row, the named stock charter 11.
+const ASKING_CHARTER_RESTORE_BYTES: u32 = 10_523;
+
 fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
     let mut engine_limits = engine_limits();
     engine_limits.people.projects = projects + 1;
@@ -166,8 +169,7 @@ fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
     engine_limits.journal.result_bytes = 512;
     // Stock charter 11's instructions and framed run policy need 11,635 bytes.
     engine_limits.journal.run_bytes = 12_288;
-    // A stored stock charter 11 has 10,435 payload bytes, including model cache lifetimes and conclusion.
-    engine_limits.loads.transcript_bytes = 10_435;
+    engine_limits.loads.transcript_bytes = ASKING_CHARTER_RESTORE_BYTES;
     engine_limits.documents.text_bytes = 4096;
     limits_for_chats(&mut engine_limits, chats);
     engine_limits
