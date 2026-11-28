@@ -194,7 +194,11 @@ impl Domain {
 #[expect(clippy::too_many_lines, reason = "one exhaustive connector event dispatcher")]
 pub fn step_system(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
-        Event::Ask(_) | Event::Released(_) | Event::StageEffect { .. } | Event::WriterRead { .. } => {
+        Event::Ask(_)
+        | Event::Released(_)
+        | Event::StageEffect { .. }
+        | Event::WriterRead { .. }
+        | Event::RestoredPage { .. } => {
             unreachable!("contract inputs use the connector port")
         }
         Event::SettingsDefaults => crate::settings::defaults(domain, out),

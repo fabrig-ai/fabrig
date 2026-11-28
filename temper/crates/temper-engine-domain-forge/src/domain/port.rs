@@ -32,7 +32,7 @@ pub(super) fn ask(d: &mut Domain, env: &Env<Limits>, ask: Ask, out: &mut Queue<R
             | parts::Ask::Cut { .. }
             | parts::Ask::Drop { .. },
         ) => unreachable!("the forge route keeps brief bindings and reads the root's workspace"),
-        Ask::Parts(parts::Ask::DropDocument { .. }) => {}
+        Ask::Lifecycle(lifecycle::Ask::Restore) | Ask::Parts(parts::Ask::DropDocument { .. }) => {}
         Ask::Parts(
             parts::Ask::Document { .. } | parts::Ask::Read { .. } | parts::Ask::Lines(_) | parts::Ask::Public { .. },
         ) => {

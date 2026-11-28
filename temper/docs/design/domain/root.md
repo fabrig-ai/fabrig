@@ -111,9 +111,9 @@ temper-engine-domain/src/
 ├── translate.rs        Config and the small total functions (section 6)
 ├── assemble.rs         assignments and briefs from their owners' parts (section 7)
 ├── link.rs             the hub's link records, and what a run left (sections 3 and 7)
-├── store, loads        temper-engine-domain-store: keys, records, ranges and pages (section 8)
+├── store, loads        temper-engine-domain-store: keys, records, ranges and pages, the start's walk in loads/start.rs (section 8)
 ├── archive.rs          loads outside the working set (section 8)
-├── restart.rs          the restart script's steps (section 9)
+├── start_wait.rs       a start's step that runs long (root-restart.md, 1.1)
 ├── stopping.rs         the drain (section 9)
 ├── deadline.rs         the children's timers
 ├── limits.rs           the root's entrance limits and validity (section 10)
@@ -132,8 +132,9 @@ with the worker's (`../protocol/service-process.md`, section 1).
   - the store's answers (`StoreInput`): a commit durable, with the
     store's fill; a commit failed; a page loaded, or not; a core read's
     page; the store's census, at most once a minute, which the root
-    hands the core as its `Event::Census`, keeping the last while it
-    starts as it keeps the fill (jig's `protocol/store/growth.md`, 1.3);
+    hands the engine's store port with the fill (`store::In::Census`,
+    `store::In::Fill`), the engine keeping the last of each while it
+    starts (jig's `protocol/store/growth.md`, 1.3; jig's `domain/engine/vocabulary.md`, 2.6);
   - a worker's channel (`WorkerInput::Link`): a hello, a record up with
     temper's `Parts` beside an answer, a loss; and the protocol layer's
     hand-backs: a host call decoded into the root's `Tool`, a decided

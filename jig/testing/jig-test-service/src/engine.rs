@@ -223,47 +223,8 @@ impl Engine {
             || (due && (!self.blocked || !self.held.is_empty()))
     }
     fn event_pending(&self) -> bool {
-        if self.domain.ready() || self.store.host.mark_durable() {
-            return !self.events.is_empty();
-        }
-        for event in &self.events {
-            if let root::Event::StartDone(_) = event {
-                return true;
-            }
-        }
-        false
-    }
-    fn next_event(&mut self) -> Option<root::Event> {
-        use core::start::Phase;
-        let loading = match self.domain.core_mut().start_phase() {
-            Some(
-                Phase::LoadCore
-                | Phase::LoadInbox
-                | Phase::RestoreConnector { .. }
-                | Phase::Link
-                | Phase::Sweep
-                | Phase::Switch
-                | Phase::Wires,
-            ) => true,
-            Some(Phase::AdoptRuns | Phase::Open) | None => false,
-        };
-        if !loading {
-            return self.events.pop();
-        }
-        // Runtime inputs wait behind durable Wires; phase completions still
-        // advance the start without changing the waiting inputs' order.
-        let mut next = None;
-        for _ in 0..self.events.len() {
-            let event = self.events.pop().expect("component input count");
-            if next.is_none()
-                && let root::Event::StartDone(_) = &event
-            {
-                next = Some(event);
-            } else {
-                self.events.push(event);
-            }
-        }
-        next
+        // Store answers take their own path; runtime inputs wait for decisions to open.
+        self.domain.ready() && !self.events.is_empty()
     }
     fn passing(&self) -> bool {
         match self.events.iter().next() {
@@ -379,10 +340,9 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         let (project, budget) = *engine.first_periods.get(last).expect("configured first period");
         engine.first_periods.truncate(last);
         engine.step(root::Event::Core(core::Event::Period { project, period: 1, budget, next: None }));
-    } else if engine.held.is_empty() && !engine.blocked && !engine.events.is_empty() {
-        if let Some(event) = engine.next_event() {
-            engine.step(event);
-        }
+    } else if engine.held.is_empty() && !engine.blocked && engine.event_pending() {
+        let event = engine.events.pop().expect("pending runtime input");
+        engine.step(event);
     } else if engine.domain.ready()
         && let Some(event) = engine.parties.pop()
     {
@@ -445,6 +405,9 @@ fn release(engine: &mut Engine) {
             break;
         }
         root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        if !engine.first_periods.is_empty() && engine.domain.restored_deployment() {
+            engine.first_periods.truncate(0);
+        }
         if !engine.requests.is_empty() {
             engine.root_steps = engine.root_steps.wrapping_add(1);
         }

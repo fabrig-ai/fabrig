@@ -24,7 +24,6 @@ mod client_documents;
 mod domain;
 mod limits;
 mod link;
-mod restart;
 mod route;
 mod store;
 mod translate;

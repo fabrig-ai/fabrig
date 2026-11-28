@@ -33,8 +33,8 @@ pub fn class(event: &Event) -> Class {
         Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
-        | Event::StartBegin { .. }
         | Event::Credential { .. }
+        | Event::StartBegin { .. }
         | Event::ProjectionEffect { .. }
         | Event::TopicCall { .. }
         | Event::EffectCall { .. } => Class::New,
@@ -42,10 +42,8 @@ pub fn class(event: &Event) -> Class {
         | Event::ResultRead { .. }
         | Event::Stop
         | Event::ConnectorTimer { .. }
-        | Event::StartRecord(_)
-        | Event::StartMissing { .. }
+        | Event::ConnectorPage { .. }
         | Event::StartPageRefused { .. }
-        | Event::StartDone(_)
         | Event::CallAnswered { .. }
         | Event::Text { .. }
         | Event::Turn { .. }
@@ -119,6 +117,7 @@ fn connector_class(event: &connector::Event) -> Class {
         | connector::Event::Resolve { .. }
         | connector::Event::Withdraw { .. }
         | connector::Event::ReleaseProject { .. }
+        | connector::Event::RestoredPage { .. }
         | connector::Event::Restore { .. } => Class::Admitted,
     }
 }
@@ -141,10 +140,9 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             Ok(())
         }
         event @ (Event::Store(_)
-        | Event::StartRecord(_)
-        | Event::StartMissing { .. }
+        | Event::Engine(core::engine::In::Store(_))
+        | Event::ConnectorPage { .. }
         | Event::StartPageRefused { .. }
-        | Event::StartDone(_)
         | Event::Core(core::Event::PublicDurable { .. })) => {
             domain.store_answers.push(Box::new(event));
             Ok(())
@@ -245,11 +243,9 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::Application { .. }
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
-        | Event::StartBegin { .. }
-        | Event::StartRecord(_)
-        | Event::StartMissing { .. }
+        | Event::ConnectorPage { .. }
         | Event::StartPageRefused { .. }
-        | Event::StartDone(_)
+        | Event::StartBegin { .. }
         | Event::Timer(..)
         | Event::Store(_)
         | Event::Engine(..)
@@ -318,7 +314,11 @@ mod tests {
     fn link_calls_are_new_work_and_new_work_waits_at_the_watermark() {
         let env = fixtures::env();
         let mut domain = fixtures::domain();
-        fixtures::fill_to_watermark(&mut domain, &env);
+        let commits = fixtures::fill_to_watermark(&mut domain, &env);
+        // These synthetic commits stand in for decisions that saved their headers.
+        for _ in 0..commits {
+            domain.engine.core_mut().counters.next_commit();
+        }
         let event = Event::Core(core::Event::People(people::Event::Ask {
             models: Box::new([]),
             reply_to: ReplyTo::new(Token::new(7)),

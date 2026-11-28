@@ -115,6 +115,9 @@ fn a_resumed_core_load_leaves_once_in_held_order() {
     }
     requests.push(core::Request::ProjectMade { project: 3 });
     crate::routes::route_core(&mut domain, &env, &mut decision, requests, &mut fixtures::work());
+    let header =
+        domain.engine.core_mut().decision_header(domain.decision_wrote).expect("the writing decision's header");
+    decision.push_write(crate::Write::Save(crate::Record::Core(header)));
     domain.journal.accept(decision);
 
     let mut out = Queue::uncapped();
@@ -557,7 +560,6 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
                 other @ (Request::StoreCatalogue { .. }
                 | Request::Workers(_)
                 | Request::ClientsCatalogue { .. }
-                | Request::Start { .. }
                 | Request::ReadResult { .. }
                 | Request::Busy { .. }
                 | Request::Deliver(_)

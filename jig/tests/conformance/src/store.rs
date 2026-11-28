@@ -1,30 +1,12 @@
-//! Start flights routed through the real store (protocol/store/loads.md, 1, and protocol/store/testing.md, 1).
-use super::{Neighbours, Store, StoreOut, core, root};
-use jig_conformance::Input;
+//! Observe and transport the start's first requests (protocol/store/loads.md, 1).
+use super::{Neighbours, Store, StoreOut, core};
+
 impl Neighbours {
-    pub(super) fn start(
-        &mut self,
-        store: &mut Store,
-        phase: core::start::Phase,
-        census: Option<core::Census>,
-    ) -> Vec<Input<root::Event>> {
-        use core::start::Phase;
+    pub(super) fn start(&mut self, store: &mut Store, phase: core::start::Phase, out: StoreOut) {
         self.start_phases.push(phase);
-        match phase {
-            Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
-                panic!("root performs internal start phases")
-            }
-            Phase::LoadCore | Phase::RestoreConnector { .. } | Phase::LoadInbox | Phase::Sweep | Phase::Switch => {}
-        }
-        let position = jig_conformance::core::peers::restart_position(phase, 2);
-        if let Some(position) = position {
+        if let Some(position) = jig_conformance::core::peers::restart_position(phase, 2) {
             self.routes.push(jig_conformance::referee::Observed::RestartStage { position });
         }
-        if phase == Phase::Switch && !store.generation_pending {
-            vec![Input::Event(root::Event::StartDone(phase))]
-        } else {
-            store.ask(StoreOut::Start { phase, census });
-            Vec::new()
-        }
+        store.ask(out);
     }
 }

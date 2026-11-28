@@ -361,6 +361,8 @@ pub enum Event {
     MakeEntry { entry: u64 },
     /// Restore a committed record during restart.
     Restore { record: Record },
+    /// The store reached the end of this connector's restore walk.
+    RestoreDone,
     /// Refresh the services named by restored subscriptions and watches.
     ReadAfresh,
     /// Settle restored entries after all live reads have answered.
@@ -405,6 +407,8 @@ pub enum SystemRequest {
 /// What the connector asks its root to route or commit.
 #[derive(Debug)]
 pub enum Out {
+    /// Load this connector's live records after the journal releases the request.
+    LoadRestore,
     /// What this connector says to the engine in this decision.
     Up(jig_domain_contract::Up),
     /// Feed an internal continuation back after its commit.

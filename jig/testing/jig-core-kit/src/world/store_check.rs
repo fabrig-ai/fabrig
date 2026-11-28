@@ -33,15 +33,16 @@ impl Rehearsal {
                 if domain.rehearsed() {
                     return Ok(());
                 }
-                if !sweep_waits(&domain, events.front())
-                    && let Some(event) = events.pop_front()
-                {
+                if let Some(event) = events.pop_front() {
                     root::step(&mut domain, &env, event);
                 }
                 root::release(&mut domain, &env, &mut out);
                 while let Some(request) = out.pop() {
                     match request {
-                        root::Request::Start { phase, census } => store.ask(StoreOut::Start { phase, census }),
+                        root::Request::Deliver(root::Delivery::Store(out)) => store.ask(StoreOut::Engine(out)),
+                        root::Request::Deliver(root::Delivery::ConnectorLoad { number, after }) => {
+                            store.ask(StoreOut::ConnectorLoad { number, after });
+                        }
                         root::Request::Commit { number, mut writes } => {
                             let mut rows = Vec::new();
                             while let Some(write) = writes.pop() {
@@ -66,7 +67,7 @@ impl Rehearsal {
                         }
                     }
                 }
-                if events.is_empty() && store.pending.is_empty() && !store.loading() {
+                if events.is_empty() && store.pending.is_empty() && !store.loading() && domain.quiescent() {
                     if let Some(error) = refusal(&domain, commit) {
                         return Err(error);
                     }
@@ -142,15 +143,6 @@ impl World {
         }
         Ok(())
     }
-}
-
-/// Sweep pages wait for writes from their predecessor to release its continuation.
-pub(super) fn sweep_waits(domain: &root::Domain, event: Option<&root::Event>) -> bool {
-    domain.start_phase() == Some(super::core::start::Phase::Sweep)
-        && !domain.quiescent()
-        && event.is_some_and(|event| {
-            matches!(event, root::Event::StartRecord(_) | root::Event::StartDone(super::core::start::Phase::Sweep))
-        })
 }
 
 fn refusal(domain: &root::Domain, commit: u64) -> Option<String> {

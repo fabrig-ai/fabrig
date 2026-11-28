@@ -34,7 +34,12 @@ fn a_composed_held_commit_returns_its_refused_record() {
     );
     world.store.fault(Fault::Hold { commits: 1 });
     let error = world.try_tick().expect_err("the held commit is already durable");
-    assert_eq!(error, format!("store check: commit {commit}: start refused at Link: ForgeRow(ChangeCold(51))"));
+    assert_eq!(
+        error,
+        format!(
+            "store check: commit {commit}: start refused at RestoreConnector {{ connector: 0 }}: ForgeRow(ChangeCold(51))"
+        )
+    );
     assert_eq!(world.store_check_counts().checked(), 1);
     assert_eq!(world.store.held.front(), Some(&commit));
 }

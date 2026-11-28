@@ -610,7 +610,7 @@ fn an_outbox_entry_waits_for_its_commit() {
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::Restored },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Restored })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ],
@@ -741,8 +741,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingAct { .. }
         | Request::Decided { .. }
         | Request::LoadHistory { .. }
-        | Request::HistoryPage { .. }
-        | Request::RestartDone { .. } => panic!("permission call"),
+        | Request::HistoryPage { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
     let result = outputs(
@@ -853,8 +852,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingAct { .. }
         | Request::Decided { .. }
         | Request::LoadHistory { .. }
-        | Request::HistoryPage { .. }
-        | Request::RestartDone { .. } => panic!("branches call"),
+        | Request::HistoryPage { .. } => panic!("branches call"),
     };
     assert!(
         outputs(
@@ -958,8 +956,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingAct { .. }
         | Request::Decided { .. }
         | Request::LoadHistory { .. }
-        | Request::HistoryPage { .. }
-        | Request::RestartDone { .. } => panic!("settings follows collision read"),
+        | Request::HistoryPage { .. } => panic!("settings follows collision read"),
     }
 }
 
@@ -1006,7 +1003,7 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::Restored },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Restored })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ]
@@ -1460,7 +1457,7 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::Restored },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Restored })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ]

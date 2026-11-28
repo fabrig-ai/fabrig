@@ -66,7 +66,7 @@ impl Loads {
         self.reads() == self.read_flights.capacity()
     }
 
-    fn name(&mut self) -> Token {
+    pub(crate) fn name(&mut self) -> Token {
         let load = Token::new(self.next_token);
         self.next_token = self.next_token.checked_add(1).expect("store load tokens are never reused");
         load
@@ -170,8 +170,13 @@ pub(crate) fn awaited(core: &Core, load: Token) -> bool {
     }
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, input: store::In) -> Queue<Request> {
-    let store::In::Loaded { load, result } = input;
+pub(crate) fn loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    load: Token,
+    result: store::Answer,
+) -> Queue<Request> {
     if core.loads.read(load).is_some() {
         let result = match result {
             store::Answer::Rows(store::Rows::Read { .. })
@@ -182,7 +187,9 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
                 | store::Failure::TurnProblem { .. }
                 | store::Failure::Failed,
             ) => result,
-            store::Answer::Rows(store::Rows::Records { .. } | store::Rows::Turns { .. })
+            store::Answer::Rows(
+                store::Rows::Records { .. } | store::Rows::Turns { .. } | store::Rows::Start { .. },
+            )
             | store::Answer::Cut { .. }
             | store::Answer::Failed(store::Failure::Unread) => store::Answer::Failed(store::Failure::Failed),
         };
@@ -197,7 +204,9 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
             let task = *task;
             let more = match &result {
                 store::Answer::Rows(store::Rows::Turns { more, .. }) | store::Answer::Cut { more, .. } => *more,
-                store::Answer::Rows(store::Rows::Read { .. } | store::Rows::Records { .. })
+                store::Answer::Rows(
+                    store::Rows::Read { .. } | store::Rows::Records { .. } | store::Rows::Start { .. },
+                )
                 | store::Answer::Failed(_) => false,
             };
             if !more || core.stopping || core.settling {

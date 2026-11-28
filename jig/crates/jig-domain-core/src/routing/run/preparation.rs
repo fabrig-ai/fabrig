@@ -903,7 +903,7 @@ pub(crate) fn transcript_loaded(
 ) -> Queue<Request> {
     match answer {
         store::Answer::Failed(store::Failure::Unread) => return transcript_unread(core, work, task),
-        store::Answer::Rows(store::Rows::Records { .. } | store::Rows::Read { .. })
+        store::Answer::Rows(store::Rows::Records { .. } | store::Rows::Read { .. } | store::Rows::Start { .. })
         | store::Answer::Failed(
             store::Failure::Busy
             | store::Failure::Gone

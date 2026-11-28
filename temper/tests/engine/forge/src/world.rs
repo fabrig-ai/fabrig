@@ -2318,7 +2318,9 @@ impl World {
                 top::Request::Settled { unfinished } => {
                     self.seen.push(top::Request::Settled { unfinished }).expect("world output capacity");
                 }
-                restored @ top::Request::RestartDone { .. } => {
+                restored @ top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                    stage: top::RestartStage::Restored,
+                })) => {
                     restart = Some(top::Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)));
                     self.seen.push(restored).expect("world output capacity");
                 }

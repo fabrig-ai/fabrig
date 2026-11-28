@@ -222,20 +222,7 @@ impl Engine {
             && (!self.requests.is_empty() || self.ready || self.settled_revision != Some(self.domain.revision()))
     }
     pub(crate) fn start_runtime(&self) -> bool {
-        use jig_domain_core::start::Phase;
-        match self.domain.start_phase() {
-            Some(Phase::AdoptRuns | Phase::Open) => true,
-            Some(
-                Phase::LoadCore
-                | Phase::LoadInbox
-                | Phase::RestoreConnector { .. }
-                | Phase::Link
-                | Phase::Sweep
-                | Phase::Switch
-                | Phase::Wires,
-            ) => false,
-            None => !self.begin,
-        }
+        self.domain.start_runtime()
     }
     fn restored_limit_revision(&mut self) {
         if let Some(state) = &mut self.limits_in_force

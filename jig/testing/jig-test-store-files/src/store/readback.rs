@@ -43,7 +43,11 @@ impl Store {
             || !self.pending.is_empty()
             || !self.inflight.is_empty()
             || !self.held.is_empty()
-            || !self.replies.is_empty()
+            // The unsolicited census reports the store's open; it is not an
+            // answer to unfinished work. Keep it queued for the root.
+            || self.replies.iter().any(|reply| {
+                !matches!(reply, jig_test_store::Up::Root(root::Event::Store(core::engine::store::In::Census(_))))
+            })
             || self.loading()
         {
             return Err(ReadbackFinding::NotQuiescent);

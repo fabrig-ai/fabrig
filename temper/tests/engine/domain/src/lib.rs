@@ -55,9 +55,7 @@ pub fn poll(
 
 /// Peer input waits for durable Wires (temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn waits_for_start(root: &temper_engine_domain::Domain, event: &temper_engine_domain::Event) -> bool {
-    use jig_domain_core::start::Phase;
-    let runtime = root.ready() || matches!(root.start_phase(), Some(Phase::AdoptRuns | Phase::Open));
-    !runtime
+    !root.start_runtime()
         && matches!(
             event,
             temper_engine_domain::Event::Credential { .. }

@@ -226,6 +226,7 @@ fn effect_outputs(
         In::Core(event) => core::step(domain.core_mut(), &env, event),
         In::Connector(Connector(connector), up) => answer_connector(domain, &env, connector, up),
         In::Store(_) => unreachable!("effect fixtures take no store inputs"),
+        In::Resume(_) => unreachable!("the effect world drives its own start"),
     };
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {

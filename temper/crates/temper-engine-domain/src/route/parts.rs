@@ -285,15 +285,13 @@ pub(super) fn erased(domain: &mut Domain, key: &core::Key, projects: &skein_lib:
 pub(super) fn note_projects(requests: &Queue<core::engine::Out>) -> skein_lib::Set<u32> {
     let mut projects = skein_lib::Set::with_capacity(requests.len());
     for output in requests {
-        let core::engine::Out::Core(request) = output else { continue };
-        let scope = if let core::Request::Write(core::Write::Save(core::Record::Notes(record))) = request {
+        let core::engine::Out::Write(write) = output else { continue };
+        let scope = if let core::Write::Save(core::Record::Notes(record)) = write {
             match record {
                 notes::Record::Entry(entry) => Some(&entry.scope),
                 notes::Record::Line(line) => Some(&line.scope),
             }
-        } else if let core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Line { scope, .. }))) =
-            request
-        {
+        } else if let core::Write::Erase(core::Key::Notes(notes::Key::Line { scope, .. })) = write {
             Some(scope)
         } else {
             None

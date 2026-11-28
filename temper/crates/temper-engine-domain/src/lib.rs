@@ -1,5 +1,5 @@
 //! Temper's engine root composes jig's core and the forge connector.
-//! Routing, translation, assembly and the core-selected restart adapters follow
+//! Routing, translation, assembly and the store adapters follow
 //! jig's domain/root.md; skein-lib's journal is the only output path.
 
 #![cfg_attr(not(test), no_std)]
@@ -22,8 +22,8 @@ mod limits;
 mod link;
 pub use temper_engine_domain_store::loads;
 mod push;
-mod restart;
 mod start_wait;
+mod store_route;
 pub use temper_engine_domain_forge::{Push, PushAnswer};
 pub mod room;
 mod route;

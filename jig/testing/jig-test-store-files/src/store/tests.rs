@@ -1,5 +1,5 @@
 use super::{Fault, Store};
-use jig_domain_core as core;
+use jig_domain_core::{self as core, engine::store as engine_store};
 use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up};
 use std::collections::BTreeMap;
@@ -13,6 +13,12 @@ const PAGE_DELAY: u32 = 2;
 const TICKS: u32 = 11;
 const CRASH_SEED: u64 = 18;
 
+fn drain_open_reports(store: &mut Store) {
+    for answer in store.answers() {
+        assert!(matches!(answer, Up::Root(root::Event::Store(engine_store::In::Census(_)))), "only census after open");
+    }
+}
+
 fn result(number: u16, task: u64) -> root::Record {
     root::Record::Connector { number, record: jig_test_connector::Record::Result { task, code: number } }
 }
@@ -22,6 +28,7 @@ fn snapshot_store() -> Store {
 }
 
 fn snapshot(mut store: Store) -> Store {
+    drain_open_reports(&mut store);
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
@@ -54,7 +61,7 @@ fn snapshot(mut store: Store) -> Store {
 
 fn ask_snapshots(store: &mut Store) {
     for connector in 1..=FLIGHTS {
-        store.ask(StoreOut::Start { phase: core::start::Phase::RestoreConnector { connector }, census: None });
+        store.ask(StoreOut::ConnectorLoad { number: connector, after: None });
     }
 }
 
@@ -75,16 +82,18 @@ fn finish_snapshots(store: &mut Store) {
         let _committed = store.tick(false).expect("read-only traversal");
         for answer in store.answers() {
             match answer {
-                Up::Root(root::Event::StartRecord(row @ root::Record::Connector { number, .. })) => {
+                Up::Root(root::Event::ConnectorPage { number, records, after }) => {
                     assert!(!finished.contains_key(&number), "all rows precede the terminal");
                     let rows = restored.entry(number).or_default();
                     if rows.is_empty() {
                         first_pages.push(number);
                     }
-                    rows.push(row);
-                }
-                Up::Root(root::Event::StartDone(core::start::Phase::RestoreConnector { connector })) => {
-                    *finished.entry(connector).or_default() += 1;
+                    rows.extend(records.into_iter().map(|record| root::Record::Connector { number, record }));
+                    if let Some(after) = after {
+                        store.ask(StoreOut::ConnectorLoad { number, after: Some(after) });
+                    } else {
+                        *finished.entry(number).or_default() += 1;
+                    }
                 }
                 Up::Root(_) | Up::Ask(_) => panic!("only connector rows and terminals"),
             }
@@ -125,7 +134,7 @@ fn delayed_pages_arrive_in_reverse_and_across_a_crash() {
     ask_snapshots(&mut store);
     store.crash(CRASH_SEED).expect("crash readback");
     assert!(!store.loading());
-    assert!(store.answers().is_empty());
+    drain_open_reports(&mut store);
     ask_snapshots(&mut store);
     reverse_delays(&mut store);
     finish_snapshots(&mut store);
@@ -579,6 +588,7 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
 fn starting_snapshot() -> Store {
     let limits = jig_test_profile::limits();
     let mut store = Store::starting(&limits, &[]);
+    drain_open_reports(&mut store);
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
@@ -608,26 +618,20 @@ fn starting_snapshot() -> Store {
     store
 }
 fn check_start_snapshot(store: &mut Store) {
-    use core::start::Phase;
-    let phase = Phase::RestoreConnector { connector: 1 };
-    store.ask(StoreOut::Start { phase, census: None });
     let mut records = Vec::new();
-    let mut finished = false;
-    for answer in store.answers() {
-        match answer {
-            Up::Root(root::Event::StartRecord(row)) => {
-                assert!(!finished);
-                records.push(row);
-            }
-            Up::Root(root::Event::StartDone(found)) => {
-                assert!(!finished);
-                assert_eq!(found, phase);
-                finished = true;
-            }
-            Up::Root(_) | Up::Ask(_) => panic!("typed start page"),
-        }
+    let mut after = None;
+    for expected_rows in [2, 1] {
+        store.ask(StoreOut::ConnectorLoad { number: 1, after });
+        let [Up::Root(root::Event::ConnectorPage { number: 1, records: page, after: next })]: [Up; 1] =
+            store.answers().try_into().expect("one restore reply")
+        else {
+            panic!("typed connector page")
+        };
+        assert_eq!(page.len(), expected_rows);
+        records.extend(page.into_iter().map(|record| root::Record::Connector { number: 1, record }));
+        after = next;
     }
-    assert!(finished);
+    assert!(after.is_none(), "terminal page");
     assert_eq!(records, [result(1, 1), result(1, 2), result(1, 3)]);
     assert!(!store.loading());
 }
@@ -638,20 +642,21 @@ fn start_mode_survives_crash_and_fork_with_complete_readback() {
     check_start_snapshot(&mut store);
     assert_eq!(store.readback().expect("complete readback"), expected);
     store.crash(CRASH_SEED).expect("crash readback");
+    drain_open_reports(&mut store);
     check_start_snapshot(&mut store);
     assert_eq!(store.readback().expect("complete readback"), expected);
     let mut forked = store.fork().expect("fork readback");
+    drain_open_reports(&mut forked);
     check_start_snapshot(&mut forked);
     assert_eq!(forked.readback().expect("complete readback"), expected);
 }
 #[test]
 fn start_switch_without_a_pending_generation_finishes_without_a_store_switch() {
-    use core::start::Phase;
     let mut store = starting_snapshot();
     assert!(!store.generation_pending);
-    store.ask(StoreOut::Start { phase: Phase::Switch, census: None });
+    store.ask(StoreOut::Engine(engine_store::Out::Switch));
     assert_eq!(store.switch_requests, 0);
-    assert!(matches!(store.answers().as_slice(), [Up::Root(root::Event::StartDone(Phase::Switch))]));
+    assert!(matches!(store.answers().as_slice(), [Up::Root(root::Event::Store(engine_store::In::Switched))]));
     assert!(!store.loading());
 }
 #[test]
@@ -659,12 +664,12 @@ fn start_pages_delay_and_a_crash_discards_their_flights() {
     let mut store = starting_snapshot();
     store.fault(Fault::SlowPages { by: PAGE_DELAY });
     store.pause_pages(true);
-    store.ask(StoreOut::Start { phase: core::start::Phase::RestoreConnector { connector: 1 }, census: None });
+    store.ask(StoreOut::ConnectorLoad { number: 1, after: None });
     assert!(store.answers().is_empty());
     assert!(store.loading());
     store.crash(CRASH_SEED).expect("crash readback");
     assert!(!store.loading());
-    assert!(store.answers().is_empty());
+    drain_open_reports(&mut store);
     store.pause_pages(false);
     for _ in 0..PAGE_DELAY {
         let _commit = store.tick(false).expect("read-only tick");

@@ -899,8 +899,7 @@ pub(crate) enum Work {
     PartsLoaded { waiter: Token, result: engine_store::Answer },
     PartsFailed { waiter: Token },
     CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
-    StartDone(jig_domain_core::start::Phase),
-    Start(jig_domain_core::start::Action),
+    EngineResume(jig_domain_core::engine::Resume),
     Decoded { to: ReplyTo, body: Call },
     ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
@@ -913,7 +912,6 @@ pub(crate) enum Work {
     Forge(forge::Event),
     LandingAdmission { row: forge::LandingRow, names: Box<[forge::Name]> },
     ForgeSettings(skein_lib::Queue<forge::Request>),
-    ForgeRestored,
     ForgeLimitHold { row: forge::LimitHold, words: Box<[u8]> },
     ForgeLimitRelease { task: u64, revision: u64 },
     StatusAccount { procedure: u64 },
@@ -1027,7 +1025,10 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
-        | Delivery::Start(_)
+        | Delivery::Resume(_)
+        | Delivery::EngineStore(
+            engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+        )
         | Delivery::Load { .. }) => Request::ToChild(Released(delivery)),
         delivery @ (Delivery::Host(_)
         | Delivery::AssignedJob { .. }

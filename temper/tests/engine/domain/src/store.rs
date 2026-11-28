@@ -497,7 +497,9 @@ impl Store {
     pub(crate) fn advance_engine_loads(&mut self, count: usize) -> Vec<engine::StoreInput> {
         let mut answers = Vec::new();
         for _ in 0..count {
-            let engine_store::Out::Load { load, range } = self.engine_loads.pop_front().expect("counted loads");
+            let engine_store::Out::Load { load, range } = self.engine_loads.pop_front().expect("counted loads") else {
+                unreachable!("start requests use the bounded page and switch adapter");
+            };
             if let engine_store::Range::Window { task, from } = range {
                 answers.extend(self.window(load, task, from).into_iter().map(engine::StoreInput::Engine));
             } else {
@@ -563,7 +565,7 @@ impl Store {
                     reply @ (engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
                     | engine::StoreInput::Switched
-                    | engine::StoreInput::Engine(engine_store::In::Loaded { .. })
+                    | engine::StoreInput::Engine(_)
                     | engine::StoreInput::PartLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
@@ -613,6 +615,14 @@ impl Store {
                         return result;
                     }
                     engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
+                    engine::StoreInput::Engine(
+                        engine_store::In::Opened { .. }
+                        | engine_store::In::Switched
+                        | engine_store::In::Fill { .. }
+                        | engine_store::In::Census(..),
+                    ) => {
+                        unreachable!("start requests use the bounded page and switch adapter");
+                    }
                     // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     engine::StoreInput::Checkpointed { .. }

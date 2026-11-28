@@ -335,7 +335,7 @@ fn a_closer_waits_for_its_goals_branch_making() {
     let context = domain.engine.core().tasks.run_context(GOAL_DELEGATE).expect("due closer");
     domain.work.clear();
 
-    let mut decision = crate::restart::load_decision(&mut domain, &env.limits);
+    let mut decision = crate::store_route::load_decision(&mut domain, &env.limits);
     super::closer_route::start_closer_step(&mut domain, &env, &mut decision, &context);
     let mut step = None;
     while let Some(work) = domain.work.pop() {

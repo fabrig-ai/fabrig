@@ -54,7 +54,7 @@ mod restart_wait;
 #[path = "restore.rs"]
 mod restore;
 mod room;
-pub use restore::{RestoreFit, RestoreSet, StartLink};
+pub use restore::{RestoreFit, RestoreRow, RestoreSet, StartLink, adoption_up};
 #[path = "design.rs"]
 mod design;
 pub(crate) mod writes;
@@ -10754,7 +10754,7 @@ fn clear_merge_reviews(
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable row restoration dispatcher")]
-fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
+pub(super) fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
     let started = d.restore_started.expect("restore_begin precedes every restored row");
     if d.restore_fit.is_some() {
         return;
@@ -11006,7 +11006,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
     }
 }
 
-fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::RecoveryClock, out: &mut Queue<Request>) {
+pub(super) fn restored(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    clock: skein_forge_client::RecoveryClock,
+    out: &mut Queue<Request>,
+) {
     if d.unjoined_change().is_some() {
         return;
     }
@@ -11043,7 +11048,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     }
     crate::removal::restart(d, out);
     crate::removal::restart_releases(d, env, out);
-    emit(out, Request::RestartDone { stage: RestartStage::Restored });
+    emit(out, Request::Up(jig::Up::Lifecycle(jig::lifecycle::Up::Done { stage: RestartStage::Restored })));
 }
 
 fn held_landing(d: &Domain, entry: &skein_forge_client::Entry) -> bool {

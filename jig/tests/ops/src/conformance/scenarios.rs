@@ -793,8 +793,7 @@ pub(super) fn delivered(peers: &mut Peers, store: &Store, output: &root::Output)
         | root::Output::IncidentAssociationRefused { .. }
         | root::Output::Application { .. }
         | root::Output::Commit { .. }
-        | root::Output::Switch
-        | root::Output::Load { .. }
+        | root::Output::ConnectorLoad(_)
         | root::Output::CoreLoad(_)
         | root::Output::Store(_)
         | root::Output::Core(_)

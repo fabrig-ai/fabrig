@@ -1565,7 +1565,6 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ApplicationDone { .. }
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::Settled { .. }
-                | top::Request::RestartDone { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::FollowRun { .. }
                 | top::Request::CancelFollow { .. }
@@ -1849,7 +1848,9 @@ fn a_restored_write_runs_while_the_fresh_repository_read_keeps_failing() {
     world.restart();
     world.run_for(2);
     assert_eq!(world.writes(), 0, "the restored write still owes its own clock read");
-    assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Restored }));
+    assert!(world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::Restored
+    }))));
     assert!(!world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
         stage: top::RestartStage::ReadAfresh
     }))));
@@ -1865,9 +1866,7 @@ fn a_restored_write_runs_while_the_fresh_repository_read_keeps_failing() {
         .seen()
         .iter()
         .filter_map(|request| {
-            if let top::Request::RestartDone { stage }
-            | top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage })) = request
-            {
+            if let top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage })) = request {
                 Some(*stage)
             } else {
                 None

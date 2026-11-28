@@ -58,12 +58,7 @@ fn entry(injector: &Injector, kind: Kind, from: Time, until: Option<Time>) {
 }
 
 fn stage_seen(world: &World, stage: top::RestartStage) -> bool {
-    let expected = match stage {
-        top::RestartStage::Restored => top::Request::RestartDone { stage },
-        top::RestartStage::ReadAfresh | top::RestartStage::Settled => {
-            top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage }))
-        }
-    };
+    let expected = top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage }));
     world.seen().contains(&expected)
 }
 

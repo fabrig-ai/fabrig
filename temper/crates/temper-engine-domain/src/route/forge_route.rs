@@ -103,25 +103,74 @@ pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root
 }
 
 /// Report stored adoption facts to jig (jig/docs/design/domain/connectors.md, 12 and 14).
-pub(crate) fn report_adoption(domain: &mut Domain, repository: &forge::Repository) {
-    use lifecycle::AdoptionRole;
-    let role = match repository.role {
-        forge::Role::Owned => AdoptionRole::Owned,
-        forge::Role::Adopted => AdoptionRole::Participant,
-        forge::Role::Fork => AdoptionRole::Fork,
-        forge::Role::Context => AdoptionRole::Context,
-    };
-    let name = tasks::Name {
-        connector: domain.config.forge_connector,
-        path: Box::new([
-            Box::from(repository.provider.forge.to_be_bytes()),
-            Box::from(repository.provider.repository.to_be_bytes()),
-        ]),
-    };
-    super::forge_up(
-        domain,
-        Up::Lifecycle(lifecycle::Up::Adopted { project: repository.project, name, role, home: repository.home }),
+fn report_adoption(domain: &mut Domain, repository: &forge::Repository) {
+    super::forge_up(domain, forge::adoption_up(domain.config.forge_connector, repository));
+}
+
+/// The root owns the store load; the forge owns the records it receives.
+pub(crate) fn restore_page(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    rows: Box<[Record]>,
+    next: Option<Key>,
+) {
+    let forge_env = crate::translate::environment_forge(env);
+    for row in rows {
+        let Record::Forge { row } = row else { unreachable!("the forge's live range returns only forge rows") };
+        let mut output = Queue::uncapped();
+        match domain.forge.restore_start_row(&forge_env, domain.config.forge_connector, *row, &mut output) {
+            forge::RestoreRow::Kept => outputs(domain, env, decision, &mut output),
+            forge::RestoreRow::LimitHold(row) => limit_holds::restore(domain, row),
+            forge::RestoreRow::Refused(key) => {
+                let Some(forge::Request::Up(up @ Up::Settings(jig_domain_contract::settings::Up::Unfit { .. }))) =
+                    output.pop()
+                else {
+                    unreachable!("the refusing connector reports the unfit setting");
+                };
+                assert!(output.is_empty(), "a refused row says only its refusal");
+                // Keep the full store key, including its slot, as temper's typed refusal.
+                domain.stop_start(crate::StartStop::Setting(key));
+                let connector = Connector(domain.config.forge_connector);
+                let routed =
+                    crate::engine::step(&mut domain.engine, env, jig_domain_core::engine::In::Connector(connector, up));
+                super::route_engine_requests(domain, env, decision, routed);
+                return;
+            }
+        }
+        if super::refuse_forge_fit(domain) {
+            return;
+        }
+    }
+    if next.is_some() {
+        crate::store_route::load_forge(domain, env, decision, next);
+        return;
+    }
+    super::settings_parts::restored(domain);
+    let mut output = Queue::uncapped();
+    let convert_branch_writes = domain.convert_branch_writes;
+    domain.convert_branch_writes = false;
+    let linked = domain.forge.restore_finished(
+        &forge_env,
+        &domain.engine.core().tasks,
+        domain.engine.core().people.sole_owner(),
+        convert_branch_writes,
+        domain.kinds_stock.take(),
+        &mut output,
     );
+    outputs(domain, env, decision, &mut output);
+    if let Err(failure) = linked {
+        let stop = match failure {
+            forge::StartLink::Row(key) => crate::StartStop::ForgeRow(key),
+            forge::StartLink::Fit(failure) => crate::StartStop::ForgeFit { phase: domain.start_phase(), failure },
+            forge::StartLink::BranchWrites(name, count) => crate::StartStop::BranchWrites(name, count),
+            forge::StartLink::Link(link) => crate::StartStop::ForgeLink { phase: domain.start_phase(), link },
+        };
+        domain.stop_start(stop);
+        return;
+    }
+    super::kinds::restored_figures(domain, env, decision);
+    super::kinds::restored_repairs(domain, env.limits.tasks.spec_bytes);
 }
 
 /// The project's role for a collaborator's forge permission (domain/forge/adoption.md).
@@ -808,13 +857,11 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
                 previous = Some(subscriber.clone());
             }
             Work::GoalSubscribe(_)
-            | Work::ForgeRestored
             | Work::LandingAdmission { .. }
             | Work::ForgeLimitHold { .. }
             | Work::ForgeLimitRelease { .. }
             | Work::StatusAccount { .. }
-            | Work::StartDone(_)
-            | Work::Start(_)
+            | Work::EngineResume(_)
             | Work::CheckResults { .. }
             | Work::Decoded { .. }
             | Work::Core(_)
@@ -4593,14 +4640,6 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Forge(forge::Event::Unsubscribe { task: goal, topic }));
                 }
             }
-            forge::Request::RestartDone { stage: forge::RestartStage::Restored } => {
-                if !domain.engine.core().stopping() && !domain.settling.active() {
-                    domain.work.push(Work::StartDone(jig_domain_core::start::Phase::Link));
-                }
-            }
-            forge::Request::RestartDone { stage: forge::RestartStage::ReadAfresh | forge::RestartStage::Settled } => {
-                unreachable!("catch-up uses the connector port")
-            }
             forge::Request::BriefClient { event } => domain.work.push(Work::Forge(forge::Event::Client(event))),
             forge::Request::BriefReady { .. } => unreachable!("the root uses held forge sections"),
             forge::Request::BriefSized { section, size } => {
@@ -4962,6 +5001,9 @@ pub(crate) fn outputs(
                     &env.limits,
                     Delivery::ProjectReleased { connector: domain.config.forge_connector, project },
                 );
+            }
+            forge::Request::Up(Up::Lifecycle(lifecycle::Up::Done { stage: forge::RestartStage::Restored })) => {
+                super::forge_up(domain, Up::Lifecycle(lifecycle::Up::Done { stage: forge::RestartStage::Restored }));
             }
             forge::Request::Up(Up::Lifecycle(lifecycle::Up::Done { stage })) => {
                 if !domain.engine.core().stopping() && !domain.settling.active() {

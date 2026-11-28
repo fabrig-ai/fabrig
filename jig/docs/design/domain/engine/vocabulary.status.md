@@ -26,3 +26,11 @@
   in its place reshapes every step of the core, which is the clean-up's
   (3, *The engine as the API*) and moves no behaviour this fix needs.
   Decided by the goal's designer.
+- **Design departs:** 2.6: the application's port says where the start
+  is, `application::Out::Start { phase }`, which the draft's list of the
+  application's outputs (`temper/docs/design/draft/jig-domain-api.md`,
+  5.5) doesn't name. Why: the root's admission holds what waits for the
+  start (the draft's 5.1), its reports and its stops name the phase, and
+  the engine has no query to ask (the draft's 4.1), so the engine says
+  each phase as it begins and the opening as none. Decided by the goal's
+  designer, 2026-11-28.

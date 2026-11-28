@@ -706,7 +706,11 @@ pub(crate) fn loaded(
             engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins }) => {
                 Answer::None(Why::TooLinked { joins })
             }
-            engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+            engine_store::Answer::Rows(
+                engine_store::Rows::Records { .. }
+                | engine_store::Rows::Turns { .. }
+                | engine_store::Rows::Start { .. },
+            )
             | engine_store::Answer::Cut { .. }
             | engine_store::Answer::Failed(
                 engine_store::Failure::Busy | engine_store::Failure::Failed | engine_store::Failure::Unread,

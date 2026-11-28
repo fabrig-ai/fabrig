@@ -245,7 +245,9 @@ pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Token, result: en
             }
             answer(to, key, Err(tasks::Refusal::Reference))
         }
-        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        engine_store::Answer::Rows(
+            engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. } | engine_store::Rows::Start { .. },
+        )
         | engine_store::Answer::Cut { .. }
         | engine_store::Answer::Failed(
             engine_store::Failure::Busy

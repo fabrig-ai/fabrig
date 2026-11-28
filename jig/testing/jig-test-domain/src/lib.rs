@@ -95,15 +95,16 @@ pub enum Delivery {
     Projection { connector: u16, feed: Box<core::ProjectionFeed> },
     /// One committed inbox word for its current host.
     Message { channel: Token, task: u64, attempt: u64, word: tasks::Word },
-    /// Perform this step of the core-owned restart script.
     /// The start's continuation, released with the writes of its decision.
-    Start(core::start::Continuation),
+    Resume(engine::Resume),
     /// Core-held party, host, task or view output.
     Core(core::Held),
     /// A connector continuation released back to its owner after the commit.
     Connector(Connector, jig::Released),
     /// A held engine load, released after preceding commits.
     Store(engine_store::Out),
+    /// A connector-owned load, released after preceding commits.
+    ConnectorLoad { number: u16, after: Option<Box<[u8]>> },
     /// An answer with its original opaque call name and durability class.
     CallAnswer {
         channel: Token,
@@ -148,13 +149,6 @@ pub enum Request {
     /// Return a connector input to its owner during the drain.
     Busy {
         event: Box<Event>,
-    },
-    /// First cold load, before the deployment counter is known.
-    /// Load records for `LoadCore`, `LoadInbox` (with census),
-    /// `RestoreConnector` or `Sweep`, or switch the store at `Switch`.
-    Start {
-        phase: core::start::Phase,
-        census: Option<core::Census>,
     },
     /// Apply one numbered transaction as a whole.
     Commit {
@@ -215,18 +209,12 @@ pub enum Event {
     WriterRead { connector: u16, resource: tasks::Name, event: connector::SystemEvent },
     /// A numbered connector's independent retry deadline elapsed.
     ConnectorTimer { number: u16 },
-    /// The generation is active; commit the start’s mark.
-    /// Begin jig's start (domain/engine/restart.md) at this event's wall time.
+    /// Begin the start at the store's open.
     StartBegin { pending: bool },
-    /// The host finished the requested phase, with pages handed in through
-    /// `start_record`/`start_missing`, or the store switched at `Switch`.
-    StartDone(core::start::Phase),
-    /// A decoded row from the start phase.
-    StartRecord(Record),
-    /// A page's source row names an absent owner.
-    StartMissing { record: core::Key, target: core::Key },
-    /// The store refused a page with its own typed cause.
-    StartPageRefused { failure: jig_protocol_store::restore::Failure },
+    /// A page of a numbered connector's own live records.
+    ConnectorPage { number: u16, records: Box<[connector::Record]>, after: Option<Box<[u8]>> },
+    /// The store refused a page with its own typed cause; engine loads also receive `Failed`.
+    StartPageRefused { load: Option<Token>, failure: jig_protocol_store::restore::Failure },
     /// Drive one due child timer through the same decision barrier.
     Timer(core::Timer),
     /// A party, host, account or other event in jig's vocabulary.
@@ -379,11 +367,14 @@ pub struct Domain {
     store_answers: Queue<Box<Event>>,
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
-    settings_connectors: Box<[u16]>,
     public_reads: u32,
     decision_wrote: bool,
+    decision_numbering: Option<u64>,
     stopped_reported: bool,
     start_opened: bool,
+    restored_deployment: bool,
+    start_phase: Option<core::start::Phase>,
+    start_failure: Option<(core::start::Phase, core::start::Failure)>,
     rehearsing: bool,
     rehearsed: bool,
     start_page_failure: Option<(core::start::Phase, jig_protocol_store::restore::Failure)>,
@@ -543,19 +534,23 @@ impl Domain {
         self.rehearsed
     }
 
-    /// The phase currently selected by the core's start.
+    /// Whether startup has accepted a stored deployment header.
     #[must_use]
-    pub fn start_phase(&self) -> Option<core::start::Phase> {
-        self.engine.core().start_phase()
+    pub const fn restored_deployment(&self) -> bool {
+        self.restored_deployment
     }
 
-    /// The start's refusal with the phase it refused at.
+    /// The phase last reported on the engine's application port.
+    #[must_use]
+    pub const fn start_phase(&self) -> Option<core::start::Phase> {
+        self.start_phase
+    }
+
+    /// The engine's start refusal with the phase it refused at.
     #[must_use]
     pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
-        match self.engine.core().start_failure() {
-            Some(failure) => Some((self.engine.core().start_phase(), failure)),
-            None => None,
-        }
+        let (phase, failure) = self.start_failure.as_ref()?;
+        Some((Some(*phase), failure.clone()))
     }
 
     /// The application's store-page cause and the phase at which it stopped.
@@ -592,15 +587,17 @@ impl Domain {
     #[must_use]
     pub fn new(config: Config, limits: &Limits) -> Domain {
         assert!(limits.routes > 0, "synchronous route bound is positive");
-        let mut settings_connectors =
-            List::with_capacity(u32::try_from(config.core.kinds.len()).expect("configured kinds"));
-        for kind in &config.core.kinds {
-            settings_connectors.push(kind.connector).expect("one owner per kind");
-        }
         let declarations = config.declarations();
-        let first = connector::Domain::new(config.first, &limits.connector);
+        let mut first = connector::Domain::new(config.first, &limits.connector);
         let mut second = connector::Domain::new(config.second, &limits.connector);
         second.address(Connector(2));
+        for kind in &config.core.kinds {
+            match kind.connector {
+                1 => first.settings_owner(),
+                2 => second.settings_owner(),
+                _ => {} // Engine configuration checks the owners.
+            }
+        }
         Domain {
             scripted_workspaces: None,
             brief_failures: Queue::uncapped(),
@@ -612,7 +609,6 @@ impl Domain {
                 },
                 skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
             ),
-            settings_connectors: settings_connectors.into_boxed(),
             engine: Engine::new(config.core, &declarations, &limits.core).expect("fixture core configuration"),
             first,
             second,
@@ -624,8 +620,12 @@ impl Domain {
             workspace_writes: Map::with_capacity(limits.core.tasks.tasks),
             public_reads: 0,
             decision_wrote: false,
+            decision_numbering: None,
             stopped_reported: false,
             start_opened: false,
+            restored_deployment: false,
+            start_phase: None,
+            start_failure: None,
             rehearsing: false,
             rehearsed: false,
             start_page_failure: None,
@@ -666,16 +666,23 @@ use link::Work;
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let Ok(event) = stopping::defer(domain, event) else { return };
     match event {
-        Event::StartRecord(record) => start_record(domain, env, record),
-        Event::StartMissing { record, target } => start_missing(domain, record, target),
-        Event::StartPageRefused { failure } => {
-            if !domain.start_stopped() {
-                let phase = domain.engine.core().start_phase().expect("page belongs to the start phase");
+        Event::StartBegin { pending } => {
+            decide(domain, env, Work::Engine(In::Store(engine_store::In::Opened { pending })));
+        }
+        Event::ConnectorPage { number, records, after } => {
+            let event = restored_page(domain, number, records, after);
+            decide(domain, env, Work::Connector { number, event });
+        }
+        Event::StartPageRefused { load, failure } => {
+            if !domain.start_stopped() && !domain.stopping() {
+                let phase = domain.start_phase().expect("page belongs to the start");
+                if let Some(load) = load {
+                    let result = engine_store::Answer::Failed(engine_store::Failure::Failed);
+                    decide(domain, env, Work::Engine(In::Store(engine_store::In::Loaded { load, result })));
+                }
                 domain.start_page_failure = Some((phase, failure));
             }
         }
-        Event::StartBegin { pending } => decide(domain, env, Work::Start(StartInput::Begin { pending })),
-        Event::StartDone(phase) => decide(domain, env, Work::Start(StartInput::Done(phase))),
         Event::Link { channel, link } => decide(domain, env, Work::Link { channel, link }),
         Event::ResultRead { payload, end } => link::read(domain, env, payload, end),
         Event::Stop => decide(domain, env, Work::Core(core::Event::Stopping)),
@@ -692,7 +699,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         }
         Event::Committed { number, fill } => {
             domain.journal.committed(number);
-            domain.engine.core_mut().fill = fill;
+            decide(domain, env, Work::Engine(In::Store(engine_store::In::Fill { bytes: fill })));
         }
         Event::Failed { number } => domain.journal.failed(number),
         Event::ProjectionEffect { goal, number, effect } => {
@@ -777,45 +784,6 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             continue;
         };
         match next {
-            Work::Start(input) => {
-                if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input
-                    && domain.settings_connectors.contains(&number)
-                {
-                    let mut out = Queue::uncapped();
-                    connector::step(
-                        numbered(domain, number),
-                        &env.with(env.limits.connector),
-                        connector::Event::SettingsDefaults,
-                        &mut out,
-                    );
-                    route_connector(domain, &mut decision, number, &mut out, &mut work);
-                    work.push(Work::Start(StartInput::DefaultsReported(phase)));
-                    continue;
-                }
-                let mut out = Queue::uncapped();
-                let core_env = env.with(env.limits.core);
-                let action = match input {
-                    StartInput::Begin { pending } => domain.engine.core_mut().start_begin(pending, env.wall),
-                    StartInput::Done(core::start::Phase::Sweep) => {
-                        domain.engine.core_mut().start_sweep(&core_env, core::start::SweepInput::Finished, &mut out)
-                    }
-                    StartInput::Done(phase) | StartInput::DefaultsReported(phase) => {
-                        domain.engine.core_mut().start_done(&core_env, phase, &mut out)
-                    }
-                    StartInput::Resume(continuation) => {
-                        domain.engine.core_mut().start_resume(&core_env, continuation, &mut out)
-                    }
-                    StartInput::Sweep => {
-                        domain.engine.core_mut().start_sweep(&core_env, core::start::SweepInput::Next, &mut out)
-                    }
-                };
-                route_core(domain, env, &mut decision, out, &mut work);
-                let mut next = start_action(domain, env, &mut decision, action);
-                for _ in 0..next.len() {
-                    work.push(next.pop().expect("start phase work"));
-                }
-            }
-
             Work::Link { channel, link } => link::receive(domain, channel, link, &mut work),
             Work::WatchApplication { watcher, sign_in, scope, number, subject, window } => {
                 let token = domain.hub_link.fresh();
@@ -943,62 +911,16 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     }
     if !domain.start_stopped() {
         domain.journal.accept(decision);
-    }
-}
-
-/// Inputs routed inside the root's decision (jig/docs/design/domain/engine/restart.md).
-#[derive(Debug)]
-enum StartInput {
-    Begin { pending: bool },
-    Done(core::start::Phase),
-    DefaultsReported(core::start::Phase),
-    Resume(core::start::Continuation),
-    Sweep,
-}
-
-fn start_action(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision<Write, Delivery>,
-    action: core::start::Action,
-) -> Queue<Work> {
-    use core::start::{Action, Phase};
-    let mut work = Queue::uncapped();
-    match action {
-        Action::Step(phase) => match phase {
-            Phase::Switch if domain.rehearsing => domain.rehearsed = true,
-            Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep | Phase::Switch => {
-                let census = if phase == Phase::LoadInbox {
-                    Some(domain.engine.core_mut().census(&env.limits.core))
-                } else {
-                    None
-                };
-                domain.now.push(Request::Start { phase, census });
-            }
-            Phase::Link | Phase::Wires | Phase::Open => work.push(Work::Start(StartInput::Done(phase))),
-            Phase::AdoptRuns => {
-                work.push(Work::Start(StartInput::Done(phase)));
-            }
-        },
-        Action::Commit(continuation) => {
-            if domain.engine.core().start_phase() == Some(Phase::Wires) {
-                write(domain, decision, Write::Wires);
-            }
-            hold(decision, Delivery::Start(continuation));
-        }
-        Action::Refused(_) => domain.stopped_reported = false,
-        Action::Idle => {
-            if domain.engine.core().start_phase().is_none() {
-                domain.start_opened = true;
-            }
+        if let Some(commits) = domain.decision_numbering.take() {
+            domain.journal.restore_numbering(commits);
+            domain.restored_deployment = true;
         }
     }
-    work
 }
 
 impl Domain {
     fn start_stopped(&self) -> bool {
-        self.start_page_failure.is_some() || self.engine.core().start_failure().is_some()
+        self.start_page_failure.is_some() || self.start_failure.is_some()
     }
 }
 
@@ -1041,7 +963,8 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     for _ in 0..ready.len() {
         let delivery = ready.pop().expect("release count");
         match delivery {
-            Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
+            Delivery::Resume(resume) => decide(domain, env, Work::Engine(In::Resume(resume))),
+            Delivery::Store(engine_store::Out::Switch) if domain.rehearsing => domain.rehearsed = true,
             Delivery::Core(held) => release_core(domain, env, held, out),
             Delivery::Connector(number, released) => match number.0 {
                 1 => decide(domain, env, Work::Connector { number: 1, event: connector::Event::Released(released) }),
@@ -1050,6 +973,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             },
             Delivery::Fleet(event) => step(domain, env, Event::Core(core::Event::Fleet(event))),
             other @ (Delivery::Store(_)
+            | Delivery::ConnectorLoad { .. }
             | Delivery::ApplicationDocument { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
@@ -1230,51 +1154,6 @@ pub use limits::valid;
 mod admission;
 pub use admission::{Class, class, try_step};
 
-mod census;
-pub use census::inbox_census;
-
-fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
-    match record {
-        Record::Core(row) => match domain.engine.core_mut().restore(&env.with(env.limits.core), row) {
-            core::Restore::Deployment { commits } => {
-                domain.journal = Journal::uncapped(env.limits.journal.release, commits);
-                true
-            }
-            core::Restore::Kept => true,
-            core::Restore::Refused => false,
-            core::Restore::Swept => {
-                decide(domain, env, Work::Start(StartInput::Sweep));
-                true
-            }
-        },
-        Record::Connector { number, record } => restore_connector(domain, env, number, record),
-    }
-}
-
-/// One row of the phase being loaded, or a people row for the sweep.
-pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
-    use core::start::Phase;
-    if domain.start_stopped() {
-        return;
-    }
-    let fits = match domain.engine.core().start_phase().expect("row belongs to the start phase") {
-        Phase::Sweep | Phase::LoadInbox | Phase::LoadCore | Phase::RestoreConnector { .. } => {
-            restore_row(domain, env, record)
-        }
-        Phase::Link | Phase::Switch | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
-            unreachable!("phase loads no rows")
-        }
-    };
-    assert!(fits || domain.start_failure().is_some(), "the start's row entrance refuses with a start failure");
-}
-
-/// A store page's missing owner.
-pub fn start_missing(domain: &mut Domain, record: core::Key, target: core::Key) {
-    if !domain.start_stopped() {
-        domain.engine.core_mut().start_missing(record, target);
-    }
-}
-
 fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word) -> Event {
     let name = Token::new(word.number);
     let body = payload(domain, Payload::InboxWord(word));
@@ -1285,52 +1164,28 @@ fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word
     }))
 }
 
-/// Restore connector-owned rows and replay their current adoption reports.
-fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record: connector::Record) -> bool {
-    let interest =
-        if let connector::Record::Subscription { topic, task, .. } = &record { Some((*topic, *task)) } else { None };
-    let mut out = Queue::uncapped();
-    connector::step(
-        numbered(domain, number),
-        &env.with(env.limits.connector),
-        connector::Event::Restore { record },
-        &mut out,
-    );
-    for _ in 0..out.len() {
-        match out.pop().expect("restored connector output count") {
-            connector::Out::RestoreRefused { kind, scope, number } => {
-                refuse_settings_restore(domain, kind, scope, number);
-                return false;
-            }
-            connector::Out::RestoreResource { project, name, role, hold: _ } => {
-                if !domain.engine.core_mut().restore_resource_role(&env.with(env.limits.core), project, name, role) {
-                    return false;
+/// Supply the core's binding numbers along with the connector's own rows.
+fn restored_page(
+    domain: &Domain,
+    number: u16,
+    records: Box<[connector::Record]>,
+    after: Option<Box<[u8]>>,
+) -> connector::Event {
+    let mut rows = List::with_capacity(u32::try_from(records.len()).expect("bounded restore page"));
+    for record in records {
+        let mut interests = List::uncapped();
+        if let Some((topic, task)) = record.subscription()
+            && let Some(row) = domain.engine.core().tasks.task(task)
+        {
+            for interest in &row.subscriptions {
+                if interest.kind == (tasks::SubscriptionKind::Topic { connector: number, topic: u64::from(topic) }) {
+                    interests.push(interest.number).expect("restored subscription numbers");
                 }
             }
-            connector::Out::Up(_)
-            | connector::Out::Save(_)
-            | connector::Out::Erase(_)
-            | connector::Out::System(_)
-            | connector::Out::LostRead { .. }
-            | connector::Out::Procedure { .. }
-            | connector::Out::Projection(_)
-            | connector::Out::EffectOwner { .. }
-            | connector::Out::ApplicationRelease { .. }
-            | connector::Out::ReadAnswered { .. }
-            | connector::Out::Topic { .. } => return false,
         }
+        rows.push(connector::RestoreRow { record, interests: interests.into_boxed() }).expect("one entry per row");
     }
-    if let Some((topic, task)) = interest
-        && let Some(row) = domain.engine.core().tasks.task(task)
-    {
-        let interests = row.subscriptions.clone();
-        for interest in interests {
-            if interest.kind == (tasks::SubscriptionKind::Topic { connector: number, topic: u64::from(topic) }) {
-                numbered(domain, number).restore_interest(task, topic, interest.number);
-            }
-        }
-    }
-    true
+    connector::Event::RestoredPage { rows: rows.into_boxed(), after }
 }
 
 /// Settings rows accompanying a deployment header in a seeded test store.
@@ -1433,16 +1288,4 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0, keys: 1 })))
         .expect("fixture settings count");
     rows.into_boxed()
-}
-
-/// A connector's stored value cannot fit this start's configuration
-/// (`jig/docs/design/domain/testing-fakes.md`, 1).
-fn refuse_settings_restore(domain: &mut Domain, kind: u32, scope: u32, number: u32) {
-    let _action = domain.engine.core_mut().start_refuse(core::start::Failure::Application {
-        kind,
-        scope,
-        number,
-        why: core::start::ApplicationWhy::Shape,
-    });
-    domain.stopped_reported = false;
 }

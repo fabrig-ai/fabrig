@@ -813,7 +813,8 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
     for timer in [false, true] {
         let (mut core, limits) = core();
         let _started = begin(&mut core, &limits, 1, None);
-        let metered = step(&mut core, &environment(&limits), Event::Fill { bytes: 1 });
+        let metered =
+            crate::routing::step_store(&mut core, &environment(&limits), crate::engine::store::In::Fill { bytes: 1 });
         only_decided(metered);
         let requests = if timer {
             fire(&mut core, &environment(&limits), Timer::Tasks)

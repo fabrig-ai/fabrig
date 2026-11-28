@@ -278,7 +278,8 @@ impl Walking {
             | root::Delivery::Core(_)
             | root::Delivery::Fleet(_)
             | root::Delivery::Connector(..)
-            | root::Delivery::Start(_)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::System { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::LostRead { .. }) => {

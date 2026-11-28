@@ -319,7 +319,8 @@ impl Observer {
             | root::Delivery::CallBusy { .. }
             | root::Delivery::Store(_)
             | root::Delivery::Connector(..)
-            | root::Delivery::Start(_)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::System { .. } => {}
         }
         self.observe(now, r::Observed::Released { requires })

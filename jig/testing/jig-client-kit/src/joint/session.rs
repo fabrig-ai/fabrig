@@ -693,7 +693,8 @@ impl Session {
             | root::Delivery::LostRead { .. }
             | root::Delivery::Store(_)
             | root::Delivery::Connector(..)
-            | root::Delivery::Start(_)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::Procedure { .. }) => return unrouted_delivery(&other),
         }
         self.pump(now, wall)

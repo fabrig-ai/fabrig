@@ -6,8 +6,20 @@ This document holds restarting and stopping the root, split from [`root.md`](roo
 
 ### 1.1 Restart
 
-The core's script (jig's `domain/engine/restart.md`); the root does
-each step the core asks for:
+The core's script, which the engine runs through its ports (jig's
+`domain/engine/restart.md`; jig's `domain/engine/vocabulary.md`, 2.6). The
+root serves no step itself: it hands the engine the store's opening
+(`store::In::Opened`), carries each start page and the switch the engine
+holds to the store once released, its writes and held continuations
+(`Peer::Resume`) through the journal, and each answer back; it keeps the
+phase the engine reports (`application::Out::Start`) and its refusal
+(`Refused`) for admission, the start's waits and a stop, and applies
+the restored numbering (`Numbered`) once the header's decision is
+accepted (skein's `runtime/lib.md`, 11). temper's store routing
+(`temper-engine-domain-store`'s `loads/start.rs`) walks temper's ranges
+for the engine's pages, an opaque cursor naming its next place, a row
+whose owner it does not hold answered as missing. The steps, in the
+engine's order:
 
 1. **The core's records:** every configured account wanted; the
    deployment's record, which binds the forge's namespace to the
@@ -15,13 +27,25 @@ each step the core asks for:
    people, the configured projects and owners seeded at a first start;
    live tasks and goals' projections; claims; calls. A page past its
    bytes, or a record past the limits, refuses the start, naming its
-   step.
+   step. The store routing ends this walk with a last page of its own,
+   asking the store nothing: on it the root checks each charter's room
+   over the supplied defaults with the restored overlays in place
+   (`agent/room.md`, 4.1), stopping the start there, or answers the page
+   empty and the engine finishes restoring the settings. So a row's
+   refusal comes first, then the room's, then the settings'.
 2. **The inbox:** the census of ended owners.
-3. **The forge's records,** `Range::Forge`, a page at a time; then the
-   forge links them, judging none: a record whose forge, repository or
+3. **The forge's records,** `Range::Forge`, a page at a time, asked by
+   the forge itself when the engine gives it `lifecycle::Ask::Restore`
+   (jig's `domain/connectors.md`); at the end of its restore the
+   forge links them, judging none, and reports its defaults, then
+   `lifecycle::Up::Done` restored. A record whose forge, repository or
    task the restart does not hold is a writer's bug, and its link
    refuses the start, naming the record and what it links to, as jig's
-   children's do (jig's `domain/engine/restart.md`).
+   children's do (jig's `domain/engine/restart.md`); since the link is
+   the forge's restore, the refusal names the connector's restore phase,
+   and the operator's line reads `during connector N restore`. A
+   retired setting the forge restores it reports unfit, and the root
+   keeps the typed stop with its full store key.
    Before them, the forge loads its kinds' values from its family
    `Setting`, is given temper's stock defaults, and tells the core which
    differ (`routing.md`, 6). Once both are loaded, the root hands the forge the
@@ -31,8 +55,9 @@ each step the core asks for:
    runs under the box and that person is the sole owner, and the forge
    clears any other in that decision (`forge/adoption-person.md`, 1). Then **the switch** (jig's `start::Phase::Switch`), at
    every start: over a generation the store holds pending (jig's
-   `protocol/store/opening.md`, 2, step 7) the root asks the store to switch
-   and goes on once it answers; then it commits the start's wires (jig's
+   `protocol/store/opening.md`, 2, step 7) the store routing asks the store
+   to switch, answering at once where none is pending, and the engine goes
+   on once it answers; then it commits the start's wires (jig's
    `protocol/store/records.md`, 3). Nothing leaves the process before that
    commit is durable, the accounts' driver made after it (jig's
    `protocol/llm.md`, 5.1); over a pending generation the restores'

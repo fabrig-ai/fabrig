@@ -112,7 +112,10 @@ fn subject(ask: &contract::Ask) -> Option<Subject> {
             requests::Ask::Decide { .. } | requests::Ask::Drop { .. } | requests::Ask::PartAnswered { .. },
         )
         | contract::Ask::Lifecycle(
-            lifecycle::Ask::CatchUp | lifecycle::Ask::Adopt { .. } | lifecycle::Ask::ReleaseProject { .. },
+            lifecycle::Ask::Restore
+            | lifecycle::Ask::CatchUp
+            | lifecycle::Ask::Adopt { .. }
+            | lifecycle::Ask::ReleaseProject { .. },
         )
         | contract::Ask::Topics(
             topics::Ask::Subscribed { .. }

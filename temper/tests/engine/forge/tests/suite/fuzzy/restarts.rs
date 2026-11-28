@@ -92,7 +92,9 @@ fn run(seed: u64, sweep: &Sweep) -> (Injector, usize) {
                     }
                     finished = decision == landing::Decision::Finish;
                 }
-                top::Request::RestartDone { stage: top::RestartStage::Restored } => {
+                top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                    stage: top::RestartStage::Restored,
+                })) => {
                     reconciling = true;
                     pending = false;
                 }

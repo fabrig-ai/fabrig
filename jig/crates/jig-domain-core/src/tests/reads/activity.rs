@@ -41,6 +41,7 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
             }
             Request::Write(
                 Write::Erase(_)
+                | Write::Wires
                 | Write::CopySettingsRevision(_)
                 | Write::DropHistory { .. }
                 | Write::DropTranscript { .. },

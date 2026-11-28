@@ -41,7 +41,7 @@ fn the_restart_asks_one_load_at_a_time() {
         }
         assert!(pages <= 1, "one page outstanding in the selected phase");
         if pages == 1 {
-            let phase = engine.domain.core_mut().start_phase().expect("page has a phase");
+            let phase = engine.domain.start_phase().expect("page has a phase");
             if phases.last() != Some(&phase) {
                 phases.push(phase).expect("phase count");
             }
@@ -72,12 +72,12 @@ fn sweep_rows_wait_for_each_erase_continuation() {
     let mut service = fixtures::started(&fixtures::engine_document());
     for _ in 0..64_u32 {
         fixtures::turn(&mut service);
-        if fixtures::engine(&mut service).domain.core_mut().start_phase() == Some(Phase::Sweep) {
+        if fixtures::engine(&mut service).domain.start_phase() == Some(Phase::Sweep) {
             break;
         }
     }
     let engine = fixtures::engine(&mut service);
-    assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
+    assert_eq!(engine.domain.start_phase(), Some(Phase::Sweep));
     let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() else {
         panic!("sweep page");
     };
@@ -107,7 +107,7 @@ fn sweep_rows_wait_for_each_erase_continuation() {
             fixtures::turn(&mut service);
             let engine = fixtures::engine(&mut service);
             assert!(engine.store.host.above.is_empty(), "no younger erase or page while durability is withheld");
-            assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
+            assert_eq!(engine.domain.start_phase(), Some(Phase::Sweep));
             assert!(!engine.domain.ready());
         }
         fixtures::engine(&mut service).store.host.above.push(committed);
@@ -133,7 +133,7 @@ fn each_connectors_fresh_reads_finish_after_the_start_opens() {
     for _ in 0..64_u32 {
         fixtures::turn(&mut service);
         let engine = fixtures::engine(&mut service);
-        if engine.domain.core_mut().start_phase() == Some(Phase::Sweep) {
+        if engine.domain.start_phase() == Some(Phase::Sweep) {
             // This fixture supplies no expired people rows in its sweep.
             if let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() {
                 engine.store.host.above.push(StoreEvent::Page { owner, items: Box::new([]), next: None });
@@ -666,12 +666,41 @@ fn a_refused_start_page_keeps_its_phase_and_cause() {
 }
 #[test]
 fn a_core_fit_refusal_keeps_its_phase_and_cause() {
+    use jig_domain_people as people;
     let mut service = fixtures::started(&fixtures::engine_document());
     fixtures::turn(&mut service);
     let engine = fixtures::engine(&mut service);
-    let _page = engine.store.host.above.pop().expect("LoadCore page");
-    let failure = core::start::Failure::Accounting { key: core::Key::Core(core::CoreKey::Deployment) };
-    let _refused = engine.domain.core_mut().start_refuse(failure.clone());
+    let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() else { panic!("LoadCore page") };
+    let row = core::Record::People(people::Stored::Policy {
+        project: 1,
+        name: Box::from("Project"),
+        value: people::PolicyValue {
+            ceiling: people::Authority {
+                tools: 0,
+                models: None,
+                grants: Box::new([]),
+                delegation: people::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+                spend: 0,
+                deadline: None,
+                notes: 0,
+                note_resources: Box::new([]),
+            },
+            escalation_role: None,
+            period_spend: 0,
+            projections: Box::new([]),
+            roles: Box::new([]),
+            requirements: Box::new([]),
+            permissions: Box::new([]),
+            templates: Box::new([]),
+        },
+    });
+    let failure = core::start::Failure::ProjectPolicy { project: 1 };
+    engine.env.limits.core.policy_bytes = 1;
+    engine.store.host.above.push(StoreEvent::Page {
+        owner,
+        items: Box::new([jig_protocol_store::restore::Item::Row(jig_protocol_store::Row::Jig(row))]),
+        next: None,
+    });
     fixtures::turn(&mut service);
     assert_eq!(
         service.end(),

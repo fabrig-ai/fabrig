@@ -5,13 +5,15 @@ pub use jig_domain_core_vocabulary::start::*;
 pub(crate) mod first;
 mod inbox;
 mod links;
+pub(crate) mod port;
 pub(crate) mod projections;
 pub mod restore;
 mod runs;
 mod script;
 mod settings;
 
-use crate::{Core, Key, Wall};
+use crate::{Core, Key, Wall, documents::StoreCensus};
+use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
@@ -27,6 +29,9 @@ pub(crate) struct Script {
     pub(crate) held: crate::Queue<crate::Request>,
     waiting_tasks: crate::Queue<tasks::Request>,
     pub(crate) sweep: crate::Queue<people::Stored>,
+    port: port::State,
+    pub(crate) fill: Option<u64>,
+    pub(crate) census: Option<Box<StoreCensus>>,
     caught_up: skein_lib::Map<u16, (bool, bool)>,
     pub(crate) projections: Option<skein_lib::Map<u64, projections::Assembly>>,
 }
@@ -46,6 +51,9 @@ impl Script {
             waiting_tasks: crate::Queue::uncapped(),
             projections: None,
             sweep: crate::Queue::uncapped(),
+            port: port::State::new(),
+            fill: None,
+            census: None,
         }
     }
 }

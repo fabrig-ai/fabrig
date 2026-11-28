@@ -41,18 +41,7 @@ pub struct Config {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum StartState {
     Unselected,
-    Starting,
-    Stopped,
-}
-
-/// Volatile store input waiting on the start's journal continuation.
-#[derive(Debug)]
-pub(crate) struct Start {
-    pub(crate) state: StartState,
-    pub(crate) waiting: bool,
-    pub(crate) sweep_loaded: bool,
-    pub(crate) sweep: Queue<core::start::SweepInput>,
-    pub(crate) fill: Option<u64>,
+    Reported(Option<core::start::Phase>),
 }
 
 /// Children, one journal, and opaque child-requested continuation bindings.
@@ -78,8 +67,9 @@ pub struct Domain {
     pub(crate) rehearsed: bool,
     #[cfg(test)]
     pub(crate) start_phases: skein_lib::List<core::start::Phase>,
-    pub(crate) start: Start,
-    /// Header supplied by the core in this step; applied after its empty
+    pub(crate) start: StartState,
+    pub(crate) start_failure: Option<(core::start::Phase, core::start::Failure)>,
+    /// Numbering reported by the engine in this step; applied after its
     /// restore decision is accepted, so journal admission remains paired.
     pub(crate) restored_commits: Option<u64>,
 }
@@ -160,13 +150,8 @@ impl Domain {
             rehearsed: false,
             #[cfg(test)]
             start_phases: skein_lib::List::with_capacity(32),
-            start: Start {
-                state: StartState::Unselected,
-                waiting: false,
-                sweep_loaded: false,
-                sweep: Queue::uncapped(),
-                fill: None,
-            },
+            start: StartState::Unselected,
+            start_failure: None,
             restored_commits: None,
         })
     }
@@ -185,25 +170,22 @@ impl Domain {
     /// The phase currently selected by the core's start.
     #[must_use]
     pub fn start_phase(&self) -> Option<core::start::Phase> {
-        self.engine.core().start_phase()
+        match self.start {
+            StartState::Unselected => None,
+            StartState::Reported(phase) => phase,
+        }
     }
 
     /// The start's refusal with the phase it refused at.
     #[must_use]
-    pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
-        match self.engine.core().start_failure() {
-            Some(failure) => Some((self.engine.core().start_phase(), failure)),
-            None => None,
-        }
+    pub fn start_failure(&self) -> Option<(core::start::Phase, core::start::Failure)> {
+        self.start_failure.clone()
     }
 
     /// Decisions open only when the core's cold-start script says so.
     #[must_use]
     pub fn ready(&self) -> bool {
-        match self.start.state {
-            StartState::Starting => self.engine.core().start_opened(),
-            StartState::Unselected | StartState::Stopped => false,
-        }
+        self.start == StartState::Reported(None) && !self.journal.stopped() && !self.engine.core().stopping()
     }
 
     /// The iterate adapter may park once the journal and immediate work settle.
@@ -236,15 +218,12 @@ impl Domain {
 pub(crate) enum Work {
     Event(Event),
     Core(core::Event),
-    Store(engine_store::In),
-    Connector(jig::Connector, jig::Up),
+    Engine(In),
     ResumeFleet,
     Finish,
     Infrastructure(infrastructure::Event),
     Observability(observability::Event),
     Host(host::Event),
-    Start(core::start::Action),
-    StartDone(core::start::Phase),
 }
 
 /// Store terminals update the journal; every other input admits one decision.
@@ -252,17 +231,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     match event {
         Event::Store(Store::Committed { number, fill }) => {
             domain.journal.committed(number);
-            if domain.ready() {
-                // Fill updates the meter without asking the journal for a decision.
+            // The engine keeps the report if it has not adopted its runs yet.
+            if !domain.journal.stopped() {
                 let mut filled = Queue::uncapped();
                 engine::step(
                     &mut domain.engine,
                     &env.with(env.limits.core),
-                    In::Core(core::Event::Fill { bytes: fill }),
+                    In::Store(engine_store::In::Fill { bytes: fill }),
                     &mut filled,
                 );
-            } else {
-                domain.start.fill = Some(fill);
+                assert!(filled.is_empty(), "fill reports make no requests");
             }
         }
         Event::Store(Store::Failed { number }) => domain.journal.failed(number),
@@ -277,9 +255,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         | Event::Host(_)
         | Event::Agent(_)
         | Event::AgentContent { .. }
-        | Event::Store(
-            Store::Switched | Store::Restore(_) | Store::Restored(_) | Store::Loaded(_) | Store::Engine(_),
-        )
+        | Event::Store(Store::Loaded(_) | Store::Engine(_))
         | Event::Released(_)
         | Event::Restart { .. }
         | Event::Timer(_)
@@ -293,10 +269,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 
 pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     // A stopped journal takes no decision and moves no child.
-    if domain.journal.stopped()
-        || domain.start.state == StartState::Stopped
-        || domain.engine.core().start_failure().is_some()
-    {
+    if domain.journal.stopped() {
         return;
     }
     let mut decision = domain.journal.decide();
@@ -305,14 +278,11 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         Work::Finish => true,
         Work::Event(_)
         | Work::Core(_)
-        | Work::Store(_)
-        | Work::Connector(..)
+        | Work::Engine(_)
         | Work::ResumeFleet
         | Work::Infrastructure(_)
         | Work::Observability(_)
-        | Work::Host(_)
-        | Work::Start(_)
-        | Work::StartDone(_) => false,
+        | Work::Host(_) => false,
     };
     let mut work = Queue::uncapped();
     work.push(first);
@@ -332,6 +302,11 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             }
         };
         crate::route::work(domain, env, &mut decision, next, &mut work);
+        if domain.journal.stopped() {
+            // The stopped journal drops the refused decision, including its writes.
+            domain.journal.accept(decision);
+            return;
+        }
     }
     let decision_work_finished = work.is_empty();
     assert!(decision_work_finished, "decision_work_finished: complete synchronous route");
@@ -343,8 +318,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     }
     domain.journal.accept(decision);
     if let Some(commits) = domain.restored_commits.take() {
-        assert!(domain.journal.idle(), "the deployment header is the first cold-start row");
-        domain.journal = Journal::uncapped(env.limits.release, commits);
+        domain.journal.restore_numbering(commits);
     }
 }
 
@@ -363,10 +337,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, timer: crate::Timer) {
 
 /// Iterate drains only the journal: one commit and a bounded ordered release.
 pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
-    if domain.journal.stopped()
-        || domain.start.state == StartState::Stopped
-        || domain.engine.core().start_failure().is_some()
-    {
+    if domain.journal.stopped() {
         if !domain.stopped_reported {
             domain.stopped_reported = true;
             out.push(Output::Stop);
@@ -379,7 +350,14 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     let mut ready = Queue::uncapped();
     let _released = domain.journal.release(&mut ready);
     for _ in 0..ready.len() {
-        out.push(ready.pop().expect("journal release count"));
+        let output = ready.pop().expect("journal release count");
+        if let Output::Store(engine_store::Out::Switch) = output
+            && domain.rehearsing
+        {
+            domain.rehearsed = true;
+        } else {
+            out.push(output);
+        }
     }
     if domain.engine.core().stopping() {
         if domain.engine.core().finish_owed() {

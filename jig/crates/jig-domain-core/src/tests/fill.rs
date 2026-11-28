@@ -5,7 +5,7 @@ use jig_domain_contract as contract;
 pub(super) fn filled_core(bytes: u64) -> (Core, Env<Limits>) {
     let (mut core, limits) = core();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    drop(step(&mut core, &env, Event::Fill { bytes }));
+    drop(crate::routing::step_store(&mut core, &env, crate::engine::store::In::Fill { bytes }));
     (core, env)
 }
 

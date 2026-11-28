@@ -396,17 +396,10 @@ pub(crate) fn resource(
     resources::role(core, limits, project, name.clone(), role);
     let access = resources::task_access(role);
     work.push(Work::Event(Event::Tasks(tasks::Event::ResourceAccess { project, name: name.clone(), access })));
-    let hold = match hold {
-        connector::HoldKind::Shared => tasks::HoldKind::Shared,
-        connector::HoldKind::Exclusive { wait } => {
-            tasks::HoldKind::Exclusive { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
-        }
-        connector::HoldKind::Pooled { slots, wait } => {
-            work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name.clone(), slots })));
-            tasks::HoldKind::Pooled { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
-        }
-    };
-    work.push(Work::Event(Event::Tasks(tasks::Event::Resource { name, hold })));
+    if let connector::HoldKind::Pooled { slots, .. } = hold {
+        work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name.clone(), slots })));
+    }
+    work.push(Work::Event(Event::Tasks(tasks::Event::Resource { name, hold: resources::hold_kind(hold) })));
 }
 
 pub(crate) fn adopted(

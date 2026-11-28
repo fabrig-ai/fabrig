@@ -209,12 +209,10 @@ impl Parties {
             | root::Event::TopicCall { .. }
             | root::Event::EffectCall { .. }
             | root::Event::CallAnswered { .. }
-            | root::Event::StartRecord(_)
-            | root::Event::StartMissing { .. }
+            | root::Event::ConnectorPage { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
-            | root::Event::Engine(_)
-            | root::Event::StartDone(_) => {}
+            | root::Event::Engine(_) => {}
         }
     }
 
@@ -382,7 +380,8 @@ impl Parties {
             | root::Delivery::LostRead { .. }
             | root::Delivery::Store(_)
             | root::Delivery::Connector(..)
-            | root::Delivery::Start(_)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::Procedure { .. } => {}
         }
     }

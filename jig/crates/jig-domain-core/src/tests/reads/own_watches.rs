@@ -30,6 +30,7 @@ fn sign_in(core: &mut Core, limits: &Limits, party: u8) -> (u64, Box<[Record]>) 
             }
             Request::Write(
                 Write::Erase(_)
+                | Write::Wires
                 | Write::CopySettingsRevision(_)
                 | Write::DropHistory { .. }
                 | Write::DropTranscript { .. },

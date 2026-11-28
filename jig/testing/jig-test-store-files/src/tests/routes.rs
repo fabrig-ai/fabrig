@@ -8,6 +8,43 @@ use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
 use skein_lib::Token;
 
+const START_LOAD: Token = Token::new(1);
+
+fn start(ranges: Box<[core::RestoreRange]>, after: Option<port::Cursor>) -> StoreOut {
+    StoreOut::Engine(Out::Load { load: START_LOAD, range: Range::Start { ranges, after } })
+}
+
+fn live() -> StoreOut {
+    start(Box::new(core::RestoreRange::LIVE), None)
+}
+
+fn connector(number: u16, after: Option<Box<[u8]>>) -> StoreOut {
+    StoreOut::ConnectorLoad { number, after }
+}
+
+fn core_pages(component: &mut fixtures::Component, routes: &mut route::Routes) -> Vec<usize> {
+    let mut after = None;
+    let mut lengths = Vec::new();
+    for _ in 0..2 {
+        let outputs = fixtures::routed(component, routes, start(Box::new(core::RestoreRange::LIVE), after));
+        let [
+            Up::Root(root::Event::Store(In::Loaded {
+                load: START_LOAD,
+                result: Answer::Rows(Rows::Start { items, next }),
+            })),
+        ]: [Up; 1] = outputs.into_vec().try_into().expect("one answer per engine load")
+        else {
+            panic!("core page")
+        };
+        assert!(items.iter().all(|item| matches!(item, port::Item::Record(_))));
+        lengths.push(items.len());
+        after = next;
+    }
+    assert!(after.is_none(), "terminal page");
+    assert!(routes.idle());
+    lengths
+}
+
 /// Two batches of eight flights delay all pages before answering in reverse
 /// order; each flight restores three rows across two pages.
 #[test]
@@ -42,14 +79,14 @@ fn delayed_routes(mut routes: route::Routes) {
     for _ in 0..BATCHES {
         let mut requests = skein_lib::Queue::uncapped();
         let mut flights = std::collections::BTreeMap::new();
-        for connector in 1..=FLIGHTS {
-            let step = core::start::Phase::RestoreConnector { connector };
-            let request =
-                route::down(&mut routes, StoreOut::Start { phase: step, census: None }).expect("admitted route");
+        let mut owners = std::collections::BTreeMap::new();
+        for number in 1..=FLIGHTS {
+            let request = fixtures::down(&mut routes, connector(number, None));
             let jig_protocol_store::Request::Restore { owner, .. } = &request else {
                 panic!("restart page request");
             };
-            flights.insert(*owner, (connector, skein_lib::List::with_capacity(ROWS), 0_u32));
+            owners.insert(*owner, number);
+            flights.insert(number, (skein_lib::List::with_capacity(ROWS), 0_u32));
             requests.push(request);
         }
         for _ in 0..PAGES {
@@ -59,42 +96,41 @@ fn delayed_routes(mut routes: route::Routes) {
                 let jig_protocol_store::Request::Restore { owner, .. } = &request else {
                     panic!("restart page request");
                 };
-                let owner = *owner;
+                let number = owners.remove(owner).expect("retained route owner");
                 let mut events = skein_lib::Queue::uncapped();
                 fixtures::send(&mut component, request, &mut events);
                 while let Some(event) = events.pop() {
-                    delayed.push((owner, event)).expect("one delayed page per flight");
+                    delayed.push((number, event)).expect("one delayed page per flight");
                 }
             }
-            while let Some((owner, event)) = delayed.pop() {
-                let (connector, rows, terminals) = flights.get_mut(&owner).expect("retained flight");
+            while let Some((expected, event)) = delayed.pop() {
+                let (rows, terminals) = flights.get_mut(&expected).expect("retained flight");
                 let mut outputs = skein_lib::Queue::uncapped();
                 route::up(&mut routes, event, &mut outputs);
-                while let Some(output) = outputs.pop() {
-                    match output {
-                        Up::Root(root::Event::StartRecord(row)) => {
-                            assert_eq!(*terminals, 0, "rows precede their terminal");
-                            rows.push(row).expect("one copy of each fixture row");
-                        }
-                        Up::Root(root::Event::StartDone(step)) => {
-                            assert_eq!(step, core::start::Phase::RestoreConnector { connector: *connector });
-                            *terminals = terminals.checked_add(1).expect("bounded terminal count");
-                        }
-                        Up::Ask(request) => {
-                            let jig_protocol_store::Request::Restore { owner: next, .. } = &request else {
-                                panic!("restart continuation");
-                            };
-                            assert_eq!(*next, owner);
-                            requests.push(request);
-                        }
-                        Up::Root(_) => panic!("only the matching start terminal"),
-                    }
+                let Some(Up::Root(root::Event::ConnectorPage { number, records, after })) = outputs.pop() else {
+                    panic!("typed connector page")
+                };
+                assert!(outputs.is_empty(), "the connector, not the adapter, asks for another page");
+                assert_eq!(number, expected);
+                assert_eq!(*terminals, 0, "rows precede their terminal");
+                for record in records {
+                    rows.push(root::Record::Connector { number, record }).expect("one copy of each fixture row");
+                }
+                if let Some(after) = after {
+                    let request = fixtures::down(&mut routes, connector(number, Some(after)));
+                    let jig_protocol_store::Request::Restore { owner, .. } = &request else {
+                        panic!("restart continuation")
+                    };
+                    owners.insert(*owner, number);
+                    requests.push(request);
+                } else {
+                    *terminals = terminals.checked_add(1).expect("bounded terminal count");
                 }
             }
         }
         assert!(requests.is_empty());
         assert!(routes.idle());
-        for (_, (number, rows, terminals)) in flights {
+        for (number, (rows, terminals)) in flights {
             let mut expected = skein_lib::List::with_capacity(ROWS);
             for task in 1..=ROWS {
                 expected.push(routed_result(number, u64::from(task))).expect("fixture row");
@@ -112,11 +148,10 @@ fn routed_result(number: u16, task: u64) -> root::Record {
 fn a_commit_routes_connector_records_as_bytes() {
     let mut routes = fixtures::routes();
     let record = jig_test_connector::Record::Pool { path: fixtures::path(), slots: 1 };
-    let request = route::down(
+    let request = fixtures::down(
         &mut routes,
         StoreOut::Commit { number: 1, writes: Box::new([root::Write::Save(fixtures::root_record(record))]) },
-    )
-    .expect("commit request");
+    );
     let writes = fixtures::commit_writes(request);
     match writes.as_ref() {
         [jig_protocol_store::Write::Put { key, value }] => {
@@ -127,32 +162,11 @@ fn a_commit_routes_connector_records_as_bytes() {
     }
 }
 #[test]
-fn load_core_pages_reach_the_root_then_people_restored() {
+fn load_core_pages_reach_the_root_in_two_answers() {
     let mut component = fixtures::component();
     let mut routes = fixtures::routes();
     fixtures::routed(&mut component, &mut routes, fixtures::core_commit());
-    let outputs = fixtures::routed(
-        &mut component,
-        &mut routes,
-        StoreOut::Start { phase: core::start::Phase::LoadCore, census: None },
-    );
-    let mut rows = 0_u32;
-    let mut restored = false;
-    for output in outputs {
-        match output {
-            Up::Root(root::Event::StartRecord(_)) => {
-                assert!(!restored);
-                rows = rows.checked_add(1).expect("bounded rows");
-            }
-            Up::Root(root::Event::StartDone(step)) => {
-                assert_eq!(rows, 3);
-                restored = true;
-                assert_eq!(step, core::start::Phase::LoadCore);
-            }
-            Up::Root(_) | Up::Ask(_) => unreachable!("start rows and terminals only"),
-        }
-    }
-    assert!(restored);
+    assert_eq!(core_pages(&mut component, &mut routes), [2, 1]);
 }
 #[test]
 fn a_connectors_step_restores_its_records() {
@@ -167,20 +181,12 @@ fn a_connectors_step_restores_its_records() {
             writes: Box::new([fixtures::header(1), root::Write::Save(fixtures::root_record(record.clone()))]),
         },
     );
-    let outputs = fixtures::routed(
-        &mut component,
-        &mut routes,
-        StoreOut::Start { phase: core::start::Phase::RestoreConnector { connector: fixtures::FIRST }, census: None },
-    );
-    match outputs.as_ref() {
-        [
-            Up::Root(root::Event::StartRecord(row)),
-            Up::Root(root::Event::StartDone(core::start::Phase::RestoreConnector { connector: 1 })),
-        ] => {
-            assert_eq!(*row, fixtures::root_record(record));
-        }
-        _ => unreachable!("the typed connector row then its terminal"),
-    }
+    let outputs = fixtures::routed(&mut component, &mut routes, connector(fixtures::FIRST, None));
+    let [Up::Root(root::Event::ConnectorPage { number: fixtures::FIRST, records, after: None })] = outputs.as_ref()
+    else {
+        panic!("one terminal connector page")
+    };
+    assert_eq!(records.as_ref(), &[record]);
 }
 #[test]
 fn a_seen_conversation_is_answered_from_the_store() {
@@ -280,14 +286,12 @@ fn writer_admitted_rows_restore_above_the_ordinary_read_allowance() {
         &mut routes,
         StoreOut::Commit { number: 1, writes: Box::new([fixtures::header(1), root::Write::Save(record.clone())]) },
     );
-    let step = core::start::Phase::RestoreConnector { connector: fixtures::FIRST };
-    let outputs = fixtures::routed(&mut component, &mut routes, StoreOut::Start { phase: step, census: None });
-    let mut outputs = outputs.into_iter();
-    let Some(Up::Root(root::Event::StartRecord(row))) = outputs.next() else { panic!("restored writer row") };
-    assert_eq!(row, record);
-    let Some(Up::Root(root::Event::StartDone(done))) = outputs.next() else { panic!("restart terminal") };
-    assert_eq!(done, step);
-    assert!(outputs.next().is_none());
+    let outputs = fixtures::routed(&mut component, &mut routes, connector(fixtures::FIRST, None));
+    let [Up::Root(root::Event::ConnectorPage { number: fixtures::FIRST, records, after: None })] = outputs.as_ref()
+    else {
+        panic!("restored writer row on terminal page")
+    };
+    assert_eq!(records.as_ref(), &[jig_test_connector::Record::Result { task: 7, code: fixtures::FIRST }]);
     assert!(routes.idle());
 }
 
@@ -297,53 +301,49 @@ fn restart_configuration_preserves_the_ordinary_read_allowance() {
     limits.core.load_bytes = 7;
     let mut routes = fixtures::routes();
     routes.configure(&limits);
-    let request = route::down(
+    let request = fixtures::down(
         &mut routes,
         StoreOut::Engine(core::engine::store::Out::Load {
             load: Token::new(1),
             range: core::engine::store::Range::Notes(jig_domain_notes::Range::Entry { name: 1 }),
         }),
-    )
-    .expect("ordinary read request");
+    );
     let jig_protocol_store::Request::Load { bytes, .. } = request else { panic!("ordinary load") };
     assert_eq!(bytes, 7);
 }
 
 #[test]
-fn start_phases_select_their_exact_ranges() {
-    use core::start::Phase;
+fn start_loads_keep_their_exact_ranges_and_bounds() {
     use jig_protocol_store::{Request, Restore};
     let census =
         core::Census { questions: Box::new([(7, 3)]), results: Box::new([core::ReadResults { party: 4, after: 2 }]) };
-    for phase in
-        [Phase::LoadCore, Phase::LoadInbox, Phase::RestoreConnector { connector: 2 }, Phase::Sweep, Phase::Switch]
-    {
+    let bytes = jig_protocol_store::sizes::restore_bytes(&fixtures::component_limits()).expect("restore allowance");
+    for ranges in [
+        Box::<[core::RestoreRange]>::from(core::RestoreRange::LIVE),
+        Box::from([core::RestoreRange::Census(census)]),
+        Box::from([core::RestoreRange::People]),
+    ] {
         let mut routes = fixtures::routes();
-        let selected = if phase == Phase::LoadInbox { Some(census.clone()) } else { None };
-        let request = route::down(&mut routes, StoreOut::Start { phase, census: selected }).expect("start request");
-        if phase == Phase::Switch {
-            let Request::Switch { .. } = request else { panic!("switch request") };
-            continue;
-        }
-        let Request::Restore { range, after: None, rows: 2, bytes, .. } = request else { panic!("first restore page") };
-        assert!(bytes > 0);
-        match (phase, range) {
-            (Phase::LoadCore, Restore::Jig(ranges)) => assert_eq!(ranges.as_ref(), &core::RestoreRange::LIVE),
-            (Phase::LoadInbox, Restore::Jig(ranges)) => {
-                assert_eq!(ranges.as_ref(), &[core::RestoreRange::Census(census.clone())]);
-            }
-            (Phase::RestoreConnector { connector }, Restore::Application(ranges)) => {
-                assert_eq!(ranges.as_ref(), &[jig_test_store::live(connector)]);
-            }
-            (Phase::Sweep, Restore::Jig(ranges)) => assert_eq!(ranges.as_ref(), &[core::RestoreRange::People]),
-            _ => panic!("phase's exact restore range"),
-        }
+        let Request::Restore { range: Restore::Jig(found), after: None, rows: 2, bytes: allowance, .. } =
+            fixtures::down(&mut routes, start(ranges.clone(), None))
+        else {
+            panic!("first engine page")
+        };
+        assert_eq!(found, ranges);
+        assert_eq!(allowance, bytes);
     }
+    let mut routes = fixtures::routes();
+    let Request::Restore { range: Restore::Application(found), after: None, rows: 2, bytes: allowance, .. } =
+        fixtures::down(&mut routes, connector(2, None))
+    else {
+        panic!("first connector page")
+    };
+    assert_eq!(found.as_ref(), &[jig_test_store::live(2)]);
+    assert_eq!(allowance, bytes);
 }
 
 #[test]
 fn start_connector_pages_decode_rows_in_order_then_finish_the_phase() {
-    use core::start::Phase;
     let mut component = fixtures::starting_component();
     let mut routes = fixtures::routes();
     let rows = [routed_result(1, 1), routed_result(1, 2), routed_result(1, 3)];
@@ -353,62 +353,45 @@ fn start_connector_pages_decode_rows_in_order_then_finish_the_phase() {
         writes.push(root::Write::Save(row)).expect("fixture row");
     }
     fixtures::routed(&mut component, &mut routes, StoreOut::Commit { number: 1, writes: writes.into_boxed() });
-    let phase = Phase::RestoreConnector { connector: 1 };
-    let outputs = fixtures::routed(&mut component, &mut routes, StoreOut::Start { phase, census: None });
-    let mut found = skein_lib::List::with_capacity(3);
-    let mut done = false;
-    for output in outputs {
-        match output {
-            Up::Root(root::Event::StartRecord(row)) => {
-                assert!(!done);
-                found.push(row).expect("fixture row");
-            }
-            Up::Root(root::Event::StartDone(found)) => {
-                assert!(!done);
-                assert_eq!(found, phase);
-                done = true;
-            }
-            Up::Root(_) | Up::Ask(_) => panic!("start rows then its terminal"),
-        }
-    }
-    assert!(done);
-    assert_eq!(found.into_boxed().as_ref(), &rows);
+    let outputs = fixtures::routed(&mut component, &mut routes, connector(1, None));
+    let [Up::Root(root::Event::ConnectorPage { number: 1, records, after: Some(after) })]: [Up; 1] =
+        outputs.into_vec().try_into().expect("one first page")
+    else {
+        panic!("connector first page")
+    };
+    assert_eq!(
+        records.as_ref(),
+        &[
+            jig_test_connector::Record::Result { task: 1, code: 1 },
+            jig_test_connector::Record::Result { task: 2, code: 1 },
+        ]
+    );
+    let outputs = fixtures::routed(&mut component, &mut routes, connector(1, Some(after)));
+    let [Up::Root(root::Event::ConnectorPage { number: 1, records, after: None })] = outputs.as_ref() else {
+        panic!("connector terminal page")
+    };
+    assert_eq!(records.as_ref(), &[jig_test_connector::Record::Result { task: 3, code: 1 }]);
     assert!(routes.idle());
 }
 
 #[test]
 fn start_core_page_records_reach_the_root_without_people_restored() {
-    use core::start::Phase;
     let mut component = fixtures::starting_component();
     let mut routes = fixtures::routes();
     fixtures::routed(&mut component, &mut routes, fixtures::core_commit());
-    let outputs =
-        fixtures::routed(&mut component, &mut routes, StoreOut::Start { phase: Phase::LoadCore, census: None });
-    let mut records = skein_lib::List::with_capacity(3);
-    for output in outputs {
-        match output {
-            Up::Root(root::Event::StartRecord(row)) => {
-                records.push(row).expect("fixture row");
-            }
-            Up::Root(root::Event::StartDone(Phase::LoadCore)) => assert_eq!(records.len(), 3),
-            Up::Root(_) | Up::Ask(_) => panic!("only start records and done"),
-        }
-    }
-    assert_eq!(records.len(), 3);
-    assert!(routes.idle());
+    assert_eq!(core_pages(&mut component, &mut routes), [2, 1]);
 }
 
 #[test]
 fn start_missing_owner_keeps_both_keys() {
-    use core::start::Phase;
     use jig_protocol_store::{Event, Request, restore::Item};
     let mut routes = fixtures::routes();
-    let Some(Request::Restore { owner, .. }) = route::down(
+    let Request::Restore { owner, .. } = fixtures::down(
         &mut routes,
-        StoreOut::Start {
-            phase: Phase::LoadInbox,
-            census: Some(core::Census { questions: Box::new([]), results: Box::new([]) }),
-        },
+        start(
+            Box::new([core::RestoreRange::Census(core::Census { questions: Box::new([]), results: Box::new([]) })]),
+            None,
+        ),
     ) else {
         panic!("inbox page")
     };
@@ -424,32 +407,33 @@ fn start_missing_owner_keeps_both_keys() {
         },
         &mut out,
     );
-    let Some(Up::Root(root::Event::StartMissing { record: found_record, target: found_target })) = out.pop() else {
+    let Some(Up::Root(root::Event::Store(In::Loaded {
+        load: START_LOAD,
+        result: Answer::Rows(Rows::Start { items, next: None }),
+    }))) = out.pop()
+    else {
+        panic!("typed engine page")
+    };
+    let [port::Item::Missing { record: found_record, target: found_target }] = items.as_ref() else {
         panic!("missing link")
     };
-    assert_eq!((found_record, found_target), (record, target));
-    let Some(Up::Root(root::Event::StartDone(Phase::LoadInbox))) = out.pop() else { panic!("inbox done") };
+    assert_eq!((found_record, found_target), (&record, &target));
     assert!(out.is_empty());
     assert!(routes.idle());
 }
 
 #[test]
 fn refused_start_page_preserves_the_store_failure_and_terminates_the_flight() {
-    use core::start::Phase;
     use jig_protocol_store::{
         Event, Request,
         restore::{Cause, Failure, RangeFailure},
     };
     let mut routes = fixtures::routes();
-    let Some(Request::Restore { owner, .. }) =
-        route::down(&mut routes, StoreOut::Start { phase: Phase::LoadCore, census: None })
-    else {
-        panic!("core page")
-    };
+    let Request::Restore { owner, .. } = fixtures::down(&mut routes, live()) else { panic!("core page") };
     let failure = Failure { cause: Cause::Range(RangeFailure::Cursor), row: None };
     let mut out = skein_lib::Queue::uncapped();
     route::up(&mut routes, Event::PageRefused { owner, failure: failure.clone() }, &mut out);
-    let Some(Up::Root(root::Event::StartPageRefused { failure: found })) = out.pop() else {
+    let Some(Up::Root(root::Event::StartPageRefused { load: Some(START_LOAD), failure: found })) = out.pop() else {
         panic!("typed page refusal")
     };
     assert_eq!(found, failure);
@@ -459,32 +443,28 @@ fn refused_start_page_preserves_the_store_failure_and_terminates_the_flight() {
 
 #[test]
 fn switched_start_completes_the_switch_phase() {
-    use core::start::Phase;
     use jig_protocol_store::{Event, Request};
     let mut routes = fixtures::routes();
-    let Some(Request::Switch { owner }) =
-        route::down(&mut routes, StoreOut::Start { phase: Phase::Switch, census: None })
+    let mut out = skein_lib::Queue::uncapped();
+    let Some(Request::Switch { owner }) = route::down(&mut routes, StoreOut::Engine(Out::Switch), true, &mut out)
     else {
         panic!("switch request")
     };
-    let mut out = skein_lib::Queue::uncapped();
+    assert!(out.is_empty());
     route::up(&mut routes, Event::Switched { owner }, &mut out);
-    let Some(Up::Root(root::Event::StartDone(Phase::Switch))) = out.pop() else { panic!("switch done") };
+    let Some(Up::Root(root::Event::Store(In::Switched))) = out.pop() else { panic!("switch done") };
     assert!(out.is_empty());
     assert!(routes.idle());
 }
 
 #[test]
 fn start_application_decode_failure_names_its_cause_and_has_the_record_key() {
-    use core::start::Phase;
     use jig_protocol_store::{
         Event, Request, Row,
         restore::{Cause, DecodeFailure, Item},
     };
     let mut routes = fixtures::routes();
-    let Some(Request::Restore { owner, .. }) =
-        route::down(&mut routes, StoreOut::Start { phase: Phase::RestoreConnector { connector: 1 }, census: None })
-    else {
+    let Request::Restore { owner, .. } = fixtures::down(&mut routes, connector(1, None)) else {
         panic!("connector page")
     };
     let key = jig_test_store::keys::encode(1, &jig_test_connector::RecordKey::Result(7));
@@ -498,7 +478,9 @@ fn start_application_decode_failure_names_its_cause_and_has_the_record_key() {
         },
         &mut out,
     );
-    let Some(Up::Root(root::Event::StartPageRefused { failure })) = out.pop() else { panic!("typed decode refusal") };
+    let Some(Up::Root(root::Event::StartPageRefused { load: None, failure })) = out.pop() else {
+        panic!("typed decode refusal")
+    };
     assert_eq!(failure.cause, Cause::Decode(DecodeFailure::Value));
     assert_eq!(
         failure.row.expect("application row").key,

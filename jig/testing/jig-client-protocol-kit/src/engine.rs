@@ -386,7 +386,8 @@ impl Engine {
                 | root::Delivery::LostRead { .. }
                 | root::Delivery::Store(_)
                 | root::Delivery::Connector(..)
-                | root::Delivery::Start(_)
+                | root::Delivery::Resume(_)
+                | root::Delivery::ConnectorLoad { .. }
                 | root::Delivery::Procedure { .. } => {}
             }
         }
@@ -437,8 +438,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
     match event {
         core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => Some(*watcher),
         core::Event::SettingsCommit { .. }
-        | core::Event::Fill { .. }
-        | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
         | core::Event::Waits { .. }

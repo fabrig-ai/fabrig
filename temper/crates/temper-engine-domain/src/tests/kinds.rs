@@ -451,12 +451,8 @@ fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
     assert_eq!(domain.forge.setting(2, PROJECT, RULE), Some(&rule(true)));
 }
 
-fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
-    use jig_domain_core::{
-        settings::{Kind, KindScope},
-        start::{Action, Phase},
-    };
-    let limits = resume_fixture::limits();
+pub(super) fn connector_restore_config(limits: &RootLimits, declared: bool) -> crate::Config {
+    use jig_domain_core::settings::{Kind, KindScope};
     let mut config = resume_fixture::config(7);
     config.kinds_stock = Box::new([
         settings::Stock { kind: 1, scope: 0, number: RULE, value: rule(true) },
@@ -482,23 +478,23 @@ fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
             },
         ]);
     }
+    config
+}
+
+fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
+    use jig_domain_core::start::Phase;
+    let limits = resume_fixture::limits();
+    let config = connector_restore_config(&limits, declared);
     let mut domain = Domain::new(config, &limits).unwrap();
     let env = Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits };
-    domain.start_wall = Some(env.wall);
-    domain.core_header_loaded = true;
-    domain.forge.restore_begin(env.wall);
-    let core_env = crate::limits::environment_core(&env);
-    let mut action = domain.engine.core_mut().start_begin(false, env.wall);
-    for _ in 0_u32..20 {
-        let mut out = Queue::uncapped();
-        action = match action {
-            Action::Step(Phase::RestoreConnector { connector: 0 }) => return (domain, env),
-            Action::Step(phase) => domain.engine.core_mut().start_done(&core_env, phase, &mut out),
-            Action::Commit(continuation) => domain.engine.core_mut().start_resume(&core_env, continuation, &mut out),
-            Action::Idle | Action::Refused(_) => panic!("start stopped before the forge restore"),
-        };
-    }
-    panic!("start did not reach the forge restore");
+    crate::step(&mut domain, &env, crate::Event::Restart { pending: false });
+    resume_fixture::StartStore::new().advance(
+        &mut domain,
+        &env,
+        resume_fixture::Until::Phase(Phase::RestoreConnector { connector: 0 }),
+    );
+    assert_eq!(domain.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
+    (domain, env)
 }
 
 #[test]
@@ -507,21 +503,21 @@ fn a_start_gives_the_forge_its_defaults() {
     let (mut domain, env) = at_connector_restore(true);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     for (kind, value) in [(1, rule(true)), (3, charter(2))] {
-        crate::restart::restore_page_row(
-            &mut domain,
-            &env,
-            Record::Forge {
-                row: Box::new(forge::Stored::Setting(settings::SettingRow {
+        forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(&env),
+            forge::Event::Restore {
+                record: forge::Stored::Setting(settings::SettingRow {
                     key: settings::SettingKey { kind, scope: 0, number: 1, slot: settings::SettingSlot::Default },
                     edit: settings::Edit::Set(value),
-                })),
+                }),
             },
+            &mut Queue::uncapped(),
         );
-        crate::route::route_into(&mut domain, &env, &mut decision);
     }
     assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(2)), "the stored default reached the forge");
-    crate::restart::restore_connector_done(&mut domain);
-    assert_eq!(domain.engine.core().start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
+    crate::route::forge_route::restore_page(&mut domain, &env, &mut decision, Box::new([]), None);
+    assert_eq!(domain.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
     let Some(Work::Connector(
         jig_domain_contract::Connector(0),
         jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Defaults { defaults, dropped: _ }),
@@ -550,7 +546,13 @@ fn a_start_gives_the_forge_its_defaults() {
             },
         ]
     );
-    let Some(Work::StartDone(Phase::RestoreConnector { connector: 0 })) = domain.work.pop() else {
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(0),
+        jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done {
+            stage: forge::RestartStage::Restored,
+        }),
+    )) = domain.work.pop()
+    else {
         panic!("the forge restore completes after its defaults");
     };
     assert!(domain.work.is_empty());
@@ -586,11 +588,17 @@ fn save_settings_defaults_writes_the_forges_rows() {
 
 #[test]
 fn no_kinds_declared_gives_the_forge_defaults_without_a_core_event() {
-    use jig_domain_core::start::Phase;
-    let (mut domain, _) = at_connector_restore(false);
+    let (mut domain, env) = at_connector_restore(false);
     assert!(domain.kinds_stock.is_none(), "undeclared stock goes to the forge during construction");
-    crate::restart::restore_connector_done(&mut domain);
-    let Some(Work::StartDone(Phase::RestoreConnector { connector: 0 })) = domain.work.pop() else {
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    crate::route::forge_route::restore_page(&mut domain, &env, &mut decision, Box::new([]), None);
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(0),
+        jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done {
+            stage: forge::RestartStage::Restored,
+        }),
+    )) = domain.work.pop()
+    else {
         panic!("the forge restore completes after its defaults");
     };
     assert!(domain.work.is_empty(), "no SettingsDefaults precedes the restore completion");
@@ -1841,12 +1849,12 @@ fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
         domain.forge.restore_begin(env.wall);
         let key = settings::SettingKey { kind, scope, number, slot: settings::SettingSlot::Replaced(2) };
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-        crate::restart::restore_page_row(
-            &mut domain,
-            &env,
-            Record::Forge { row: Box::new(forge::Stored::RefusedSetting(key)) },
+        forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::RefusedSetting(key) },
+            &mut Queue::uncapped(),
         );
-        crate::route::route_into(&mut domain, &env, &mut decision);
         let before = domain.forge.setting(3, 0, 1).cloned();
         let current = domain.engine.core().current.newest();
         ask(
