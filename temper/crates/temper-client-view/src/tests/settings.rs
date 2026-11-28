@@ -555,10 +555,11 @@ fn how(ways: Option<Ways>) -> d::Domain {
     let template = stock.pages().me(stock.client()).unwrap().projects.get(0).unwrap().templates.get(0).unwrap();
     let project = me.projects.get_mut(0).unwrap();
     project.templates = List::with_capacity(2);
-    for (number, name) in [(11, "One agent, one branch"), (4, "goal for a draft")] {
+    for (number, name, shown) in [(11, None, "One agent, one branch"), (4, Some("draft-goal"), "goal landed whole")] {
         let mut template = template.clone();
         template.number = number;
-        template.shown = c::DocumentText::complete(c::Text::new(name.as_bytes().into(), 32).unwrap());
+        template.name = name.map(|name| name.as_bytes().into());
+        template.shown = c::DocumentText::complete(c::Text::new(shown.as_bytes().into(), 32).unwrap());
         template.tracked = Some(1);
         project.templates.push(template).unwrap();
     }
@@ -951,9 +952,7 @@ fn no_used_by_with_no_template_recorded() {
     let root = how(Some(SHOWN));
     let view = how_view(&root, true);
     let text = String::from_utf8_lossy(&f::nodes_text(section_nodes(view.tree(), b"Ways of working"))).into_owned();
-    assert!(
-        text.contains("A plan from the draft, its tasks on a goal branch, landed as one change once all are checked.")
-    );
+    assert!(text.contains("A plan, its tasks on a goal branch, landed as one change once all are checked."));
     let custom = setting_row(view.tree(), b"One agent, one branch");
     assert!(!custom.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)));
     assert!(!text.contains("Used by"));

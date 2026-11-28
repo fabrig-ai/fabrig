@@ -176,7 +176,7 @@ GateReason: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 GitHubApp: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 GitHubManifest: ceilings encoded=517 decoded=512; at_most(3) encoded=8 decoded=3
 GoalFrom: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
-GoalPart: ceilings encoded=536 decoded=512; at_most(3) encoded=27 decoded=3
+GoalPart: ceilings encoded=537 decoded=512; at_most(3) encoded=28 decoded=3
 GoalReport: ceilings encoded=524 decoded=512; at_most(3) encoded=15 decoded=3
 GroupFailed: ceilings encoded=260 decoded=256; at_most(3) encoded=7 decoded=3
 HandFinding: ceilings encoded=248 decoded=232; at_most(3) encoded=22 decoded=6
@@ -447,8 +447,8 @@ SettingsCombine: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 SettingsFlakeRerun: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 SettingsFlakes: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 SettingsFollows: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
-SettingsGate: ceilings encoded=1145439128 decoded=1158809983; at_most(3) encoded=58 decoded=69
-SettingsGateReport: ceilings encoded=106 decoded=96; at_most(3) encoded=16 decoded=6
+SettingsGate: ceilings encoded=1145439266 decoded=1158810111; at_most(3) encoded=74 decoded=75
+SettingsGateReport: ceilings encoded=244 decoded=224; at_most(3) encoded=32 decoded=12
 SettingsLandingWait: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 SettingsLandingWay: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 SettingsReportFormat: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0

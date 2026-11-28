@@ -78,7 +78,7 @@ mod rulings;
 #[path = "forge_routes/goal_closer.rs"]
 pub(crate) mod goal_closer;
 #[path = "forge_routes/goal_closes.rs"]
-mod goal_closes;
+pub(super) mod goal_closes;
 #[path = "forge_routes/status.rs"]
 pub(crate) mod status;
 
@@ -117,7 +117,7 @@ mod contained_landing;
 mod held_change;
 #[path = "forge_routes/landing.rs"]
 pub(crate) mod landing;
-mod milestones;
+pub(super) mod milestones;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
 mod question_target;

@@ -35,7 +35,8 @@ place (jig's `domain/engine/overlays.md`).
     spend; smith's shell family (`shell` and `job`: smith's
     `domain/tools.md`). No text: its runs read the stock's charter 2,
     which says what a run does with a shell (`stock.md`);
-  - *template 4, the goal template for drafts:* charter 5; ended by
+  - *template 4, the goal template that lands whole, whatever the goal
+    starts from:* charter 5; ended by
     temper's goal closer, `ended_by` `{"closer": {"connector": 1,
     "code": 6}}` (jig's `protocol/configuration-templates.md`, 2;
     `../../domain/forge/branches-closer.md`, 1);

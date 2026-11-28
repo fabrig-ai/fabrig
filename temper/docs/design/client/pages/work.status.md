@@ -1,6 +1,7 @@
 # work: status
 
-2026-11-26. Where the tree's code lags or departs from [work.md](work.md).
+2026-11-28. Where the tree's code lags or departs from [work.md](work.md).
+
 
 
 - **Not yet:** 1, *Work*: a landing is marked the main one by the forge's

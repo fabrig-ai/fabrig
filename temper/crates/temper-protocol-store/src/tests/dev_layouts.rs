@@ -41,9 +41,12 @@ impl Dev {
         }
     }
     pub(super) fn row(&mut self, stored: &d::Stored, variant: &str) -> JobRow {
+        self.row_in(Mode::Read, stored, variant)
+    }
+    pub(super) fn row_in(&mut self, mode: Mode, stored: &d::Stored, variant: &str) -> JobRow {
         let old_root = self.old.root(b"Row", Some(variant.as_bytes())).unwrap();
         let binary_root = self.binary.root(b"Row", Some(variant.as_bytes())).unwrap();
-        let plan = Plan::between(Mode::Read, &self.binary, binary_root, &[], &self.old, old_root, &[])
+        let plan = Plan::between(mode, &self.binary, binary_root, &[], &self.old, old_root, &[])
             .expect("the binary writes dev's layout directly");
         assert!(self.work.fit(&plan));
         plan.convert(&records::encode(stored), &mut self.out, &mut self.work).unwrap();

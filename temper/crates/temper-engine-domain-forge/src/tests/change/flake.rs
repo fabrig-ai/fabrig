@@ -15,6 +15,8 @@ fn repairing_flake() -> (Domain, ReceiptKey, api::Run) {
         artifact: b"report".as_slice().into(),
         format: temper_engine_domain_forge_tiers::Format::Lines,
         fuzzy: None,
+        matched: None,
+        rest: None,
     });
     let waiting =
         delegate_waiting(change::State::Repairing { requested: true, why: why() }, change::Delegate::Repair(why()));
@@ -25,8 +27,11 @@ fn repairing_flake() -> (Domain, ReceiptKey, api::Run) {
     row.change.way = change::Way::Turn;
     row.repair_tasks = Box::new([52]);
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
-    d.landing.receipts.get_mut(&key).unwrap().report =
-        ReceiptReport::Tests(Box::new([ReceiptTest { key: b"test a::t x".as_slice().into(), fuzzy: false }]));
+    d.landing.receipts.get_mut(&key).unwrap().report = ReceiptReport::Tests(ReceiptTests {
+        tests: Box::new([ReceiptTest { key: b"test a::t x".as_slice().into(), matched: false }]),
+        matched: None,
+        rest: None,
+    });
     (d, key, run)
 }
 

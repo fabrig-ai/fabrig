@@ -230,11 +230,7 @@ fn encode_report(report: &top::ReceiptReport) -> w::ReceiptReport {
         top::ReceiptReport::Unread => w::ReceiptReport::Unread,
         top::ReceiptReport::Many { bound } => w::ReceiptReport::Many(w::ReceiptMany { bound: *bound }),
         top::ReceiptReport::Tests(tests) => {
-            let mut kept = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
-            for test in tests {
-                kept.push(crate::generated::store::receipt_test_to_record(test)).expect(FITS);
-            }
-            w::ReceiptReport::Tests(w::ReceiptTests { tests: kept })
+            w::ReceiptReport::Tests(crate::generated::store::receipt_tests_to_record(tests).expect(FITS))
         }
     }
 }
@@ -244,12 +240,7 @@ fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
         w::ReceiptReport::Unread => top::ReceiptReport::Unread,
         w::ReceiptReport::Many(many) => top::ReceiptReport::Many { bound: many.bound },
         w::ReceiptReport::Tests(tests) => {
-            let tests = tests.tests;
-            let mut kept = List::with_capacity(tests.len());
-            for test in tests.into_boxed() {
-                kept.push(crate::generated::store::receipt_test_to_domain(test)).expect(FITS);
-            }
-            top::ReceiptReport::Tests(kept.into_boxed())
+            top::ReceiptReport::Tests(crate::generated::store::receipt_tests_to_domain(tests))
         }
     }
 }

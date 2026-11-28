@@ -86,7 +86,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
         (b"tasks.charters", 12, Setting::Charter(1), "the stock offers 12 charters"),
         (b"core.templates", 7, Setting::Template(1), "the stock offers 7 templates"),
-        (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
+        (b"documents.text_bytes", 17, Setting::Template(4), "the stock's template 4 needs 17 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),

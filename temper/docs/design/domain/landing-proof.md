@@ -45,8 +45,9 @@ This document holds landing keys, receipts and proof, split from [`landing.md`](
 - **A gate's result under a key:** passed or failed, the run (the
   forge's run, its number and its link), the candidate it ran at, and
   when it ended; a failed one, the round's base too and each failed
-  job's id, attempt and name, at most 16, and its report's ids
-  (`landing-search-by-test.md`, 2).
+  job's id, attempt and name, at most 16, and its report's ids, each
+  with whether its name matched the report's prefix, and the report's
+  two labels as they stood at the run (`landing-search-by-test.md`, 2).
 - **Made only from a run temper dispatched** for that key and saw end
   at exactly that candidate. A status someone else wrote, or a run
   temper did not dispatch, is never a receipt.

@@ -74,17 +74,21 @@ pub fn settled_image(directory: &Path, scratch: &Path) {
 fn run(selection: Option<Selection>, kill: bool) {
     STATE.with(|s| *s.borrow_mut() = State { end_after_kill: kill, ..State::default() });
     setup();
-    let World { disk, configuration, transport, store, ledger } =
-        if kill { story() } else { image::load(&image::directory()) };
+    let (world, before) = if kill {
+        let mut world = story();
+        let maps = Maps::read(&mut world.disk);
+        (world, maps)
+    } else {
+        image::load(&image::directory())
+    };
+    let World { mut disk, configuration, transport, store, ledger } = world;
     if kill {
         assert!(STATE.with(|s| s.borrow().killed), "the service was killed, not drained");
     } else {
         assert!(store.borrow().pending.is_empty(), "settled stop has no pending commit");
     }
     STATE.with(|s| s.borrow_mut().end_after_kill = false);
-    let mut disk = disk;
     let ledger_before = mutations(&ledger.borrow());
-    let before = Maps::read(&mut disk);
     let before_files = image::generation(&mut disk, before.active);
     STATE.with(|s| {
         let mut s = s.borrow_mut();
@@ -110,11 +114,11 @@ fn run(selection: Option<Selection>, kill: bool) {
             }
         });
         eprintln!("upgrade power cut before service submission {before}");
-        let World { mut disk, configuration, transport, store, ledger } = image::load(&image::directory());
+        let (world, source) = image::load(&image::directory());
+        let World { mut disk, configuration, transport, store, ledger } = world;
         store.borrow_mut().recovering();
         STATE.with(|s| {
             let mut s = s.borrow_mut();
-            let source = Maps::read(&mut disk);
             s.before_files = image::generation(&mut disk, source.active);
             s.before = Some(source);
             s.upgrade = true;

@@ -547,13 +547,16 @@ fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
         }),
     };
     let mut failure = repair_failure(SHA1, Some(SHA256));
-    failure.report = super::forge::ReceiptReport::Tests(Box::new([
-        super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
-        super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
-    ]));
+    failure.report = super::forge::ReceiptReport::Tests(super::forge::ReceiptTests {
+        tests: Box::new([
+            super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), matched: true },
+            super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), matched: false },
+        ]),
+        matched: Some(b"slow".as_slice().into()),
+        rest: Some(b"quick".as_slice().into()),
+    });
     let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-    let tests =
-        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
+    let tests = b"\nFailed test: test skein-lib::suite fuzzy::a (slow)\nFailed test: test skein-lib::suite b (quick)";
     let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
     let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
     let job_at = find(&whole, b"\nFailed job: gate: read_ci what=job commit=").unwrap();
@@ -562,7 +565,7 @@ fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
     let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
     assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
     assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
-    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
+    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (slow)";
     let marker = b"\n[2 more failed tests and jobs: read_ci what=checks names them]";
     let bound = u32::try_from(
         usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
@@ -570,6 +573,20 @@ fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
     .unwrap();
     let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
     assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
+    let super::forge::ReceiptReport::Tests(tests) = &mut failure.report else { panic!("named tests") };
+    tests.rest = None;
+    let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    assert!(
+        find(&words, b"\nFailed test: test skein-lib::suite fuzzy::a (slow)\nFailed test: test skein-lib::suite b\n")
+            .is_some()
+    );
+    let super::forge::ReceiptReport::Tests(tests) = &mut failure.report else { panic!("named tests") };
+    tests.matched = None;
+    let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    assert!(
+        find(&words, b"\nFailed test: test skein-lib::suite fuzzy::a\nFailed test: test skein-lib::suite b\n")
+            .is_some()
+    );
     for (report, line) in [
         (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
         (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
@@ -789,12 +806,13 @@ fn repair_words_make_failed_test_keys_text() {
     row.change.last_head = Some(SHA1);
     let why = super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
     let mut failure = repair_failure(SHA1, None);
-    failure.report = super::forge::ReceiptReport::Tests(Box::new([super::forge::ReceiptTest {
-        key: b"test binary a\xffb".as_slice().into(),
-        fuzzy: false,
-    }]));
+    failure.report = super::forge::ReceiptReport::Tests(super::forge::ReceiptTests {
+        tests: Box::new([super::forge::ReceiptTest { key: b"test binary a\xffb".as_slice().into(), matched: false }]),
+        matched: None,
+        rest: Some(b"qu\xffick".as_slice().into()),
+    });
     let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-    assert!(skein_lib::bytes::find(&words, b"\nFailed test: test binary a?b (focused)").is_some());
+    assert!(skein_lib::bytes::find(&words, b"\nFailed test: test binary a?b (qu?ick)\n").is_some());
     assert!(skein_lib::bytes::is_utf8(&words));
 }
 

@@ -231,7 +231,8 @@ fn make(domain: &mut Domain, env: &Env<Limits>, party: u64, row: &TaskLine, kind
                 }
                 tasks::Party::Person(_) | tasks::Party::Deployment { .. } => None,
             };
-            encoded(encode::goal(kept.report.as_ref(), milestone))
+            let own_branch = domain.forge.holds_goal_branch(task);
+            encoded(encode::goal(kept.report.as_ref(), milestone, own_branch))
         }
         wire::MILESTONE_PART => milestone(domain, env, party, row),
         _ => unreadable(),

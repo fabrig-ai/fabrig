@@ -2419,7 +2419,7 @@ const PHRASES: u32 = 2964;
 // Landing waits add 17 literal segments (client/web/public.md, 3).
 const SEGMENTS: u32 = 5525;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 68952;
+const ENGLISH_BYTES: u32 = 68922;
 const ALL: [Word; 2211] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
@@ -8046,7 +8046,7 @@ const fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'stati
         Word::GoalTaskByTask => (&[b"Task by task"], &[]),
         Word::GoalTaskByTaskLine => (&[b"The same plan; each task lands on its own once checked."], &[]),
         Word::GoalLandWhole => (&[b"Plan, tasks, land whole"], &[]),
-        Word::GoalLandWholeLine => (&[b"A plan from the draft, its tasks on a goal branch, landed as one change once all are checked."], &[]),
+        Word::GoalLandWholeLine => (&[b"A plan, its tasks on a goal branch, landed as one change once all are checked."], &[]),
         Word::Changes => (&[b"Changes"], &[]),
         Word::ChangesKicker => (&[b"", b" \xc2\xb7 landing"], &[Name]),
         Word::ChangesNone => (&[b"Nothing is on the way to ", b"."], &[Name]),
@@ -9171,7 +9171,7 @@ const fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'stati
         Word::SettingsUp => (&[b"Asked of me too"], &[]),
         Word::SettingsAlone => (&[b"Not asked: each agent decides alone"], &[]),
         Word::SettingsWhole => (&[b"Plan, tasks, land whole"], &[]),
-        Word::SettingsWholeLine => (&[b"A plan from the draft, its tasks on a goal branch, landed as one change once all are checked."], &[]),
+        Word::SettingsWholeLine => (&[b"A plan, its tasks on a goal branch, landed as one change once all are checked."], &[]),
         Word::SettingsEach => (&[b"Task by task"], &[]),
         Word::SettingsEachLine => (&[b"The same plan; each task lands on its own once checked."], &[]),
         Word::SettingsReview => (&[b"Plan, then wait for me"], &[]),

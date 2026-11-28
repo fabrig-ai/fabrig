@@ -574,6 +574,7 @@ fn the_stocks_ways_are_two_and_four_never_eight() {
     project.templates = skein_lib::List::uncapped();
     for template in &defaults.templates {
         let mut client = view::goals::template(template.number, &template.shown, template.tracked.is_some());
+        client.name.clone_from(&template.name);
         client.flags.ended_by = match template.flags.ended_by {
             EndedBy::Requester => c::EndedBy::Requester,
             EndedBy::Result => c::EndedBy::Result,
@@ -2194,7 +2195,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     let mut expected = stock.templates.iter().find(|template| template.number == 2).unwrap().clone();
     expected.number = 4;
     expected.name = Some(b"draft-goal".as_slice().into());
-    expected.shown = b"goal for a draft".as_slice().into();
+    expected.shown = b"goal landed whole".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
     expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
     expected.flags.ended_by = jig_domain_tasks::EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 });
@@ -2573,7 +2574,7 @@ fn stock_setting_names_and_template_display_words_are_distinct() {
     let templates = [
         (1, b"chat".as_slice(), b"chat".as_slice()),
         (2, b"goal", b"goal"),
-        (4, b"draft-goal", b"goal for a draft"),
+        (4, b"draft-goal", b"goal landed whole"),
         (5, b"ask-temper", b"ask"),
         (6, b"design-session", b"design session"),
         (7, b"standing-role", b"standing role"),

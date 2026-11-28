@@ -347,6 +347,7 @@ pub struct StoryLimits {
     /// Cached party requests retained while a full live-task room is exercised.
     pub party_requests: Option<u32>,
     pub authority_batch: Option<u32>,
+    pub authority_segments: Option<u32>,
     pub tasks_batch: Option<u32>,
     pub task_delegates: Option<u32>,
     pub tree_tasks: Option<u32>,
@@ -1187,6 +1188,8 @@ impl World {
                                                     artifact: b"failed".as_slice().into(),
                                                     format: temper_engine_domain_forge_tiers::Format::Lines,
                                                     fuzzy: None,
+                                                    matched: None,
+                                                    rest: None,
                                                 }
                                             }),
                                         }])
@@ -1572,6 +1575,11 @@ impl World {
             }
             for worker in &mut config.core.defaults.workers {
                 worker.places = limits.fleet.slots;
+            }
+            if let Some(segments) = timing.authority_segments {
+                limits.authority.segments = limits.authority.segments.max(segments);
+                limits.tasks.authority_segments = limits.tasks.authority_segments.max(segments);
+                limits.forge.authority_segments = limits.forge.authority_segments.max(segments);
             }
             config.core.parts = forge_top::parts::kinds(*config.core.connectors.first().expect("forge connector"));
             (config, limits)
@@ -3988,14 +3996,18 @@ impl World {
                 raw::Answer::Branch(raw::Created::Created)
             );
         }
-        self.adopt_landing_with_checks(landing, true, Box::new([]));
+        self.adopt_landing_with_checks(landing, b"temper/", true, Box::new([]));
     }
 
     pub fn adopt_with_checks(&mut self, ci: bool, checks: Box<[u32]>) {
-        self.adopt_landing_with_checks(b"main", ci, checks);
+        self.adopt_landing_with_checks(b"main", b"temper/", ci, checks);
     }
 
-    fn adopt_landing_with_checks(&mut self, landing: &[u8], ci: bool, checks: Box<[u32]>) {
+    pub fn adopt_with_prefix(&mut self, prefix: &[u8]) {
+        self.adopt_landing_with_checks(b"main", prefix, true, Box::new([]));
+    }
+
+    fn adopt_landing_with_checks(&mut self, landing: &[u8], prefix: &[u8], ci: bool, checks: Box<[u32]>) {
         self.sign_in();
         self.send(engine::Event::Party(engine::PartyInput::Application {
             scope: jig_domain_people::ApplicationScope::Project(1),
@@ -4011,7 +4023,7 @@ impl World {
                 host: Box::from(&b"forge.example"[..]),
                 owner: Box::from(&b"org"[..]),
                 name: Box::from(&b"repo"[..]),
-                prefix: Box::from(&b"temper/"[..]),
+                prefix: prefix.into(),
                 role: forge_top::Role::Owned,
                 landing: landing.into(),
                 ci,

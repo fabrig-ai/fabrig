@@ -783,7 +783,7 @@ pub fn repair_flake(why: forge_change::Repair, failure: Option<&forge::LandingFa
             if let Some(failure) = failure
                 && let forge::ReceiptReport::Tests(tests) = &failure.report
             {
-                !tests.is_empty()
+                !tests.tests.is_empty()
             } else {
                 false
             }
@@ -803,7 +803,7 @@ pub fn repair_no_test(why: forge_change::Repair, failure: Option<&forge::Landing
             let Some(failure) = failure else { return false };
             match &failure.report {
                 forge::ReceiptReport::Unset | forge::ReceiptReport::Unread => true,
-                forge::ReceiptReport::Tests(tests) => tests.is_empty(),
+                forge::ReceiptReport::Tests(tests) => tests.tests.is_empty(),
                 forge::ReceiptReport::Many { .. } => false,
             }
         }
@@ -928,17 +928,20 @@ fn report_lines(report: &forge::ReceiptReport) -> List<Box<[u8]>> {
             ]))
             .expect("one report line"),
         forge::ReceiptReport::Tests(tests) => {
-            for test in tests {
-                let profile = if test.fuzzy { b"fuzzy".as_slice() } else { b"focused".as_slice() };
-                lines
-                    .push(skein_lib::bytes::concat(&[
+            for test in &tests.tests {
+                let label = if test.matched { &tests.matched } else { &tests.rest };
+                let key = skein_lib::bytes::utf8_replaced(&test.key);
+                let line = match label {
+                    Some(label) => skein_lib::bytes::concat(&[
                         b"\nFailed test: ",
-                        &skein_lib::bytes::utf8_replaced(&test.key),
+                        &key,
                         b" (",
-                        profile,
+                        &skein_lib::bytes::utf8_replaced(label),
                         b")",
-                    ]))
-                    .expect("receipt tests bounded");
+                    ]),
+                    None => skein_lib::bytes::concat(&[b"\nFailed test: ", &key]),
+                };
+                lines.push(line).expect("receipt tests bounded");
             }
         }
     }

@@ -37,12 +37,14 @@ pub struct Gate {
     pub report: Option<GateReport>,
 }
 
-/// A failed gate's report and fuzzy case-name prefix (domain/landing.md, 13.1).
+/// A failed gate's report and repair labels (temper/docs/design/domain/landing-search-by-test.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GateReport {
     pub artifact: Box<[u8]>,
     pub format: temper_engine_domain_forge_tiers::Format,
     pub fuzzy: Option<Box<[u8]>>,
+    pub matched: Option<Box<[u8]>>,
+    pub rest: Option<Box<[u8]>>,
 }
 
 /// The project's landing settings needed by the policy.

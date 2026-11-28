@@ -81,6 +81,8 @@ fn gate(report: bool) -> landing::Gate {
             artifact: b"failed".as_slice().into(),
             format: landing::Format::Lines,
             fuzzy: None,
+            matched: None,
+            rest: None,
         }),
     }
 }

@@ -82,8 +82,10 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   and its key holds the base's tree (`../../domain/landing-proof.md`, 1.1 and
   2.1). A gate's `report`, none when absent, names the artifact its
   failed run uploads and its format, read as a tier's, and `fuzzy`, when
-  present, the name prefix of its fuzzy tests, all others focused: the
-  failed tests a landing's repair names (`../../domain/landing-proof.md`, 2.3;
+  present, a test name prefix, which the member gives no labels (kind
+  5's `matched` and `rest`, `../../domain/landing-search-by-test.md`, 2,
+  *Its labels*): the failed tests a landing's repair names
+  (`../../domain/landing-proof.md`, 2.3;
   `../../domain/forge/change/repairs.md`, *A landing's repair*). Its
   artifact is bounded as a tier's (below), its `fuzzy` 1 to 64 bytes
   (2026-11-15). A tier's `branch` is the

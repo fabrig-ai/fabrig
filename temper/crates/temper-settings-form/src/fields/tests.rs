@@ -549,7 +549,8 @@ fn optional_landing(field: &Field) -> bool {
         || (field.shape == Shape::RepositoryGatesSettings && [b"gates".as_slice(), b"tiers"].contains(&field.name))
         || (field.shape == Shape::GateCheckSettings
             && [b"ignored".as_slice(), b"base", b"report"].contains(&field.name))
-        || (field.shape == Shape::GateReportSettings && field.name == b"fuzzy")
+        || (field.shape == Shape::GateReportSettings
+            && [b"fuzzy".as_slice(), b"matched", b"rest"].contains(&field.name))
         || (field.shape == Shape::TierCheckSettings
             && [b"ignored".as_slice(), b"branch", b"span_ms", b"description"].contains(&field.name))
 }
