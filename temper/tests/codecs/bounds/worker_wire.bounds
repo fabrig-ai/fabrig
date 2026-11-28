@@ -11,6 +11,8 @@ Entries: ceilings encoded=1118212 decoded=1124352; at_most(3) encoded=70 decoded
 Entry: ceilings encoded=4368 decoded=4352; at_most(3) encoded=22 decoded=6
 Files: ceilings encoded=4198404 decoded=4210688; at_most(3) encoded=25 decoded=57
 Flake: ceilings encoded=2568 decoded=2560; at_most(3) encoded=14 decoded=6
+Guide: ceilings encoded=817 decoded=768; at_most(3) encoded=58 decoded=9
+Guides: ceilings encoded=52292 decoded=54784; at_most(3) encoded=178 decoded=291
 Head: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 Identity: ceilings encoded=1118993 decoded=1125120; at_most(3) encoded=92 decoded=147
 Items: ceilings encoded=987791 decoded=1006592; at_most(3) encoded=840 decoded=1368

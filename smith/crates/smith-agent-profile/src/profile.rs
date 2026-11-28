@@ -300,6 +300,7 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     bodies.directory_conflicts = run.conflicts;
     bodies.directory_conflicts_item = run.conflict_path_bytes;
     bodies.workspace_directories = run.directories;
+    bodies.guides_guides = run.directories;
     bodies.host_reply_text = run.host_reply_bytes;
     bodies.message_text = run.message_bytes;
     bodies.start_charter = u32::try_from(charter.min(u64::from(bodies.start_charter)))

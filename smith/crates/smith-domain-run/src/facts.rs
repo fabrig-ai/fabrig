@@ -13,6 +13,7 @@
 //! to the run without a request (a conversation ending, a call made, checks
 //! or a delivery ending) are told where they happen.
 
+use alloc::boxed::Box;
 use skein_lib::{Duration, Queue, Slab, Time, Token};
 
 use crate::budget::{Granted, Share, Stage};
@@ -27,6 +28,41 @@ pub struct Fact {
     /// Emission time, preserved when parents drain this observation later.
     pub at: Time,
     pub kind: FactKind,
+}
+
+impl Fact {
+    /// Whether the observation is the authoritative preparation report.
+    #[must_use]
+    pub const fn is_prepared(&self) -> bool {
+        match &self.kind {
+            FactKind::Prepared { .. } => true,
+            FactKind::MessageRead { .. }
+            | FactKind::MessageFence { .. }
+            | FactKind::MessageUnread { .. }
+            | FactKind::MessageReceived { .. }
+            | FactKind::MessageRefused { .. }
+            | FactKind::Admitted { .. }
+            | FactKind::Opened { .. }
+            | FactKind::Budget { .. }
+            | FactKind::Ended { .. }
+            | FactKind::Called { .. }
+            | FactKind::Returned { .. }
+            | FactKind::CheckStarted { .. }
+            | FactKind::CheckFinished { .. }
+            | FactKind::Delivered { .. }
+            | FactKind::Answered { .. } => false,
+        }
+    }
+}
+
+/// What a run read of a workspace guide; its text stays in the run.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Guide {
+    pub directory: u32,
+    pub path: Box<[u8]>,
+    pub digest: [u8; 32],
+    pub bytes: u32,
+    pub whole: bool,
 }
 
 /// Something that happened in the run `run` (the run's token for it, as
@@ -45,12 +81,11 @@ pub enum FactKind {
     MessageRefused { run: Token, name: Token, bytes: u64, reason: crate::MessageRefusal },
     /// The run was admitted.
     Admitted { run: Token, resumed: bool },
-    /// It looked in its workspace, and found `guides` guides and `checks`
-    /// repositories with checks.
+    /// It read its workspace's guides and found `checks` repositories with checks.
     Prepared {
         run: Token,
-        /// Number of repository guides retained during preparation.
-        guides: u32,
+        /// Guides read during preparation, in workspace order.
+        guides: Box<[Guide]>,
         /// Number of prepared repository check executables.
         checks: u32,
     },

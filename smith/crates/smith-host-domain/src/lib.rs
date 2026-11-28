@@ -83,3 +83,4 @@ pub use values::{Charter, Declared, Fields, Transcript, TurnValue};
 
 // The common face uses the root vocabulary for bounded work.
 pub use smith_domain::Operation;
+pub use smith_domain::run::facts::Guide;

@@ -19,6 +19,7 @@ mod checkpoints;
 mod dismiss;
 mod documents;
 mod forge_route;
+mod guides;
 mod history;
 mod looked;
 mod project_charters;

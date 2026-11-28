@@ -704,6 +704,7 @@ fn parent_client(request: &parent::Request) -> Token {
         | parent::Request::Usage { client, .. }
         | parent::Request::Limited { client, .. }
         | parent::Request::Told { client, .. }
+        | parent::Request::Prepared { client, .. }
         | parent::Request::Answered { client, .. }
         | parent::Request::Faulted { client, .. }
         | parent::Request::MessageRefused { client, .. }

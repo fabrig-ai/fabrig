@@ -589,3 +589,47 @@ fn repeated(part: &[u8], count: usize) -> Box<[u8]> {
     }
     out.finish()
 }
+
+#[test]
+fn guides_use_the_prepared_head_and_replay_immediately_before_the_answer() {
+    let mut items = fixtures::items(&[b"shop", b"reference"]);
+    items.repositories[0].qualified = Some("acme/shop".into());
+    items.repositories[0].start = wire::Start::Merged { branch: b"main".as_slice().into(), heads: Box::new([[3; 32]]) };
+    let mut h = Harness::new();
+    h.env.limits.checkout.conflicts = 2;
+    h.env.limits.checkout.path_bytes = 16;
+    let mut h = prepared_with(h, items);
+    let guide =
+        agent::Guide { directory: 0, path: b"AGENTS.md".as_slice().into(), digest: [23; 32], bytes: 3201, whole: true };
+    let rows = h.say(agent::Up::Prepared { guides: Box::new([guide]) });
+    let (owner, guides) = super::lifecycle::encoded_guides(&rows);
+    assert_eq!(
+        guides,
+        &[wire::Guide {
+            repository: "acme/shop".into(),
+            commit: [2; 32],
+            path: "AGENTS.md".into(),
+            digest: [23; 32],
+            bytes: 3201,
+            whole: true,
+        }]
+    );
+    // The protocol is below this test; the hub keeps the returned opaque bytes.
+    let report = b"encoded report".as_slice();
+    let rows = h.run(Event::EncodedGuides { owner, bytes: report.into() });
+    let guides =
+        Request::Link(host::LinkUp::Guides { run: fixtures::RUN, attempt: fixtures::ATTEMPT, bytes: report.into() });
+    assert!(!rows.contains(&guides), "reports wait for the answer");
+    h.run(Event::EncodedGuides { owner, bytes: b"second report".as_slice().into() });
+    h.say(fixtures::parked(0));
+    let terminal = h.gone();
+    let replay = h.run(Event::Ready);
+    for rows in [&terminal, &replay] {
+        let (report_at, answer_at) = super::lifecycle::guide_and_answer(rows);
+        assert_eq!(report_at, Some(answer_at - 1));
+        assert_eq!(rows[answer_at - 1], guides);
+    }
+    h.run(Event::Link(host::LinkDown::Acknowledge { run: fixtures::RUN, attempt: fixtures::ATTEMPT }));
+    assert!(h.domain.host().guides_at(0).is_none());
+    assert!(h.domain.host().answer_at(0).is_none());
+}

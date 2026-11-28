@@ -57,7 +57,8 @@ pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option
             let bytes = match &up {
                 host::LinkUp::Part { part, .. } => skein_lib::len_u64(part.body.len()),
                 host::LinkUp::Turn { turn, .. } => skein_lib::len_u64(turn.body.len()),
-                host::LinkUp::Paused { .. }
+                host::LinkUp::Guides { .. }
+                | host::LinkUp::Paused { .. }
                 | host::LinkUp::Ask { .. }
                 | host::LinkUp::Draining
                 | host::LinkUp::Usage { .. }
@@ -103,6 +104,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
         } => true,
         WorkerInput::Admit { .. }
         | WorkerInput::CheckResults { .. }
+        | WorkerInput::Guides { .. }
         | WorkerInput::Asked { .. }
         | WorkerInput::Opened { .. }
         | WorkerInput::ResultRead { .. }
@@ -124,6 +126,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                         | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Guides { .. }
                         | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. },
                     ..

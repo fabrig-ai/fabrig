@@ -392,6 +392,8 @@ pub enum WorkerInput {
     Admit { asking: crate::wire::Asking, tag: u64, branch: Box<[u8]>, expected: Option<[u8; 32]>, commit: [u8; 32] },
     /// A decoded check report from a fenced worker ask (domain/forge/reds.md, 5.6).
     CheckResults { run: Token, attempt: Token, results: crate::wire::CheckResults },
+    /// A worker's prepared guide report, preceding its retained answer.
+    Guides { channel: Token, run: Token, attempt: Token, guides: Box<[jig_domain_tasks::Guide]> },
     /// The protocol encoded the root's application answer, sent through the fleet's fence.
     Asked { channel: Token, run: Token, attempt: Token, number: u64, answer: jig_domain_link::AskAnswer },
     /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 10.1).

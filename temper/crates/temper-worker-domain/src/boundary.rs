@@ -63,6 +63,11 @@ use temper_worker_domain_tooling as tooling;
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "an assignment crosses whole, as jig's reference root takes it")]
 pub enum Event {
+    /// Application guide report encoded by the service for the hub.
+    EncodedGuides {
+        owner: Token,
+        bytes: Box<[u8]>,
+    },
     /// Encoded application ask, fenced by its cookie.
     RedsAsk {
         owner: Token,
@@ -194,6 +199,11 @@ pub enum Git {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Encode the joined guide metadata for one prepared run.
+    EncodeGuides {
+        owner: Token,
+        guides: Box<[wire::Guide]>,
+    },
     /// A link pause changed; the service writes its operator line.
     Paused {
         state: jig_domain_link::PauseState,

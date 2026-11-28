@@ -44,6 +44,8 @@ pub enum Body {
     Usage(v14::Usage),
     /// The `Fact` wire body.
     Fact(v14::Fact),
+    /// The preparation report.
+    Guides(v14::Guides),
     /// The `Answer` wire body.
     Answer(v14::Answer),
     /// The `MessageRefused` wire body.
@@ -88,6 +90,7 @@ pub fn frame(body: Body) -> Result<Frame, FrameError> {
         Body::Limited(record) => (kind::LIMITED, record.measure(&v14::CEILINGS).or(Err(FrameError::TooLarge))?),
         Body::Usage(record) => (kind::USAGE, record.measure(&v14::CEILINGS).or(Err(FrameError::TooLarge))?),
         Body::Fact(record) => (kind::FACT, record.measure(&v14::CEILINGS).or(Err(FrameError::TooLarge))?),
+        Body::Guides(record) => (kind::GUIDES, record.measure(&v14::CEILINGS).or(Err(FrameError::TooLarge))?),
         Body::Answer(record) => (kind::ANSWER, record.measure(&v14::CEILINGS).or(Err(FrameError::TooLarge))?),
         Body::MessageRefused(record) => {
             (kind::MESSAGE_REFUSED, record.measure(&v14::CEILINGS).or(Err(FrameError::TooLarge))?)
@@ -121,6 +124,7 @@ pub fn frame(body: Body) -> Result<Frame, FrameError> {
         Body::Limited(record) => record.write(&v14::CEILINGS, &mut writer),
         Body::Usage(record) => record.write(&v14::CEILINGS, &mut writer),
         Body::Fact(record) => record.write(&v14::CEILINGS, &mut writer),
+        Body::Guides(record) => record.write(&v14::CEILINGS, &mut writer),
         Body::Answer(record) => record.write(&v14::CEILINGS, &mut writer),
         Body::MessageRefused(record) => record.write(&v14::CEILINGS, &mut writer),
         Body::Signalled(record) => record.write(&v14::CEILINGS, &mut writer),

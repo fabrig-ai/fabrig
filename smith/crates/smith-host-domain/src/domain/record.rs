@@ -21,6 +21,7 @@ pub(super) fn too_large(message: &Up, limits: &Limits) -> bool {
             RunResult::Refused { .. } | RunResult::Parked | RunResult::Failed { .. } => false,
         },
         Up::Admitted
+        | Up::Prepared { .. }
         | Up::MessageRefused { .. }
         | Up::Withdraw { .. }
         | Up::Long { .. }
@@ -124,7 +125,7 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
                     None => false,
                 }
         }
-        Up::Fact { .. } => agent.word.admitted(),
+        Up::Fact { .. } | Up::Prepared { .. } => agent.word.admitted(),
         Up::Long { operation: _, span } => {
             agent.word.admitted() && *span <= limits.long_span && agent.long.open < limits.long_open
         }

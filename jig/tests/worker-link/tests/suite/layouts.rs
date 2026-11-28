@@ -605,11 +605,32 @@ fn optional_kinds_absent_from_the_worker_layout_are_not_sent() {
     let channel = world.channel();
     world.engine_event(engine::Event::PartBusy { channel, run: RUN, attempt: ATTEMPT, part: 1 });
     world.worker_up(Sample(7).part_notice(), Box::new([]));
+    world.worker_up(host::LinkUp::Guides { run: RUN, attempt: ATTEMPT, bytes: Box::new([0; 4]) }, Box::new([]));
     world.run();
     assert_eq!(world.engine_records(), []);
     assert_eq!(world.worker_records(), [Kind::Hello.number() + 1]);
     assert_eq!(heard(&world), []);
     assert!(world.engine_root.iter().all(|r| matches!(r, engine::Request::Hello { .. })));
+    let answer = host::LinkUp::Answer {
+        run: RUN,
+        attempt: ATTEMPT,
+        answer: host::RunAnswer {
+            read: None,
+            refused: Box::new([]),
+            turns: 0,
+            spent: 0,
+            ending: host::Ending::Parked { work: host::Work { left: None, saved: None } },
+        },
+    };
+    world.worker_up(answer, Box::new([]));
+    world.run();
+    let heard = heard(&world);
+    let [(host::LinkUp::Answer { run, attempt, answer }, parts)] = heard.as_slice() else {
+        panic!("an older engine hears just the answer: {heard:?}");
+    };
+    assert_eq!((*run, *attempt), (RUN, ATTEMPT));
+    assert_eq!(answer.ending, host::Ending::Parked { work: host::Work { left: None, saved: None } });
+    assert_eq!(*parts, []);
     world.finish();
 }
 

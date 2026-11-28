@@ -213,6 +213,7 @@ impl Timing {
                 | host::Up::Call { .. }
                 | host::Up::Withdraw { .. }
                 | host::Up::Fact { .. }
+                | host::Up::Prepared { .. }
                 | host::Up::Long { .. }
                 | host::Up::LongDone
                 | host::Up::Unauthorized { .. }

@@ -113,41 +113,6 @@ pub fn access_to_domain(record: temper_protocol_worker_wire::v1::Access) -> temp
 }
 
 #[must_use]
-pub fn repository_to_domain(record: temper_protocol_worker_wire::v1::Repository) -> temper_worker_domain::wire::Repository {
-    let temper_protocol_worker_wire::v1::Repository { tag: field_000000, name: field_000001, remote: field_000002, git: field_000003, start: field_000004, access: field_000005, identity: field_000006, account: field_000007, save: field_000008, admit: field_000009 } = record;
-    temper_worker_domain::wire::Repository {
-        tag: field_000000,
-        name: field_000001,
-        remote: field_000002,
-        git: match field_000003 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        },
-        start: start_to_domain(field_000004),
-        access: access_to_domain(field_000005),
-        identity: field_000006,
-        account: match field_000007 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        },
-        save: match field_000008 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        },
-        admit: field_000009
-    }
-}
-
-#[must_use]
 pub fn landed_to_record(value: &temper_worker_domain::wire::Landed) -> temper_protocol_worker_wire::v1::Landed {
     let temper_worker_domain::wire::Landed { tag: field_000000, commit: field_000001, checked: field_000002 } = value;
     temper_protocol_worker_wire::v1::Landed {

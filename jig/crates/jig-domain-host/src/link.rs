@@ -80,6 +80,12 @@ pub enum LinkDown {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkUp {
+    /// The application report preceding the matching retained answer.
+    Guides {
+        run: Token,
+        attempt: Token,
+        bytes: Box<[u8]>,
+    },
     /// The worker's pause state (jig/docs/design/protocol/channel/pause.md, 2).
     Paused {
         state: jig_domain_link::PauseState,
@@ -196,6 +202,7 @@ impl LinkUp {
             | Self::AccountRefused { .. }
             | Self::Part { .. }
             | Self::Turn { .. }
+            | Self::Guides { .. }
             | Self::Answer { .. } => false,
         }
     }

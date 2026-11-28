@@ -143,6 +143,7 @@ impl Driver {
                     | Request::ResultsIgnored { .. }
                     | Request::RedsAsk { .. }
                     | Request::RedsAnswer { .. }
+                    | Request::EncodeGuides { .. }
                     | Request::AdmitAsk { .. }
                     | Request::AdmitAnswer { .. }
                     | Request::SourceFault

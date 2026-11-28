@@ -1181,6 +1181,7 @@ fn worker_record(kind: jig_protocol_worker_wire::Kind) -> &'static str {
         Kind::Paused => "paused",
         Kind::Restarting => "restarting",
         Kind::Asked => "asked",
+        Kind::Guides => "guides",
     }
 }
 

@@ -162,6 +162,13 @@ pub fn smallest_resumed(calls: u32, name: u32, tool: u32, answer: u32) -> Option
     u32::try_from(bytes).ok()
 }
 
+/// The optional guide report uses the same shape as an application ask answer,
+/// not its configured byte limit (protocol/channel/records.md, 1).
+#[must_use]
+pub fn guides(limits: &v22::Limits) -> v22::Limits {
+    v22::Limits { ask_bytes_bytes: 65_536, ..*limits }
+}
+
 pub(crate) fn body(limits: &v22::Limits, kind: Kind) -> Option<u32> {
     let bytes = match kind {
         Kind::Ask => v22::Ask::encoded_bound(limits),
@@ -173,6 +180,7 @@ pub(crate) fn body(limits: &v22::Limits, kind: Kind) -> Option<u32> {
         Kind::Draining => v22::Draining::encoded_bound(limits),
         Kind::Hello => v22::Hello::encoded_bound(limits),
         Kind::Part => v22::Part::encoded_bound(limits),
+        Kind::Guides => v22::Guides::encoded_bound(&guides(limits)),
         Kind::PartKept => v22::PartKept::encoded_bound(limits),
         Kind::PartBusy => v22::PartBusy::encoded_bound(limits),
         Kind::Turn => v22::Turn::encoded_bound(limits),

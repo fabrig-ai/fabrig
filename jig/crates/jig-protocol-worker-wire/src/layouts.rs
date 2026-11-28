@@ -44,7 +44,12 @@ impl Nested {
             Self::Turn => true,
             Self::Carried(carried) => match carried {
                 Carried::Items | Carried::JobSpec | Carried::Grant | Carried::Answer => down,
-                Carried::Left | Carried::Saved | Carried::Preparation | Carried::JobResult | Carried::Ask => !down,
+                Carried::Left
+                | Carried::Saved
+                | Carried::Preparation
+                | Carried::Guides
+                | Carried::JobResult
+                | Carried::Ask => !down,
             },
         }
     }
@@ -61,6 +66,7 @@ impl Nested {
                     Carried::Left => "Left",
                     Carried::Saved => "Saved",
                     Carried::Preparation => "Preparation",
+                    Carried::Guides => "Guides",
                     Carried::JobSpec => "JobSpec",
                     Carried::JobResult => "JobResult",
                     Carried::Grant => "Grant",

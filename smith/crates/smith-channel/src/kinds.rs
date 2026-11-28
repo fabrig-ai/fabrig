@@ -42,6 +42,7 @@ enum Body {
     Limited,
     Usage,
     Fact,
+    Guides,
     Answer,
     Live,
     AccountRefused,
@@ -59,7 +60,7 @@ pub enum Overflow {
     Frame,
 }
 
-/// The 26 kinds required by channel version fourteen, in wire number order.
+/// The kinds required by channel version fourteen, in wire number order.
 pub const V14: &[KindRule] = &[
     KindRule { kind: kind::START, direction: Direction::FromInitiator, required: true, body: Body::Start },
     KindRule { kind: kind::MESSAGE, direction: Direction::FromInitiator, required: true, body: Body::Message },
@@ -107,11 +108,12 @@ pub const V14: &[KindRule] = &[
     KindRule { kind: kind::SIGNALLED, direction: Direction::FromResponder, required: true, body: Body::Signalled },
     KindRule { kind: kind::PART, direction: Direction::FromResponder, required: true, body: Body::Part },
     KindRule { kind: kind::PART_KEPT, direction: Direction::FromInitiator, required: true, body: Body::PartKept },
+    KindRule { kind: kind::GUIDES, direction: Direction::FromResponder, required: true, body: Body::Guides },
 ];
 
 /// Build the version-fourteen channel schema from receiving codec limits.
 pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
-    let mut kinds = List::with_capacity(26);
+    let mut kinds = List::with_capacity(u32::try_from(V14.len()).expect("bounded kind table"));
     for rule in V14 {
         let largest = match rule.body {
             Body::Start => v14::Start::encoded_bound(limits),
@@ -134,6 +136,7 @@ pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
             Body::Limited => v14::Limited::encoded_bound(limits),
             Body::Usage => v14::Usage::encoded_bound(limits),
             Body::Fact => v14::Fact::encoded_bound(limits),
+            Body::Guides => v14::Guides::encoded_bound(limits),
             Body::Answer => v14::Answer::encoded_bound(limits),
             Body::AccountRefused => v14::AccountRefused::encoded_bound(limits),
             Body::Signalled => v14::Signalled::encoded_bound(limits),
@@ -145,7 +148,7 @@ pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
         let Ok(largest) = u32::try_from(largest) else {
             return Err(Overflow::Frame);
         };
-        kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V14 has exactly 26 kinds");
+        kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("room for each kind");
     }
     Ok(Schema { magic: *b"smth", version: kind::VERSION, kinds })
 }

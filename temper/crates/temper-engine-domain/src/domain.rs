@@ -328,7 +328,11 @@ impl Domain {
     /// The run channel admitted at this worker's configured position.
     #[must_use]
     pub fn worker_channel(&self, position: u32) -> Option<Token> {
-        self.engine.core().fleet.worker_channel(position)
+        self.worker_fleet().worker_channel(position)
+    }
+
+    pub(crate) fn worker_fleet(&self) -> &jig_domain_fleet::Domain {
+        &self.engine.core().fleet
     }
 
     /// Tasks whose prepared assignment has not yet been handed to a worker.

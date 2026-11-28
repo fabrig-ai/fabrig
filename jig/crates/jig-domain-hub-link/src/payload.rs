@@ -44,6 +44,8 @@ pub enum Ending {
 #[must_use]
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
+        // The owning application receives its own report, not the core's link.
+        host::LinkUp::Guides { .. } => return None,
         host::LinkUp::Part { run, attempt, part } => part_event(domain, channel, run, attempt, part),
         host::LinkUp::Ask { run, attempt, number, bytes } => fleet::Event::Ask { channel, run, attempt, number, bytes },
         // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too builds this route.

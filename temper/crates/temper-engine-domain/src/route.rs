@@ -388,6 +388,15 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Worker(crate::WorkerInput::Guides { channel, run, attempt, guides }) => {
+            if domain.worker_fleet().owns_attempt(channel, run, attempt) {
+                domain.work.push(Work::Core(core::Event::RunGuides {
+                    task: run.raw(),
+                    attempt: attempt.raw(),
+                    guides,
+                }));
+            }
+        }
         Event::Worker(crate::WorkerInput::CheckResults { run, attempt, results }) => {
             domain.work.push(Work::CheckResults { task: run.raw(), attempt: attempt.raw(), results });
         }
