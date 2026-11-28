@@ -485,7 +485,7 @@ def words_in(event):
 
 JOB_START = re.compile(r'Started as job ([0-9]{1,20})(?=;|\s|$)', re.IGNORECASE)
 JOB_END = ('exited', 'exit_nonzero', 'signalled', 'command_timed_out', 'stopped', 'cancelled')
-JIG_ANSWERS = {'read_task': 'read', 'message': 'sent', 'subscribe': 'subscribed', 'mark_read': 'marked'}
+KIT_TOOL_ANSWERS = {'read_task': 'read', 'message': 'sent', 'subscribe': 'subscribed', 'mark_read': 'marked'}
 PATH_TOOLS = {'read', 'list', 'search', 'write', 'edit', 'remove'}
 
 
@@ -577,8 +577,8 @@ def shape_call(call, args, history, attempt, at, tasks, vocabulary):
         tool = 'delegated'
     if answer is None:
         answer = 'unanswered'
-    elif answer == 'delegated' and tool in JIG_ANSWERS:
-        answer = JIG_ANSWERS[tool] if call.get('failed') is False else UNKNOWN
+    elif answer == 'delegated' and tool in KIT_TOOL_ANSWERS:
+        answer = KIT_TOOL_ANSWERS[tool] if call.get('failed') is False else UNKNOWN
     refs = tuple((name, vocabulary.word('class', history.classify(name, value, attempt, at, tasks)))
                  for name, value in references(tool, args))
     return vocabulary.word('tool', tool), vocabulary.word('answer', answer), refs
