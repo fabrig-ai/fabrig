@@ -216,6 +216,15 @@ files, and the judgement made of them, is
   each project with a home is read at the engine's first start.
 - **Kind 4** gains `temper_dir_sign_off`, an added field with its
   default, off (`AGENTS.md`, 2).
+- **The change's row** gains a reason of its `Repair`, the check's
+  fault with its bounded words, appended to the union, and the fields 4
+  keeps, each added with its default; the store's family keeps its
+  version and the plan its fingerprints derive converts a row
+  (`AGENTS.md`, 2). Only a covered change's fault writes the reason. An
+  older build refuses to open a store holding one, naming its value
+  type and count, before writing: going back past this build then takes
+  the previous generation, as a listing's link does
+  (`../../protocol/temper-dir.md`, 8).
 - **No wire moves:** nothing new crosses between the engine, its
   workers and their agents, and the clients' wire carries nothing new
   (8).
@@ -254,6 +263,10 @@ it says; a story crossing the root in temper's world.
 - **Seen by a person:** the revision and its refusal on the clients'
   wire and the pages, and the check and the sign-off on a change's
   panel, with the pages' pass (`../../draft/ways.md`, section 12).
+  Until then a change repairing on the check's fault shows on its panel
+  at `gating`, as one waiting for its gates: the clients' wire names no
+  repair's reason for it (`../../client/pages/task.md`, the change's
+  panel), and a wrong one (CI, a gate, a review) would mislead.
 - **The sign-off among a landing's kept sign-offs**
   (`change/gates.md`, 2).
 - **A rename out of `.temper/`:** both forges' comparisons give a
