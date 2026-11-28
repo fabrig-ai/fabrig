@@ -370,6 +370,7 @@ fn goal_issue(world: &mut World) -> Result<(), Violation> {
         && task.inbox.iter().any(|word| matches!(word.kind,tasks::MessageKind::News {class: tasks::NewsClass::Wakes,..})))),
         "human issue comments woke the projected goal")?;
     let milestone = engine::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         executor: tasks::Executor::Agent { charter: 1 },
         spec: tasks::Spec {
             job: None,

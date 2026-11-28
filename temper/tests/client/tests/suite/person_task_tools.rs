@@ -47,7 +47,7 @@ impl Ctl {
             status: printed.status,
             stdout: printed.stdout.clone(),
             stderr: printed.stderr.clone(),
-            file: printed.file,
+            file: printed.file.clone(),
         }
     }
     fn text(&mut self, words: &[&[u8]]) -> String {

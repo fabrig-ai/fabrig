@@ -100,7 +100,7 @@ fn refuse_flight(
     out: &mut Queue<Request>,
 ) {
     match flight {
-        Flight::Delegating { request, route: (key, _, _) } => {
+        Flight::Delegating { request, route: (key, _, _, _) } => {
             call_decision(core, out, ReplyTo::new(request), key, CallPart::DelegationRefused(problem));
         }
         Flight::Saying { request, .. } => {

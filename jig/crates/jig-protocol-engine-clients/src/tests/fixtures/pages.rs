@@ -75,6 +75,7 @@ pub fn history_page() -> reads::Page {
             at: None,
         }),
         reads::PageRow::Attempt(d::AttemptLine {
+            sources: None,
             task: 7,
             attempt: 2,
             claimed: Some(Wall::from_nanos(14)),

@@ -108,6 +108,7 @@ fn delegate_agent(world: &mut World, words: &[u8], spend: u64, tasks_left: u32, 
         to: ReplyTo::new(Token::new(9200 + spend)),
         key: world.call_key(1),
         batch: Box::new([core::Delegate {
+            charter_scope: tasks::CharterScope::Project,
             deadline: jig_domain_tasks::Deadline::Named,
             label: 0,
             flags: jig_domain_tasks::Flags::PLAIN,

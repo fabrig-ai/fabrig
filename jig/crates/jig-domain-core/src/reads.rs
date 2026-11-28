@@ -343,11 +343,19 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         return application(core, Destination::Read(reply), party, &read);
     }
     match read {
-        Read::Setting { setting, revision, proposal } => match proposal {
-            Some(proposal) if revision == 0 => settings::proposed_setting(core, reply, party, setting, proposal),
-            Some(_) => terminal(reply, Answer::None(Why::Malformed)),
-            None => settings::setting(core, reply, party, setting, revision),
-        },
+        Read::Setting { setting, revision, proposal, project } => {
+            if let Some(project) = project {
+                if revision != 0 || proposal.is_some() {
+                    return terminal(reply, Answer::None(Why::Malformed));
+                }
+                return terminal(reply, settings::project_setting(core, &env.limits, party, setting, project));
+            }
+            match proposal {
+                Some(proposal) if revision == 0 => settings::proposed_setting(core, reply, party, setting, proposal),
+                Some(_) => terminal(reply, Answer::None(Why::Malformed)),
+                None => settings::setting(core, reply, party, setting, revision),
+            }
+        }
         Read::Revision { number } => settings::revision(core, env, reply, sign_in, party, number),
         Read::Revisions { before } => settings::revisions(core, env, reply, sign_in, party, before),
         read @ (Read::Settings

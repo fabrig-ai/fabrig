@@ -445,7 +445,7 @@ fn read(root: &mut dyn Routing, env: &Env<Limits>, revision: u32) {
     open.pending = None;
     open.reading = Some((handle, revision));
     open.failure = None;
-    let read = c::ReadSetting { setting: setting(open.project), revision, proposal: None };
+    let read = c::ReadSetting { project: None, setting: setting(open.project), revision, proposal: None };
     root.request(
         env,
         crate::pages::Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(c::Read::Setting(read)) }),

@@ -69,11 +69,19 @@ settings show model|worker|provider NUMBER [--revision REVISION]
   model|worker|provider (kind): one of model, worker or provider; required. The setting's kind
   NUMBER (number): a number from 0 to 4294967295; required. The setting's number
   --revision REVISION: a number from 0 to 4294967295; optional. Its value at this revision; the newest when absent
+settings show charter NUMBER [--reason REASON] --project PROJECT
+  charter (kind): one of charter; required. A charter as a new project task would run by it
+  NUMBER (number): a name or number from 0 to 4294967295; required. The charter's name or number
+  --reason REASON: one of first, question, question_answered, question_ended, question_owed, escalation, proposal, person_stalled, result, notice, nothing_awaited, news, timer or words; optional. Only parts read on this reason; every part when absent
+  --project PROJECT: a project's name or number; required. Preview for this project, at the newest revision
 Read one setting's value whole
 Prints: `KIND N, revision R`, or `rules, revision R`, then the whole value; project classes in words; temper's settings also show their state
 --json: the record setting.
 Key: none.
 The JSON value is what a settings file's `set` takes.
+With --project, preview a charter's instructions and parts by source.
+--json prints the whole read, regardless of --reason.
+--revision cannot be used with --project on a charter.
 ```
 
 ## settings apply

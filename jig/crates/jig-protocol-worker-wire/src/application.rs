@@ -13,6 +13,7 @@ pub enum Carried {
     Left,
     Saved,
     Preparation,
+    Guides,
     JobSpec,
     JobResult,
     Grant,

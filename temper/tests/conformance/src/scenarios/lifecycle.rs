@@ -54,6 +54,7 @@ fn delegate(world: &mut World) {
     authority.budget.spend = 10;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let batch = [b"moved delegate".as_slice(), b"cancelled delegate".as_slice()].map(|words| core::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         executor: tasks::Executor::Agent { charter: 1 },
         spec: tasks::Spec {
             job: None,

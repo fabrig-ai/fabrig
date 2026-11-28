@@ -21,6 +21,7 @@ does with all of it is ../root.md. The mechanics are those of skein's
 - [`settings-proposals.md`](settings-proposals.md): proposing settings and deciding a proposal.
 - [`settings-store.md`](settings-store.md): how settings are kept and loaded at startup.
 - [`settings-catalogue.md`](settings-catalogue.md): the model catalogue and a provider's list.
+- [`project-charters.md`](project-charters.md): a project's own charters, held by revision and bound by name.
 
 ## 1. In one page
 

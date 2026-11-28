@@ -388,6 +388,15 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Worker(crate::WorkerInput::Guides { channel, run, attempt, guides }) => {
+            if domain.worker_fleet().owns_attempt(channel, run, attempt) {
+                domain.work.push(Work::Core(core::Event::RunGuides {
+                    task: run.raw(),
+                    attempt: attempt.raw(),
+                    guides,
+                }));
+            }
+        }
         Event::Worker(crate::WorkerInput::CheckResults { run, attempt, results }) => {
             domain.work.push(Work::CheckResults { task: run.raw(), attempt: attempt.raw(), results });
         }
@@ -496,6 +505,14 @@ fn route_engine_with_job(
                 save(decision, &env.limits, Write::Wires);
             }
             core::Request::Write(core::Write::Save(record)) => {
+                if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
+                    history: false,
+                    revision,
+                })) = &record
+                    && revision.head.number == domain.settings_revision()
+                {
+                    domain.give_deployment_charters();
+                }
                 if let core::Record::Core(core::CoreRecord::Part(part)) = &record {
                     domain.hold_bytes(skein_lib::len_u64(part.body.len()));
                 }
@@ -574,7 +591,9 @@ fn engine_output(
         Out::Core(request) => return Some(request),
         Out::Write(write) => return Some(core::Request::Write(write)),
         Out::Now(Peer::Application(report)) => start_report::record(domain, env, report),
-        Out::Held(Peer::Resume(resume)) => emit(decision, &env.limits, Delivery::Resume(resume)),
+        Out::Held(Peer::Resume(resume)) => {
+            emit(decision, &env.limits, Delivery::Resume(crate::StartResume::Core(resume)));
+        }
         Out::Now(Peer::Store(_) | Peer::Connector(..) | Peer::Resume(_)) | Out::Held(Peer::Application(_)) => {
             unreachable!("engine port marks determine their delivery")
         }

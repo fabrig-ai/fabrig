@@ -76,6 +76,7 @@ fn delegate(core: &Core) -> Delegate {
     let mut member = new_row(core, 2, tasks::Funder::Task(1), None);
     member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         executor: member.executor,
         spec: member.spec,
         contract: member.contract,

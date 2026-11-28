@@ -294,6 +294,7 @@ fn delegate(world: &mut World, count: usize) -> Result<(), Violation> {
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let batch = (0..count)
         .map(|_| core::Delegate {
+            charter_scope: tasks::CharterScope::Project,
             deadline: tasks::Deadline::Named,
             label: 0,
             flags: tasks::Flags::PLAIN,
@@ -841,6 +842,7 @@ fn standing(world: &mut World) {
             key: 1,
             overlap: tasks::RecurringOverlap::Skip,
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 deadline: tasks::Deadline::Named,
                 label: 0,
                 flags: tasks::Flags::PLAIN,

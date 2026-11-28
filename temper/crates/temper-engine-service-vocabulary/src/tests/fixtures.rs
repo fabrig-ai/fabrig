@@ -39,6 +39,7 @@ pub fn engine() -> settings::Engine {
     let root = limits::engine(&jig.limits, &own).unwrap();
     let connector = *jig.connectors.first().unwrap();
     settings::Engine {
+        build: "",
         store_limits: None,
         kinds: crate::stock::kinds(&root, connector),
         period_span: crate::stock::PERIOD_SPAN,
@@ -214,6 +215,8 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         suspended: 0,
         restarted: false,
         settings: tasks::SettingsRevision { task: 1, run: None },
+        charters: 0,
+        scope: None,
         added: Box::new([]),
         hold_bound_since: None,
         label: 0,

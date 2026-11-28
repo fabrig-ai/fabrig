@@ -331,6 +331,7 @@ impl Parent {
             Request::Up(
                 LinkUp::ListRead { .. }
                 // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Guides { .. }
                 | LinkUp::Paused { .. }
                 | LinkUp::UsageRead { .. }
                 | LinkUp::Draining

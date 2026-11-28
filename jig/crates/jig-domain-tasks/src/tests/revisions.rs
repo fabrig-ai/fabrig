@@ -98,6 +98,7 @@ fn authority() -> Authority {
 #[must_use]
 pub(super) fn task(number: u64, dependencies: &[u64]) -> New {
     New {
+        charter_scope: crate::CharterScope::Project,
         deadline: crate::Deadline::Named,
         label: 0,
         flags: crate::Flags::PLAIN,
@@ -130,8 +131,13 @@ pub(super) fn to() -> ReplyTo {
 
 impl Harness {
     pub(super) fn new() -> Self {
+        Self::with_charter_capacity(1)
+    }
+
+    fn with_charter_capacity(projects: u32) -> Self {
         let mut test = Self {
-            domain: Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0])),
+            domain: Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]))
+                .with_project_charter_capacity(projects),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS },
             stored: BTreeMap::new(),
         };
@@ -506,6 +512,7 @@ fn activity_keeps_whole_words_after_a_committed_turn_takes_them() {
     write(&mut test, 1, 1);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -690,6 +697,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     test.make(vec![task(1, &[])]);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -748,6 +756,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     assert_eq!(test.domain.task(1).unwrap().due_reason, crate::Why::Released);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -1004,6 +1013,7 @@ fn lifecycle_wall_times_keep_the_first_start_through_duplicate_reports_holds_and
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.env.wall = Wall::from_nanos(7);
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -1047,6 +1057,7 @@ fn retry_observations_distinguish_attempt_failures_from_preparation_refusals_and
     h.make(vec![task(1, &[]), task(2, &[])]);
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -1126,6 +1137,7 @@ fn settings_charters(test: &mut Harness, newest: u32, rows: &[(u32, u32, Option<
 
 fn settings_claim(test: &mut Harness, number: u64) -> Vec<Request> {
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -1931,4 +1943,32 @@ fn a_proposal_s_lines_name_it_and_say_its_making() {
             "{change:?}"
         );
     }
+}
+
+#[test]
+fn a_bound_creation_checks_and_records_the_effective_executor_without_changing_its_request() {
+    let mut test = Harness::with_charter_capacity(1);
+    test.domain.set_project_charters(1, 7);
+    let mut asked = task(10, &[]);
+    asked.executor = Executor::Agent { charter: 2 };
+    let mut out = Queue::uncapped();
+    crate::step_with_charters(
+        &mut test.domain,
+        &test.env,
+        Event::Make {
+            reads_project: false,
+            maker: None,
+            places: Box::new([]),
+            reply_to: to(),
+            creator: Party::Person(9),
+            batch: Box::new([asked.clone()]),
+        },
+        &[Some(crate::CharterBinding { charter: 1, scope: b"implementer".as_slice().into() })],
+        &mut out,
+    );
+    let row = test.domain.task(10).expect("only the effective charter is offered");
+    assert_eq!(row.executor, Executor::Agent { charter: 1 });
+    assert_eq!(row.scope.as_deref(), Some(b"implementer".as_slice()));
+    assert_eq!(row.charters, 7);
+    assert_eq!(asked.executor, Executor::Agent { charter: 2 });
 }

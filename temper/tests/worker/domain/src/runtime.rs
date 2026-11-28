@@ -337,6 +337,7 @@ impl World {
             Request::JobAnswer { .. }
             | Request::Job { .. }
             | Request::CancelRelay { .. }
+            | Request::EncodeGuides { .. }
             | Request::CancelIo { .. } => panic!("unscripted output"),
         }
         Ok(())
@@ -534,6 +535,7 @@ impl World {
 
     fn assign(&mut self) -> Result<(), String> {
         let repository = wire::Repository {
+            qualified: None,
             admit: false,
             save: Some(Box::from(&b"saved"[..])),
             git: None,

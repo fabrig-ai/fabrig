@@ -76,6 +76,24 @@ impl Found {
     }
 }
 
+/// Describe the exact prefixes kept for the prompt without copying their text.
+pub(crate) fn report(found: &Found, charter: &Charter) -> Box<[crate::facts::Guide]> {
+    let path = conventions::guide(charter);
+    let mut guides = List::with_capacity(found.guides.len());
+    for guide in &found.guides {
+        guides
+            .push(crate::facts::Guide {
+                directory: guide.directory,
+                path: copy_of(path),
+                digest: skein_lib::sha256::digest(&guide.text),
+                bytes: count(guide.text.len()),
+                whole: guide.whole,
+            })
+            .expect("one report per guide read");
+    }
+    guides.into_boxed()
+}
+
 /// The first step, or the step after `after`, or `None` once there is
 /// nothing left to look for.
 pub(crate) fn next(charter: &Charter, mounted: Option<&Workspace>, after: Option<Step>) -> Option<Step> {

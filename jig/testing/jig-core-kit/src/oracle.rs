@@ -33,6 +33,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
 
             deployment: core.deployment,
             seed: core.seed,
+            build: core.build.clone(),
             workers_in_process: core.workers_in_process,
             hub_turns: core.hub_turns,
             owners: core.owners.clone(),

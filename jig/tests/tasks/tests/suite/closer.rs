@@ -77,7 +77,7 @@ fn a_delegates_closer_must_be_named_by_its_own_delegation() {
     let mut member = fixtures::member(&world, Executor::Agent { charter: 1 }, b"close");
     member.flags.ended_by = EndedBy::Closer(tasks::Closer { connector: 1, code: 6 });
     let key = world.call_key(1);
-    let limits = world.env().limits.core.tasks;
+    let limits = world.env().limits.core;
     let findings = Box::new([jig_domain_authority::Finding::Executor { source: jig_domain_authority::Source::Task }]);
     assert_eq!(
         world.domain.core_mut().delegate_preflight(&limits, key, &[member.clone()], skein_lib::Wall::EPOCH),

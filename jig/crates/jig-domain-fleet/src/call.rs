@@ -221,9 +221,8 @@ pub(crate) fn credential_notice(
     }
 }
 
-/// An application ask can also belong to a job. It must still name a live
-/// claim on the channel where the fleet placed it.
-fn owns_ask(domain: &Domain, channel: Token, run: Token, attempt: Token) -> bool {
+/// An application payload must name a live claim on its own channel.
+pub(crate) fn owns_attempt(domain: &Domain, channel: Token, run: Token, attempt: Token) -> bool {
     let Some(&id) = domain.names.get(&(run, attempt)) else { return false };
     let Some(entry) = domain.attempts.get(id) else { return false };
     placed(domain, entry) == Live::On(channel)
@@ -239,7 +238,7 @@ pub(crate) fn ask(
     bytes: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
-    if owns_ask(domain, channel, run, attempt) {
+    if owns_attempt(domain, channel, run, attempt) {
         out.push(Request::Ask { channel, run, attempt, number, bytes });
     } else {
         out.push(Request::Asked { channel, run, attempt, number, answer: jig_domain_link::AskAnswer::Refused });
@@ -255,7 +254,7 @@ pub(crate) fn asked(
     answer: jig_domain_link::AskAnswer,
     out: &mut Queue<Request>,
 ) {
-    if owns_ask(domain, channel, run, attempt) {
+    if owns_attempt(domain, channel, run, attempt) {
         out.push(Request::Asked { channel, run, attempt, number, answer });
     }
 }

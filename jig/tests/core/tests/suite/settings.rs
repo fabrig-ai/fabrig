@@ -865,7 +865,7 @@ fn a_setting_reads_whole_only_from_the_newest() {
     let reads::Answer::Setting(value) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Template(1), revision: 6, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Template(1), revision: 6, proposal: None },
     ) else {
         panic!("whole template")
     };
@@ -875,7 +875,12 @@ fn a_setting_reads_whole_only_from_the_newest() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(1), revision: 5, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(1),
+                revision: 5,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -883,7 +888,12 @@ fn a_setting_reads_whole_only_from_the_newest() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(999), revision: 6, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(999),
+                revision: 6,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -1017,7 +1027,12 @@ fn a_removed_setting_keeps_its_inventory_line_and_reads_unknown() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(2), revision: 1, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(2),
+                revision: 1,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -1238,7 +1253,7 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
     let reads::Answer::Setting(value) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 1, proposal: None },
     ) else {
         panic!("held charter")
     };
@@ -1250,7 +1265,12 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(1), revision: 1, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(1),
+                revision: 1,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -1306,7 +1326,7 @@ fn a_revision_leaves_memory_as_its_last_holder_ends() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1, proposal: None }
+            reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 1, proposal: None }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -2326,7 +2346,7 @@ fn a_checks_refusal_keeps_the_held_reserve_until_revision_advancement() {
     let reads::Answer::Setting(held) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 2, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 2, proposal: None },
     ) else {
         panic!("held charter")
     };
@@ -2461,7 +2481,7 @@ fn a_model_setting_survives_a_restart_and_reads_back_whole() {
     let reads::Answer::Setting(document) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Model(33), revision: 2, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Model(33), revision: 2, proposal: None },
     ) else {
         panic!("whole model setting")
     };
@@ -2536,7 +2556,7 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     let reads::Answer::Setting(document) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 2, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 2, proposal: None },
     ) else {
         panic!("held setting read")
     };
@@ -2546,7 +2566,7 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     let reads::Answer::Setting(current) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 3, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 3, proposal: None },
     ) else {
         panic!("current setting read")
     };

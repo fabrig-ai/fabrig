@@ -625,11 +625,16 @@ impl jig::render::Parts for Parts {
             Some(crate::milestone::print(reading, me, client, handle, limits, self))
         } else if reading.called.call.tool == jig::rows::GOAL_SHOW_AT {
             Some(crate::goal::print(reading, me, client, handle, limits, self))
+        } else if reading.called.call.tool == crate::charter::CHARTER_COPY_AT {
+            Some(crate::charter::print(reading, client, handle, limits))
         } else {
             None
         }
     }
 
+    fn file_setting(&self, call: &jig::call::Call) -> Option<jig::names::Kind> {
+        (call.tool == crate::charter::CHARTER_COPY_AT).then_some(jig::names::Kind::Charter)
+    }
     fn prepare_setting(&self, call: &mut jig::call::Call, me: Option<&jig_client::contract::Me>) -> bool {
         crate::settings::resolve_project(call, me)
     }
@@ -660,6 +665,9 @@ impl jig::render::Parts for Parts {
     }
     fn command_prefix(&self) -> &'static [u8] {
         b"temper ctl DIR "
+    }
+    fn project_charter_directory(&self) -> &'static [u8] {
+        b".temper/charters/"
     }
     fn failures_recovery(&self) -> &'static [u8] {
         b"the engine's log names each failure (temper help hold), then "

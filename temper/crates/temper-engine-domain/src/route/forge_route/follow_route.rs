@@ -514,6 +514,7 @@ fn person(
     append(&mut words, b"): ");
     append(&mut words, &question.words);
     Some(super::super::Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         executor: tasks::Executor::Person(tasks::PersonAddress::Person(owner)),
         spec: tasks::Spec {
             job: None,

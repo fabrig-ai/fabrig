@@ -1,4 +1,5 @@
 //! The tools available to this host (client/ctl/tools.md).
+pub use crate::charter::CHARTER_COPY_AT;
 use crate::jig::{
     argv::{self, Usage},
     call::{Call, Parsed},
@@ -46,6 +47,7 @@ pub const GROUPS: &[Group] = &[
     },
     Group { name: b"model", line: b"Models: read those your party may use" },
     Group { name: b"settings", line: b"The settings: read them, change them, or propose a change to their owners" },
+    Group { name: b"charter", line: b"Charters: copy a deployment charter's words into a project file" },
     Group { name: b"revision", line: b"Settings revisions: read one or the history, move running work to the newest" },
     Group { name: b"party", line: b"Parties: make a service and reissue its credential" },
     Group { name: b"project", line: b"Projects: make or delete one, read periods and pools, set spend and visibility" },
@@ -179,6 +181,8 @@ pub const TOOLS: &[&Tool] = &[
     &rows::WAITS,
     &rows::MEASURE,
     &rows::UPGRADE_SETTINGS,
+    &crate::charter::CHARTER_COPY,
+    &rows::TASK_RUNS,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;

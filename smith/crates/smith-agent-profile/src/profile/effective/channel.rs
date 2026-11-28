@@ -10,6 +10,7 @@ pub(super) fn transcript(inventory: &mut Inventory, limits: &smith_transcript::v
     transcript_counts(inventory, limits)
 }
 
+#[expect(clippy::too_many_lines, reason = "the channel inventory names every body bound")]
 pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) -> Option<()> {
     let smith_channel::Limits {
         directory_name,
@@ -19,6 +20,8 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
         directory_conflicts,
         directory_conflicts_item,
         workspace_directories,
+        guide_path,
+        guides_guides,
         credential_value_bytes,
         program_value_name,
         account_refused_code,
@@ -71,6 +74,8 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     inventory.value("directory_conflicts", Value::Count(u64::from(directory_conflicts)))?;
     inventory.value("directory_conflicts_item", Value::Bytes(u64::from(directory_conflicts_item)))?;
     inventory.value("workspace_directories", Value::Count(u64::from(workspace_directories)))?;
+    inventory.value("guide_path", Value::Bytes(u64::from(guide_path)))?;
+    inventory.value("guides_guides", Value::Count(u64::from(guides_guides)))?;
     inventory.value("credential_value_bytes", Value::Bytes(u64::from(credential_value_bytes)))?;
     inventory.value("program_value_name", Value::Bytes(u64::from(program_value_name)))?;
     inventory.value("account_refused_code", Value::Bytes(u64::from(account_refused_code)))?;

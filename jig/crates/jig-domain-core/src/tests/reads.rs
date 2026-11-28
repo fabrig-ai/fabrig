@@ -15,4 +15,5 @@ mod closed;
 mod proposal_facts;
 
 mod person;
+mod project_charter;
 mod summaries;

@@ -17,15 +17,15 @@ pub(super) fn read_suspension(source: Option<wire::Suspension>) -> Option<domain
     }
 }
 
-pub(super) fn open(row: Option<&domain::OpenAttempt>) -> Option<wire::OpenAttempt> {
+pub(super) fn open(row: Option<&domain::OpenAttempt>) -> Result<Option<wire::OpenAttempt>, wire::Problem> {
     match row {
-        Some(value) => Some(mapped::open_attempt_to_record(value)),
-        None => None,
+        Some(value) => Ok(Some(mapped::open_attempt_to_record(value)?)),
+        None => Ok(None),
     }
 }
-pub(super) fn read_open(row: Option<wire::OpenAttempt>) -> Option<domain::OpenAttempt> {
+pub(super) fn read_open(row: Option<wire::OpenAttempt>) -> Result<Option<domain::OpenAttempt>, wire::Problem> {
     match row {
-        Some(value) => Some(mapped::open_attempt_to_domain(value)),
-        None => None,
+        Some(value) => Ok(Some(mapped::open_attempt_to_domain(value)?)),
+        None => Ok(None),
     }
 }

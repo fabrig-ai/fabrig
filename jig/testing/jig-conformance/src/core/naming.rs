@@ -27,6 +27,7 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             core::CoreKey::ProposalDecision { proposer, .. } => name.task = proposer_task(*proposer),
             core::CoreKey::Settings(key) => match key {
                 core::settings::Key::Proposal { proposer, .. } => name.task = proposer_task(*proposer),
+                core::settings::Key::ProjectCharters { project, .. } => name.project = Some(*project),
                 // Policy settings are deployment templates copied when a project is made.
                 core::settings::Key::Default(_)
                 | core::settings::Key::Changed(_)

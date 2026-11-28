@@ -95,6 +95,7 @@ fn outcome_normalizes_only_lost_tries_inside_a_crash() {
             started: None,
             ended: Some(Wall::from_nanos(at)),
             end: Some(tasks::EndKind::Failed { class: tasks::Class::Lost, invalid_result: None }),
+            sources: None,
             phases: None,
         };
         run.world.store.rows.insert(

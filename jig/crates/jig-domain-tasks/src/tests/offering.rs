@@ -92,6 +92,7 @@ fn claim_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
     let reasons = h.domain.run_context(number).expect("activation context").reasons;
     h.send(Event::Prepare { reply_to: to(), task: number });
     let out = h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         reply_to: to(),

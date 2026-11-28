@@ -22,7 +22,8 @@ pub(crate) fn done(
     match core.land_task(token) {
         Some(flight) => complete(core, env, flight, pending, out),
         None => {
-            if let Some((attempt, _offered, _session_end, _fresh)) = core.claiming.remove(&token.raw()) {
+            if let Some(prepared) = core.claiming.remove(&token.raw()) {
+                let attempt = prepared.attempt;
                 core.claim_done(token.raw(), attempt, out);
             }
         }

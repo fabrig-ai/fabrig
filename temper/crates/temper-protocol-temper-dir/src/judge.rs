@@ -1,21 +1,22 @@
 //! Ordering and wording the tree's faults (temper/docs/design/protocol/temper-dir.md, 8).
 use crate::reading::{Format, Held, Kept, Reading};
-use crate::{FAULTS, Fault, Home, METHOD, READER, ROOT, Verdict, ways};
+use crate::{DeploymentCharters, FAULTS, Fault, Home, METHOD, READER, ROOT, Verdict, charter, ways};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
-use temper_charter_set::FormatFault;
 use temper_protocol_hooks as hooks;
 
 impl Reading {
     /// Judge the completed reading, including a reading stopped at a bound.
     #[must_use]
-    pub fn judge(&self, home: Home) -> Verdict {
+    pub fn judge(&self, home: Home, deployment: &DeploymentCharters) -> Verdict {
         let mut report = Report { faults: List::with_capacity(FAULTS), more: 0 };
         if self.root_cut {
             report.add(ROOT, 0, cut_words());
         }
+        let mut charters = 0_u32;
         for (path, entry) in &self.entries {
             match entry {
+                Kept::File { kind: Format::Charter, .. } => charters = charters.saturating_add(1),
                 Kept::Fault(why) => report.add(path, 0, why.clone()),
                 Kept::Directory { cut: true, .. } => report.add(path, 0, cut_words()),
                 Kept::Directory { cut: false, .. } | Kept::File { .. } => {}
@@ -30,13 +31,14 @@ impl Reading {
                 Kept::File { kind, held: Held::Bytes(body) } => match kind {
                     Format::Offers => ways::check(self, path, body, true, &mut report),
                     Format::Way => ways::check(self, path, body, false, &mut report),
-                    Format::Charter => charter(path, body, &mut report),
+                    Format::Charter => charter::check(path, body, deployment, &mut report),
                     Format::Hooks => hooks_config(path, body, &mut report),
                 },
                 Kept::File { held: Held::Pending | Held::OverBudget, .. } | Kept::Directory { .. } | Kept::Fault(_) => {
                 }
             }
         }
+        charter::check_count(charters, deployment, &mut report);
         let away = home_words(home);
         for path in METHOD {
             if self.entries.contains_key(path)
@@ -91,27 +93,6 @@ pub(crate) fn newer(written: &[u8]) -> Box<[u8]> {
         READER,
         b" reads format 1: upgrade it, or write the file at format 1",
     ])
-}
-
-#[expect(clippy::disallowed_methods, reason = "the protocol decodes charter text and locates invalid UTF-8")]
-fn charter(path: &[u8], body: &[u8], report: &mut Report) {
-    let text = match core::str::from_utf8(body) {
-        Ok(text) => text,
-        Err(error) => {
-            let prefix = body.get(..error.valid_up_to()).expect("the UTF-8 error gives its valid prefix");
-            let before = bytes::count(prefix, b"\n", crate::FILE_BYTES);
-            report.add(path, before.saturating_add(1), bytes::copy_of(b"not UTF-8"));
-            return;
-        }
-    };
-    match temper_charter_set::read_file(text) {
-        Ok(_) => {}
-        Err(FormatFault::FrontMatter { line }) => {
-            report.add(path, line, bytes::copy_of(b"front matter holds format = N alone"));
-        }
-        Err(FormatFault::BadFormat) => report.add(path, 2, bytes::copy_of(BAD_FORMAT)),
-        Err(FormatFault::NewerFormat { number }) => report.add(path, 2, newer(number.as_bytes())),
-    }
 }
 
 fn hooks_config(path: &[u8], body: &[u8], report: &mut Report) {

@@ -35,9 +35,10 @@ pub(crate) fn recurring_due(
     if members != u32::try_from(template.batch.len()).expect("bounded template") {
         return;
     }
+    let Ok(bindings) = core.bind_batch(&env.limits, &template.batch, None) else { return };
     let mut asked = List::with_capacity(env.limits.tasks.batch);
-    for member in &template.batch {
-        let executor = match member.executor {
+    for (at, member) in template.batch.iter().enumerate() {
+        let executor = match tasks::bound_executor(member.executor, &bindings, at) {
             tasks::Executor::Agent { charter } => authority::Executor::Charter(charter),
             tasks::Executor::Procedure { code, .. } => authority::Executor::Procedure(code),
             tasks::Executor::Job { .. } => return,
@@ -78,10 +79,11 @@ pub(crate) fn recurring_due(
     }
     if numbers.len() == members {
         let mut follow = Queue::uncapped();
-        crate::routing::step::step_tasks(
+        crate::routing::step::step_tasks_with_charters(
             core,
             env,
             tasks::Event::RecurringBatch { task, period, numbers: numbers.into_boxed() },
+            &bindings,
             &mut follow,
         );
         for _ in 0..follow.len() {

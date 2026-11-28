@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 12;
 pub const LAYOUT: [u8; 32] = [
-    0xb9, 0xab, 0x85, 0x57, 0xaa, 0xf0, 0x4f, 0xf2, 0x36, 0x8f, 0xe9, 0x95, 0xc2, 0xa6, 0x7b, 0xa3, 0xe2, 0x9c, 0xd6,
-    0x99, 0xdc, 0x2a, 0xcf, 0x0d, 0x07, 0xa7, 0xc2, 0xcb, 0xe8, 0x10, 0xd9, 0x67,
+    0x83, 0x30, 0x72, 0x77, 0x9b, 0xe2, 0x5d, 0x75, 0x23, 0xa0, 0x6b, 0x7a, 0x9e, 0xb3, 0x58, 0x6a, 0xce, 0x17, 0x27,
+    0x23, 0x62, 0x5e, 0xf7, 0xdf, 0xec, 0x8d, 0x1b, 0x13, 0xde, 0x43, 0xd0, 0xdc,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -33,7 +33,11 @@ pub struct Limits {
     pub job_spec_command: u32,
     pub job_spec_request: u32,
     pub job_spec_fallback: u32,
+    pub guide_repository: u32,
+    pub guide_commit: u32,
+    pub guide_path: u32,
     pub left_landed: u32,
+    pub guides_guides: u32,
     pub files_files: u32,
     pub files_files_item: u32,
     pub diagnostic_output: u32,
@@ -78,7 +82,11 @@ pub const CEILINGS: Limits = Limits {
     job_spec_command: 4_096,
     job_spec_request: 1_048_576,
     job_spec_fallback: 4_096,
+    guide_repository: 256,
+    guide_commit: 256,
+    guide_path: 256,
     left_landed: 64,
+    guides_guides: 64,
     files_files: 1_024,
     files_files_item: 4_096,
     diagnostic_output: 512,
@@ -123,7 +131,11 @@ pub const LIMIT_NAMES: &[&str] = &[
     "job_spec_command",
     "job_spec_request",
     "job_spec_fallback",
+    "guide_repository",
+    "guide_commit",
+    "guide_path",
     "left_landed",
+    "guides_guides",
     "files_files",
     "files_files_item",
     "diagnostic_output",
@@ -171,7 +183,11 @@ impl Limits {
             self.job_spec_command,
             self.job_spec_request,
             self.job_spec_fallback,
+            self.guide_repository,
+            self.guide_commit,
+            self.guide_path,
             self.left_landed,
+            self.guides_guides,
             self.files_files,
             self.files_files_item,
             self.diagnostic_output,
@@ -220,7 +236,11 @@ impl Limits {
             job_spec_command: self.job_spec_command.min(most),
             job_spec_request: self.job_spec_request.min(most),
             job_spec_fallback: self.job_spec_fallback.min(most),
+            guide_repository: self.guide_repository.min(most),
+            guide_commit: self.guide_commit.min(most),
+            guide_path: self.guide_path.min(most),
             left_landed: self.left_landed.min(most),
+            guides_guides: self.guides_guides.min(most),
             files_files: self.files_files.min(most),
             files_files_item: self.files_files_item.min(most),
             diagnostic_output: self.diagnostic_output.min(most),
@@ -267,7 +287,11 @@ const LIMIT_PATHS: &[Path] = &[
     paths::JOB_SPEC_COMMAND,
     paths::JOB_SPEC_REQUEST,
     paths::JOB_SPEC_FALLBACK,
+    paths::GUIDE_REPOSITORY,
+    paths::GUIDE_COMMIT,
+    paths::GUIDE_PATH,
     paths::LEFT_LANDED,
+    paths::GUIDES_GUIDES,
     paths::FILES_FILES,
     paths::FILES_FILES,
     paths::DIAGNOSTIC_OUTPUT,
@@ -355,8 +379,17 @@ pub mod paths {
     pub const LANDED_COMMIT: Path = Path::new("Landed.commit");
     pub const LANDED_CHECKED: Path = Path::new("Landed.checked");
     pub const LANDED_TAIL: Path = Path::new("Landed (tail)");
+    pub const GUIDE_REPOSITORY: Path = Path::new("Guide.repository");
+    pub const GUIDE_COMMIT: Path = Path::new("Guide.commit");
+    pub const GUIDE_PATH: Path = Path::new("Guide.path");
+    pub const GUIDE_DIGEST: Path = Path::new("Guide.digest");
+    pub const GUIDE_BYTES: Path = Path::new("Guide.bytes");
+    pub const GUIDE_WHOLE: Path = Path::new("Guide.whole");
+    pub const GUIDE_TAIL: Path = Path::new("Guide (tail)");
     pub const LEFT_LANDED: Path = Path::new("Left.landed");
     pub const LEFT_TAIL: Path = Path::new("Left (tail)");
+    pub const GUIDES_GUIDES: Path = Path::new("Guides.guides");
+    pub const GUIDES_TAIL: Path = Path::new("Guides (tail)");
     pub const FILES_FILES: Path = Path::new("Files.files");
     pub const FILES_TAIL: Path = Path::new("Files (tail)");
     pub const PUSH_REASON_TAG: Path = Path::new("PushReason (tag)");
@@ -1176,6 +1209,76 @@ impl Record for Landed {
     }
 }
 
+// Type: Guide.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Guide {
+    pub repository: Box<[u8]>,
+    pub commit: Box<[u8]>,
+    pub path: Box<[u8]>,
+    pub digest: [u8; 32],
+    pub bytes: u32,
+    pub whole: bool,
+}
+
+// Record: Guide.
+impl Guide {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_repository) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_commit) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_path) },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 49;
+}
+
+impl Record for Guide {
+    type Limits = Limits;
+    const TAIL: Path = paths::GUIDE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.guide_repository.min(CEILINGS.guide_repository) }, &self.repository, limits, out, paths::GUIDE_REPOSITORY)?;
+        field::write(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, &self.commit, limits, out, paths::GUIDE_COMMIT)?;
+        field::write(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, &self.path, limits, out, paths::GUIDE_PATH)?;
+        field::write(field::Fixed::<32>, &self.digest, limits, out, paths::GUIDE_DIGEST)?;
+        field::write(field::U32, &self.bytes, limits, out, paths::GUIDE_BYTES)?;
+        field::write(field::Boolean, &self.whole, limits, out, paths::GUIDE_WHOLE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            repository: field::read(field::Text { limit: limits.guide_repository.min(CEILINGS.guide_repository) }, limits, reader, paths::GUIDE_REPOSITORY)?,
+            commit: field::read(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, limits, reader, paths::GUIDE_COMMIT)?,
+            path: field::read(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, limits, reader, paths::GUIDE_PATH)?,
+            digest: field::read(field::Fixed::<32>, limits, reader, paths::GUIDE_DIGEST)?,
+            bytes: field::read(field::U32, limits, reader, paths::GUIDE_BYTES)?,
+            whole: field::read(field::Boolean, limits, reader, paths::GUIDE_WHOLE)?,
+        })
+    }
+}
+
 // Type: Left.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Left {
@@ -1223,6 +1326,57 @@ impl Record for Left {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             landed: field::read(field::Sequence { limit: limits.left_landed.min(CEILINGS.left_landed), minimum: 41, item: field::Nested }, limits, reader, paths::LEFT_LANDED)?,
+        })
+    }
+}
+
+// Type: Guides.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Guides {
+    pub guides: List<Guide>,
+}
+
+// Record: Guides.
+impl Guides {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Guide"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, guides_guides), item: 0, size: size_of::<Guide>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for Guides {
+    type Limits = Limits;
+    const TAIL: Path = paths::GUIDES_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guides")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guides")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Sequence { limit: limits.guides_guides.min(CEILINGS.guides_guides), minimum: 49, item: field::Nested }, &self.guides, limits, out, paths::GUIDES_GUIDES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            guides: field::read(field::Sequence { limit: limits.guides_guides.min(CEILINGS.guides_guides), minimum: 49, item: field::Nested }, limits, reader, paths::GUIDES_GUIDES)?,
         })
     }
 }
@@ -2854,6 +3008,8 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Entry", nodes: Entry::SHAPE },
     skein_codec::bounds::Declaration { name: "Files", nodes: Files::SHAPE },
     skein_codec::bounds::Declaration { name: "Flake", nodes: Flake::SHAPE },
+    skein_codec::bounds::Declaration { name: "Guide", nodes: Guide::SHAPE },
+    skein_codec::bounds::Declaration { name: "Guides", nodes: Guides::SHAPE },
     skein_codec::bounds::Declaration { name: "Head", nodes: Head::SHAPE },
     skein_codec::bounds::Declaration { name: "Identity", nodes: Identity::SHAPE },
     skein_codec::bounds::Declaration { name: "Items", nodes: Items::SHAPE },
@@ -2900,7 +3056,11 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.job_spec_command,
     CEILINGS.job_spec_request,
     CEILINGS.job_spec_fallback,
+    CEILINGS.guide_repository,
+    CEILINGS.guide_commit,
+    CEILINGS.guide_path,
     CEILINGS.left_landed,
+    CEILINGS.guides_guides,
     CEILINGS.files_files,
     CEILINGS.files_files_item,
     CEILINGS.diagnostic_output,

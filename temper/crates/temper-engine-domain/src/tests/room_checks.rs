@@ -379,9 +379,182 @@ fn fixed_parts_refuse_party_changes_proposals_and_default_overlays() {
     }
 }
 
+fn deployment_charter(name: &[u8]) -> crate::Charter {
+    crate::Charter { name: Some(name.into()), ..resume_fixture::charter() }
+}
+
+#[test]
+fn a_settings_decision_replaces_the_forges_deployment_charters() {
+    let mut limits = resume_fixture::limits();
+    limits.tasks.charters = 2;
+    let (mut root, env) = owner_root_with_limits(&limits);
+    assert!(root.forge.deployment_charters().offered.is_empty(), "the stock charter is unnamed");
+    assert_eq!(root.forge.deployment_charters().limit, limits.tasks.charters);
+    for (against, name) in [(1_u8, b"implementer".as_slice()), (2, b"renamed".as_slice())] {
+        let charter = crate::Charter { number: 33, ..deployment_charter(name) };
+        let input = PartyInput::ChangeSettings {
+            reply_to: ReplyTo::new(REPLY),
+            sign_in: 1,
+            key: [against; 16],
+            digest: [against; 32],
+            kinds: Box::new([]),
+            change: Box::new(settings::Change {
+                against: u32::from(against),
+                items: Box::new([Item {
+                    setting: Setting::Charter(charter.number),
+                    edit: Edit::Set(Value::Charter(Box::new(charter))),
+                }]),
+                running: settings::Running::Stays,
+            }),
+        };
+        assert_eq!(
+            settled(&mut root, &env, input),
+            people::Reply::Outcome(people::Outcome::SettingsChanged { revision: u32::from(against) + 1 })
+        );
+        let held = &root.forge.deployment_charters().offered;
+        assert_eq!(held.len(), 1);
+        assert_eq!(held[0].name.as_ref(), name);
+    }
+}
+
+#[test]
+fn the_forge_has_restored_deployment_charters_before_its_first_read() {
+    use super::resume::{repository, restored_start_store};
+    use resume_fixture::Until;
+    use temper_engine_domain_forge as forge;
+    let (mut store, mut env) = restored_start_store();
+    env.limits.tasks.charters = 2;
+    store.keep(changed_row(crate::Charter { number: 33, ..deployment_charter(b"restored") }));
+    let repo = forge::Repository { home: true, role: forge::Role::Adopted, ..repository() };
+    store.keep(crate::Record::Forge { row: Box::new(forge::Stored::Repository(repo)) });
+    let mut root = Domain::new(resume_fixture::config(7), &env.limits).unwrap();
+    assert!(root.forge.deployment_charters().offered.is_empty());
+    crate::step(&mut root, &env, Event::Restart { pending: true });
+    assert!(store.advance(&mut root, &env, Until::ForgeRead).is_some(), "the home starts reading");
+    let held = root.forge.deployment_charters();
+    assert_eq!(held.offered.len(), 1);
+    assert_eq!(held.offered[0].name.as_ref(), b"restored");
+}
+
+fn composed(
+    fields: &crate::Charter,
+    words: &settings::Overlay,
+    instructions: u32,
+    project_parts: u32,
+) -> crate::Charter {
+    let mut project = fields.clone();
+    project.policy.instructions = super::bytes(instructions);
+    let part = core::CharterPart { on: jig_domain_tasks::Reasons::FIRST, instructions: b"part".as_slice().into() };
+    let mut parts = skein_lib::List::with_capacity(project_parts);
+    for _ in 0..project_parts {
+        parts.push(part.clone()).unwrap();
+    }
+    project.parts = parts.into_boxed();
+    settings::overlaid(&project, words)
+}
+
+#[test]
+fn deployment_charter_room_is_exact_for_whole_and_overlaid_settings() {
+    use crate::room::{BRIEF_ROOM, Cost};
+    use jig_domain_core_vocabulary::limits::{parts_owned_bytes, policy_owned_bytes};
+    use jig_domain_tasks::Reasons;
+    const BYTES: u32 = 256;
+    const PARTS: u32 = 3;
+    const FLOOR: Cost = Cost { owned: 13, encoded: 19, rendered: 0 };
+    const UNBOUNDED: crate::room::HostPart = crate::room::HostPart { bound: None, floor: FLOOR, ..HOST };
+    for overlaid in [false, true] {
+        let mut config = resume_fixture::config(7);
+        let mut stock = deployment_charter(b"implementer");
+        stock.parts = parts(100); // The project's parts replace these, even under an overlay.
+        config.core.defaults.charters = Box::new([stock.clone()]);
+        config.host_part = UNBOUNDED;
+        let (mut root, env) = owner_root_with_config(config, &resume_fixture::limits());
+        let words = if overlaid {
+            let mut overlay = overlay(37, Some(41));
+            overlay.parts = Box::new([
+                overlay.parts[0].clone(),
+                core::CharterPart { on: Reasons::TIMER, instructions: super::bytes(17) },
+            ]);
+            assert_eq!(
+                settled(&mut root, &env, with_items(change(), overlay_items(overlay.clone()))),
+                people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 })
+            );
+            overlay
+        } else {
+            let mut whole = stock;
+            whole.policy.instructions = b"These words are set whole.".as_slice().into();
+            assert_eq!(
+                settled(
+                    &mut root,
+                    &env,
+                    with_items(
+                        change(),
+                        Box::new([Item {
+                            setting: Setting::Charter(CHARTER),
+                            edit: Edit::Set(Value::Charter(Box::new(whole))),
+                        }])
+                    )
+                ),
+                people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 })
+            );
+            settings::Overlay::empty()
+        };
+        let core = root.engine.core();
+        let fields = core.charter(CHARTER).unwrap();
+        let at = composed(fields, &words, BYTES, 0);
+        let past = composed(fields, &words, BYTES + 1, 0);
+        let jig_at =
+            u32::try_from(policy_owned_bytes(&at.policy).unwrap() + parts_owned_bytes(&at.parts).unwrap()).unwrap();
+        let rendered_at = UNBOUNDED.non_brief(&at) + BRIEF_ROOM;
+        let first = UNBOUNDED.on_wake(&at, Reasons::FIRST);
+        let extra = 123;
+        let owned = crate::room::HostPart {
+            allowance: first.owned + FLOOR.owned + extra,
+            fixed: Cost { owned: extra, ..ZERO },
+            ..UNBOUNDED
+        };
+        let encoded = crate::room::HostPart {
+            allowance: first.encoded + FLOOR.encoded + extra,
+            fixed: Cost { encoded: extra, ..ZERO },
+            ..UNBOUNDED
+        };
+        let rendered = crate::room::HostPart { bound: Some(rendered_at), ..UNBOUNDED };
+        let project_parts = PARTS - u32::try_from(words.parts.len()).unwrap();
+        for (constraint, host, run_bytes) in [
+            ("jig", UNBOUNDED, jig_at),
+            ("rendered", rendered, env.limits.journal.run_bytes),
+            ("owned", owned, env.limits.journal.run_bytes),
+            ("encoded", encoded, env.limits.journal.run_bytes),
+        ] {
+            let mut limits = env.limits;
+            limits.journal.run_bytes = run_bytes;
+            limits.tasks.charter_parts = PARTS;
+            let deployment = crate::deployment_charters::snapshot(core, &limits, &host);
+            let offered = &deployment.offered[0];
+            assert_eq!(
+                (offered.bytes, offered.parts),
+                (Some(u64::from(BYTES)), project_parts),
+                "{constraint}, overlay {overlaid}"
+            );
+            let jig = crate::limits::core_limits(&limits);
+            let check = |charter: &crate::Charter| {
+                settings::check::shape(Setting::Charter(CHARTER), &Value::Charter(Box::new(charter.clone())), &jig)
+            };
+            assert_eq!(check(&at), Ok(()));
+            assert_eq!(host.check(&at), Ok(()));
+            assert!(check(&past).is_err() || host.check(&past).is_err(), "{constraint}, overlay {overlaid}");
+            let at_parts = composed(fields, &words, 0, project_parts);
+            assert_eq!(check(&at_parts), Ok(()));
+            assert_eq!(host.check(&at_parts), Ok(()));
+            let past_parts = composed(fields, &words, 0, project_parts + 1);
+            assert!(check(&past_parts).is_err() && host.check(&past_parts).is_ok());
+        }
+    }
+}
+
 fn changed_row(charter: crate::Charter) -> crate::Record {
     crate::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Changed {
-        setting: Setting::Charter(CHARTER),
+        setting: Setting::Charter(charter.number),
         changed: settings::Changed { value: Some(Value::Charter(Box::new(charter))), revision: 1 },
     })))
 }
@@ -700,7 +873,10 @@ fn owner_root() -> (Domain, Env<Limits>) {
 }
 
 pub(crate) fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
-    let mut config = resume_fixture::config(7);
+    owner_root_with_config(resume_fixture::config(7), limits)
+}
+
+fn owner_root_with_config(mut config: crate::Config, limits: &Limits) -> (Domain, Env<Limits>) {
     config.core.owners[0].project = people::DEPLOYMENT;
     let records = [
         people::Stored::Person {

@@ -99,6 +99,7 @@ pub fn hold_row(task: u64, position: u64) -> Record {
 #[must_use]
 pub fn attempt_row(task: u64, attempt: u64) -> Record {
     Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+        sources: None,
         task,
         attempt,
         claimed: Some(skein_lib::Wall::from_nanos(7)),

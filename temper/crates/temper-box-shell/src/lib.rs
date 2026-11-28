@@ -398,7 +398,7 @@ fn run_with_stdout(
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
         Command::Serve { directories, boxed, record } => {
-            serve::run("temper-box", environment, working, &directories, boxed, record)?
+            serve::run("temper-box", environment, working, &directories, boxed, record, commit)?
         }
         Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => {
             dispatch_box(fake_backends::run(

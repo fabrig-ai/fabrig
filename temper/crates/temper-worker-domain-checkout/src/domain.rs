@@ -22,6 +22,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The HEAD of a prepared repository by hold and workspace directory index.
+    #[must_use]
+    pub fn prepared_head(&self, hold: Token, repository: u32) -> Option<crate::git::Commit> {
+        hold::prepared_head(self.holds.get(Id::from_token(hold))?, repository)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub const fn cached_workspaces(&self) -> &Slab<crate::Workspace> {

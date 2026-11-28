@@ -6043,6 +6043,7 @@ name = "temper-charter-set"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-toml",
 ]
 
 [[package]]
@@ -6315,6 +6316,7 @@ dependencies = [
  "skein-lib",
  "skein-shell",
  "smith-transcript",
+ "temper-charter-set",
  "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-tools",
@@ -6423,6 +6425,7 @@ dependencies = [
  "skein-lib",
  "skein-push",
  "skein-ui",
+ "temper-charter-set",
  "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
@@ -6880,6 +6883,7 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-worker-wire",
  "jig-test-profile",
+ "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
  "skein-json",
@@ -6888,6 +6892,7 @@ dependencies = [
  "skein-ui",
  "skein-world",
  "smith-domain-run",
+ "temper-charter-set",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
@@ -6905,6 +6910,7 @@ dependencies = [
  "temper-engine-domain-translate",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-engine-step-kit",
  "temper-limits-fixtures",
  "temper-protocol-brief",
  "temper-protocol-reaches",
@@ -7654,6 +7660,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine-step-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core",
+ "jig-domain-tasks",
+ "jig-protocol-config-fixtures",
+ "jig-test-profile",
+ "skein-forge",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-limits",
+ "temper-engine-domain-store",
+ "temper-limits-fixtures",
+]
+
+[[package]]
 name = "temper-fake"
 version = "0.0.0"
 dependencies = [
@@ -8282,7 +8304,9 @@ dependencies = [
 name = "temper-protocol-temper-dir"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core-vocabulary",
  "jig-domain-people",
+ "jig-domain-tasks",
  "skein-forge",
  "skein-lib",
  "skein-toml",

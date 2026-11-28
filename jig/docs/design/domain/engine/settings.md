@@ -292,7 +292,10 @@ charter, template, policy or model numbered
   that reads a task's charter through `charter_of` reads the task's own
   version with no change of its own.
   An amendment of a task's LLM choice is checked against its own
-  version's models, a delegate's against the newest's.
+  version's models, a delegate's against the newest's. A task bound to
+  a project's charter reads its fields through them as any task does,
+  and its run's words from its project's set (`project-charters.md`, 4
+  and 5).
 - **Held revisions.** The newest is held, and so is every revision a
   live agent task records or a run in flight was prepared under (its
   preparation, its claim, its placement). A revision nothing holds,

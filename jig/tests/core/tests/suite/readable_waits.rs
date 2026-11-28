@@ -258,6 +258,7 @@ fn deployment_root(world: &mut World, source: u64) -> u64 {
     let mut authority = source.authority.clone();
     authority.budget.spend = 100;
     let batch = Box::new([tasks::New {
+        charter_scope: tasks::CharterScope::Project,
         number,
         project: PROJECT,
         label: source.label,

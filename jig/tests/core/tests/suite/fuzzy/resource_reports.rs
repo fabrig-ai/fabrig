@@ -22,6 +22,7 @@ fn member(authority: &tasks::Authority, resource: u64) -> core::Delegate {
     authority.budget.spend = 10;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     core::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         label: 0,
         flags: tasks::Flags::PLAIN,

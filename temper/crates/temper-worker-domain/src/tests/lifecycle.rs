@@ -265,6 +265,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Part { .. }
             | agent::Up::Turn { .. }
             | agent::Up::Fact { .. }
+            | agent::Up::Prepared { .. }
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
@@ -292,6 +293,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Part { .. }
             | agent::Up::Turn { .. }
             | agent::Up::Fact { .. }
+            | agent::Up::Prepared { .. }
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
@@ -364,6 +366,7 @@ fn no_notices(rows: &[Request]) {
             | host::LinkUp::Activity { .. }
             | host::LinkUp::JobAnswer { .. }
             | host::LinkUp::Ask { .. }
+            | host::LinkUp::Guides { .. }
             | host::LinkUp::Answer { .. } => {}
         }
     }
@@ -738,5 +741,49 @@ fn usage_notices_keep_the_owner_account_and_observation_and_map_the_state() {
             }))
         );
         assert_eq!(h.out.pop(), None);
+    }
+}
+
+pub(super) fn encoded_guides(rows: &[Request]) -> (skein_lib::Token, &[crate::wire::Guide]) {
+    let mut found = None;
+    for row in rows {
+        if let Request::EncodeGuides { owner, guides } = row {
+            assert!(found.replace((*owner, guides.as_ref())).is_none());
+        }
+    }
+    found.expect("one guide report is offered to the codec")
+}
+
+pub(super) fn guide_and_answer(rows: &[Request]) -> (Option<usize>, usize) {
+    let mut report = None;
+    let mut answer = None;
+    for (at, row) in rows.iter().enumerate() {
+        if let Request::Link(host::LinkUp::Guides { run, attempt, .. }) = row {
+            assert_eq!((*run, *attempt), (RUN, ATTEMPT));
+            assert!(report.replace(at).is_none());
+        }
+        if let Request::Answer { run, attempt, .. } = row {
+            assert_eq!((*run, *attempt), (RUN, ATTEMPT));
+            assert!(answer.replace(at).is_none());
+        }
+    }
+    (report, answer.expect("attempt answer"))
+}
+
+#[test]
+fn a_workspace_free_attempt_reports_empty_only_if_prepared() {
+    for prepared in [true, false] {
+        let mut h = Harness::new();
+        h.started();
+        if prepared {
+            let rows = h.say(agent::Up::Prepared { guides: Box::new([]) });
+            let (owner, guides) = encoded_guides(&rows);
+            assert_eq!(guides, []);
+            h.run(Event::EncodedGuides { owner, bytes: Box::new([0; 4]) });
+        }
+        h.say(parked(0));
+        let rows = h.gone();
+        let (report, answer) = guide_and_answer(&rows);
+        assert_eq!(report, if prepared { Some(answer - 1) } else { None });
     }
 }

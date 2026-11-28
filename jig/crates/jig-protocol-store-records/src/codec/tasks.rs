@@ -19,6 +19,12 @@ use skein_lib::Reader;
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 #[cfg(test)]
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
+    guide_workspace: 0,
+    guide_commit: 0,
+    guide_path: 0,
+    run_sources_build: 0,
+    run_sources_source: 0,
+    run_sources_guides_some: 0,
     model_effort_speed_some: 0,
     question_relay_words: 0,
     question_answer_notice_words: 0,
@@ -98,6 +104,8 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     task_history_proposal_rows: 0,
     hot_history_proposal_rows: 0,
     task_history_instructions_some: 0,
+    task_history_scope_some: 0,
+    hot_history_scope_some: 0,
     live_cold_instructions_some: 0,
     task_history_refused: 0,
     hot_history_refused: 0,
@@ -155,6 +163,12 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
+        guide_workspace: wire::CEILINGS.guide_workspace,
+        guide_commit: wire::CEILINGS.guide_commit,
+        guide_path: wire::CEILINGS.guide_path,
+        run_sources_build: wire::CEILINGS.run_sources_build,
+        run_sources_source: wire::CEILINGS.run_sources_source,
+        run_sources_guides_some: wire::CEILINGS.run_sources_guides_some,
         model_effort_speed_some: wire::CEILINGS.model_effort_speed_some,
         question_relay_words: domain.message_bytes,
         question_answer_notice_words: wire::CEILINGS.question_answer_notice_words,
@@ -270,6 +284,8 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         task_history_proposal_rows: domain.inbox_messages,
         hot_history_proposal_rows: domain.inbox_messages,
         task_history_instructions_some: domain.message_bytes,
+        task_history_scope_some: jig_domain_people::settings::NAME_BYTES,
+        hot_history_scope_some: jig_domain_people::settings::NAME_BYTES,
         live_cold_instructions_some: domain.message_bytes,
         task_history_refused: domain.inbox_messages,
         hot_history_refused: domain.inbox_messages,
@@ -314,7 +330,7 @@ pub fn encode(
         domain::Stored::Writer(row) => wire::Value::Writer(mapped::writer_slot_to_record(row, context)?),
         domain::Stored::Pool(row) => wire::Value::Pool(mapped::pool_slots_to_record(row, context)?),
         domain::Stored::History(row) => wire::Value::History(Box::new(mapped::history_to_record(row, context)?)),
-        domain::Stored::Attempt(row) => wire::Value::Attempt(mapped::attempt_row_to_record(row)),
+        domain::Stored::Attempt(row) => wire::Value::Attempt(mapped::attempt_row_to_record(row)?),
         domain::Stored::Hold(row) => wire::Value::Hold(mapped::hold_row_to_record(row, context)?),
         domain::Stored::PersonProposal(row) => {
             wire::Value::PersonProposal(mapped::person_proposal_to_record(row, context)?)
@@ -369,7 +385,7 @@ pub fn decode(
         wire::Value::Stub(row) => domain::Stored::Stub(mapped::stub_to_domain(row)),
         wire::Value::Ledger(value) => domain::Stored::Ledger(mapped::funding_record_to_domain(value)),
         wire::Value::History(value) => domain::Stored::History(mapped::history_to_domain(*value, context)?),
-        wire::Value::Attempt(row) => domain::Stored::Attempt(mapped::attempt_row_to_domain(row)),
+        wire::Value::Attempt(row) => domain::Stored::Attempt(mapped::attempt_row_to_domain(row)?),
         wire::Value::Hold(row) => domain::Stored::Hold(mapped::hold_row_to_domain(row, context)?),
         wire::Value::PersonProposal(value) => {
             domain::Stored::PersonProposal(Box::new(mapped::person_proposal_to_domain(value, context)?))

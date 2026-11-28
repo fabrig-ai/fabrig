@@ -52,6 +52,7 @@ pub(crate) fn proposal(
                         return Err(people::Refusal::Limit { which: people::LimitKind::LiveTasks });
                     }
                     core.goal_accept_allowed(
+                        limits,
                         &row,
                         row.project,
                         party,
@@ -109,9 +110,13 @@ pub(crate) fn proposal(
                     {
                         core.party_hold_admit(party, hold)?;
                     }
-                    let action = core
-                        .proposal_action_for_check(&row.action, decision)
-                        .ok_or(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape })?;
+                    let action = match core.proposal_action_for_check(limits, &row.action, decision) {
+                        Ok(action) => action,
+                        Err(tasks::Refusal::Executor) => return Err(people::Refusal::NotOffered),
+                        Err(_) => {
+                            return Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape });
+                        }
+                    };
                     core.proposal_person_admit(
                         party,
                         row.project,

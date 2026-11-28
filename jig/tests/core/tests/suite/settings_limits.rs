@@ -15,7 +15,7 @@ fn item(edit: s::Edit) -> s::Item {
     s::Item { setting: s::Setting::Limits, edit }
 }
 fn point(revision: u32, proposal: Option<(people::Proposer, u64)>) -> reads::Read {
-    reads::Read::Setting { setting: s::Setting::Limits, revision, proposal }
+    reads::Read::Setting { project: None, setting: s::Setting::Limits, revision, proposal }
 }
 #[test]
 fn limits_start_empty_change_restart_and_reset_without_applying_their_figures() {

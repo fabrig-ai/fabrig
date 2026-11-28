@@ -330,6 +330,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::ReadAfresh { .. }
         | tasks::Event::EffectSettled { .. }
         | tasks::Event::Started { .. }
+        | tasks::Event::RunGuides { .. }
         | tasks::Event::PreparationWaiting { .. }
         | tasks::Event::PreparationPaused { .. }
         | tasks::Event::PreparationCounted { .. }

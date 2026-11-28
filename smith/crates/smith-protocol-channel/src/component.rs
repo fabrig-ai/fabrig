@@ -502,7 +502,13 @@ impl Component {
         room.frames > 0 && room.bytes >= self.fact_reserve_bytes
     }
 
-    /// Offer a content-free domain observation without spending reserved output room.
+    /// Whether this activation can tell its preparation report ahead of the next request.
+    #[must_use]
+    pub fn takes_guides(&self) -> bool {
+        self.state.admitted() && !self.ended() && self.takes()
+    }
+
+    /// Project the preparation report using authoritative room; counts are best effort.
     pub fn send_fact(
         &mut self,
         fact: &smith_domain::Fact,
@@ -513,7 +519,25 @@ impl Component {
     ) -> Result<bool, Error> {
         let elapsed = fact.emitted().saturating_since(started);
         match facts::project(fact) {
-            Some((kind, count)) => self.offer_fact(kind, elapsed, count, token, to_service, below),
+            Some(facts::Projection::Count { kind, count }) => {
+                self.offer_fact(kind, elapsed, count, token, to_service, below)
+            }
+            Some(facts::Projection::Guides(record)) => {
+                if !self.takes_guides() {
+                    return Ok(false);
+                }
+                if let Err(problem) = record.measure(&self.bodies) {
+                    return Err(Error::ChannelBody(problem));
+                }
+                let frame = match smith_channel::frame(smith_channel::Body::Guides(record)) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::Frame(problem)),
+                };
+                self.machine.down(Request::Send { token, frame }, &mut self.events, below);
+                self.drain(to_service, below);
+                self.fire(to_service, below);
+                Ok(true)
+            }
             None => Ok(false),
         }
     }

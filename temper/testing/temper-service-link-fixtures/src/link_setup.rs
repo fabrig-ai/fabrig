@@ -46,6 +46,7 @@ pub fn engine_with(jig: jig_protocol_config::Engine) -> settings::Engine {
     let root = limits::engine(&jig.limits, &own).expect("engine fixture values fit their declared bounds");
     let connector = *jig.connectors.first().expect("engine fixture values fit their declared bounds");
     settings::Engine {
+        build: "",
         store_limits: None,
         kinds: crate::stock::kinds(&root, connector),
         period_span: crate::stock::PERIOD_SPAN,
@@ -193,6 +194,8 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         suspended: 0,
         restarted: false,
         settings: tasks::SettingsRevision { task: 1, run: None },
+        charters: 0,
+        scope: None,
         added: Box::new([]),
         hold_bound_since: None,
         label: 0,

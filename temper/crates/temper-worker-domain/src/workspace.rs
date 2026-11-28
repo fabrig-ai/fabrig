@@ -289,6 +289,8 @@ pub(crate) struct Workspace {
 pub(crate) struct Root {
     pub(crate) name: Box<[u8]>,
     pub(crate) writable: bool,
+    head: Option<checkout::git::Commit>,
+    qualified: Option<Box<str>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -341,7 +343,14 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, owner: Token, work
             wire::Access::ReadOnly => false,
             wire::Access::Writable { .. } | wire::Access::Prefixes { .. } => true,
         };
-        roots.push(Root { name: copy_of(&repository.name), writable }).expect("room for every repository");
+        roots
+            .push(Root {
+                name: copy_of(&repository.name),
+                writable,
+                head: None,
+                qualified: repository.qualified.clone(),
+            })
+            .expect("room for every repository");
     }
     let preparing = State::Preparing { hold: None, abandoned: false };
     let record = Workspace {
@@ -534,6 +543,12 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
             }
             checkout::Prepared::Ready { workspace, conflicts } => {
                 record.conflicts = conflicts;
+                if !abandoned && let Some(hold) = hold {
+                    for (index, root) in record.roots.iter_mut().enumerate() {
+                        let index = u32::try_from(index).expect("bounded repositories");
+                        root.head = domain.checkout.prepared_head(hold, index);
+                    }
+                }
                 ended(
                     owner,
                     client,
@@ -819,6 +834,47 @@ fn unprepared(owner: Token, failure: host::Preparation, detail: Box<[u8]>) -> ho
     host::Event::Unprepared { owner, failure, detail }
 }
 
+/// Joins Smith's directory indices to the checkout as it stood at preparation.
+pub(crate) fn guides(domain: &Domain, owner: Token, guides: Box<[agent::Guide]>) -> Option<Box<[wire::Guide]>> {
+    let mut rows = List::with_capacity(u32::try_from(guides.len()).expect("bounded directories"));
+    if !guides.is_empty() {
+        let mut roots = None;
+        for (_, workspace) in &domain.workspaces {
+            if workspace.run == owner {
+                roots = Some(workspace.roots.as_ref());
+                break;
+            }
+        }
+        let roots = roots?;
+        for guide in guides {
+            let root = roots.get(skein_lib::usize_of(guide.directory))?;
+            let commit = root.head?;
+            let repository = root.qualified.as_ref()?;
+            let path = guide_text(&guide.path)?;
+            rows.push(wire::Guide {
+                repository: repository.clone(),
+                commit: commit.raw(),
+                path,
+                digest: guide.digest,
+                bytes: guide.bytes,
+                whole: guide.whole,
+            })
+            .expect("one row per guide read");
+        }
+    }
+    Some(rows.into_boxed())
+}
+
+// An unrepresentable source leaves the report absent, never a made-up path
+// or a claim that no guide was read.
+#[expect(clippy::disallowed_methods, reason = "validates exact UTF-8 at the guide report boundary")]
+fn guide_text(bytes: &[u8]) -> Option<Box<str>> {
+    if bytes.len() > 256 {
+        return None;
+    }
+    Some(Box::from(core::str::from_utf8(bytes).ok()?))
+}
+
 /// Where the run's repositories sit, for smith's start: the directory io
 /// prepared the workspace in, the root of each repository's, with the files
 /// a merge in progress left in conflict. A directory's host path is for an
@@ -1033,6 +1089,7 @@ fn cut_saved(hub: &host::Hub, items: Token) -> bool {
             | host::LinkUp::AccountRefused { .. }
             | host::LinkUp::Part { .. }
             | host::LinkUp::Turn { .. }
+            | host::LinkUp::Guides { .. }
             | host::LinkUp::Call { .. } => continue,
         };
         match answer.ending {

@@ -36,6 +36,7 @@ impl Core {
                 if let Some(failure) = self.start_settings_finish(env, out) {
                     return Action::Refused(failure);
                 }
+                self.restore_project_charter_stamps();
                 if !crate::admission::deletion::restored(self) {
                     self.start_collect_failure();
                     return Action::Refused(self.start_failure().expect("named project policy failure"));

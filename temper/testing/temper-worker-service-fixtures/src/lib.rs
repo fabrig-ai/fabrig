@@ -134,6 +134,7 @@ pub fn one_repository() -> wire::Workspace {
         rerun: None,
         hook_timeout_max_seconds: 3600,
         repositories: Box::new([wire::Repository {
+            qualified: None,
             admit: false,
             save: None,
             git: None,

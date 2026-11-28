@@ -13,7 +13,7 @@ enum Start = w::Start
 record Writable
 record Prefixes { branches slice }
 enum Access = w::Access
-record Repository = w::Repository
+record Repository by hand
 record Items by hand
 record JobSpec by hand
 record Landed = w::Landed to record

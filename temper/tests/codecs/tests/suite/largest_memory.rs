@@ -114,6 +114,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Items,
             JobSpec,
             Left,
+            Guides,
             Saved,
             Preparation,
             Identity,

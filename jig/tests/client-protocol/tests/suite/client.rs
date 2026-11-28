@@ -119,6 +119,7 @@ fn a_request_past_64_kib_is_stored_sent_and_answered_by_the_engine() {
     story.read(
         PROJECT_PAGE,
         Readable::Jig(contract::Read::Setting(contract::ReadSetting {
+            project: None,
             setting: contract::Setting::Charter(contract::SettingNumber { number: 1 }),
             revision: 1,
             proposal: None,

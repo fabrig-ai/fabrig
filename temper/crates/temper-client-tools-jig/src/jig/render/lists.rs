@@ -195,6 +195,7 @@ pub(super) fn write_call(call: &Call, out: &mut Text) {
         crate::jig::rows::MILESTONE_LIST_AT => &crate::jig::rows::MILESTONE_LIST,
         crate::jig::rows::ROLE_LIST_AT => &crate::jig::rows::ROLE_LIST,
         crate::jig::rows::WAITS_AT => &crate::jig::rows::WAITS,
+        crate::jig::rows::TASK_RUNS_AT => &crate::jig::rows::TASK_RUNS,
         _ => unreachable!("paged read"),
     };
     call.tool = 0;

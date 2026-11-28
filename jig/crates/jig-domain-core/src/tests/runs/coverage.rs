@@ -202,23 +202,23 @@ fn an_unavailable_named_account_is_admitted_for_its_payer() {
 
 #[test]
 fn a_batch_preference_uses_the_prospective_financial_chain() {
-    let (mut core, _) = prepared(false, accounts::Holder::Party(ALICE), None);
+    let (mut core, env) = prepared(false, accounts::Holder::Party(ALICE), None);
     with_model(&mut core);
     let first = new_row(&core, 2, tasks::Funder::Pool { project: PROJECT, person: BOB, period: 1 }, None);
     let mut child = new_row(&core, 3, tasks::Funder::Task(2), None);
     child.llm = Some(preferred(ACCOUNT));
     let mut batch = [first, child];
     assert_eq!(
-        core.resolve_llm(&mut batch),
+        core.resolve_llm(&env.limits, &batch, &[]),
         Err(tasks::Problem::new(Some(3), tasks::Refusal::Account { account: ACCOUNT, why: tasks::AccountWhy::Uses }))
     );
     batch[0].funder = tasks::Funder::Pool { project: PROJECT, person: ALICE, period: 1 };
-    assert_eq!(core.resolve_llm(&mut batch), Ok(()));
+    assert_eq!(core.resolve_llm(&env.limits, &batch, &[]), Ok(()));
 }
 
 #[test]
 fn acceptance_rechecks_a_preference_against_the_new_funder() {
-    let (mut core, _) = prepared(false, accounts::Holder::Party(ALICE), None);
+    let (mut core, env) = prepared(false, accounts::Holder::Party(ALICE), None);
     with_model(&mut core);
     let alice = tasks::Funder::Pool { project: PROJECT, person: ALICE, period: 1 };
     let mut new = new_row(&core, 2, alice, None);
@@ -233,7 +233,7 @@ fn acceptance_rechecks_a_preference_against_the_new_funder() {
         state: tasks::PersonProposalState::Pending { since: Wall::EPOCH },
     };
     assert_eq!(
-        core.goal_accept_allowed(&proposal, PROJECT, BOB, people::Role::Owner, 1, Wall::EPOCH),
+        core.goal_accept_allowed(&env.limits, &proposal, PROJECT, BOB, people::Role::Owner, 1, Wall::EPOCH),
         Err(people::Refusal::Account { account: ACCOUNT, why: people::AccountWhy::Uses })
     );
 }

@@ -1526,6 +1526,7 @@ fn a_stock_landing_can_start_its_prepare_job() {
     authority.delegation.tasks = 0;
     authority.delegation.depth = 0;
     let delegate = Delegate {
+        charter_scope: tasks::CharterScope::Project,
         executor: tasks::Executor::Job { kind: prepare.kind.0 },
         spec: tasks::Spec {
             job: Some(Box::new(tasks::JobSpec { bytes: Box::new([]), deadline: prepare.deadline })),

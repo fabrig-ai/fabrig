@@ -15,6 +15,7 @@ fn bound() -> JobBound {
 
 fn member() -> Delegate {
     Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         executor: tasks::Executor::Job { kind: 7 },
         spec: tasks::Spec {
             words: Box::new([]),
@@ -213,6 +214,7 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),
@@ -292,6 +294,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),
@@ -320,6 +323,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt: next,
             holds: Box::new([]),
@@ -385,6 +389,7 @@ fn a_job_claims_the_names_its_root_prepared() {
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             writes: Some(Box::new([authority::Write {
@@ -482,6 +487,7 @@ fn prepared_job(core: &mut Core, limits: &Limits, attempt: u64) -> Box<[Request]
         core,
         limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),

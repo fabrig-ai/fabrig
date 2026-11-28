@@ -53,8 +53,12 @@ fn run_parts_follow_reasons_in_order_and_own_instructions_replace_them() {
         ("empty own", parts, Some(b"".as_slice()), Reasons::FIRST, b"", Reasons::ALL),
     ] {
         charter.parts = parts;
-        assert_eq!(run_instructions(&charter, own, reasons, false).as_ref(), instructions, "{name}: instructions");
-        assert_eq!(offered_kinds(&charter, own.is_some(), reasons, false), offered, "{name}: offered");
+        assert_eq!(
+            run_instructions(&charter, None, own, reasons, false).as_ref(),
+            instructions,
+            "{name}: instructions"
+        );
+        assert_eq!(offered_kinds(&charter, None, own.is_some(), reasons, false), offered, "{name}: offered");
     }
 }
 
@@ -113,6 +117,7 @@ fn preparation_offers_person_words_and_keeps_an_uncovered_question() {
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),
@@ -180,6 +185,7 @@ fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             reply_to: ReplyTo::new(Token::new(2)),
@@ -421,6 +427,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
                 &mut core,
                 &limits,
                 Event::WorkspacePrepared {
+                    guide_limit: 0,
                     task: 1,
                     attempt,
                     holds: Box::new([]),
@@ -519,6 +526,7 @@ fn overlay_run_preparation_selects_default_then_overlay_parts() {
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),

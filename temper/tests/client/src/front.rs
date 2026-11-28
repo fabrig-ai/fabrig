@@ -340,7 +340,9 @@ impl Joint {
         // The delegated batch and dependency-bearing task row fit whole.
         // This watch-only world keeps short report tasks, not forge delegates.
         engine_limits.tasks.spec_bytes = temper_client_protocol_wire::CUE_BYTES;
-        engine_limits.journal.transcript_bytes = 9_536;
+        let row = u32::try_from(engine::row_bound(&engine_limits).expect("watch-room row bound"))
+            .expect("watch-room row fits u32");
+        engine_limits.journal.transcript_bytes = 9_536.max(row);
         engine_limits.fleet.slots = tasks;
         engine_limits.fleet.attempts = tasks * 2;
         let mut front =

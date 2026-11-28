@@ -336,6 +336,7 @@ members = [
     "temper/testing/temper-limits-fixtures",
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
+    "temper/testing/temper-engine-step-kit",
     "temper/testing/temper-engine-inspect",
     "temper/testing/temper-blame",
     "temper/testing/temper-test-env",
@@ -747,6 +748,7 @@ temper-faults = { path = "temper/testing/temper-faults" }
 temper-workload = { path = "temper/testing/temper-workload" }
 temper-agent-fixtures = { path = "temper/testing/temper-agent-fixtures" }
 temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
+temper-engine-step-kit = { path = "temper/testing/temper-engine-step-kit" }
 temper-engine-inspect = { path = "temper/testing/temper-engine-inspect" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }

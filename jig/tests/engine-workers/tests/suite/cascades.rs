@@ -90,6 +90,7 @@ fn jobs_mixed_with_runs_keep_their_order() {
                         | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::Ask { .. }
+                        | host::LinkUp::Guides { .. }
                         | host::LinkUp::AccountRefused { .. } => panic!("load record"),
                     })
                 } else {

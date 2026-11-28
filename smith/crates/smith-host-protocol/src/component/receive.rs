@@ -11,8 +11,8 @@ use smith_channel::Record;
 use smith_host_domain::channel;
 
 use smith_channel::kind::{
-    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, PART, SIGNALLED,
-    TURN, UNAUTHORIZED, USAGE, WAITING, WITHDRAW,
+    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, GUIDES, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, PART,
+    SIGNALLED, TURN, UNAUTHORIZED, USAGE, WAITING, WITHDRAW,
 };
 
 /// What a refusal says of a record it could not take: its order, its call, or its kind.
@@ -41,6 +41,7 @@ pub(super) fn refusal_text(kind: u16, error: Error) -> &'static [u8] {
         LONG | LONG_DONE => b"invalid long operation",
         UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED | USAGE => b"invalid account notice",
         FACT => b"invalid fact",
+        GUIDES => b"invalid guide report",
         ANSWER => b"invalid answer",
         MESSAGE_REFUSED => b"invalid message refusal",
         LIVE => b"invalid live piece",
@@ -69,6 +70,7 @@ impl Component {
                     UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED | USAGE => {
                         super::notices::decode(&self.bodies, kind, &body)?
                     }
+                    GUIDES => self.guides(&body)?,
                     FACT => {
                         match smith_channel::Fact::decode(&self.bodies, &mut Reader::new(&body)) {
                             Ok(_) => (),
@@ -83,6 +85,26 @@ impl Component {
             }
         };
         Ok(Some(event))
+    }
+
+    fn guides(&self, body: &[u8]) -> Result<Received, Error> {
+        let record = match smith_channel::v14::Guides::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
+        let mut guides = skein_lib::List::with_capacity(record.guides.len());
+        for guide in record.guides.into_boxed() {
+            guides
+                .push(smith_domain::run::facts::Guide {
+                    directory: guide.directory,
+                    path: guide.path,
+                    digest: guide.digest,
+                    bytes: guide.bytes,
+                    whole: guide.whole,
+                })
+                .expect("bounded guide report");
+        }
+        Ok(Received::Message { message: channel::Up::Prepared { guides: guides.into_boxed() } })
     }
 
     fn admitted(&mut self, body: &[u8]) -> Result<Received, Error> {

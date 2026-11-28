@@ -145,6 +145,7 @@ pub fn member(world: &crate::world::World, executor: tasks::Executor, words: &[u
     authority.delegation =
         tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Charter(1)]), tasks: 1, depth: 1 };
     core::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,

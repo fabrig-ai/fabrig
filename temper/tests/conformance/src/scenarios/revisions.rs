@@ -36,6 +36,7 @@ pub(super) fn party_amend(world: &mut World) -> Result<(), Violation> {
         1,
         engine::Tool::Delegate {
             batch: Box::new([engine::Delegate {
+                charter_scope: tasks::CharterScope::Project,
                 executor: tasks::Executor::Agent { charter: 1 },
                 spec: spec(b"race target"),
                 contract: tasks::Contract::Report { words: 128 },

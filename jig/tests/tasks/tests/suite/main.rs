@@ -40,6 +40,7 @@ mod words;
 
 mod fuzzy {
     mod amendments;
+    mod attempt_sources;
     mod lifecycle;
     mod standing;
 }

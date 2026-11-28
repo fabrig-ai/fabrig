@@ -56,6 +56,7 @@ fn put_value(ops: &[skein_kv::Op], wanted: tasks::Key) -> wire::Value {
 fn making_claiming_and_ending_put_only_their_parts_and_reads_join_whole() {
     let mut store = fixtures::opened();
     let mut row = live();
+    row.charters = u64::from(u32::MAX) + 1;
     let made = operations(&mut store, 1, Box::new([hot(&row), cold(&row)]));
     assert_eq!(made.len(), 2);
     assert!(match put_value(&made, tasks::Key::Live(7)) {

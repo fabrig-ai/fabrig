@@ -13,6 +13,7 @@ mod generated {
 pub mod adopt;
 mod amend;
 mod change;
+mod charter;
 mod checkpoint;
 mod demo;
 mod drafts;

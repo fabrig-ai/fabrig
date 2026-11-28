@@ -166,7 +166,11 @@ pub(crate) fn answer_refusals(
     publish(domain, env, number, out);
 }
 
-#[expect(clippy::too_many_lines, reason = "one charged result preflights and settles its follow-ups atomically")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::too_many_arguments,
+    reason = "one charged result preflights and settles its follow-ups atomically"
+)]
 pub(crate) fn activation(
     domain: &mut Domain,
     environment: &Env<Limits>,
@@ -174,6 +178,7 @@ pub(crate) fn activation(
     ended: crate::run::Ended,
     cumulative: u64,
     reads_project: bool,
+    bindings: &[Option<crate::CharterBinding>],
     out: &mut Queue<Request>,
 ) {
     let crate::run::Ended { number, attempt, end, saved, park } = ended;
@@ -267,6 +272,7 @@ pub(crate) fn activation(
                             charge,
                             batch,
                             reads_project,
+                            bindings,
                         ) {
                             return crate::capacity::refused(domain, environment, to, problem, out);
                         }
@@ -314,7 +320,7 @@ pub(crate) fn activation(
     match (&end, result_admitted) {
         (End::FinishedWithFollowups { followups: ResultFollowups::Delegates(batch), .. }, true) => {
             crate::domain::remember_result_followups(domain, &environment.limits, number, batch);
-            crate::domain::make_admitted(domain, environment, crate::Party::Task(number), batch.clone(), out);
+            crate::domain::make_admitted(domain, environment, crate::Party::Task(number), batch.clone(), bindings, out);
         }
         (End::FinishedWithFollowups { followups: ResultFollowups::Proposal(proposal), .. }, true) => {
             crate::proposals::propose_result(domain, environment, (**proposal).clone(), out);

@@ -301,7 +301,10 @@ impl World {
                 }
             }
             Request::ResultsIgnored { .. } | Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
-            Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
+            Request::EncodeGuides { .. }
+            | Request::JobAnswer { .. }
+            | Request::Job { .. }
+            | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }
         }
@@ -352,6 +355,7 @@ impl World {
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
             | host::LinkUp::JobAnswer { .. }
+            | host::LinkUp::Guides { .. }
             | host::LinkUp::Answer { .. } => panic!("unscripted link record: {up:?}"),
         }
     }
@@ -946,6 +950,7 @@ fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
 
 fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Event {
     let repository = wire::Repository {
+        qualified: None,
         admit: false,
         save: Some(Box::from(&b"saved"[..])),
         git: None,

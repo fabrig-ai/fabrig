@@ -80,7 +80,12 @@ fn admission_names_exactly_one_project_or_a_task_to_check() {
         reads::Read::Frame,
         reads::Read::Deployment,
         reads::Read::Settings,
-        reads::Read::Setting { setting: crate::settings::Setting::Charter(1), revision: 0, proposal: None },
+        reads::Read::Setting {
+            project: None,
+            setting: crate::settings::Setting::Charter(1),
+            revision: 0,
+            proposal: None,
+        },
         reads::Read::Revision { number: 1 },
         reads::Read::Revisions { before: None },
         reads::Read::Proposal { proposer: Proposer::Party(PERSON), proposal: 1 },

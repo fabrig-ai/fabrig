@@ -128,6 +128,7 @@ fn workspace(out: &[Out], task: u64) -> u64 {
 
 fn workspace_answer(task: u64, attempt: u64, success: bool) -> In {
     In::Core(Event::WorkspacePrepared {
+        guide_limit: 0,
         task,
         attempt,
         holds: Box::new([]),

@@ -22,6 +22,10 @@ still open is listed in `README.md`, section 8.
   verdicts and a change's `title` and `body`, `.temper/pre-pr` and
   `AGENTS.md` as conventions, and a budget in the deployment's unit with
   its models' prices.
+- **A project's charters** (`project-charters.md`): the words its home
+  repository's `.temper/charters/` holds, taken by its tasks where it has
+  `ways.toml`, the floor's review excepted, and each run's record of its
+  sources.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
   - `tools-forge.md`: the agent's forge reads.

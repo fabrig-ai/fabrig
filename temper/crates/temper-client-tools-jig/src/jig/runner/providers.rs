@@ -23,6 +23,7 @@ pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
                 return Some((
                     slot,
                     c::Read::Setting(c::ReadSetting {
+                        project: None,
                         setting: line.setting,
                         revision: inventory.newest,
                         proposal: None,

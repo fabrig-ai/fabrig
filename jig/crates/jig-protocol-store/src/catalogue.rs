@@ -47,6 +47,7 @@ pub(crate) fn catalogue(store: &mut crate::Store) -> Result<(), crate::restore::
             | Record::Charter { .. }
             | Record::Proposal { .. }
             | Record::Application { .. }
+            | Record::ProjectCharters(_)
             | Record::Extent { .. } => {
                 return Err(Failure::at(Cause::Decode(DecodeFailure::KeyValueDisagree), site));
             }

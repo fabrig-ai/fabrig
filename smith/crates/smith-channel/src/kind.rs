@@ -79,6 +79,9 @@ pub const PART: u16 = 0x0118;
 /// The `PartKept` body kind.
 pub const PART_KEPT: u16 = 0x0119;
 
+/// A run's guide report, sent up once at preparation.
+pub const GUIDES: u16 = 0x011a;
+
 /// The supported channel version.
 pub const VERSION: u16 = crate::wire::VERSION;
 

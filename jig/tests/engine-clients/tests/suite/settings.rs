@@ -23,8 +23,8 @@ fn every_settings_read_waits_for_the_core_answer() {
     for (request, expected) in [
         (w::Read::Settings, reads::Read::Settings),
         (
-            w::Read::Setting(w::ReadSetting { setting: w::Setting::Rules, revision: 6, proposal: None }),
-            reads::Read::Setting { setting: settings::Setting::Rules, revision: 6, proposal: None },
+            w::Read::Setting(w::ReadSetting { project: None, setting: w::Setting::Rules, revision: 6, proposal: None }),
+            reads::Read::Setting { project: None, setting: settings::Setting::Rules, revision: 6, proposal: None },
         ),
         (w::Read::Revision(w::ReadRevision { number: 3 }), reads::Read::Revision { number: 3 }),
         (w::Read::Revisions(w::ReadRevisions { before: Some(5) }), reads::Read::Revisions { before: Some(5) }),

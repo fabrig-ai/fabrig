@@ -64,6 +64,8 @@ Pattern: ceilings encoded=36905 decoded=36992; at_most(3) encoded=33 decoded=60
 PermissionRole: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Policy: ceilings encoded=23625280 decoded=23722624; at_most(3) encoded=1490 decoded=4416
 PolicyNumber: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+ProjectCharter: ceilings encoded=589968 decoded=590080; at_most(3) encoded=58 decoded=90
+ProjectCharters: ceilings encoded=302063882 decoded=302162176; at_most(3) encoded=187 decoded=513
 ProjectPolicySetting: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 Proposal: ceilings encoded=3091601563 decoded=3104206336; at_most(3) encoded=5133 decoded=15417
 ProposalId: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0

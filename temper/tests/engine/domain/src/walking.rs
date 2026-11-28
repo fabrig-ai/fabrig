@@ -332,6 +332,7 @@ pub fn config(seed: u64) -> engine::Config {
             deployment: [31; 16],
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).
+            build: "test-build".into(),
             workers_in_process: false,
             jobs: Box::new([]),
             kept_starts: Box::new([]),

@@ -312,6 +312,7 @@ fn rows(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project: u
     if core.notes.busy() {
         return;
     }
+    core.erase_project_charter_sets(project, out);
     out.push(Request::Write(Write::Erase(Key::People(people::Key::Policy(project)))));
     out.push(Request::Write(Write::Erase(Key::People(people::Key::Public(project)))));
     let _previous = core.visibility.public.remove(&project);

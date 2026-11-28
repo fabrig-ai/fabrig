@@ -133,9 +133,15 @@ impl Frames {
         let bounds = self.worker.bounds_within(v22::LIMIT_NAMES, values.as_slice());
         let mut kinds = List::with_capacity(self.rules.len());
         for rule in &self.rules {
+            let length = if self.worker.spelled(self.worker.declaration(rule.record).name) == b"Guides" {
+                let values = crate::sizes::guides(limits).values();
+                self.worker.bounds_within(v22::LIMIT_NAMES, values.as_slice()).at(rule.record)
+            } else {
+                bounds.at(rule.record)
+            };
             // The parser checks every declaration at its ceilings; limits can only lower them.
-            let largest = u32::try_from(bounds.at(rule.record).expect("one bound per declaration"))
-                .expect("the parser checks the u32 bound");
+            let largest =
+                u32::try_from(length.expect("one bound per declaration")).expect("the parser checks the u32 bound");
             kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("one row per rule");
         }
         kinds

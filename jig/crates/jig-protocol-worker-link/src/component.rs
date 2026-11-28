@@ -457,7 +457,8 @@ impl Component {
                 }
                 return;
             }
-            up @ (host::LinkUp::Ask { .. }
+            up @ (host::LinkUp::Guides { .. }
+            | host::LinkUp::Ask { .. }
             | host::LinkUp::UsageRead { .. }
             | host::LinkUp::ListRead { .. }
             | host::LinkUp::Draining

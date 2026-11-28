@@ -26,6 +26,7 @@ pub enum Dependency {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Delegate {
     pub executor: Executor,
+    pub charter_scope: crate::ops::CharterScope,
     pub spec: Spec,
     pub contract: Contract,
     pub authority: Authority,
