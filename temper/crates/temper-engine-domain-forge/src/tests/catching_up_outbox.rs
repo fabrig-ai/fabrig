@@ -1,5 +1,6 @@
 //! `CatchUp` starts both halves; the outbox lane alone orders writes.
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, Error, Op, Read, Write};
 use skein_forge_client::{Condition, Entry, RecoveryClock};
 
@@ -67,16 +68,30 @@ fn catch_up_hands_restored_entries_in_number_order_before_kept_entries() {
     outputs(&mut d, Event::Enqueue { entry: uncommitted });
     assert!(ready(&mut d).is_empty(), "no handoff before CatchUp");
     let start = outputs(&mut d, Event::CatchUp);
-    assert!(!start.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{start:?}");
-    assert!(!start.contains(&Request::RestartDone { stage: RestartStage::Settled }), "{start:?}");
+    assert!(
+        !start.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))),
+        "{start:?}"
+    );
+    assert!(
+        !start.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::Settled
+        }))),
+        "{start:?}"
+    );
     let (fresh, first) = calls(&mut d);
     let looked = fixtures::answer(&mut d, first, Ok(Answer::Commit(fixtures::HEAD)));
-    assert!(!looked.contains(&Request::RestartDone { stage: RestartStage::Settled }));
+    assert!(!looked.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::Settled
+    }))));
     let (second, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"entry-12".as_slice().into() }));
     let looked = fixtures::answer(&mut d, second, Ok(Answer::Commit(fixtures::HEAD)));
     assert!(
-        looked.contains(&Request::RestartDone { stage: RestartStage::Settled }),
+        looked.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::Settled
+        }))),
         "all eligible restored entries handed before SettleOutbox"
     );
     assert!(!d.fresh_reads_in(), "the fresh read is still out");
@@ -86,7 +101,9 @@ fn catch_up_hands_restored_entries_in_number_order_before_kept_entries() {
     fixtures::answer(&mut d, write, Ok(Answer::Branch(skein_forge::api::BranchCreation::Created)));
     assert!(ready(&mut d).is_empty(), "held, held landing and uncommitted entries stay out");
     let done = fixtures::answer(&mut d, fresh, Ok(Answer::Commit(fixtures::HEAD)));
-    assert!(done.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(done.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
 }
 
 #[test]
@@ -95,8 +112,18 @@ fn catching_up_reports_can_finish_in_either_order() {
         let mut d = restore(&[(11, false)]);
         outputs(&mut d, Event::Restored { clock: RecoveryClock::Monotonic });
         let start = outputs(&mut d, Event::CatchUp);
-        assert!(!start.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{start:?}");
-        assert!(!start.contains(&Request::RestartDone { stage: RestartStage::Settled }), "{start:?}");
+        assert!(
+            !start.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                stage: RestartStage::ReadAfresh
+            }))),
+            "{start:?}"
+        );
+        assert!(
+            !start.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                stage: RestartStage::Settled
+            }))),
+            "{start:?}"
+        );
         assert!(d.room.ready);
         let (fresh, find) = calls(&mut d);
         let (first, last, stage, other) = if fresh_first {
@@ -106,11 +133,13 @@ fn catching_up_reports_can_finish_in_either_order() {
         };
         if fresh_first {
             let failed = fixtures::answer(&mut d, find, Err(Error::Unavailable));
-            assert!(!failed.contains(&Request::RestartDone { stage: RestartStage::Settled }));
+            assert!(!failed.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                stage: RestartStage::Settled
+            }))));
         }
         let done = fixtures::answer(&mut d, first, Ok(Answer::Commit(fixtures::HEAD)));
-        assert!(done.contains(&Request::RestartDone { stage }));
-        assert!(!done.contains(&Request::RestartDone { stage: other }));
+        assert!(done.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage }))));
+        assert!(!done.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: other }))));
         let mut clock = env();
         let last = if fresh_first {
             clock.now = d.next_deadline().expect("retrying find");
@@ -124,8 +153,9 @@ fn catching_up_reports_can_finish_in_either_order() {
         let done = fixtures::answer_at(&mut d, &clock, last, Ok(Answer::Commit(fixtures::HEAD)));
         let mut reported = false;
         for request in &done {
-            reported |= *request == Request::RestartDone { stage: other };
-            assert_ne!(*request, Request::RestartDone { stage });
+            reported |=
+                *request == Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: other }));
+            assert_ne!(*request, Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage })));
         }
         assert!(reported);
     }

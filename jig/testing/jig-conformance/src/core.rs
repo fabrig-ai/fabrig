@@ -942,82 +942,35 @@ impl Observer {
             }
         }
         let mut requires = Vec::new();
-        match delivery {
-            core::Held::Cancel { run, attempt, .. } => {
-                self.cancelled.insert((run.raw(), attempt.raw()));
-            }
-            core::Held::AcknowledgeTurn { run, attempt, turn, .. } => {
-                let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
-                    r::Receipt::Claim(run.raw(), attempt.raw())
-                } else if self.cancelled.contains(&(run.raw(), attempt.raw()))
-                    && self.discarded.contains(&(run.raw(), attempt.raw()))
-                {
-                    // A cancelled attempt's discarded body has no Turn row (fleet's turn.rs).
-                    requires.push(r::Receipt::Claim(run.raw(), attempt.raw()));
-                    r::Receipt::Task(run.raw())
-                } else {
-                    r::Receipt::Turn(run.raw(), attempt.raw(), *turn)
-                };
-                requires.push(receipt);
-            }
-            core::Held::Acknowledge { run, attempt, .. } => {
-                requires.extend(self.terminal_receipt(run.raw(), attempt.raw()));
-            }
-            core::Held::CallAnswer { key, .. } => {
-                requires.push(call(*key));
-            }
-            core::Held::PeopleReply { to, reply } => {
-                self.reply_receipts(to, reply, &mut requires)?;
-                if let people::Reply::Outcome(people::Outcome::ProjectRemoved { project }) = reply {
-                    self.observe(now, r::Observed::ProjectRemoved { project: *project })?;
-                }
-            }
-            core::Held::Acted { outcome: people::Outcome::ProjectRemoved { project }, .. } => {
+        if let core::Held::Cancel { run, attempt, .. } = delivery {
+            self.cancelled.insert((run.raw(), attempt.raw()));
+        } else if let core::Held::AcknowledgeTurn { run, attempt, turn, .. } = delivery {
+            let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
+                r::Receipt::Claim(run.raw(), attempt.raw())
+            } else if self.cancelled.contains(&(run.raw(), attempt.raw()))
+                && self.discarded.contains(&(run.raw(), attempt.raw()))
+            {
+                // A cancelled attempt's discarded body has no Turn row (fleet's turn.rs).
+                requires.push(r::Receipt::Claim(run.raw(), attempt.raw()));
+                r::Receipt::Task(run.raw())
+            } else {
+                r::Receipt::Turn(run.raw(), attempt.raw(), *turn)
+            };
+            requires.push(receipt);
+        } else if let core::Held::Acknowledge { run, attempt, .. } = delivery {
+            requires.extend(self.terminal_receipt(run.raw(), attempt.raw()));
+        } else if let core::Held::CallAnswer { key, .. } = delivery {
+            requires.push(call(*key));
+        } else if let core::Held::PeopleReply { to, reply } = delivery {
+            self.reply_receipts(to, reply, &mut requires)?;
+            if let people::Reply::Outcome(people::Outcome::ProjectRemoved { project }) = reply {
                 self.observe(now, r::Observed::ProjectRemoved { project: *project })?;
             }
-            core::Held::Result { person, task, .. } => {
-                requires.push(r::Receipt::Ended(*task));
-                self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) })?;
-            }
-            // The application's use of need arrivals is its own.
-            core::Held::NeedArrived { .. }
-            | core::Held::Acted { .. }
-            | core::Held::Drained
-            | core::Held::Restarting { .. }
-            | core::Held::ApplicationDelivery { .. }
-            | core::Held::ApplicationWatchEnded { .. }
-            | core::Held::Store(_)
-            | core::Held::Read { .. }
-            | core::Held::PublicRead { .. }
-            | core::Held::PublicWait { .. }
-            | core::Held::Applied { .. }
-            | core::Held::CarriedUnused { .. }
-            | core::Held::Delivery { .. }
-            | core::Held::WatchEnded { .. }
-            | core::Held::MakeEffect { .. }
-            | core::Held::SettledCall { .. }
-            | core::Held::Assign { .. }
-            | core::Held::ReadUsage { .. }
-            | core::Held::ReadList { .. }
-            | core::Held::Sources { .. }
-            | core::Held::PauseWorker { .. }
-            | core::Held::CheckSource { .. }
-            | core::Held::SignOutSource { .. }
-            | core::Held::SourceSignedOut { .. }
-            | core::Held::Grant { .. }
-            | core::Held::Relayed { .. }
-            | core::Held::Inbound { .. }
-            | core::Held::Relay { .. }
-            | core::Held::TaskTerminalAcknowledged { .. }
-            | core::Held::TaskPartKept { .. }
-            | core::Held::AcknowledgePart { .. }
-            | core::Held::PartBusy { .. }
-            | core::Held::TaskTurnKept { .. }
-            | core::Held::Refuse { .. }
-            | core::Held::TurnBusy { .. }
-            | core::Held::StopRun { .. }
-            | core::Held::NotesWritten { .. }
-            | core::Held::NotesDeleted { .. } => {}
+        } else if let core::Held::Acted { outcome: people::Outcome::ProjectRemoved { project }, .. } = delivery {
+            self.observe(now, r::Observed::ProjectRemoved { project: *project })?;
+        } else if let core::Held::Result { person, task, .. } = delivery {
+            requires.push(r::Receipt::Ended(*task));
+            self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) })?;
         }
         self.observe(now, r::Observed::Released { requires })
     }

@@ -3,6 +3,7 @@ use crate::{
     routing::flight::{Flight, Internal},
     tests::*,
 };
+use jig_domain_contract as contract;
 
 fn outputs(core: &mut Core, limits: &Limits, request: tasks::Request) -> Queue<Request> {
     let mut child = Queue::uncapped();
@@ -221,7 +222,11 @@ fn an_effect_proposal_refusal_drops_the_connector_owner_before_answering_the_cal
         &limits,
         tasks::Request::Refused { reply_to: ReplyTo::new(token), problem: problem.clone() },
     );
-    let Some(Request::Ask { connector: 1, ask: Ask::Effect(connector::Ask::Drop { owner, .. }) }) = out.pop() else {
+    let Some(Request::Ask {
+        connector: 1,
+        ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Drop { owner, .. })),
+    }) = out.pop()
+    else {
         panic!("effect dropped first")
     };
     assert_eq!(owner, Token::new(88));
@@ -249,7 +254,11 @@ fn a_procedure_proposal_refusal_uses_its_owner_and_retires_the_followup() {
             problem: tasks::Problem::new(Some(1), tasks::Refusal::Unknown),
         },
     );
-    let Some(Request::Ask { connector: 1, ask: Ask::Effect(connector::Ask::Drop { owner, .. }) }) = out.pop() else {
+    let Some(Request::Ask {
+        connector: 1,
+        ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Drop { owner, .. })),
+    }) = out.pop()
+    else {
         panic!("procedure owner refused")
     };
     assert_eq!(owner, Token::new(88));
@@ -303,9 +312,9 @@ fn person_and_task_escalations_choose_their_own_terminal() {
 }
 
 #[test]
-fn internal_repair_and_delegate_refusals_notify_each_connector_in_order() {
+fn internal_repair_and_delegate_refusals_notify_only_resource_connectors() {
     for repair in [false, true] {
-        let (mut core, limits) = core();
+        let (mut core, limits) = tree_core_with_write_hold();
         let token = core.internal(if repair { Internal::Repair { number: 91 } } else { Internal::Delegate });
         let mut out = outputs(
             &mut core,
@@ -315,16 +324,25 @@ fn internal_repair_and_delegate_refusals_notify_each_connector_in_order() {
                 problem: tasks::Problem::new(Some(4), tasks::Refusal::Unknown),
             },
         );
-        for connector in core.connectors.as_ref() {
-            let Some(Request::Ask { connector: named, ask }) = out.pop() else { panic!("connector refusal") };
-            assert_eq!(named, *connector);
+        {
+            let Some(Request::Ask { connector: 2, ask }) = out.pop() else { panic!("connector refusal") };
             if repair {
-                let Ask::RepairRefused { repair, number, why } = ask else { panic!("repair refused") };
+                let Ask::Connector(contract::Ask::Resources(contract::resources::Ask::RepairRefused {
+                    repair,
+                    number,
+                    why,
+                })) = ask
+                else {
+                    panic!("repair refused")
+                };
                 assert_eq!(repair, Some(4));
                 assert_eq!(number, 91);
                 assert_eq!(why, tasks::Refusal::Unknown);
             } else {
-                let Ask::DelegateRefused { task } = ask else { panic!("delegate refused") };
+                let Ask::Connector(contract::Ask::Resources(contract::resources::Ask::DelegateRefused { task })) = ask
+                else {
+                    panic!("delegate refused")
+                };
                 assert_eq!(task, Some(4));
             }
         }
@@ -379,12 +397,19 @@ fn a_refused_staged_effect_releases_its_owner_and_late_descriptions_leave_the_ne
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let owner = core.effect_owner();
     assert!(!core.quiescent(true));
-    let mut out = step(
+    let mut out = connector_step(
         &mut core,
         &env,
-        Event::EffectStart { owner, connector: 1, origin: EffectOrigin::Projection { goal: 99, entry: None } },
+        1,
+        contract::Up::Effects(contract::effects::Up::Start {
+            owner,
+            origin: EffectOrigin::Projection { goal: 99, entry: None },
+        }),
     );
-    let Some(Request::Ask { connector: 1, ask: Ask::Effect(connector::Ask::Drop { owner: dropped, .. }) }) = out.pop()
+    let Some(Request::Ask {
+        connector: 1,
+        ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Drop { owner: dropped, .. })),
+    }) = out.pop()
     else {
         panic!("staged effect dropped")
     };
@@ -392,7 +417,9 @@ fn a_refused_staged_effect_releases_its_owner_and_late_descriptions_leave_the_ne
     assert!(core.flights.is_empty());
     let current = core.effect_owner();
     assert_ne!(owner, current);
-    assert!(step(&mut core, &env, Event::EffectConnector(connector::Event::DescribeBusy { owner })).is_empty());
+    assert!(
+        connector_step(&mut core, &env, 1, contract::Up::Effects(contract::effects::Up::Busy { owner }),).is_empty()
+    );
     assert!(core.flights.get(skein_lib::Id::from_token(current)).is_some());
     drop(core.land_kind(current, flight::Kind::EffectStaging));
     assert!(core.flights.is_empty());
@@ -420,7 +447,11 @@ fn an_application_part_uses_the_people_childs_request_when_its_core_handle_diffe
     );
     let mut admitted = None;
     while let Some(row) = out.pop() {
-        if let Request::Ask { ask: Ask::Application { request, token, .. }, .. } = row {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Requests(contract::requests::Ask::Decide { request, token, .. })),
+            ..
+        } = row
+        {
             admitted = Some((request, token));
         }
     }
@@ -429,16 +460,26 @@ fn an_application_part_uses_the_people_childs_request_when_its_core_handle_diffe
         let seen = people::Seen::Results { through };
         let mut part =
             step(&mut core, &env, Event::ApplicationPart { request, ask: Box::new(people::Ask::MarkSeen { seen }) });
-        let Some(Request::Ask { connector: 1, ask: Ask::ApplicationPartAnswered { request: found, outcome } }) =
-            part.pop()
+        let Some(Request::Ask {
+            connector: 1,
+            ask:
+                Ask::Connector(contract::Ask::Requests(contract::requests::Ask::PartAnswered { request: found, outcome })),
+        }) = part.pop()
         else {
             panic!("application part answer")
         };
         assert_eq!(found, request);
         assert_eq!(outcome, people::Outcome::MarkedSeen { seen });
         assert!(part.is_empty());
+        assert!(core.judgements.outstanding().is_none(), "the application asked its core part first");
+        drop(finish_decision(&mut core, &env));
     }
-    let mut out = step(&mut core, &env, Event::ApplicationFinished { request, outcome: Ok(token) });
+    let mut out = connector_step(
+        &mut core,
+        &env,
+        1,
+        contract::Up::Requests(contract::requests::Up::Decided { request, outcome: Ok(token) }),
+    );
     assert!(out.pop().is_some());
     assert!(core.application_mut(request).is_none());
     assert!(
@@ -478,7 +519,11 @@ fn an_adoption_part_names_its_parent_until_its_own_answer_arrives() {
     );
     let mut admitted = None;
     while let Some(row) = out.pop() {
-        if let Request::Ask { ask: Ask::Application { request, token, .. }, .. } = row {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Requests(contract::requests::Ask::Decide { request, token, .. })),
+            ..
+        } = row
+        {
             admitted = Some((request, token));
         }
     }
@@ -499,7 +544,11 @@ fn an_adoption_part_names_its_parent_until_its_own_answer_arrives() {
         },
     );
     let first = out.pop();
-    let Some(Request::Ask { ask: Ask::Adopt { request, .. }, .. }) = first else {
+    let Some(Request::Ask {
+        ask: Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::Adopt { request, .. })),
+        ..
+    }) = first
+    else {
         panic!("adoption part: {first:?}; {out:?}")
     };
     assert_ne!(request, application);
@@ -511,13 +560,22 @@ fn an_adoption_part_names_its_parent_until_its_own_answer_arrives() {
         &env,
         Event::People(people::Event::Decided { request, outcome: people::Outcome::Adopted { project: 1 } }),
     );
-    let Some(Request::Ask { ask: Ask::ApplicationPartAnswered { request: parent, outcome }, .. }) = out.pop() else {
+    let Some(Request::Ask {
+        ask: Ask::Connector(contract::Ask::Requests(contract::requests::Ask::PartAnswered { request: parent, outcome })),
+        ..
+    }) = out.pop()
+    else {
         panic!("part answer names its application")
     };
     assert_eq!(parent, application);
     assert_eq!(outcome, people::Outcome::Adopted { project: 1 });
     assert_eq!(core.application_part_request(request), None);
-    drop(step(&mut core, &env, Event::ApplicationFinished { request: application, outcome: Ok(token) }));
+    drop(connector_step(
+        &mut core,
+        &env,
+        1,
+        contract::Up::Requests(contract::requests::Up::Decided { request: application, outcome: Ok(token) }),
+    ));
     let current = core.effect_owner();
     assert_ne!(current, request);
     assert_eq!(core.application_part_request(request), None);
@@ -563,7 +621,11 @@ fn a_procedure_owner_hears_its_step_before_a_retained_activation() {
         {
             saved = true;
         }
-        if let Request::Ask { ask: Ask::StepMade { task: 1, .. }, .. } = request {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::StepMade { task: 1, .. })),
+            ..
+        } = request
+        {
             assert!(saved, "the owner observes the task writes before its step acknowledgment");
             acknowledged = true;
         } else if let Request::Now(now) = request

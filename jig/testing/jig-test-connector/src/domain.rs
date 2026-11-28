@@ -15,13 +15,14 @@ pub const OUTPUTS_BOUND: u32 = 9;
 /// A connector's live working set and records.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) port: crate::port::Port,
     pub(crate) settings: crate::settings::State,
     pub(crate) client_subjects: Map<Token, crate::ClientSubject>,
     pub(crate) application: crate::application::State,
     pub(crate) config: Config,
     pub(crate) tasks: Map<u64, Record>,
     pub(crate) adoptions: Map<(u32, Path), ResourceRole>,
-    subscriptions: Map<(u16, u64), (u16, u16)>,
+    pub(crate) subscriptions: Map<(u16, u64), (u16, u16)>,
     pools: Map<Path, u32>,
     pub(crate) facts: Map<Path, crate::Fact>,
     pub(crate) judges: Map<Token, crate::requirements::Question>,
@@ -33,7 +34,7 @@ pub struct Domain {
     pub(crate) values: Map<Token, crate::values::Payload>,
     pub(crate) outbox: Outbox,
     restart_settling: bool,
-    restart_reads: Option<Map<Path, ()>>,
+    pub(crate) restart_reads: Option<Map<Path, ()>>,
     closing: Map<u64, ()>,
 }
 
@@ -57,6 +58,7 @@ impl Domain {
     }
     /// Builds a connector from the world's seed-derived configuration.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "validate and allocate the connector in one construction")]
     pub fn new(config: Config, limits: &Limits) -> Domain {
         assert!(crate::valid(limits), "connector limits fit");
         assert!(u32::try_from(config.pools.len()).unwrap_or(u32::MAX) <= limits.pools, "pool configuration fits");
@@ -138,6 +140,7 @@ impl Domain {
             assert!(pools.insert(pool.path.clone(), pool.slots) == Ok(None), "pool paths are unique");
         }
         Domain {
+            port: crate::port::Port::new(limits),
             settings: crate::settings::State::new(),
             application: crate::application::State::new(limits),
             client_subjects: Map::with_capacity(limits.values),
@@ -189,8 +192,11 @@ impl Domain {
 
 /// One input from the root or the fake system.
 #[expect(clippy::too_many_lines, reason = "one exhaustive connector event dispatcher")]
-pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub fn step_system(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Ask(_) | Event::Released(_) | Event::StageEffect { .. } | Event::WriterRead { .. } => {
+            unreachable!("contract inputs use the connector port")
+        }
         Event::SettingsDefaults => crate::settings::defaults(domain, out),
         Event::RestoreSettings { token, proposal, items } => {
             crate::settings::restore(domain, token, proposal, &items, out);
@@ -336,7 +342,7 @@ pub fn closing_ready(domain: &Domain) -> bool {
 }
 
 /// Finishes at most one ready closing task.
-pub fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
+pub(crate) fn resume_system(domain: &mut Domain, out: &mut Queue<Request>) {
     close_complete(domain, out);
 }
 
@@ -388,7 +394,7 @@ pub fn next_deadline(domain: &Domain) -> Option<Wall> {
 }
 
 /// Advances at most one due outbox entry.
-pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn fire_system(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::outbox::fire(domain, env, out);
     restart_complete(domain, out);
     crate::client_marks::collect(domain, env, out);

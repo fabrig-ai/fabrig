@@ -1,6 +1,7 @@
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 use crate::engine::store as engine_store;
 use crate::tests::*;
+use jig_domain_contract as contract;
 use jig_domain_people::ApplicationScope;
 
 fn close(core: &mut Core) {
@@ -65,7 +66,11 @@ fn an_application_ask_on_a_closed_project_is_refused_as_on_one_never_made() {
     close(&mut core);
     let closed = watch_outputs(&mut core, &limits, application(1));
     let unknown = watch_outputs(&mut core, &limits, application(99));
-    let [Request::Held(unknown_reply), Request::Ask { ask: Ask::DropApplication { .. }, .. }] = unknown.as_ref() else {
+    let [
+        Request::Held(unknown_reply),
+        Request::Ask { ask: Ask::Connector(contract::Ask::Requests(contract::requests::Ask::Drop { .. })), .. },
+    ] = unknown.as_ref()
+    else {
         panic!("unknown project refuses without a save: {unknown:?}");
     };
     for (_, flight) in &core.flights {
@@ -74,7 +79,11 @@ fn an_application_ask_on_a_closed_project_is_refused_as_on_one_never_made() {
         }
     }
     assert!(core.application_input.is_none());
-    let [Request::Held(reply), Request::Ask { ask: Ask::DropApplication { .. }, .. }] = closed.as_ref() else {
+    let [
+        Request::Held(reply),
+        Request::Ask { ask: Ask::Connector(contract::Ask::Requests(contract::requests::Ask::Drop { .. })), .. },
+    ] = closed.as_ref()
+    else {
         panic!("refusal has no flight or save: {closed:?}");
     };
     let Held::PeopleReply { reply: closed_reply, .. } = reply.as_ref() else {
@@ -100,7 +109,13 @@ fn an_application_ask_on_a_closed_project_is_refused_as_on_one_never_made() {
                 },
             },
         );
-        let [Request::Ask { ask: Ask::DropDocument { .. }, .. }, Request::Held(value)] = out.as_ref() else {
+        let [
+            Request::Ask {
+                ask: Ask::Connector(contract::Ask::Parts(contract::parts::Ask::DropDocument { .. })), ..
+            },
+            Request::Held(value),
+        ] = out.as_ref()
+        else {
             panic!("read refuses without a handoff or save: {out:?}");
         };
         let Held::Read { answer, .. } = value.as_ref() else {
@@ -136,10 +151,11 @@ fn a_watch_on_a_closed_project_is_refused_and_a_live_one_ends() {
         },
     );
     let internal = core.watch_token(application_watcher).expect("admitted application watch");
-    watch_outputs(
+    watch_connector_outputs(
         &mut core,
         &limits,
-        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
+        1,
+        contract::Up::Parts(contract::parts::Up::Made { watcher: internal, outcome: views::Made::Ready }),
     );
     close(&mut core);
     let mut out =

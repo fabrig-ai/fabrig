@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Delivery, Payload, Request, link};
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, In};
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, GrantTable, Hosting, Phase};
@@ -548,20 +548,25 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     }
     assert!(work.is_empty(), "ordinary handoffs finish before the projection pass");
     let requests = core::finish_decision(domain.engine.core_mut(), &core_env);
-    let outputs = &requests;
+    let mut outputs = Queue::uncapped();
+    engine::append(requests, &mut outputs);
     let mut feeds = 0_u32;
-    for request in outputs {
-        if let core::Request::Ask { ask: core::Ask::ProjectGoal { .. }, .. } = request {
+    for output in &outputs {
+        if let Out::Ask(
+            _,
+            jig_domain_contract::Ask::Projections(jig_domain_contract::projections::Ask::Project { .. }),
+        ) = output
+        {
             feeds = feeds.checked_add(1).expect("bounded connectors");
         }
-        if let core::Request::Held(held) = request
+        if let Out::Core(core::Request::Held(held)) = output
             && let core::Held::WatchEnded { .. } | core::Held::Drained = held.as_ref()
         {
             panic!("projection output must defer watch and drain terminals");
         }
     }
     assert_eq!(feeds, 2, "one projection per connector defers watches");
-    crate::routes::route_core(&mut domain, &env, &mut decision, requests, &mut fixtures::work());
+    crate::routes::route_engine(&mut domain, &env, &mut decision, outputs, &mut fixtures::work());
     let header = domain.engine.core_mut().counters.next_commit();
     crate::write(
         &mut domain,

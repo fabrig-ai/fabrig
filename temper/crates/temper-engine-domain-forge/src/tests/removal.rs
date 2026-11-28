@@ -5,6 +5,7 @@
     reason = "ordinary test assertions inspect captured requests"
 )]
 use super::*;
+use jig_domain_contract as contract;
 use jig_domain_people::Role as PartyRole;
 
 pub(super) fn record(number: u16, mode: Mode) -> ForgeRecord {
@@ -88,13 +89,14 @@ fn releasing_unpushed_change_and_run_branches_drops_their_holds_without_a_write(
             assert_eq!(op, skein_forge::api::Op::Write(skein_forge::api::Write::DeleteBranch { branch }));
             fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Done));
             assert!(
-                outputs(&mut d, Event::ContinueRelease { task: 7, entry: 21 }).contains(&Request::Released { task: 7 })
+                outputs(&mut d, Event::ContinueRelease { task: 7, entry: 21 })
+                    .contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 })))
             );
             assert!(d.hold(&name).is_none());
             continue;
         }
         assert!(d.hold(&name).is_none(), "unpublished hold is dropped: {closing:?}");
-        assert!(closing.contains(&Request::Released { task: 7 }));
+        assert!(closing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 }))));
         let mut writes = 0_usize;
         for request in closing.iter().chain(ready(&mut d).iter()) {
             if let Request::Save { record: Stored::Entry { .. }, .. }
@@ -135,12 +137,15 @@ fn an_unpushed_branch_release_waits_for_the_lost_writers_missing_answer() {
     );
     let closing =
         outputs(&mut d, Event::Release { task: 7, root: 7, ending: ReleaseEnding::Cancelled, reason: None, entry: 20 });
-    assert!(!closing.contains(&Request::Released { task: 7 }));
+    assert!(!closing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 }))));
     assert!(d.hold(&name).is_some());
     let answered = fixtures::answer(&mut d, call, Err(skein_forge::api::Error::Missing));
     assert!(answered.contains(&Request::ContinueRelease { task: 7 }));
     let continued = outputs(&mut d, Event::ContinueRelease { task: 7, entry: 21 });
-    assert!(continued.contains(&Request::Released { task: 7 }), "{continued:?}");
+    assert!(
+        continued.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 }))),
+        "{continued:?}"
+    );
     assert!(d.hold(&name).is_none());
     for request in continued.iter().chain(ready(&mut d).iter()) {
         assert!(!matches!(
@@ -464,7 +469,11 @@ fn writer_and_flights_go_at_once() {
         assert!(!d.flights.contains_key(&(51, entry)));
         assert!(sent.contains(&Request::Erase { key: Key::Entry(entry) }));
         assert!(sent.contains(&Request::Erase { key: Key::Flight { task: 51, entry } }));
-        assert!(sent.contains(&Request::NotMade { entry, task: 51 }));
+        assert!(sent.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Outbox {
+            entry,
+            task: 51,
+            outcome: contract::effects::OutboxOutcome::NotMade
+        }))));
     }
 }
 
@@ -589,11 +598,12 @@ fn a_projects_release_takes_its_repositories_out_of_kept_rows() {
     remove(&mut d, 1, Some(PartyRole::Owner));
     outputs(&mut d, Event::SecretsErased { forge: 1 });
     outputs(&mut d, Event::BoxRemoved { forge: 1 });
-    let sent = outputs(&mut d, Event::ReleaseProject { project: 5, request: Token::new(5) });
+    let sent =
+        outputs(&mut d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })));
     assert!(sent.contains(&Request::Erase { key: Key::Names(7) }));
     assert!(sent.contains(&Request::Erase { key: Key::Repository(REPO) }));
     assert!(sent.contains(&Request::Erase { key: Key::Forge(1) }));
-    assert_eq!(sent.last(), Some(&Request::ProjectReleased { request: Token::new(5) }));
+    assert_eq!(sent.last(), Some(&project_released(5)));
     assert_eq!(d.kept_names(7), None);
     assert_eq!(d.repository(REPO), None);
     assert_eq!(d.record(1), None);
@@ -611,7 +621,8 @@ fn a_projects_release_saves_the_other_projects_kept_repository_names() {
     outputs(&mut d, Event::Names { task: 7, resources: Box::new([other.clone(), branch(), repository_name()]) });
     release_names(&mut d, 7);
     assert_eq!(d.kept_names(7), Some([repository_name(), other.clone()].as_slice()));
-    let sent = outputs(&mut d, Event::ReleaseProject { project: 5, request: Token::new(5) });
+    let sent =
+        outputs(&mut d, Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 5 })));
     assert_eq!(d.kept_names(7), Some([other.clone()].as_slice()));
     assert!(sent.contains(&Request::Save {
         record: Stored::Names { task: 7, resources: Box::new([other]) },
@@ -665,7 +676,10 @@ fn a_removed_changes_open_pull_does_not_block_its_release() {
         &mut d,
         Event::Release { task: 51, root: 51, ending: ReleaseEnding::Cancelled, reason: None, entry: 100 },
     );
-    assert!(sent.contains(&Request::Released { task: 51 }), "removed forge needs no remote cleanup: {sent:?}");
+    assert!(
+        sent.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 51 }))),
+        "removed forge needs no remote cleanup: {sent:?}"
+    );
 }
 
 #[test]
@@ -713,7 +727,7 @@ fn removal_settles_pending_release_cleanup_without_touching_the_forge() {
     assert!(!sent.iter().any(|request| if let Request::ReleaseFailed { .. } = request { true } else { false }));
     assert!(sent.contains(&Request::ContinueRelease { task: 51 }));
     let sent = outputs(&mut d, Event::ContinueRelease { task: 51, entry: 101 });
-    assert!(sent.contains(&Request::Released { task: 51 }));
+    assert!(sent.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 51 }))));
 }
 
 #[test]

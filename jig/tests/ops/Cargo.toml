@@ -27,6 +27,7 @@ jig-ops-domain.workspace = true
 jig-conformance.workspace = true
 jig-core-kit.workspace = true
 jig-domain-core.workspace = true
+jig-domain-contract.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-people.workspace = true

@@ -53,8 +53,8 @@ each step the core asks for:
 6. **Decisions open:** every due task is activated, and the service
    admits its clients.
 7. **The forge catches up** (`forge/catching-up.md`): as the core asks
-   it at the opening, the root gives the forge `Event::CatchUp`, and
-   passes its `RestartDone` reports of its fresh reads and its settle
+   it at the opening, the root gives the forge `lifecycle::Ask::CatchUp`, and
+   passes its `lifecycle::Up::Done` reports of its fresh reads and its settle
    to the core, which records them by connector; the forge reads afresh
    and settles its outbox (forge/effects.md, section 2) while the engine
    serves. The root's own procedures on the forge's facts, the trains'

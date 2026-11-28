@@ -385,6 +385,7 @@ impl Engine {
                 | root::Delivery::System { .. }
                 | root::Delivery::LostRead { .. }
                 | root::Delivery::Store(_)
+                | root::Delivery::Connector(..)
                 | root::Delivery::Start(_)
                 | root::Delivery::Procedure { .. } => {}
             }
@@ -440,13 +441,10 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
-        | core::Event::Parts { .. }
-        | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
         | core::Event::Read { .. }
         | core::Event::PublicRead { .. }
-        | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
         | core::Event::Act { .. }
         | core::Event::ProposeSettings { .. }
@@ -455,11 +453,9 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Key { .. }
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
-        | core::Event::ApplicationFinished { .. }
         | core::Event::ProjectionSettled { .. }
         | core::Event::SettledCall { .. }
         | core::Event::EffectStart { .. }
-        | core::Event::EffectConnector(_)
         | core::Event::EffectDeadline
         | core::Event::SignIn { .. }
         | core::Event::Unwatch { .. }
@@ -489,12 +485,8 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
         | core::Event::Delegate { .. }
-        | core::Event::DelegateHoldings { .. }
-        | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }
         | core::Event::Brief(_)
-        | core::Event::Holdings { .. }
-        | core::Event::ProjectReleased { .. }
         | core::Event::Account(_)
         | core::Event::View(_)
         | core::Event::Notes(_) => None,

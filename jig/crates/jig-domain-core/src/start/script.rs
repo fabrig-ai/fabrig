@@ -1,9 +1,11 @@
 //! Script transitions and journal release identities (jig/docs/design/domain/engine/restart.md).
+use crate::vocabulary::connector_ask;
 use crate::{
     Core, Key, Limits, Queue, Request, Write, people,
     start::{Action, Continuation, Failure, Linked, LiveSet, Phase, SweepInput},
     tasks,
 };
+use jig_domain_contract as contract;
 use skein_lib::Env;
 
 impl Core {
@@ -131,10 +133,7 @@ impl Core {
                 }
                 self.start.phase = None;
                 for &connector in &self.connectors {
-                    out.push(Request::Ask {
-                        connector,
-                        ask: crate::Ask::Effect(crate::effects::connector::Ask::CatchUp),
-                    });
+                    out.push(connector_ask(connector, contract::Ask::Lifecycle(contract::lifecycle::Ask::CatchUp)));
                 }
                 return Action::Idle;
             }

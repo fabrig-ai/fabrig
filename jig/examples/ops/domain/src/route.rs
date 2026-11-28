@@ -1,22 +1,19 @@
 //! Each variant fixes its destination. Replace connector arms when copying;
 //! retain the journal marks and engine's permanent host link (domain/root.md, 5).
-use crate::client_documents::{Watched, document as watched_document};
 use crate::domain::{Work, child, held, now, write};
-use crate::translate;
 use crate::{Domain, Event, Key, Limits, Output, Record, Released, Write};
 use alloc::boxed::Box;
-use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
-use jig_domain_core::effects::connector;
 use jig_domain_core::engine::{self, In, Out, Peer};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use jig_domain_hub_link::{Event as LinkEvent, Procedure};
+use jig_domain_hub_link::Event as LinkEvent;
 use jig_domain_tasks as tasks;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
-use skein_lib::{Decision, Env, List, Queue, ReplyTo, Token};
+use skein_lib::{Decision, Env, Queue, ReplyTo, Token};
 
 pub(crate) fn work(
     domain: &mut Domain,
@@ -37,7 +34,11 @@ pub(crate) fn work(
             engine::step(&mut domain.engine, &env.with(env.limits.core), In::Store(answer), &mut out);
             engine_out(domain, env, decision, out, work);
         }
-        Work::Effect { owner, origin, effect } => effect_start(domain, env, decision, owner, origin, effect, work),
+        Work::Connector(number, up) => {
+            let mut out = Queue::uncapped();
+            engine::step(&mut domain.engine, &env.with(env.limits.core), In::Connector(number, up), &mut out);
+            engine_out(domain, env, decision, out, work);
+        }
         Work::Finish => {}
         Work::ResumeFleet => {
             let requests = core::resume_fleet(domain.engine.core_mut(), &env.with(env.limits.core));
@@ -51,7 +52,7 @@ pub(crate) fn work(
             infrastructure::step(&mut domain.infrastructure, &env.with(env.limits.infrastructure), event, &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
-                connector_out(domain, env, decision, ConnectorRequest::Infrastructure(request), work);
+                infrastructure_out(domain, decision, request, work);
             }
         }
         Work::Observability(event) => {
@@ -59,7 +60,7 @@ pub(crate) fn work(
             observability::step(&mut domain.observability, &env.with(env.limits.observability), event, &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
-                connector_out(domain, env, decision, ConnectorRequest::Observability(request), work);
+                observability_out(domain, decision, request, work);
             }
         }
         Work::Host(event) => {
@@ -69,56 +70,6 @@ pub(crate) fn work(
         }
         Work::Start(action) => crate::restart::route(domain, env, decision, action, work),
         Work::StartDone(phase) => crate::restart::done(domain, env, decision, phase, work),
-    }
-}
-
-fn effect_start(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision<Write, Output>,
-    owner: Token,
-    origin: core::EffectOrigin,
-    effect: infrastructure::Effect,
-    work: &mut Queue<Work>,
-) {
-    let mut out = Queue::uncapped();
-    engine::step(
-        &mut domain.engine,
-        &env.with(env.limits.core),
-        In::Core(core::Event::EffectStart {
-            owner,
-            connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
-            origin,
-        }),
-        &mut out,
-    );
-    let mut effect = Some(effect);
-    // The core selects description or refusal; the typed input moves once.
-    for _ in 0..out.len() {
-        let request = match out.pop().expect("effect start outputs") {
-            Out::Core(request) => request,
-            Out::Held(Peer::Store(load)) => {
-                held(decision, Output::Store(load));
-                continue;
-            }
-        };
-        match request {
-            core::Request::Ask { connector, ask: core::Ask::Effect(connector::Ask::Describe { owner: asked }) } => {
-                assert!(
-                    asked == owner && connector == jig_ops_domain_connectors::number(Connector::Infrastructure),
-                    "effect input owner"
-                );
-                work.push(Work::Infrastructure(infrastructure::Event::Describe {
-                    token: owner,
-                    effect: effect.take().expect("one description request"),
-                }));
-            }
-            request @ (core::Request::Write(_)
-            | core::Request::Held(_)
-            | core::Request::Now(_)
-            | core::Request::Ask { .. }
-            | core::Request::ProjectMade { .. }) => core_request(domain, env, decision, request, work),
-        }
     }
 }
 
@@ -133,7 +84,7 @@ fn event_in(
     match event {
         Event::WatchApplication { watcher, sign_in, scope, subject, window } => {
             let token = domain.token();
-            let number = crate::client_documents::prepare(domain, token, subject, work);
+            let number = crate::client_documents::prepare(token, subject, work);
             work.push(Work::Core(core::Event::Watch {
                 watcher,
                 sign_in,
@@ -143,7 +94,7 @@ fn event_in(
         }
         Event::ReadApplication { reply, sign_in, scope, subject } => {
             let token = domain.token();
-            let number = crate::client_documents::prepare(domain, token, subject, work);
+            let number = crate::client_documents::prepare(token, subject, work);
             work.push(Work::Core(core::Event::Read {
                 reply,
                 sign_in,
@@ -198,17 +149,15 @@ fn event_in(
                     work.push(Work::Start(action));
                 }
             }
-            Released::Procedure { task, step: _, connector, code: _ } => {
-                match jig_ops_domain_connectors::connector(connector) {
-                    Some(Connector::Infrastructure) => {
-                        work.push(Work::Infrastructure(infrastructure::Event::Procedure {
-                            task,
-                            signal: infrastructure::ProcedureSignal::Step,
-                        }));
-                    }
-                    Some(Connector::Observability) | None => {}
+            Released::Connector(number, released) => match jig_ops_domain_connectors::connector(number.0) {
+                Some(Connector::Infrastructure) => {
+                    work.push(Work::Infrastructure(infrastructure::Event::Released(released)));
                 }
-            }
+                Some(Connector::Observability) => {
+                    work.push(Work::Observability(observability::Event::Released(released)));
+                }
+                None => unreachable!("configured connector"),
+            },
         },
         Event::ResultRead { payload, end } => {
             crate::link::route(domain, env, decision, LinkEvent::ResultRead { payload, end }, false, work);
@@ -225,7 +174,12 @@ fn event_in(
                 Some(reason) => core::EffectOrigin::Propose { to, key, reason, as_holder: false },
                 None => core::EffectOrigin::Call { to, key, deadline },
             };
-            work.push(Work::Effect { owner, origin, effect });
+            work.push(Work::Infrastructure(infrastructure::Event::StageEffect { owner, effect }));
+            work.push(Work::Core(core::Event::EffectStart {
+                owner,
+                connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
+                origin,
+            }));
         }
         Event::Timer(timer) => {
             let mut out = Queue::uncapped();
@@ -238,7 +192,7 @@ fn event_in(
             infrastructure::fire(&mut domain.infrastructure, &env.with(env.limits.infrastructure), &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
-                connector_out(domain, env, decision, ConnectorRequest::Infrastructure(request), work);
+                infrastructure_out(domain, decision, request, work);
             }
         }
         Event::ObservabilityTimer => {
@@ -246,7 +200,7 @@ fn event_in(
             observability::fire(&mut domain.observability, &env.with(env.limits.observability), &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
-                connector_out(domain, env, decision, ConnectorRequest::Observability(request), work);
+                observability_out(domain, decision, request, work);
             }
         }
         Event::Agent(report) => work.push(Work::Host(host::Event::Agent(report))),
@@ -266,6 +220,14 @@ fn engine_out(
     for _ in 0..out.len() {
         match out.pop().expect("engine output count") {
             Out::Core(request) => core_request(domain, env, decision, request, work),
+            Out::Ask(number, ask) => match jig_ops_domain_connectors::connector(number.0) {
+                Some(Connector::Infrastructure) => work.push(Work::Infrastructure(infrastructure::Event::Ask(ask))),
+                Some(Connector::Observability) => work.push(Work::Observability(observability::Event::Ask(ask))),
+                None => unreachable!("configured connector"),
+            },
+            Out::Held(Peer::Connector(connector, released)) => {
+                child(decision, Released::Connector(connector, released));
+            }
             Out::Held(Peer::Store(load)) => held(decision, Output::Store(load)),
         }
     }
@@ -326,153 +288,150 @@ fn core_held(
         }
         Err(value) => value,
     };
-    match value {
-        core::Held::PublicRead { .. } => {}
-        core::Held::PublicWait { read } => child(decision, Released::Core(core::Event::PublicDurable { read })),
-        core::Held::Store(_) => {
-            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
-        }
+    if let core::Held::PublicRead { .. } = value {
+        return;
+    }
+    if let core::Held::PublicWait { read } = value {
+        child(decision, Released::Core(core::Event::PublicDurable { read }));
+        return;
+    }
+    if let core::Held::Store(_) = value {
+        unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+    }
 
-        core::Held::ApplicationDelivery { .. } => unreachable!("document assembly owns this synchronous output"),
-        core::Held::ApplicationWatchEnded { watcher, connector, subject, why } => {
-            crate::client_documents::forget(domain, connector, subject, work);
-            held(decision, Output::Core(core::Held::WatchEnded { watcher, why }));
-        }
-        core::Held::Applied { to, connector, token } => {
-            assert!(
-                connector == jig_ops_domain_connectors::number(Connector::Infrastructure),
-                "application request owner"
-            );
-            let outcome = domain
-                .infrastructure
-                .application_outcome(token)
-                .expect("kept people token has its retained connector outcome");
-            held(decision, Output::Application { to, outcome });
-        }
-        core::Held::Acted { to, outcome } => {
-            let token = to.into_token();
-            let key = domain.hub_link.take_close_reply(token).expect("infrastructure act reply");
-            let translated = match outcome.act_status() {
-                jig_domain_people::ActStatus::Closed => infrastructure::CloseOutcome::Closed,
-                jig_domain_people::ActStatus::Again => infrastructure::CloseOutcome::Again,
-                jig_domain_people::ActStatus::NotOffered => infrastructure::CloseOutcome::NotOffered,
-                jig_domain_people::ActStatus::NoOwner => infrastructure::CloseOutcome::NoOwner,
-                jig_domain_people::ActStatus::Ended => infrastructure::CloseOutcome::Ended,
-                jig_domain_people::ActStatus::Refused => infrastructure::CloseOutcome::Refused,
-            };
-            // Keep the complete answer as a report fact, including saved
-            // refusals; the connector owns retention and retry decisions.
-            held(decision, Output::Core(core::Held::Acted { to: ReplyTo::new(token), outcome }));
-            child(decision, Released::Infrastructure(infrastructure::Event::Closed { key, outcome: translated }));
-        }
-        core::Held::MakeEffect { connector, entry } => match jig_ops_domain_connectors::connector(connector) {
-            Some(Connector::Infrastructure) => {
-                child(decision, Released::Infrastructure(infrastructure::Event::MakeEntry { entry }));
-            }
-            Some(Connector::Observability) => {
-                child(decision, Released::Observability(observability::Event::MakeEntry { entry }));
-            }
-            None => {}
-        },
-        core::Held::Assign { channel, run, attempt, .. } => {
-            crate::link::route(domain, env, decision, LinkEvent::Assign { channel, run, attempt }, true, work);
-        }
-        core::Held::SettledCall { to, key: _, call } => {
-            crate::link::route(domain, env, decision, LinkEvent::SettledCall { to, call }, false, work);
-        }
-        core::Held::Relayed { channel, run, attempt, call, answer } => crate::link::route(
+    if let core::Held::ApplicationDelivery { watcher, connector, subject } = value {
+        let document = crate::client_documents::take(domain, connector, subject);
+        held(decision, Output::ApplicationDocument { watcher, document });
+        return;
+    }
+    if let core::Held::ApplicationWatchEnded { watcher, connector, subject, why } = value {
+        crate::client_documents::forget(connector, subject, work);
+        held(decision, Output::Core(core::Held::WatchEnded { watcher, why }));
+        return;
+    }
+    if let core::Held::Applied { to, connector, token } = value {
+        assert!(connector == jig_ops_domain_connectors::number(Connector::Infrastructure), "application request owner");
+        let outcome = domain
+            .infrastructure
+            .application_outcome(token)
+            .expect("kept people token has its retained connector outcome");
+        held(decision, Output::Application { to, outcome });
+        return;
+    }
+    if let core::Held::Assign { channel, run, attempt, .. } = value {
+        crate::link::route(domain, env, decision, LinkEvent::Assign { channel, run, attempt }, true, work);
+        return;
+    }
+    if let core::Held::SettledCall { to, key: _, call } = value {
+        crate::link::route(domain, env, decision, LinkEvent::SettledCall { to, call }, false, work);
+        return;
+    }
+    if let core::Held::Relayed { channel, run, attempt, call, answer } = value {
+        crate::link::route(
             domain,
             env,
             decision,
             LinkEvent::Relayed { channel, run, attempt, call, answer },
             true,
             work,
-        ),
-        core::Held::Inbound { channel, run, attempt, message } => {
-            crate::link::route(
-                domain,
-                env,
-                decision,
-                LinkEvent::Inbound { channel, run, attempt, message },
-                true,
-                work,
-            );
-        }
-        core::Held::Relay { task, attempt, word, .. } => {
-            let name = Token::new(word.number);
-            let words = domain.hub_link.retain(jig_domain_hub_link::Payload::InboxWord(word));
-            child(
-                decision,
-                Released::Fleet(fleet::Event::Inbound {
-                    run: Token::new(task),
-                    attempt: Token::new(attempt),
-                    message: fleet::Message { name, sender: Token::new(0), words },
-                }),
-            );
-        }
-        core::Held::TaskPartKept { key } => child(
+        );
+        return;
+    }
+    if let core::Held::Inbound { channel, run, attempt, message } = value {
+        crate::link::route(domain, env, decision, LinkEvent::Inbound { channel, run, attempt, message }, true, work);
+        return;
+    }
+    if let core::Held::Relay { task, attempt, word, .. } = value {
+        let name = Token::new(word.number);
+        let words = domain.hub_link.retain(jig_domain_hub_link::Payload::InboxWord(word));
+        child(
+            decision,
+            Released::Fleet(fleet::Event::Inbound {
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+                message: fleet::Message { name, sender: Token::new(0), words },
+            }),
+        );
+        return;
+    }
+    if let core::Held::TaskPartKept { key } = value {
+        child(
             decision,
             Released::Fleet(fleet::Event::PartKept {
                 run: Token::new(key.task),
                 attempt: Token::new(key.attempt),
                 part: key.number,
             }),
-        ),
-        core::Held::TaskTurnKept { task: run, attempt, turn } => {
-            child(
-                decision,
-                Released::Fleet(fleet::Event::TurnKept { run: Token::new(run), attempt: Token::new(attempt), turn }),
-            );
-        }
-        core::Held::TurnBusy { channel, run, attempt, turn } if channel == Token::new(0) => {
-            crate::link::route(
-                domain,
-                env,
-                decision,
-                LinkEvent::TurnBusy { run, attempt, turn, retained: domain.host.has_turn(run, attempt, turn) },
-                false,
-                work,
-            );
-        }
-        core::Held::StopRun { task, attempt } => child(
+        );
+        return;
+    }
+    if let core::Held::TaskTurnKept { task: run, attempt, turn } = value {
+        child(
             decision,
-            Released::Fleet(fleet::Event::Cancel { run: Token::new(task), attempt: Token::new(attempt) }),
-        ),
-        core::Held::TaskTerminalAcknowledged { task, attempt } => child(
+            Released::Fleet(fleet::Event::TurnKept { run: Token::new(run), attempt: Token::new(attempt), turn }),
+        );
+        return;
+    }
+    if let core::Held::TurnBusy { channel, run, attempt, turn } = value
+        && channel == Token::new(0)
+    {
+        crate::link::route(
+            domain,
+            env,
+            decision,
+            LinkEvent::TurnBusy { run, attempt, turn, retained: domain.host.has_turn(run, attempt, turn) },
+            false,
+            work,
+        );
+        return;
+    }
+    if let core::Held::StopRun { task, attempt } = value {
+        child(decision, Released::Fleet(fleet::Event::Cancel { run: Token::new(task), attempt: Token::new(attempt) }));
+        return;
+    }
+    if let core::Held::TaskTerminalAcknowledged { task, attempt } = value {
+        child(
             decision,
             Released::Fleet(fleet::Event::Acknowledge { run: Token::new(task), attempt: Token::new(attempt) }),
-        ),
-        other @ (core::Held::CallAnswer { .. }
-        | core::Held::Read { .. }
-        | core::Held::Delivery { .. }
-        | core::Held::WatchEnded { .. }
-        | core::Held::PeopleReply { .. }
-        | core::Held::CarriedUnused { .. }
-        | core::Held::NeedArrived { .. }
-        | core::Held::Result { .. }
-        | core::Held::Drained
-        | core::Held::Restarting { .. }
-        | core::Held::Grant { .. }
-        | core::Held::AcknowledgeTurn { .. }
-        | core::Held::AcknowledgePart { .. }
-        | core::Held::PartBusy { .. }
-        | core::Held::Cancel { .. }
-        | core::Held::Acknowledge { .. }
-        | core::Held::ReadUsage { .. }
-        | core::Held::ReadList { .. }
-        | core::Held::Sources { .. }
-        | core::Held::PauseWorker { .. }
-        | core::Held::CheckSource { .. }
-        | core::Held::SignOutSource { .. }
-        | core::Held::SourceSignedOut { .. }
-        | core::Held::Refuse { .. }
-        | core::Held::TurnBusy { .. }
-        | core::Held::NotesWritten { .. }
-        | core::Held::NotesDeleted { .. }) => held(decision, Output::Core(other)),
+        );
+        return;
     }
+    if let core::Held::CallAnswer { .. }
+    | core::Held::Read { .. }
+    | core::Held::Delivery { .. }
+    | core::Held::WatchEnded { .. }
+    | core::Held::PeopleReply { .. }
+    | core::Held::CarriedUnused { .. }
+    | core::Held::NeedArrived { .. }
+    | core::Held::Result { .. }
+    | core::Held::Drained
+    | core::Held::Restarting { .. }
+    | core::Held::Grant { .. }
+    | core::Held::AcknowledgeTurn { .. }
+    | core::Held::AcknowledgePart { .. }
+    | core::Held::PartBusy { .. }
+    | core::Held::Cancel { .. }
+    | core::Held::Acknowledge { .. }
+    | core::Held::ReadUsage { .. }
+    | core::Held::ReadList { .. }
+    | core::Held::Sources { .. }
+    | core::Held::PauseWorker { .. }
+    | core::Held::CheckSource { .. }
+    | core::Held::SignOutSource { .. }
+    | core::Held::SourceSignedOut { .. }
+    | core::Held::Refuse { .. }
+    | core::Held::TurnBusy { .. }
+    | core::Held::NotesWritten { .. }
+    | core::Held::NotesDeleted { .. }
+    | core::Held::Acted { .. } = value
+    {
+        held(decision, Output::Core(value));
+        return;
+    }
+    unreachable!("connector releases cross the engine port: {value:?}");
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates this child boundary")]
+// The remaining core asks are outside the connectors' port.
 fn core_ask(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -481,236 +440,15 @@ fn core_ask(
     ask: core::Ask,
     work: &mut Queue<Work>,
 ) {
-    let destination = jig_ops_domain_connectors::connector(number);
-    match (destination, ask) {
-        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Parts(ask)) => {
-            let mut parts = List::uncapped();
-            for _row in &ask.rows {
-                for _kind in &ask.kinds {
-                    parts.push(core::MadePart::Failed(core::PartFailure::Unreadable)).expect("parts fit the ask");
-                }
-            }
-            work.push(Work::Core(core::Event::Parts { connector: number, token: ask.token, parts }));
-        }
-        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Public { reply, .. }) => {
-            work.push(Work::Core(core::Event::PublicAnswered { reply, answer: None }));
-        }
-        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::ReleaseProject { project }) => {
-            work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::StepMade { task, step, first: Some(first), .. },
-        ) => {
-            crate::steps::made(number, task, step, Some(first), work);
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::StepRefused { task, step, .. },
-        ) => crate::steps::made(number, task, step, None, work),
-        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::DropDocument { subject }) => {
-            crate::client_documents::forget(domain, number, subject, work);
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::Document { watcher, scope, subject, party, window: _ },
-        ) => {
-            crate::client_documents::ask_document(domain, number, watcher, scope, subject, party, work);
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::Read { reply, scope, read, party, window: _ },
-        ) => {
-            crate::client_documents::read(
-                domain,
-                env,
-                decision,
-                number,
-                crate::client_documents::Reading { reply, scope, read, party },
-                work,
-            );
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::Application { request, token, owner, person, scope, role, retention },
-        ) => {
-            let (jig_domain_people::ApplicationScope::Project(project), Some(role)) = (scope, role) else {
-                work.push(Work::Core(core::Event::People(jig_domain_people::Event::Decided {
-                    request,
-                    outcome: jig_domain_people::Outcome::Refused(jig_domain_people::Refusal::NotOffered),
-                })));
-                return;
-            };
-            assert!(number == jig_ops_domain_connectors::number(Connector::Infrastructure), "application owner");
-            work.push(Work::Infrastructure(infrastructure::Event::Application {
-                request,
-                token,
-                owner,
-                person,
-                project,
-                role: role.number(),
-                retention,
-            }));
-        }
-        (Some(Connector::Infrastructure), core::Ask::DropApplication { owner }) => {
-            work.push(Work::Infrastructure(infrastructure::Event::ApplicationDrop { owner }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::ApplicationPartAnswered { .. },
-        ) => unreachable!("infrastructure requests ask for no core part"),
-        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Effect(ask)) => {
-            effect_ask(domain, env, number, ask, work);
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::TaskHoldings { request, executor, spec, .. },
-        ) => work.push(Work::Core(core::Event::Holdings {
-            refused: None,
-            request,
-            connector: number,
-            holdings: connector_holdings(env, number, executor, &spec),
-        })),
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::DelegateHoldings { request, members, .. },
-        ) => {
-            let mut holdings = List::with_capacity(u32::try_from(members.len()).expect("bounded batch"));
-            let mut valid = true;
-            for member in members {
-                match connector_holdings(env, number, member.executor, &member.spec) {
-                    Some(value) => holdings.push(value).expect("one holdings row"),
-                    None => valid = false,
-                }
-            }
-            let holdings = if valid { Some(holdings.into_boxed()) } else { None };
-            work.push(Work::Core(core::Event::DelegateHoldings {
-                refused: None,
-                request,
-                connector: number,
-                holdings,
-            }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::ProcedureHoldings { task, step, members },
-        ) => {
-            let mut holdings = List::with_capacity(u32::try_from(members.len()).expect("bounded batch"));
-            let mut valid = true;
-            for member in members {
-                match connector_holdings(env, number, member.executor, &member.spec) {
-                    Some(value) => holdings.push(value).expect("one holdings row"),
-                    None => valid = false,
-                }
-            }
-            let holdings = if valid { Some(holdings.into_boxed()) } else { None };
-            work.push(Work::Core(core::Event::ProcedureHoldings {
-                refused: None,
-                task,
-                step,
-                connector: number,
-                holdings,
-            }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::StartProcedure { context, step },
-        ) => {
-            let task = context.task;
-            let code = match context.executor {
-                tasks::Executor::Job { .. } => return,
-                tasks::Executor::Procedure { code, .. } => code,
-                tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
-                    unreachable!("core-selected procedure executor")
-                }
-            };
-            domain.hub_link.keep_procedure(task, Procedure { step, connector: number, code });
-            match destination {
-                Some(Connector::Infrastructure) => {
-                    match infrastructure::procedure(
-                        &env.limits.infrastructure.vocabulary,
-                        code,
-                        &translate::infrastructure_spec(&context.spec),
-                        domain.engine.core().counters.deployment().id,
-                    ) {
-                        Some(procedure) => {
-                            work.push(Work::Infrastructure(infrastructure::Event::StartProcedure {
-                                task,
-                                project: context.project,
-                                chat: domain.engine.core().tasks.served_chat(task),
-                                pending: context.pending,
-                                added: translate::infrastructure_added(context.added),
-                                procedure,
-                            }));
-                        }
-                        None => work.push(Work::Core(core::Event::ProcedureStep {
-                            task,
-                            step,
-                            connector: number,
-                            code,
-                            decision: core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
-                        })),
-                    }
-                    child(decision, Released::Procedure { task, step, connector: number, code });
-                }
-                Some(Connector::Observability) => {
-                    match observability::watch_spec(
-                        &translate::observability_spec(&context.spec),
-                        &env.limits.observability.vocabulary,
-                    ) {
-                        Some(spec) => {
-                            work.push(Work::Observability(observability::Event::StartWatch {
-                                task,
-                                project: context.project,
-                                services: Box::new([spec.service]),
-                                template: spec.template,
-                            }));
-                            if let Some(row) = domain.engine.core().tasks.task(task) {
-                                for subscription in &row.subscriptions {
-                                    match subscription.kind {
-                                        tasks::SubscriptionKind::Topic { connector, topic } => {
-                                            if connector == number && topic == task {
-                                                work.push(Work::Observability(observability::Event::LinkWatch {
-                                                    task,
-                                                    subscription: subscription.number,
-                                                }));
-                                            }
-                                        }
-                                        tasks::SubscriptionKind::Task { .. }
-                                        | tasks::SubscriptionKind::Timer { .. } => {}
-                                    }
-                                }
-                            }
-                            let messages = observability::watch_messages(
-                                translate::watch_inputs(context.inbox),
-                                &env.limits.observability,
-                            );
-                            work.push(Work::Observability(observability::Event::WatchStep {
-                                task,
-                                step,
-                                batch: context.last_message,
-                                messages,
-                            }));
-                        }
-                        None => work.push(Work::Core(core::Event::ProcedureStep {
-                            task,
-                            step,
-                            connector: number,
-                            code,
-                            decision: core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
-                        })),
-                    }
-                }
-                None => {}
-            }
-        }
-        (Some(Connector::Infrastructure), core::Ask::ClaimDone { task, attempt, kinds, version }) => {
+    let infrastructure = jig_ops_domain_connectors::connector(number) == Some(Connector::Infrastructure);
+    if let core::Ask::ClaimDone { task, attempt, kinds, version } = ask {
+        if infrastructure {
             crate::link::route(domain, env, decision, LinkEvent::Start { task, attempt, kinds, version }, true, work);
         }
-        (
-            Some(Connector::Infrastructure),
-            core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace },
-        ) => {
+        return;
+    }
+    if let core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } = ask {
+        if infrastructure {
             crate::link::route(
                 domain,
                 env,
@@ -732,537 +470,83 @@ fn core_ask(
                 work,
             );
         }
-        (Some(Connector::Infrastructure), core::Ask::Close { task, .. }) => {
-            work.push(Work::Infrastructure(infrastructure::Event::Close { task }));
-        }
-        (Some(Connector::Observability), core::Ask::Close { task, .. }) => {
-            work.push(Work::Observability(observability::Event::Close { task }));
-        }
-        (Some(Connector::Infrastructure), core::Ask::Release { task, .. }) => {
-            work.push(Work::Infrastructure(infrastructure::Event::Release { task }));
-        }
-        (Some(Connector::Observability), core::Ask::Release { task, .. }) => {
-            work.push(Work::Observability(observability::Event::Release { task }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::Gather { section, .. } | core::Ask::CutTo { section, .. },
-        ) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::SectionReady { section, size: None })));
-        }
-        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::ProjectGoal { feed }) => {
-            // These two connectors have no goal projection. Their closing
-            // hand-off has no pending writes to settle.
-            if feed.closing {
-                work.push(Work::Core(core::Event::ProjectionSettled { goal: feed.goal.number, connector: number }));
-            }
-        }
-        (Some(Connector::Observability), core::Ask::SubscriptionDone { request: _, key, subscription }) => {
-            work.push(Work::Observability(observability::Event::LinkWatch { task: key.task, subscription }));
-        }
-        (Some(Connector::Infrastructure), core::Ask::SubscriptionDone { request, key, subscription }) => {
-            work.push(Work::Core(core::Event::NamedAnswer {
-                to: ReplyTo::new(request),
-                key,
-                part: core::CallPart::Subscribed { subscription },
-            }));
-        }
-        (Some(Connector::Infrastructure), core::Ask::UnsubscriptionDone { request, key }) => {
-            work.push(Work::Core(core::Event::NamedAnswer {
-                to: ReplyTo::new(request),
-                key,
-                part: core::CallPart::Unsubscribed,
-            }));
-        }
-        (
-            Some(Connector::Observability) | None,
-            core::Ask::DropApplication { .. }
-            | core::Ask::ClaimDone { .. }
-            | core::Ask::JobClaimed { .. }
-            | core::Ask::UnsubscriptionDone { .. },
-        )
-        | (None, core::Ask::Close { .. } | core::Ask::Release { .. } | core::Ask::SubscriptionDone { .. })
-        | (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::Providers(_)
-            | core::Ask::Workers(_)
-            | core::Ask::Catalogue { .. }
-            | core::Ask::StepMade { first: None, .. }
-            | core::Ask::WaitsRefused { .. }
-            | core::Ask::ForgetProjection { .. }
-            | core::Ask::Adopt { .. }
-            | core::Ask::Hold { .. }
-            | core::Ask::EndTopic { .. }
-            | core::Ask::Drop { .. }
-            | core::Ask::Lost { .. }
-            | core::Ask::DropSubscription { .. }
-            | core::Ask::RepairRefused { .. }
-            | core::Ask::DelegateRefused { .. },
-        ) => {}
+        return;
     }
-}
-
-#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates this child boundary")]
-fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask, work: &mut Queue<Work>) {
-    let destination = jig_ops_domain_connectors::connector(number);
-    match (destination, ask) {
-        (Some(Connector::Infrastructure | Connector::Observability) | None, connector::Ask::Describe { owner }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::DescribeRefused { owner })));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::DescribeProposal { owner, proposal },
-        ) => {
-            work.push(Work::Infrastructure(infrastructure::Event::DescribeProposal { token: owner, number: proposal }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::KeepProposal { owner, proposal, task, project: _ },
-        ) => {
-            let _removed = domain.hub_link.take_effect_procedure(owner);
-            work.push(Work::Infrastructure(infrastructure::Event::KeepProposal {
-                token: owner,
-                number: proposal,
-                task,
-            }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::DropProposal { proposal },
-        ) => {
-            work.push(Work::Infrastructure(infrastructure::Event::DropProposal { number: proposal }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::Keep { owner, entry, key, .. },
-        ) => {
-            let _removed = domain.hub_link.take_effect_procedure(owner);
-            match destination {
-                Some(Connector::Infrastructure) => {
-                    work.push(Work::Infrastructure(infrastructure::Event::Keep {
-                        token: owner,
-                        entry,
-                        key: translate::infrastructure_key(key),
-                        project: match domain.engine.core().tasks.task(key.task) {
-                            Some(task) => Some(task.project),
-                            None => None,
-                        },
-                    }));
-                }
-                Some(Connector::Observability) => {
-                    work.push(Work::Observability(observability::Event::Keep {
-                        token: owner,
-                        entry,
-                        key: translate::observability_key(key),
-                        project: match domain.engine.core().tasks.task(key.task) {
-                            Some(task) => Some(task.project),
-                            None => None,
-                        },
-                    }));
-                }
-                None => {}
-            }
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::Drop { owner, answer, .. },
-        ) => {
-            if let Some(task) = domain.hub_link.take_effect_procedure(owner) {
-                work.push(Work::Infrastructure(infrastructure::Event::ProcedureAdmission {
-                    task,
-                    answer: translate::admission(answer),
-                }));
-            }
-            match destination {
-                Some(Connector::Infrastructure) => {
-                    work.push(Work::Infrastructure(infrastructure::Event::Drop { token: owner }));
-                }
-                Some(Connector::Observability) => {
-                    work.push(Work::Observability(observability::Event::Drop { token: owner }));
-                }
-                None => {}
-            }
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::Judge { owner, judge, state, resources },
-        ) => {
-            let token = domain.token();
-            match translate::service(&resources) {
-                Some(service) => match translate::requirement(judge.requirement, &env.limits.policy) {
-                    Some(requirement) => {
-                        domain.hub_link.keep_judge(token, (owner, judge, state));
-                        work.push(Work::Observability(observability::Event::Judge {
-                            token,
-                            requirement,
-                            service,
-                            freshness: env.limits.policy.verdict_freshness_seconds,
-                        }));
-                    }
-                    None => work.push(Work::Core(core::Event::EffectConnector(connector::Event::Verdict {
-                        owner,
-                        judge,
-                        verdict: authority::Verdict::Refuse,
-                        at: env.wall,
-                        guarded: false,
-                        state,
-                    }))),
-                },
-                None => work.push(Work::Core(core::Event::EffectConnector(connector::Event::Verdict {
-                    owner,
-                    judge,
-                    verdict: authority::Verdict::Refuse,
-                    at: env.wall,
-                    guarded: false,
-                    state,
-                }))),
-            }
-        }
-        (Some(Connector::Infrastructure), connector::Ask::ResolveUncertain { entry, again }) => {
-            work.push(Work::Infrastructure(infrastructure::Event::ResolveEntry { entry, repeat: again }));
-        }
-        (Some(Connector::Infrastructure), connector::Ask::Make { entry }) => {
-            work.push(Work::Infrastructure(infrastructure::Event::MakeEntry { entry }));
-        }
-        (Some(Connector::Observability), connector::Ask::Make { entry }) => {
-            work.push(Work::Observability(observability::Event::MakeEntry { entry }));
-        }
-        (Some(Connector::Infrastructure), connector::Ask::CatchUp) => {
-            work.push(Work::Infrastructure(infrastructure::Event::ReadAfresh));
-        }
-        (Some(Connector::Observability), connector::Ask::CatchUp) => {
-            work.push(Work::Observability(observability::Event::ReadAfresh));
-        }
-        (Some(Connector::Observability) | None, connector::Ask::ResolveUncertain { .. })
-        | (None, connector::Ask::Make { .. } | connector::Ask::CatchUp)
-        | (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::Names { .. }
-            | connector::Ask::Unname { .. }
-            | connector::Ask::Hold { .. }
-            | connector::Ask::ReleaseHold { .. }
-            | connector::Ask::Writer { .. }
-            | connector::Ask::ProcedureMade { .. }
-            | connector::Ask::ProcedureActivate { .. }
-            | connector::Ask::ProcedureMessage { .. }
-            | connector::Ask::ProcedureClose { .. }
-            | connector::Ask::Project { .. }
-            | connector::Ask::Release { .. }
-            | connector::Ask::Subscribe { .. }
-            | connector::Ask::Unsubscribe { .. }
-            | connector::Ask::Read { .. }
-            | connector::Ask::Gather { .. }
-            | connector::Ask::CutTo { .. }
-            | connector::Ask::Take { .. }
-            | connector::Ask::Prepare { .. }
-            | connector::Ask::Left { .. }
-            | connector::Ask::Adopt { .. }
-            | connector::Ask::Restore { .. },
-        ) => {}
-        (
-            Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::RestoreSettings { .. }
-            | connector::Ask::ForgetReplaced { .. }
-            | connector::Ask::JudgeSettings { .. }
-            | connector::Ask::KeepSettings { .. }
-            | connector::Ask::KeepProposalSettings { .. }
-            | connector::Ask::DropProposalSettings { .. }
-            | connector::Ask::SaveSettingsDefaults { .. },
-        ) => unreachable!("no application kind is declared"),
+    // Ops supplies no connector brief sections.
+    if let core::Ask::Gather { .. }
+    | core::Ask::CutTo { .. }
+    | core::Ask::Drop { .. }
+    | core::Ask::Providers(_)
+    | core::Ask::Workers(_)
+    | core::Ask::Catalogue { .. } = ask
+    {
+        return;
     }
+    unreachable!("connector asks cross the engine port: {ask:?}");
 }
 
-#[derive(Debug)]
-pub(crate) enum ConnectorRequest {
-    Infrastructure(infrastructure::Request),
-    Observability(observability::Request),
-}
-
-#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates both connector vocabularies")]
-pub(crate) fn connector_out(
+fn infrastructure_out(
     domain: &mut Domain,
-    env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
-    request: ConnectorRequest,
+    request: infrastructure::Out,
     work: &mut Queue<Work>,
 ) {
-    let number = match &request {
-        ConnectorRequest::Infrastructure(..) => jig_ops_domain_connectors::number(Connector::Infrastructure),
-        ConnectorRequest::Observability(..) => jig_ops_domain_connectors::number(Connector::Observability),
-    };
+    use infrastructure::Out as I;
+    let number = jig_ops_domain_connectors::number(Connector::Infrastructure);
     match request {
-        ConnectorRequest::Infrastructure(infrastructure::Request::Document { watcher, subject, document }) => {
-            let document = match document {
-                Ok(document) => Ok(crate::ClientDocument::Infrastructure(Box::new(document))),
-                Err(why) => Err(match why {
-                    infrastructure::DocumentMissing::Unknown => jig_domain_views::End::Gone,
-                    infrastructure::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
-                }),
-            };
-            watched_document(domain, env, decision, number, Watched { watcher, subject }, document, work);
+        I::Up(up) => work.push(Work::Connector(jig::Connector(number), up)),
+        I::Save { record } => write(domain, decision, Write::Save(Record::Infrastructure(record))),
+        I::Erase { key } => write(domain, decision, Write::Erase(Key::Infrastructure(key))),
+        I::System(request) => held(decision, Output::Infrastructure(request)),
+        I::AfterCommit(event) => child(decision, Released::Infrastructure(*event)),
+        I::Continue(event) => work.push(Work::Infrastructure(*event)),
+        I::Changed { resource } => work.push(Work::Infrastructure(infrastructure::Event::ResourceChanged { resource })),
+        I::EffectOwner { task } => {
+            let owner = domain.engine.core_mut().effect_owner();
+            work.push(Work::Infrastructure(infrastructure::Event::EffectOwner { task, owner }));
         }
-        ConnectorRequest::Infrastructure(infrastructure::Request::ReadAnswered { .. })
-        | ConnectorRequest::Observability(observability::Request::ReadAnswered { .. }) => {
-            unreachable!("client read completes in its synchronous route")
+        I::ClientRead { reply, answer } => {
+            held(decision, Output::ApplicationRead { reply, answer: crate::client_documents::infrastructure(answer) });
         }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Marked { subjects })
-        | ConnectorRequest::Observability(observability::Request::Marked { subjects }) => {
-            work.push(Work::Core(core::Event::Marked { connector: number, subjects }));
+    }
+}
+
+fn observability_out(
+    domain: &mut Domain,
+    decision: &mut Decision<Write, Output>,
+    request: observability::Out,
+    work: &mut Queue<Work>,
+) {
+    use observability::Out as O;
+    let number = jig_ops_domain_connectors::number(Connector::Observability);
+    match request {
+        O::Up(up) => work.push(Work::Connector(jig::Connector(number), up)),
+        O::Save { record } => write(domain, decision, Write::Save(Record::Observability(record))),
+        O::Erase { key } => write(domain, decision, Write::Erase(Key::Observability(key))),
+        O::AfterCommit(event) => child(decision, Released::Observability(*event)),
+        O::Continue(event) => work.push(Work::Observability(*event)),
+        O::ClientRead { reply, answer } => {
+            held(decision, Output::ApplicationRead { reply, answer: crate::client_documents::observability(answer) });
         }
-        ConnectorRequest::Infrastructure(infrastructure::Request::ApplicationDone { request, token }) => {
-            work.push(Work::Core(core::Event::ApplicationFinished { request, outcome: Ok(token) }));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::ApplicationBusy { request }) => {
-            work.push(Work::Core(core::Event::ApplicationFinished {
-                request,
-                outcome: Err(jig_domain_people::Again::Busy),
-            }));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Closed { task })
-        | ConnectorRequest::Observability(observability::Request::Closed { task }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::Closed { task, connector: number })));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Released { task })
-        | ConnectorRequest::Observability(observability::Request::Released { task }) => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Settled { task })));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Save { record }) => {
-            write(domain, decision, Write::Save(Record::Infrastructure(record)));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Erase { key }) => {
-            write(domain, decision, Write::Erase(Key::Infrastructure(key)));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::System(request)) => {
-            held(decision, Output::Infrastructure(request));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Described { token, description }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
-                owner: token,
-                description: Box::new(translate::infrastructure_description(number, description)),
-            })));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Refused { token })
-        | ConnectorRequest::Observability(observability::Request::Refused { token }) => {
-            if let Some(call) = domain.hub_link.take_read_call(token) {
-                crate::assemble::read_answer(domain, call, true, Box::from(&b"unavailable"[..]), work);
-            } else {
-                work.push(Work::Core(core::Event::EffectConnector(connector::Event::DescribeRefused { owner: token })));
-            }
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Make { key }) => {
-            child(decision, Released::Infrastructure(infrastructure::Event::Make { key }));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Outcome { entry, key, outcome }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::Outbox {
-                connector: number,
-                entry,
-                task: key.task,
-                outcome: translate::infrastructure_outcome(outcome),
-            })));
-            if let Some(event) = infrastructure::procedure_outcome(key, outcome) {
-                work.push(Work::Infrastructure(event));
-            }
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Step { task, decision: action }) => {
-            let Some(Procedure { step, connector, code }) = domain.hub_link.take_procedure(task) else { return };
-            match action {
-                infrastructure::StepDecision::Effect(effect) => {
-                    let owner = domain.engine.core_mut().effect_owner();
-                    domain.hub_link.keep_effect_procedure(owner, task);
-                    work.push(Work::Effect {
-                        owner,
-                        origin: core::EffectOrigin::Procedure { task, step, entry: None },
-                        effect,
-                    });
-                }
-                infrastructure::StepDecision::Wait { .. } => work.push(Work::Core(core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: core::ProcedureStep::new(core::StepEnd::Wait),
-                })),
-                infrastructure::StepDecision::Finish => work.push(Work::Core(core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report {
-                        words: Box::new([]),
-                    })),
-                })),
-                infrastructure::StepDecision::FinishReport { words } => {
-                    work.push(Work::Core(core::Event::ProcedureStep {
-                        task,
-                        step,
-                        connector,
-                        code,
-                        decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report { words })),
-                    }));
-                }
-                infrastructure::StepDecision::Hold { .. } => work.push(Work::Core(core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Effects)),
-                })),
-            }
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Drift { task, resource }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::Drift {
-                task,
-                resource: tasks::Name { connector: number, path: resource.segments() },
-            })));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Slots { pool, quota, used: _ }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::PoolSlots {
-                name: tasks::Name { connector: number, path: infrastructure::Resource::Pool(pool).segments() },
-                slots: quota,
-            })));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Wake { task }) => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Changed { resource }) => {
-            work.push(Work::Infrastructure(infrastructure::Event::ResourceChanged { resource }));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Named { project, resources, .. }) => {
-            for named in resources {
-                let hold = match named.hold {
-                    infrastructure::Hold::None => connector::HoldKind::Shared,
-                    infrastructure::Hold::ExclusiveWait => connector::HoldKind::Exclusive { wait: true },
-                    infrastructure::Hold::PooledWait => connector::HoldKind::Pooled { slots: 0, wait: true },
-                };
-                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Resource {
-                    project,
-                    role: translate::resource_role(named.role),
-                    name: tasks::Name { connector: number, path: named.resource.segments() },
-                    hold,
-                })));
-            }
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Close { key, project, chat }) => {
-            let token = domain.token();
-            domain.hub_link.keep_close_reply(token, key);
-            work.push(Work::Core(core::Event::Act {
-                reply_to: ReplyTo::new(token),
-                connector: number,
-                key,
-                act: Box::new(jig_domain_people::Act::Close {
-                    project,
-                    task: chat,
-                    grace: Some(domain.environment_close_grace),
-                    reason: domain.environment_closed_reason.clone(),
-                }),
-                carried: None,
-            }));
-        }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Restarted { stage }) => {
-            let stage = match stage {
-                infrastructure::RestartStage::ReadAfresh => {
-                    work.push(Work::Infrastructure(infrastructure::Event::Restart));
-                    connector::RestartStage::ReadAfresh
-                }
-                infrastructure::RestartStage::Outbox => connector::RestartStage::Settled,
-            };
-            domain.engine.core_mut().catch_up_done(number, stage);
-        }
-        ConnectorRequest::Observability(observability::Request::Document { watcher, subject, document }) => {
-            let document = match document {
-                Ok(document) => Ok(crate::ClientDocument::Observability(Box::new(document))),
-                Err(why) => Err(match why {
-                    observability::DocumentMissing::Unknown => jig_domain_views::End::Gone,
-                    observability::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
-                }),
-            };
-            watched_document(domain, env, decision, number, Watched { watcher, subject }, document, work);
-        }
-        ConnectorRequest::Observability(observability::Request::Save { record }) => {
-            write(domain, decision, Write::Save(Record::Observability(record)));
-        }
-        ConnectorRequest::Observability(observability::Request::Erase { key }) => {
-            write(domain, decision, Write::Erase(Key::Observability(key)));
-        }
-        ConnectorRequest::Observability(observability::Request::System(
-            request @ observability::SystemRequest::Read { .. },
-        )) => {
-            now(domain, Output::Observability(request));
-        }
-        ConnectorRequest::Observability(observability::Request::System(
+        O::System(request @ observability::SystemRequest::Read { .. }) => now(domain, Output::Observability(request)),
+        O::System(
             request @ (observability::SystemRequest::Facts { .. }
             | observability::SystemRequest::Silence { .. }
             | observability::SystemRequest::FindSilence { .. }),
-        )) => held(decision, Output::Observability(request)),
-        ConnectorRequest::Observability(observability::Request::Answer { token, bytes }) => {
+        ) => held(decision, Output::Observability(request)),
+        O::Answer { token, bytes } => {
             if let Some(call) = domain.hub_link.take_read_call(token) {
                 crate::assemble::read_answer(domain, call, false, bytes, work);
             } else {
                 now(domain, Output::Read { owner: token, bytes });
             }
         }
-        ConnectorRequest::Observability(observability::Request::Verdict { token, verdict }) => {
-            let Some((owner, judge, state)) = domain.hub_link.take_judge(token) else { return };
-            let (verdict, at) = translate::verdict(verdict, env.wall);
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::Verdict {
-                owner,
-                judge,
-                verdict,
-                at,
-                guarded: false,
-                state,
-            })));
-        }
-        ConnectorRequest::Observability(observability::Request::Described { token, effect }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
-                owner: token,
-                description: Box::new(translate::observability_description(
-                    number,
-                    effect,
-                    &env.limits.observability.vocabulary,
-                )),
-            })));
-        }
-        ConnectorRequest::Observability(observability::Request::Make { key }) => {
-            child(decision, Released::Observability(observability::Event::Make { key }));
-        }
-        ConnectorRequest::Observability(observability::Request::Outcome { entry, key, outcome }) => {
-            work.push(Work::Core(core::Event::EffectConnector(connector::Event::Outbox {
-                connector: number,
-                entry,
-                task: key.task,
-                outcome: translate::observability_outcome(outcome),
-            })));
-        }
-        ConnectorRequest::Observability(observability::Request::News { alert, subscribers }) => {
-            for subscriber in subscribers {
-                let class = translate::news_class(subscriber.class);
-                if let Some(event) = domain.engine.core_mut().connector_news(
-                    subscriber.task,
-                    subscriber.subscription,
-                    class,
-                    jig_ops_protocol_observability::alert_words(&alert),
-                    env.wall,
-                ) {
-                    work.push(Work::Core(core::Event::Tasks(event)));
-                }
+        O::ReadRefused { token } => {
+            if let Some(call) = domain.hub_link.take_read_call(token) {
+                crate::assemble::read_answer(domain, call, true, Box::from(&b"unavailable"[..]), work);
             }
         }
-        ConnectorRequest::Observability(observability::Request::Health { service: _, healthy, subscribers }) => {
-            for subscriber in subscribers {
-                let class = translate::news_class(subscriber.class);
-                if let Some(event) = domain.engine.core_mut().connector_news(
-                    subscriber.task,
-                    subscriber.subscription,
-                    class,
-                    jig_ops_protocol_observability::health_words(healthy),
-                    env.wall,
-                ) {
-                    work.push(Work::Core(core::Event::Tasks(event)));
-                }
-            }
-        }
-        ConnectorRequest::Observability(observability::Request::WatchInterest { task, subscription, topic }) => {
+        O::WatchInterest { task, subscription, topic } => {
             work.push(Work::Core(core::Event::Tasks(tasks::Event::SubscribeTopic {
                 reply_to: ReplyTo::new(Token::new(subscription)),
                 task,
@@ -1272,63 +556,16 @@ pub(crate) fn connector_out(
                 },
             })));
         }
-        ConnectorRequest::Observability(observability::Request::WatchDecision { task, step, decision: chosen }) => {
-            let Some(Procedure { step: offered, connector, code }) = domain.hub_link.take_procedure(task) else {
-                return;
-            };
-            assert_eq!(offered, step, "owner answers its offered step");
-            let action = match chosen {
-                observability::WatchDecision::Triage { delegate, alerts } => {
-                    match jig_ops_protocol_observability::triage(&delegate, &alerts, &env.limits.policy.delegate) {
-                        Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
-                        None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
-                    }
-                }
-                observability::WatchDecision::Lead { delegate } => {
-                    match jig_ops_protocol_observability::lead(&delegate, &env.limits.policy.delegate) {
-                        Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
-                        None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
-                    }
-                }
-                observability::WatchDecision::Wait => core::ProcedureStep::new(core::StepEnd::Wait),
-                observability::WatchDecision::Hold => {
-                    core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure))
-                }
-            };
-            work.push(Work::Core(core::Event::ProcedureStep { task, step, connector, code, decision: action }));
-        }
-        ConnectorRequest::Observability(observability::Request::WakeProcedure { task }) => {
-            child(decision, Released::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
-        }
-        ConnectorRequest::Observability(observability::Request::AssociationRefused { task, step, reason }) => {
+        O::AssociationRefused { task, step, reason } => {
             held(decision, Output::IncidentAssociationRefused { task, step, reason });
         }
-        ConnectorRequest::Observability(observability::Request::Triage { watch, delegate, alerts, .. }) => {
-            let Some(Procedure { step, connector, code }) = domain.hub_link.take_procedure(watch) else { return };
-            let action = match jig_ops_protocol_observability::triage(&delegate, &alerts, &env.limits.policy.delegate) {
-                Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
-                None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
-            };
-            work.push(Work::Core(core::Event::ProcedureStep { task: watch, step, connector, code, decision: action }));
-        }
-        ConnectorRequest::Observability(observability::Request::Changed { service }) => {
-            work.push(Work::Infrastructure(infrastructure::Event::ObservedServiceChanged {
-                environment: service.environment,
-                name: service.name,
-            }));
-        }
-        ConnectorRequest::Observability(observability::Request::Restarted { stage }) => {
-            let stage = match stage {
-                observability::RestartStage::ReadAfresh => {
-                    work.push(Work::Observability(observability::Event::Restart));
-                    connector::RestartStage::ReadAfresh
-                }
-                observability::RestartStage::Outbox => connector::RestartStage::Settled,
-            };
-            domain.engine.core_mut().catch_up_done(number, stage);
-        }
+        O::Changed { service } => work.push(Work::Infrastructure(infrastructure::Event::ObservedServiceChanged {
+            environment: service.environment,
+            name: service.name,
+        })),
     }
 }
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the core's immediate outputs")]
 fn core_now(
     domain: &mut Domain,
@@ -1452,25 +689,5 @@ fn core_now(
         | core::Now::NotesIndexed { .. }
         | core::Now::NotesRecalled { .. }
         | core::Now::NotesRefused { .. }) => now(domain, Output::Now(other)),
-    }
-}
-
-fn connector_holdings(
-    env: &Env<Limits>,
-    number: u16,
-    executor: tasks::Executor,
-    spec: &tasks::Spec,
-) -> Option<Box<[tasks::Holding]>> {
-    match jig_ops_domain_connectors::connector(number) {
-        Some(Connector::Infrastructure) => translate::holdings(
-            number,
-            infrastructure::holdings(
-                &env.limits.infrastructure.vocabulary,
-                number,
-                translate::infrastructure_executor(executor),
-                &translate::infrastructure_spec(spec),
-            ),
-        ),
-        Some(Connector::Observability) | None => Some(Box::new([])),
     }
 }

@@ -1,6 +1,8 @@
 //! A task's LLM choice as a party names it, mirroring the tasks child's (domain/tasks/README.md, 3):
 //! models and efforts by index in configuration's order. The root checks the choice when it
 //! makes or amends the task; this child only keeps it with the request.
+pub use jig_domain_contract::ops::party::{AccountMoveWhy, AccountWhy, LlmWhy, SignInRedirectWhy};
+
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::length::len_u64;
@@ -39,25 +41,6 @@ pub struct LlmLater {
     pub subagents: Box<[ModelEffort]>,
 }
 
-/// Why the root refused a named model, the tasks child's `LlmFault`.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum LlmWhy {
-    /// The model is not configured.
-    Unconfigured,
-    /// The effort is not one the model declares, or none is named for a model that declares some.
-    Effort,
-    /// The model is not one of the task's charter's.
-    Charter,
-    /// The task's authority does not allow the model.
-    Authority,
-    /// The task's executor runs no model.
-    Procedure,
-    /// The sub-agents name the model twice.
-    Repeated,
-    /// The speed is not one the model declares, nor `standard`.
-    Speed,
-}
-
 /// Checked deep-byte size of an optional choice: both choices' sub-agents.
 #[must_use]
 pub fn llm_bytes(choice: Option<&LlmChoice>) -> Option<u64> {
@@ -82,36 +65,4 @@ pub(crate) fn valid(choice: Option<&LlmChoice>) -> bool {
             Some(later) => later.subagents.len() <= bound,
             None => true,
         }
-}
-
-/// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AccountWhy {
-    Unknown,
-    Provider,
-    Uses,
-    Limited,
-}
-
-/// Why a holder's account move cannot proceed (domain/accounts.md, section 6).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AccountMoveWhy {
-    NotSignedIn,
-    NotOurs,
-    Held,
-    Cancelled,
-    Moving,
-}
-
-/// Why a finish was refused (client/domain/contract/answers.md, section 1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SignInRedirectWhy {
-    /// No sign-in of this party's waits for its redirect under that number.
-    NotWaiting,
-    /// The address does not match the sign-in's redirect or its required fields.
-    Address,
-    /// The state belongs to another sign-in; this sign-in still waits.
-    State,
-    /// Too many states from other sign-ins; it still waits for its browser.
-    TooMany,
 }

@@ -1,5 +1,9 @@
 //! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
+pub use jig_domain_contract::ops::Carried;
+pub use jig_domain_contract::procedures::StepRefusal;
+pub use jig_domain_contract::resources::{HoldingsNeed, HoldingsRefusal};
+
 use crate::waits::Figures;
 use crate::{CallKey, CallPart, Delegate, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
@@ -45,15 +49,6 @@ pub struct PlannedDocument {
     pub document: crate::Document,
 }
 
-/// A value a client's request carried, kept in the secrets' store before
-/// the core sees the request (`protocol/client/README.md`, section 3): the core
-/// gets its number and digest, never the value.
-#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
-pub struct Carried {
-    pub number: u64,
-    pub digest: [u8; 32],
-}
-
 /// A request from the core to its application root. Its variant fixes the
 /// commit relationship before the root translates or wraps it.
 #[derive(Hash, Debug)]
@@ -73,95 +68,16 @@ pub enum Request {
 /// A question or retained-section command for a numbered connector.
 #[derive(Hash, Debug)]
 pub enum Ask {
+    /// Connector port output; the engine forwards it without translation.
+    Connector(jig_domain_contract::Ask),
     /// Replace the admission table whole (domain/engine/workers.md, 4).
     Workers(Box<[crate::settings::WorkerSetting]>),
     /// Keep current providers for the next start (domain/engine/llm-providers.md, 5).
     Providers(Box<[crate::settings::ProviderSetting]>),
-    /// Make application parts for the supplied rows (domain/engine/views.md, 2).
-    Parts(crate::PartsAsk),
     Catalogue {
         models: Box<[crate::settings::CatalogueModel]>,
     },
-    /// Release every adoption this connector holds for a project being deleted
-    /// (jig/docs/design/domain/people/acts.md, 2). Answered by
-    /// `Event::ProjectReleased` once the release commits; at once when none are held.
-    /// Sent again at each start until answered, so a connector releases idempotently.
-    ReleaseProject {
-        project: u32,
-    },
-    /// The complete procedure step committed with these spec revisions.
-    StepMade {
-        task: u64,
-        step: u64,
-        first: Option<u64>,
-        revisions: Box<[(u64, u64)]>,
-    },
-    /// No part of the procedure step committed.
-    StepRefused {
-        task: u64,
-        step: u64,
-        why: StepRefusal,
-    },
-    /// The report was refused, independently of any procedure step.
-    WaitsRefused {
-        task: u64,
-        why: crate::ReportRefusal,
-    },
 
-    /// Discard the connector-owned binding of a refused application watch or read.
-    DropDocument {
-        subject: Token,
-    },
-    /// Make a connector's current document, then complete the views' Make within this decision.
-    Document {
-        watcher: Token,
-        scope: jig_domain_people::ApplicationScope,
-        subject: Token,
-        party: u64,
-        window: crate::documents::Window,
-    },
-    /// Answer an admitted connector read; the root holds its typed answer in this decision.
-    Read {
-        reply: ReplyTo,
-        scope: jig_domain_people::ApplicationScope,
-        read: Token,
-        party: u64,
-        window: crate::documents::Window,
-    },
-    /// Decide the admitted connector-owned value in this decision and retain its outcome.
-    Application {
-        request: Token,
-        token: Token,
-        owner: Token,
-        person: u64,
-        scope: jig_domain_people::ApplicationScope,
-        role: Option<people::Role>,
-        retention: skein_lib::Duration,
-    },
-    /// Discard a prepared value after admission; deciding consumes it first.
-    DropApplication {
-        owner: Token,
-    },
-    /// The party's core part completed, with the same facts as a direct ask.
-    ApplicationPartAnswered {
-        request: Token,
-        outcome: people::Outcome,
-    },
-    /// A core-selected effect handoff completed inside this decision.
-    Effect(crate::effects::connector::Ask),
-    /// Tell the owning connector that this task took a write hold.
-    Hold {
-        task: u64,
-        resource: tasks::Name,
-        /// The taking's own outbox entry, for the effects its connector's kind has at a taking
-        /// (domain/connectors-effects.md, 1.7).
-        entry: u64,
-    },
-    /// Tell the owning connector to end a task's topic interest.
-    EndTopic {
-        task: u64,
-        subscription: u64,
-    },
     /// Gather a section within the brief's budget.
     Gather {
         section: Token,
@@ -175,73 +91,6 @@ pub enum Ask {
     /// Release a retained section.
     Drop {
         section: Token,
-    },
-    /// Offer an authorized party's resource to its owning connector.
-    Adopt {
-        request: Token,
-        project: u32,
-        adoption: people::Adoption,
-    },
-    /// Settle a closing task's connector effects before its final release.
-    Close {
-        task: u64,
-        root: u64,
-        ending: tasks::Ending,
-    },
-    /// Release a closing task's connector holds through a numbered outbox entry.
-    Release {
-        task: u64,
-        root: u64,
-        ending: tasks::Ending,
-        entry: u64,
-    },
-    /// Tell a connector that a fenced host attempt was lost.
-    Lost {
-        task: u64,
-        attempt: u64,
-    },
-    /// Ask this connector which bounded task holdings its resources require.
-    TaskHoldings {
-        request: Token,
-        project: u32,
-        root: u64,
-        number: u64,
-        executor: tasks::Executor,
-        spec: tasks::Spec,
-        tracked: bool,
-        /// This connector's symbols of the member, in the member's order.
-        symbols: Box<[u16]>,
-    },
-    /// Ask one connector for the holdings of every member of a named delegate batch.
-    DelegateHoldings {
-        request: Token,
-        from: u64,
-        members: Box<[HoldingsNeed]>,
-    },
-    /// Ask one connector for a procedure's delegated batch holdings.
-    ProcedureHoldings {
-        task: u64,
-        step: u64,
-        members: Box<[HoldingsNeed]>,
-    },
-    /// Project the complete bounded tree and newly recorded history once per decision.
-    ProjectGoal {
-        feed: Box<crate::ProjectionFeed>,
-    },
-    /// Release a goal's projection state after every closing write has settled.
-    ForgetProjection {
-        goal: u64,
-    },
-    /// Complete a connector-owned subscription after the task hub accepts it.
-    SubscriptionDone {
-        request: Token,
-        key: CallKey,
-        subscription: u64,
-    },
-    /// Complete a connector-owned unsubscription after the task hub accepts it.
-    UnsubscriptionDone {
-        request: Token,
-        key: CallKey,
     },
     /// Complete a prepared claim through the connector that owns its writes.
     ClaimDone {
@@ -260,35 +109,6 @@ pub enum Ask {
         result: u32,
         grants: Box<[jig_domain_link::Grant]>,
         workspace: Option<Box<[u8]>>,
-    },
-    /// Discard one rejected connector subscription flight.
-    DropSubscription {
-        request: Token,
-    },
-    /// Tell a connector which deployment make was refused and why (domain/authority.md, 6).
-    /// `repair` keeps the task named by the refusal, where it names one.
-    RepairRefused {
-        repair: Option<u64>,
-        number: u64,
-        why: tasks::Refusal,
-    },
-    /// Let a connector settle a refused procedure delegation.
-    DelegateRefused {
-        task: Option<u64>,
-    },
-    /// Start one admitted procedure through its numbered connector.
-    StartProcedure {
-        context: Box<tasks::RunContext>,
-        step: u64,
-    },
-    /// Ask a connector for a public document (jig/docs/design/domain/engine/views.md).
-    Public {
-        reply: ReplyTo,
-        kind: u16,
-        version: u16,
-        project: u32,
-        task: Option<u64>,
-        public: Box<[u64]>,
     },
 }
 
@@ -318,6 +138,8 @@ pub enum Write {
 /// Core output that must follow the decision's commit.
 #[derive(Hash, Debug)]
 pub enum Held {
+    /// A contract release held until this decision is durable.
+    Connector(jig_domain_contract::Connector, jig_domain_contract::Released),
     /// Terminal deployment act answer, released once its decision is durable.
     Acted {
         to: ReplyTo,
@@ -372,11 +194,6 @@ pub enum Held {
         why: views::End,
     },
 
-    /// A connector may make this entry only after its keeping decision commits.
-    MakeEffect {
-        connector: u16,
-        entry: u64,
-    },
     /// A rendered answer and all opaque evidence have reached the store.
     SettledCall {
         to: ReplyTo,
@@ -920,29 +737,9 @@ pub struct CoreBriefBudgets {
 /// One event routed to a child of the core.
 #[derive(Hash, Debug)]
 pub enum Event {
-    /// Row-major parts, each row in the ask's kind order.
-    Parts {
-        connector: u16,
-        token: Token,
-        parts: List<crate::MadePart>,
-    },
-    PartsMarked {
-        connector: u16,
-        tasks: List<u64>,
-    },
     /// Replace the live procedure's wait report. Empty clears it; at most four waits and
     /// four things per wait (jig/docs/design/domain/engine/waits.md, 6).
-    Waits {
-        connector: u16,
-        task: u64,
-        waits: List<crate::Reported>,
-    },
-    /// A connector's release of a deleted project's adoptions has committed
-    /// (jig/docs/design/domain/people/acts.md, 2).
-    ProjectReleased {
-        connector: u16,
-        project: u32,
-    },
+    Waits { connector: u16, task: u64, waits: List<crate::Reported> },
     /// One model act at the newest revision (domain/engine/settings-catalogue.md, 1).
     ChangeModel {
         reply_to: ReplyTo,
@@ -968,21 +765,11 @@ pub enum Event {
         change: Box<crate::settings::Proposed>,
     },
     /// Commit a restored release before opening; `room` is the settings restore's write budget.
-    SettingsCommit {
-        room: u32,
-    },
+    SettingsCommit { room: u32 },
     /// A connector's deployment act, without a party or sign-in (domain/people/acts.md, 3).
-    Act {
-        reply_to: ReplyTo,
-        connector: u16,
-        key: [u8; 16],
-        act: Box<people::Act>,
-        carried: Option<Carried>,
-    },
+    Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<people::Act>, carried: Option<Carried> },
     /// Store map bytes from each commit answer; needs no commit (protocol/store/growth.md, 1.2).
-    Fill {
-        bytes: u64,
-    },
+    Fill { bytes: u64 },
     /// Last store report; refresh the deployment document (protocol/store/growth.md, 1.3).
     Census(Box<crate::documents::deployment::StoreCensus>),
     /// Refuse new decisions while the service drains (domain/engine/restart.md, 5).
@@ -990,16 +777,9 @@ pub enum Event {
     /// Place nothing while taking every commit (domain/engine/restart.md, 5).
     Settling,
     /// A connector's state change names its opaque subjects in this decision.
-    Marked {
-        connector: u16,
-        subjects: List<Token>,
-    },
+    Marked { connector: u16, subjects: List<Token> },
     /// An unkeyed one-shot read on the supplied live sign-in.
-    Read {
-        reply: ReplyTo,
-        sign_in: u64,
-        read: crate::reads::Read,
-    },
+    Read { reply: ReplyTo, sign_in: u64, read: crate::reads::Read },
     /// Admit an application request by metadata; its owner retains the value.
     /// A value the request carried is named by its number and digest only.
     Application {
@@ -1014,93 +794,33 @@ pub enum Event {
     },
     /// An LLM key ask whose value is already in the secrets' store. People keeps
     /// only the ask's digest; the accounts child receives the carried number.
-    Key {
-        reply_to: ReplyTo,
-        sign_in: u64,
-        key: [u8; 16],
-        ask: Box<people::Ask>,
-        carried: Carried,
-    },
+    Key { reply_to: ReplyTo, sign_in: u64, key: [u8; 16], ask: Box<people::Ask>, carried: Carried },
     /// A connector asks the core within the admitted party decision.
-    ApplicationPart {
-        request: Token,
-        ask: Box<people::Ask>,
-    },
-    /// The connector durably kept its outcome, or could not decide this time.
-    ApplicationFinished {
-        request: Token,
-        outcome: Result<Token, people::Again>,
-    },
+    ApplicationPart { request: Token, ask: Box<people::Ask> },
     /// A connector's final projection write has settled, or its project has no home there.
-    ProjectionSettled {
-        goal: u64,
-        connector: u16,
-    },
+    ProjectionSettled { goal: u64, connector: u16 },
     /// A protocol-rendered answer; its live reply address is never retained (protocol/store/records.md, 1).
-    SettledCall {
-        to: ReplyTo,
-        key: CallKey,
-        name: Box<[u8]>,
-        call: crate::SettledCall,
-    },
+    SettledCall { to: ReplyTo, key: CallKey, name: Box<[u8]>, call: crate::SettledCall },
     /// A connector owns the decoded effect under this transient owner.
-    EffectStart {
-        owner: Token,
-        connector: u16,
-        origin: crate::EffectOrigin,
-    },
-    /// Connector handoffs and outbox outcomes in the core vocabulary.
-    EffectConnector(crate::effects::connector::Event),
+    EffectStart { owner: Token, connector: u16, origin: crate::EffectOrigin },
     /// Subscribe to an offered connector topic after checking every read resource.
-    SubscribeTopic {
-        to: ReplyTo,
-        key: CallKey,
-        connector: u16,
-        topic: u64,
-        resources: Box<[authority::Effect]>,
-    },
+    SubscribeTopic { to: ReplyTo, key: CallKey, connector: u16, topic: u64, resources: Box<[authority::Effect]> },
     /// Release effect answers whose absolute answer deadline has passed.
     EffectDeadline,
     /// Allocate the person and session named by a new party sign-in.
-    SignIn {
-        reply_to: ReplyTo,
-        identity: people::Identity,
-        held: Option<u64>,
-        until: Option<Wall>,
-    },
+    SignIn { reply_to: ReplyTo, identity: people::Identity, held: Option<u64>, until: Option<Wall> },
     /// Admit a visible subject on a live sign-in, without a request key.
-    Watch {
-        watcher: Token,
-        sign_in: u64,
-        subject: crate::documents::Watched,
-        window: crate::documents::Window,
-    },
+    Watch { watcher: Token, sign_in: u64, subject: crate::documents::Watched, window: crate::documents::Window },
     /// Follow a task's live run from the client's acknowledged turn and offset.
-    WatchRun {
-        watcher: Token,
-        sign_in: u64,
-        task: u64,
-        turn: Option<views::TurnName>,
-        offset: u32,
-    },
+    WatchRun { watcher: Token, sign_in: u64, task: u64, turn: Option<views::TurnName>, offset: u32 },
     /// The client leaves one volatile watch.
-    Unwatch {
-        watcher: Token,
-    },
+    Unwatch { watcher: Token },
     /// The protocol took a watch's held document.
-    Delivered {
-        watcher: Token,
-    },
+    Delivered { watcher: Token },
     /// The protocol took one provisional stream delivery.
-    StreamDelivered {
-        watcher: Token,
-    },
+    StreamDelivered { watcher: Token },
     /// A content call with its opaque source identity, independent of text.
-    RunCall {
-        run: Token,
-        attempt: Token,
-        call: views::Call,
-    },
+    RunCall { run: Token, attempt: Token, call: views::Call },
     /// A main completion's current tool input, before its turn commits.
     RunInput {
         run: Token,
@@ -1125,16 +845,9 @@ pub enum Event {
     /// Task lifecycle or hub work.
     Tasks(tasks::Event),
     /// An application asks for one admitted recurring core procedure.
-    StartRecurring {
-        project: u32,
-        authority: tasks::Authority,
-        template: tasks::RecurringTemplate,
-    },
+    StartRecurring { project: u32, authority: tasks::Authority, template: tasks::RecurringTemplate },
     /// The root assembled all selected connector sections, or found a missing owner.
-    BriefAssembled {
-        task: u64,
-        failure: Option<brief::GatherFailure>,
-    },
+    BriefAssembled { task: u64, failure: Option<brief::GatherFailure> },
     /// The root translated the selected connector's workspace writes.
     WorkspacePrepared {
         task: u64,
@@ -1148,16 +861,9 @@ pub enum Event {
         workspace: Option<Box<[u8]>>,
     },
     /// The root returned translated workspace names after assembling the run assignment.
-    ClaimPrepared {
-        task: u64,
-        attempt: u64,
-        budget: u64,
-        writes: Box<[tasks::Name]>,
-    },
+    ClaimPrepared { task: u64, attempt: u64, budget: u64, writes: Box<[tasks::Name]> },
     /// A connector refused the held names of a pending task claim.
-    ClaimRefused {
-        task: u64,
-    },
+    ClaimRefused { task: u64 },
     /// The root translated the holdings for a core-authorized connector repair.
     ConnectorRepair {
         seed: Box<crate::effects::connector::RepairSeed>,
@@ -1176,20 +882,13 @@ pub enum Event {
         contract: tasks::Contract,
     },
     /// A new deployment funding period, checked against core policy.
-    Period {
-        project: u32,
-        period: u64,
-        budget: u64,
-        next: Option<Wall>,
-    },
+    Period { project: u32, period: u64, budget: u64, next: Option<Wall> },
     /// Party identity or request.
     People(people::Event),
     /// Host, run or attempt.
     Fleet(fleet::Event),
     /// Root-translated part; its body remains opaque.
-    PartPayload {
-        record: crate::PartRecord,
-    },
+    PartPayload { record: crate::PartRecord },
     /// Root-translated contents of a host turn payload.
     TurnPayload {
         run: Token,
@@ -1228,69 +927,19 @@ pub enum Event {
         transcript: Box<[u8]>,
     },
     /// Root-translated host payload for a refused task request.
-    RefusedPayload {
-        request: Token,
-        problem: tasks::Problem,
-        payload: Option<PayloadRefusal>,
-    },
+    RefusedPayload { request: Token, problem: tasks::Problem, payload: Option<PayloadRefusal> },
     /// An activation with the root's readiness.
-    Activate {
-        context: Box<tasks::RunContext>,
-        ready: bool,
-    },
+    Activate { context: Box<tasks::RunContext>, ready: bool },
     /// One root-translated named-call answer that needs a durable core decision.
-    NamedAnswer {
-        to: ReplyTo,
-        key: CallKey,
-        part: CallPart,
-    },
+    NamedAnswer { to: ReplyTo, key: CallKey, part: CallPart },
     /// One generic named-call action translated from the root's host vocabulary.
-    NamedAction {
-        to: ReplyTo,
-        key: CallKey,
-        action: NamedAction,
-    },
+    NamedAction { to: ReplyTo, key: CallKey, action: NamedAction },
     /// A run's delegated batch after the connector has translated its tools.
-    Delegate {
-        to: ReplyTo,
-        key: CallKey,
-        batch: Box<[Delegate]>,
-    },
-    /// One connector's batch holdings, in the same order as the core's request.
-    DelegateHoldings {
-        request: Token,
-        connector: u16,
-        holdings: Option<Box<[Box<[tasks::Holding]>]>>,
-        /// A reason for refusal, set only when `holdings` is `None`.
-        refused: Option<HoldingsRefusal>,
-    },
-    /// One connector's procedure batch holdings in requested order.
-    ProcedureHoldings {
-        task: u64,
-        step: u64,
-        connector: u16,
-        holdings: Option<Box<[Box<[tasks::Holding]>]>>,
-        /// A reason for refusal, set only when `holdings` is `None`.
-        refused: Option<HoldingsRefusal>,
-    },
+    Delegate { to: ReplyTo, key: CallKey, batch: Box<[Delegate]> },
     /// A numbered connector's procedure choice in the core's vocabulary.
-    ProcedureStep {
-        task: u64,
-        step: u64,
-        connector: u16,
-        code: u32,
-        decision: ProcedureStep,
-    },
+    ProcedureStep { task: u64, step: u64, connector: u16, code: u32, decision: ProcedureStep },
     /// A gathered section.
     Brief(brief::GatherEvent),
-    /// One numbered connector's answer to a task-holdings handoff.
-    Holdings {
-        request: Token,
-        connector: u16,
-        holdings: Option<Box<[tasks::Holding]>>,
-        /// A reason for refusal, set only when `holdings` is `None`.
-        refused: Option<HoldingsRefusal>,
-    },
     /// An account refresh or grant.
     Account(accounts::Event),
     /// A live view.
@@ -1298,40 +947,9 @@ pub enum Event {
     /// A scoped note.
     Notes(notes::Event),
     /// An unsigned public read (jig/docs/design/protocol/client/public-reads.md).
-    PublicRead {
-        reply: ReplyTo,
-        read: crate::PublicRead,
-    },
-    /// A connector's public document (jig/docs/design/domain/engine/views.md).
-    PublicAnswered {
-        reply: ReplyTo,
-        answer: Option<crate::PublicApplication>,
-    },
+    PublicRead { reply: ReplyTo, read: crate::PublicRead },
     /// The root released this read after preceding commits became durable.
-    PublicDurable {
-        read: Token,
-    },
-}
-/// Why a connector refuses a member's holdings (domain/tasks/holds.md, 1 and 2).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HoldingsRefusal {
-    /// The member names a symbol this connector does not offer it.
-    Symbol { symbol: u16 },
-    /// The member would write a resource this task holds, outside its subtree.
-    Held { holder: u64 },
-}
-
-/// One member's concrete identity passed to a connector for its own holdings.
-#[derive(Clone, Hash, Debug)]
-pub struct HoldingsNeed {
-    pub project: u32,
-    pub root: u64,
-    pub number: u64,
-    pub executor: tasks::Executor,
-    pub spec: tasks::Spec,
-    pub tracked: bool,
-    /// This connector's symbols of the member, in the member's order.
-    pub symbols: Box<[u16]>,
+    PublicDurable { read: Token },
 }
 /// Connector-free shape of a root-owned host payload after refusal.
 #[derive(Hash, Debug)]
@@ -1531,14 +1149,6 @@ pub enum Timer {
     Retention,
 }
 
-/// Why an entire connector-owned procedure step was refused.
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub enum StepRefusal {
-    Moved { task: u64, now: people::Moved },
-    Refused(tasks::Problem),
-    Denied { answer: authority::Answer, findings: Box<[authority::Finding]> },
-}
-
 impl Event {
     /// Whether this event brings new work, which waits at a root's
     /// watermark (programming-model.md, 7.1). Other events finish or
@@ -1546,7 +1156,6 @@ impl Event {
     #[must_use]
     pub fn new_work(&self) -> bool {
         match self {
-            Self::EffectConnector(event) => effectconnector_new_work(event),
             Self::Tasks(event) => tasks_new_work(event),
             Self::People(event) => people_new_work(event),
             Self::Fleet(event) => fleet_new_work(event),
@@ -1574,14 +1183,10 @@ impl Event {
             | Self::Census(..)
             | Self::Settling
             | Self::Stopping
-            | Self::Parts { .. }
-            | Self::PartsMarked { .. }
             | Self::Waits { .. }
             | Self::Marked { .. }
-            | Self::PublicAnswered { .. }
             | Self::PublicDurable { .. }
             | Self::ApplicationPart { .. }
-            | Self::ApplicationFinished { .. }
             | Self::ProjectionSettled { .. }
             | Self::SettledCall { .. }
             | Self::EffectDeadline
@@ -1605,12 +1210,8 @@ impl Event {
             | Self::Activate { .. }
             | Self::NamedAnswer { .. }
             | Self::Delegate { .. }
-            | Self::DelegateHoldings { .. }
-            | Self::ProcedureHoldings { .. }
             | Self::ProcedureStep { .. }
-            | Self::Brief(..)
-            | Self::Holdings { .. }
-            | Self::ProjectReleased { .. } => false,
+            | Self::Brief(..) => false,
         }
     }
 }
@@ -1770,6 +1371,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
 fn people_new_work(event: &people::Event) -> bool {
     match event {
         people::Event::Act { .. }
+        | people::Event::ConnectorAct { .. }
         | people::Event::Seed { .. }
         | people::Event::SignedIn { .. }
         | people::Event::Whose { .. }
@@ -1852,31 +1454,6 @@ fn notes_new_work(event: &notes::Event) -> bool {
         | notes::Event::WriteLines { .. }
         | notes::Event::Edit { .. } => true,
         notes::Event::DropProject { .. } | notes::Event::LoadFailed { .. } | notes::Event::Loaded { .. } => false,
-    }
-}
-
-#[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]
-fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
-    match event {
-        crate::effects::connector::Event::SettingsRestored { .. } => false,
-        crate::effects::connector::Event::Resource { .. }
-        | crate::effects::connector::Event::PoolSlots { .. }
-        | crate::effects::connector::Event::News { .. }
-        | crate::effects::connector::Event::Drift { .. } => true,
-        crate::effects::connector::Event::Described { .. }
-        | crate::effects::connector::Event::DescribeRefused { .. }
-        | crate::effects::connector::Event::DescribeBusy { .. }
-        | crate::effects::connector::Event::Verdict { .. }
-        | crate::effects::connector::Event::Procedure { .. }
-        | crate::effects::connector::Event::Outbox { .. }
-        | crate::effects::connector::Event::ProjectionOutbox { .. }
-        | crate::effects::connector::Event::SectionReady { .. }
-        | crate::effects::connector::Event::WorkspaceReady { .. }
-        | crate::effects::connector::Event::Adopted { .. }
-        | crate::effects::connector::Event::Closed { .. }
-        | crate::effects::connector::Event::RestartDone { .. } => false,
-        &crate::effects::connector::Event::SettingsJudged { .. }
-        | &crate::effects::connector::Event::SettingsDefaults { .. } => false,
     }
 }
 

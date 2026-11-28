@@ -1,8 +1,10 @@
 //! Revocation before admission, during a connector read, and during durability
 //! (jig/docs/design/domain/people/public-reading.md, 10).
-use super::{World, delegate, delete, move_out, read, untrack, visibility};
+use super::{World, delegate, delete, delete_event, move_ask, move_out, read, untrack, untrack_ask, visibility};
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, In, Out};
+use jig_domain_people as people;
 use skein_lib::{Queue, ReplyTo, Token};
 
 #[derive(Clone, Copy, Debug)]
@@ -29,31 +31,68 @@ fn change(world: &mut World, revocation: Change, goal: u64, child: u64) {
     }
 }
 
-fn step(world: &mut World, event: core::Event) -> Queue<Out> {
+fn step(world: &mut World, input: In) -> Queue<Out> {
     let env = world.env();
-    let mut root_event = jig_test_domain::Event::Core(event);
-    world.public_rule_input(&mut root_event);
-    let jig_test_domain::Event::Core(event) = root_event else { unreachable!() };
-    let mut raw = Queue::uncapped();
-    engine::step(world.domain.engine_mut(), &env.with(env.limits.core), In::Core(event), &mut raw);
+    let mut event = jig_test_domain::Event::Engine(input);
+    if let jig_test_domain::Event::Engine(In::Core(core_event)) = event {
+        event = jig_test_domain::Event::Core(core_event);
+        world.public_rule_input(&mut event);
+        let jig_test_domain::Event::Core(core_event) = event else { unreachable!() };
+        event = jig_test_domain::Event::Engine(In::Core(core_event));
+    }
+    let jig_test_domain::Event::Engine(input) = event else { unreachable!() };
     let mut out = Queue::uncapped();
-    while let Some(Out::Core(request)) = raw.pop() {
-        if let core::Request::Held(held) = request {
-            if matches!(*held, core::Held::PublicRead { .. }) {
-                let mut output = jig_test_domain::Request::Deliver(jig_test_domain::Delivery::Core(*held));
-                world.public_rule_output(&mut output);
-                let jig_test_domain::Request::Deliver(jig_test_domain::Delivery::Core(held)) = output else {
-                    unreachable!()
-                };
-                out.push(Out::Core(core::Request::Held(Box::new(held))));
-            } else {
-                out.push(Out::Core(core::Request::Held(held)));
-            }
+    engine::step(world.domain.engine_mut(), &env.with(env.limits.core), input, &mut out);
+    let mut checked = Queue::uncapped();
+    while let Some(output) = out.pop() {
+        if matches!(&output, Out::Core(core::Request::Held(held)) if matches!(**held, core::Held::PublicRead { .. })) {
+            let Out::Core(core::Request::Held(held)) = output else { unreachable!() };
+            let mut output = jig_test_domain::Request::Deliver(jig_test_domain::Delivery::Core(*held));
+            world.public_rule_output(&mut output);
+            let jig_test_domain::Request::Deliver(jig_test_domain::Delivery::Core(held)) = output else {
+                unreachable!()
+            };
+            checked.push(Out::Core(core::Request::Held(Box::new(held))));
         } else {
-            out.push(Out::Core(request));
+            checked.push(output);
         }
     }
-    out
+    checked
+}
+
+fn revoke_in_decision(world: &mut World, revocation: Change, goal: u64, child: u64) -> Queue<Out> {
+    let (key, ask) = match revocation {
+        Change::Private => (60, people::Ask::SetVisibility { project: 1, public: false }),
+        Change::Moved => (61, move_ask(child)),
+        Change::Untracked => (62, untrack_ask(world, goal)),
+        Change::Deleting => return step(world, In::Core(delete_event())),
+    };
+    let jig_test_domain::Event::Core(event) = crate::fixtures::party_ask(8200, world.session(), key, ask) else {
+        unreachable!()
+    };
+    step(world, In::Core(event))
+}
+
+fn accept_revocation(world: &mut World, revocation: Change, outputs: Queue<Out>) {
+    let env = world.env();
+    jig_test_domain::accept_engine_outputs(&mut world.domain, &env, outputs);
+    world.drain();
+    if let Change::Deleting = revocation {
+        assert_eq!(
+            world.act_answers.last().expect("revocation act terminal").1,
+            people::Outcome::ProjectRemoved { project: 1 }
+        );
+        return;
+    }
+    let answer = world.people_answers.last().expect("revocation terminal");
+    match revocation {
+        Change::Private => {
+            assert_eq!(*answer, people::Reply::Outcome(people::Outcome::VisibilitySet { project: 1, public: false }));
+        }
+        Change::Moved => assert!(matches!(answer, people::Reply::Outcome(people::Outcome::Moved { .. }))),
+        Change::Untracked => assert!(matches!(answer, people::Reply::Outcome(people::Outcome::Amended { .. }))),
+        Change::Deleting => unreachable!("the act has its own terminal"),
+    }
 }
 
 fn waiting(mut out: Queue<Out>) -> Token {
@@ -95,7 +134,7 @@ pub fn play(revocation: Change) {
                     if matches!(stage, Stage::Connector | Stage::Durable) {
                         unknown(step(
                             &mut world,
-                            core::Event::PublicRead { reply: ReplyTo::new(Token::new(600)), read },
+                            In::Core(core::Event::PublicRead { reply: ReplyTo::new(Token::new(600)), read }),
                         ));
                     } else {
                         assert_eq!(super::answer(&mut world, 600, read), core::PublicAnswer::Unknown);
@@ -118,37 +157,40 @@ pub fn play(revocation: Change) {
                     world.manual = false;
                     continue;
                 }
-                let mut out = step(&mut world, core::Event::PublicRead { reply: ReplyTo::new(Token::new(600)), read });
-                let Some(Out::Core(core::Request::Ask { connector: 1, ask: core::Ask::Public { reply, public, .. } })) =
-                    out.pop()
+                let mut out =
+                    step(&mut world, In::Core(core::Event::PublicRead { reply: ReplyTo::new(Token::new(600)), read }));
+                let Some(Out::Ask(
+                    connector @ jig::Connector(1),
+                    jig::Ask::Parts(jig::parts::Ask::Public { reply, public, .. }),
+                )) = out.pop()
                 else {
-                    panic!("connector public ask")
+                    panic!("connector public ask");
                 };
                 assert!(out.is_empty(), "no write or premature answer");
                 assert_eq!(public.as_ref(), &[goal, child]);
-                let connector = reply.into_token();
-                let answer = || Some(core::PublicApplication { tasks: Box::new([child]), record: Box::new([7]) });
-                let mut callback = if matches!(stage, Stage::Durable) {
-                    Some(waiting(step(
-                        &mut world,
-                        core::Event::PublicAnswered { reply: ReplyTo::new(connector), answer: answer() },
-                    )))
+                let answer = In::Connector(
+                    connector,
+                    jig::Up::Parts(jig::parts::Up::Public {
+                        reply,
+                        answer: Some(core::PublicApplication { tasks: Box::new([child]), record: Box::new([7]) }),
+                    }),
+                );
+                let callback = if matches!(stage, Stage::Durable) {
+                    let callback = waiting(step(&mut world, answer));
+                    change(&mut world, revocation, goal, child);
+                    callback
                 } else {
-                    None
+                    // The read and its connector answer are in the same decision, with the
+                    // revocation between them. Keep that decision's writes and terminal.
+                    let outputs = revoke_in_decision(&mut world, revocation, goal, child);
+                    let callback = waiting(step(&mut world, answer));
+                    accept_revocation(&mut world, revocation, outputs);
+                    callback
                 };
-                change(&mut world, revocation, goal, child);
-                if callback.is_none() {
-                    callback = Some(waiting(step(
-                        &mut world,
-                        core::Event::PublicAnswered { reply: ReplyTo::new(connector), answer: answer() },
-                    )));
-                }
-                let callback = callback.expect("waiting read");
-                let mut out = step(&mut world, core::Event::PublicDurable { read: callback });
-                if matches!(stage, Stage::Durable) {
-                    assert_eq!(waiting(out), callback, "newer revocation commit extends the wait");
-                    out = step(&mut world, core::Event::PublicDurable { read: callback });
-                }
+                let out = step(&mut world, In::Core(core::Event::PublicDurable { read: callback }));
+                // The revocation commits either in the answer's decision or in a later one.
+                assert_eq!(waiting(out), callback, "newer revocation commit extends the wait");
+                let out = step(&mut world, In::Core(core::Event::PublicDurable { read: callback }));
                 unknown(out);
                 // Retained deletion and host traffic is settled by the world's teardown.
             }

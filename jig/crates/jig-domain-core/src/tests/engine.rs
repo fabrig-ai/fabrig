@@ -1,5 +1,6 @@
 //! Pass-through decisions and timer admission (`jig/docs/design/domain/engine/vocabulary.md`, 2).
 
+mod connectors;
 use crate::{
     Config, Core, Event, Limits, Request, Timer,
     engine::{self, Admit, Engine, In, Out},
@@ -569,14 +570,17 @@ fn terminal_work_keeps_quiescence_behind_reclaim() {
 #[test]
 fn declarations_are_checked_in_construction_order() {
     use jig_domain_contract::{
-        Declaration,
+        Connector, Declaration,
         effects::{EffectForm, EffectKind, Recovery},
         resources::{ResourceKind, Rule},
     };
+    const FIRST: Connector = Connector(1);
+    const SECOND: Connector = Connector(2);
+    const UNKNOWN: Connector = Connector(3);
     let config = config(SEED);
     let mut limits = limits();
     limits.tasks.hold_kinds = 2;
-    let [first, second, unknown] = [1, 2, 3].map(Declaration::empty);
+    let [first, second, unknown] = [FIRST, SECOND, UNKNOWN].map(Declaration::empty);
     let resource = ResourceKind { kind: 4, hold: Rule::Shared };
     let other = ResourceKind { kind: 5, hold: Rule::Shared };
     let effect =
@@ -586,12 +590,12 @@ fn declarations_are_checked_in_construction_order() {
     let paired = Declaration { resources: Box::new([resource]), effects: Box::new([effect]), ..first.clone() };
     let full = Declaration { resources: Box::new([resource, other]), ..second.clone() };
     let refusals: [(Box<[Declaration]>, StartProblem); 7] = [
-        (Box::new([first.clone()]), StartProblem::Undeclared { connector: 2 }),
-        (Box::new([first.clone(), first.clone(), second.clone()]), StartProblem::Declared { connector: 1 }),
-        (Box::new([first, second.clone(), unknown]), StartProblem::Declared { connector: 3 }),
-        (Box::new([duplicate_resource, second.clone()]), StartProblem::ResourceKind { connector: 1, kind: 4 }),
-        (Box::new([duplicate_effect.clone(), second.clone()]), StartProblem::EffectKind { connector: 1, kind: 4 }),
-        (Box::new([duplicate_effect]), StartProblem::EffectKind { connector: 1, kind: 4 }),
+        (Box::new([first.clone()]), StartProblem::Undeclared { connector: SECOND }),
+        (Box::new([first.clone(), first.clone(), second.clone()]), StartProblem::Declared { connector: FIRST }),
+        (Box::new([first, second.clone(), unknown]), StartProblem::Declared { connector: UNKNOWN }),
+        (Box::new([duplicate_resource, second.clone()]), StartProblem::ResourceKind { connector: FIRST, kind: 4 }),
+        (Box::new([duplicate_effect.clone(), second.clone()]), StartProblem::EffectKind { connector: FIRST, kind: 4 }),
+        (Box::new([duplicate_effect]), StartProblem::EffectKind { connector: FIRST, kind: 4 }),
         (Box::new([paired.clone(), full]), StartProblem::HoldKinds { limit: 2 }),
     ];
     for (declarations, problem) in refusals {

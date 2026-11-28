@@ -446,6 +446,9 @@ impl Application for Ops {
                 Vec::new()
             }
             root::Output::ToChild(child) => {
+                if let root::Released::Connector(_, jig_domain_contract::Released::Answered { outcome, .. }) = &child {
+                    peers.close_answers.push(outcome.clone());
+                }
                 if let root::Released::Host(jig_domain_host::Event::Down(jig_domain_host::LinkDown::Assign {
                     assignment,
                     ..
@@ -783,10 +786,6 @@ impl Application for Ops {
                 core::Held::ApplicationWatchEnded { watcher, .. } | core::Held::WatchEnded { watcher, .. },
             ) => {
                 peers.ended_documents.push(watcher.raw());
-                Vec::new()
-            }
-            root::Output::Core(core::Held::Acted { outcome, .. }) => {
-                peers.close_answers.push(outcome);
                 Vec::new()
             }
             root::Output::IncidentAssociationRefused { .. } => panic!("owner association refused in conformance story"),

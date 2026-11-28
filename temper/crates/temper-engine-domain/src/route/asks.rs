@@ -1,51 +1,57 @@
-//! The core's connector asks, translated for temper's forge and brief
+//! Route the engine's connector port and temper's application asks
 //! (jig's `domain/root.md`, 5; `examples/ops/domain/src/route.rs`).
 use super::{
-    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, decide_call, emit, forge,
+    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, emit, forge,
     forge_release_ending, forge_route,
 };
-use crate::CallAnswer;
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
+use jig_domain_contract::{
+    Ask, Connector, Released, Up, effects, lifecycle, parts, procedures, projections, requests, resources, settings,
+    topics,
+};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::Token;
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates the core's ask vocabulary")]
-pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
-    let request = match ask {
-        core::Ask::Parts(ask) => {
+/// Contract cases that need root state stay here; the rest reach the forge unchanged.
+#[expect(clippy::too_many_lines, reason = "root-owned cases of the connector port, grouped by capability")]
+pub(super) fn connector_ask(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    Connector(connector): Connector,
+    ask: Ask,
+) {
+    match ask {
+        Ask::Parts(parts::Ask::Lines(ask)) => {
             super::parts::ask(domain, env, decision, connector, ask);
-            None
         }
-
-        ask @ core::Ask::Public { .. } => {
-            super::public::ask(domain, env, connector, ask);
-            None
+        Ask::Parts(parts::Ask::Document { watcher, scope, subject, party, .. }) => {
+            super::panels::document(domain, env, decision, connector, watcher, scope, subject, party);
         }
-        core::Ask::ReleaseProject { project } => {
-            if connector == domain.config.forge_connector {
-                domain.work.push(Work::Forge(forge::Event::ReleaseProject {
-                    project,
-                    request: Token::new(u64::from(project)),
-                }));
-            } else {
-                domain.work.push(Work::Core(core::Event::ProjectReleased { connector, project }));
+        Ask::Parts(parts::Ask::Read { reply, scope, read, party, .. }) => {
+            let right = reply.into_token();
+            let reply = ReplyTo::new(right);
+            if super::see::person::is_reading(domain, right) {
+                let document = if connector == domain.config.forge_connector {
+                    domain.forge.document(read.raw(), scope, party, env.wall, &env.limits.forge)
+                } else {
+                    None
+                };
+                super::see::person::document(domain, reply, document);
+                return;
             }
-            None
+            emit(
+                decision,
+                &env.limits,
+                Delivery::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Unknown) },
+            );
         }
-        core::Ask::WaitsRefused { task, why } => {
-            if connector == domain.config.forge_connector {
-                domain.work.push(Work::Forge(forge::Event::WaitsRefused { task, why }));
-            }
-            None
-        }
-        core::Ask::StepMade { task, step, first, .. } => {
+        Ask::Procedures(procedures::Ask::StepMade { task, step, first, .. }) => {
             step_made(domain, env, decision, task, step, first);
-            None
         }
-        core::Ask::StepRefused { task, step, why } => {
+        Ask::Procedures(procedures::Ask::StepRefused { task, step, why }) => {
             if connector == domain.config.forge_connector && forge_route::closer_refused(domain, task, step, &why) {
                 return;
             }
@@ -76,7 +82,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 return;
             }
             let held = connector == domain.config.forge_connector
-                && hold_changed_charter(domain, task, step, delegation, &why);
+                && forge_route::hold_changed_charter(domain, task, step, delegation, &why);
             if let core::StepRefusal::Denied { findings, .. } = &why {
                 if connector == domain.config.forge_connector
                     && let Some(kind) = delegation
@@ -89,7 +95,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             if let core::StepRefusal::Refused(problem) = why {
                 if connector == domain.config.forge_connector
-                    && problem.freeing_count().is_some()
+                    && tasks::freeing_count(&problem).is_some()
                     && let Some(kind) = delegation
                 {
                     domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
@@ -109,103 +115,55 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                         task,
                         core::ProcedureStep::new(core::StepEnd::Wait),
                     );
-                    domain.work.push(Work::Core(core::Event::ProcedureStep { task, step, connector, code, decision }));
+                    domain.work.push(Work::Connector(
+                        Connector(connector),
+                        Up::Procedures(procedures::Up::Step { task, step, code, decision }),
+                    ));
                 }
                 if domain.facts.try_push(crate::Fact::StepRefused { task, step, problem }).is_err() {
                     domain.facts_lost = domain.facts_lost.saturating_add(1);
                 }
             }
-            None
         }
-        core::Ask::Document { watcher, scope, subject, party, .. } => {
-            super::panels::document(domain, env, decision, connector, watcher, scope, subject, party);
-            None
-        }
-        core::Ask::Read { reply, scope, read, party, .. } => {
-            let right = reply.into_token();
-            let reply = ReplyTo::new(right);
-            if super::see::person::is_reading(domain, right) {
-                let document = if connector == domain.config.forge_connector {
-                    domain.forge.document(read.raw(), scope, party, env.wall, &env.limits.forge)
-                } else {
-                    None
-                };
-                super::see::person::document(domain, reply, document);
+        Ask::Procedures(procedures::Ask::Start { context, step, .. }) => {
+            if domain.engine.core().settling() {
                 return;
             }
-            emit(
-                decision,
-                &env.limits,
-                Delivery::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Unknown) },
-            );
-            None
-        }
-        core::Ask::Workers(workers) => {
-            assert!(
-                super::now(domain, crate::Request::Worker(crate::WorkerRequest::Settings(workers))),
-                "worker table door reserved"
-            );
-            None
-        }
-        core::Ask::Catalogue { models } => {
-            domain.catalogue_pending = true;
-            let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
-            assert!(
-                super::now(domain, crate::Request::Store(crate::StoreRequest::Catalogue { names })),
-                "catalogue store door reserved"
-            );
-            assert!(
-                super::now(domain, crate::Request::Party(crate::PartyRequest::Catalogue { models })),
-                "catalogue clients door reserved"
-            );
-            None
-        }
-        core::Ask::Providers(providers) => {
-            emit(decision, &env.limits, Delivery::Providers(providers));
-            None
-        }
-        core::Ask::DropDocument { .. } => None,
-        core::Ask::DropApplication { owner } => {
-            super::applications::drop(domain, owner);
-            None
-        }
-        core::Ask::Application { request, token, owner, retention, role, person, .. } => {
-            super::applications::admitted(domain, request, token, owner, retention, role, person, env, decision);
-            None
-        }
-        core::Ask::ApplicationPartAnswered { request, outcome } => {
-            domain.work.push(Work::Forge(forge::Event::ApplicationAnswered { request, outcome }));
-            None
-        }
-        core::Ask::Effect(ask) => {
-            forge_route::effect_ask(domain, env, decision, connector, ask);
-            None
-        }
-        core::Ask::Gather { section, budget } => Some(brief::GatherRequest::Gather { connector, section, budget }),
-        core::Ask::CutTo { section, size } => Some(brief::GatherRequest::CutTo { connector, section, size }),
-        core::Ask::Drop { section } => Some(brief::GatherRequest::Drop { connector, section }),
-        core::Ask::Hold { entry, task, resource, .. } => {
-            if connector == domain.config.forge_connector
-                && let Some(name) =
-                    forge_route::forge_name(domain.config.forge_connector, &resource, env.limits.forge.name_bytes)
-            {
-                let from = match domain.forge.hold(&name) {
-                    Some(row) if row.task != task => Some(row.task),
-                    Some(_) | None => None,
-                };
-                domain.work.push(Work::Forge(forge::Event::Hold { entry, task, resource: name, from }));
+            let task = context.task;
+            let code = match context.executor {
+                tasks::Executor::Job { .. } => return,
+                tasks::Executor::Procedure { code, .. } => code,
+                tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
+                    unreachable!("procedure route owns a procedure context")
+                }
+            };
+            if connector == domain.config.forge_connector && code == forge_route::CHANGE_CODE {
+                if forge_route::delegate_record::start(domain, env, decision, &context) {
+                    return;
+                }
+                if !forge_route::start_change(domain, env, &context) {
+                    forge_route::start_refused(domain, task);
+                }
+            } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
+                forge_route::start_landing_step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::GOAL_CLOSER_CODE {
+                if let Some(row) = domain.engine.core().tasks.task(task)
+                    && row.due_reason == tasks::Why::Released
+                {
+                    domain.forge.release_closer_wait(task, env.wall);
+                }
+                forge_route::start_closer_step(domain, env, decision, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
+                forge_route::start_status_step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::FOLLOW_CODE {
+                forge_route::follow_route::step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::AFTER_LANDING_CODE {
+                forge_route::start_tier_step(domain, env, &context);
+            } else {
+                emit(decision, &env.limits, Delivery::Procedure { task, step, connector, code });
             }
-            None
         }
-        core::Ask::EndTopic { task, subscription } => {
-            if connector == domain.config.forge_connector
-                && let Some(topic) = domain.forge.subscription(task, subscription)
-            {
-                domain.work.push(Work::Forge(forge::Event::Unsubscribe { task, topic }));
-            }
-            None
-        }
-        core::Ask::Adopt { request, project, adoption } => {
+        Ask::Lifecycle(lifecycle::Ask::Adopt { request, project, adoption }) => {
             if connector == domain.config.forge_connector
                 && domain.engine.core().application_part_request(request).is_none()
                 && let Some((adoption, repository)) = super::making::asked(domain, project, &adoption)
@@ -251,24 +209,16 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     outcome: people::Outcome::Refused(people::Refusal::NotOffered),
                 })),
             }
-            None
         }
-        core::Ask::Close { task, root, ending } => {
+        Ask::Effects(effects::Ask::Close { task, root, ending }) => {
             if connector == domain.config.forge_connector {
                 forge_route::goal_report::forget(domain, task);
-                domain.work.push(Work::Forge(forge::Event::SettleEffects {
-                    task,
-                    root,
-                    ending: forge_release_ending(ending),
-                }));
+                forward(domain, Ask::Effects(effects::Ask::Close { task, root, ending }));
             }
-            None
         }
-        core::Ask::Release { task, root, ending, entry } => {
+        Ask::Effects(effects::Ask::Release { task, root, ending, entry }) => {
             if connector == domain.config.forge_connector {
                 super::findings::goal_ended(domain, env, decision, task, forge_release_ending(ending.clone()));
-            }
-            if connector == domain.config.forge_connector {
                 let branches = forge_route::saved_branches(domain, env, task, root);
                 if !branches.is_empty() {
                     domain.work.push(Work::Forge(forge::Event::SavedWork { task, branches }));
@@ -295,9 +245,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     entry,
                 }));
             }
-            None
         }
-        core::Ask::Lost { task, attempt } => {
+        ask @ Ask::Resources(resources::Ask::Lost { task, attempt, .. }) => {
             if connector == domain.config.forge_connector {
                 forge_route::push_admission::forget(domain, task, attempt);
                 let pushed = domain.forge_left.remove(&(task, attempt));
@@ -307,13 +256,21 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                         forge_route::left(domain, env, task, attempt, pushed);
                     }
                     Some(_) | None => {
-                        domain.work.push(Work::Forge(forge::Event::Lost { task, attempt }));
+                        forward(domain, ask);
                     }
                 }
             }
-            None
         }
-        core::Ask::TaskHoldings { request, project, root, number, executor, spec, tracked, symbols } => {
+        Ask::Resources(resources::Ask::Holdings {
+            request,
+            project,
+            root,
+            number,
+            executor,
+            spec,
+            tracked,
+            symbols,
+        }) => {
             let (holdings, refused) = if connector == domain.config.forge_connector {
                 match forge_route::task_holdings(
                     domain, env, project, root, number, executor, &spec, None, tracked, &symbols,
@@ -324,204 +281,30 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             } else {
                 (None, None)
             };
-            domain.work.push(Work::Core(core::Event::Holdings { refused, request, connector, holdings }));
-            None
+            domain.work.push(Work::Connector(
+                Connector(connector),
+                Up::Resources(resources::Up::Holdings { refused, request, holdings }),
+            ));
         }
-        core::Ask::DelegateHoldings { request, from, members } => {
-            let mut refused = None;
-            let holdings = if connector == domain.config.forge_connector {
-                let mut collected = List::with_capacity(u32::try_from(members.len()).expect("bounded delegate batch"));
-                let mut failed = false;
-                for member in members {
-                    match forge_route::task_holdings(
-                        domain,
-                        env,
-                        member.project,
-                        member.root,
-                        member.number,
-                        member.executor,
-                        &member.spec,
-                        Some(from),
-                        member.tracked,
-                        &member.symbols,
-                    ) {
-                        Ok(holdings) => collected.push(holdings).expect("one per member"),
-                        Err(reason) => {
-                            refused = reason;
-                            failed = true;
-                            break;
-                        }
-                    }
-                }
-                if failed { None } else { Some(collected.into_boxed()) }
-            } else {
-                None
-            };
-            domain.work.push(Work::Core(core::Event::DelegateHoldings { refused, request, connector, holdings }));
-            None
+        Ask::Resources(resources::Ask::DelegateHoldings { request, from, members }) => {
+            let (holdings, refused) = batch_holdings(domain, env, connector, from, &members);
+            domain.work.push(Work::Connector(
+                Connector(connector),
+                Up::Resources(resources::Up::DelegateHoldings { refused, request, holdings }),
+            ));
         }
-        core::Ask::ProcedureHoldings { task, step, members } => {
-            let mut refused = None;
-            let holdings = if connector == domain.config.forge_connector {
-                let mut collected = List::with_capacity(u32::try_from(members.len()).expect("bounded procedure batch"));
-                let mut failed = false;
-                for member in members {
-                    match forge_route::task_holdings(
-                        domain,
-                        env,
-                        member.project,
-                        member.root,
-                        member.number,
-                        member.executor,
-                        &member.spec,
-                        Some(task),
-                        member.tracked,
-                        &member.symbols,
-                    ) {
-                        Ok(holdings) => collected.push(holdings).expect("one per member"),
-                        Err(reason) => {
-                            refused = reason;
-                            failed = true;
-                            break;
-                        }
-                    }
-                }
-                if failed { None } else { Some(collected.into_boxed()) }
-            } else {
-                None
-            };
-            domain.work.push(Work::Core(core::Event::ProcedureHoldings { refused, task, step, connector, holdings }));
+        Ask::Resources(resources::Ask::ProcedureHoldings { task, step, members }) => {
+            let (holdings, refused) = batch_holdings(domain, env, connector, task, &members);
+            domain.work.push(Work::Connector(
+                Connector(connector),
+                Up::Resources(resources::Up::ProcedureHoldings { refused, task, step, holdings }),
+            ));
             if domain.forge.status_owner(task).is_some() {
                 // The holdings answer drains the status delegate's make before its account is read.
                 domain.work.push(Work::StatusAccount { procedure: task });
             }
-            None
         }
-        core::Ask::ProjectGoal { feed } => {
-            if connector == domain.config.forge_connector {
-                domain.work.push(Work::ProjectGoal(feed));
-            } else if feed.closing {
-                domain.work.push(Work::Core(core::Event::ProjectionSettled { goal: feed.goal.number, connector }));
-            }
-            None
-        }
-        core::Ask::ForgetProjection { goal } => {
-            if connector == domain.config.forge_connector {
-                domain.work.push(Work::Forge(forge::Event::ForgetProjection { goal }));
-            }
-            None
-        }
-        core::Ask::SubscriptionDone { request, key, subscription } => {
-            if connector == domain.config.forge_connector {
-                if let Some(pending) = domain.forge_subscribing.remove(&request) {
-                    let names = forge_route::watch_names(domain, &env.limits, &pending)
-                        .expect("connector names preflighted at subscription");
-                    let owner = pending.task;
-                    domain.work.push(Work::Forge(forge::Event::Subscribe { subscription: pending }));
-                    domain.work.push(Work::Forge(forge::Event::Names { task: owner, resources: names }));
-                }
-                decide_call(
-                    domain,
-                    &env.limits,
-                    decision,
-                    ReplyTo::new(request),
-                    key,
-                    CallAnswer::Subscribed { subscription },
-                );
-            }
-            None
-        }
-        core::Ask::UnsubscriptionDone { request, key } => {
-            if connector == domain.config.forge_connector {
-                if let Some((owner, topic)) = domain.forge_unsubscribing.remove(&request) {
-                    domain.work.push(Work::Forge(forge::Event::Unsubscribe { task: owner, topic }));
-                }
-                decide_call(domain, &env.limits, decision, ReplyTo::new(request), key, CallAnswer::Unsubscribed);
-            }
-            None
-        }
-        core::Ask::ClaimDone { task, attempt, kinds, version } => {
-            if connector == domain.config.forge_connector {
-                let workspace = &domain.assignment_parts.get(&task).expect("admitted assignment").workspace;
-                let (writes, designs, holders) = forge_route::claimed_writes(domain, env, task, workspace)
-                    .expect("the admitted assignment retains its bounded held forge writes");
-                if !writes.is_empty() || !designs.is_empty() {
-                    domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, designs, holders }));
-                }
-                let mut out = Queue::uncapped();
-                jig_domain_hub_link::step(
-                    &mut domain.hub_link,
-                    env.now,
-                    jig_domain_hub_link::Event::Start { task, attempt, kinds, version },
-                    &mut out,
-                );
-                for _ in 0..out.len() {
-                    let jig_domain_hub_link::Request::Core(core::Event::Fleet(mut event)) =
-                        out.pop().expect("link start")
-                    else {
-                        unreachable!("a start routes to the fleet")
-                    };
-                    if let jig_domain_fleet::Event::Start { workstream, .. } = &mut event {
-                        *workstream = domain.assignment_parts.get(&task).expect("temper workspace").workstream;
-                    }
-                    emit(decision, &env.limits, Delivery::Fleet(event));
-                }
-            }
-            None
-        }
-        core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } => {
-            if connector == domain.config.forge_connector {
-                forge_route::job_history::claimed(domain, task, attempt, kind.0);
-                let crate::boundary::PreparedWorkspace { workspace: prepared, claim_names } =
-                    domain.run_workspaces.remove(&task).expect("prepared job workspace").into_prepared();
-                drop(super::now::claim_workspace(domain, env, task, &prepared, claim_names));
-                let (writes, designs, holders) = forge_route::claimed_writes(domain, env, task, &prepared.workspace)
-                    .expect("the admitted job retains its bounded held forge writes");
-                if !writes.is_empty() || !designs.is_empty() {
-                    domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, designs, holders }));
-                }
-                if workspace.is_some() {
-                    let kept = crate::boundary::JobWorkspace { attempt, workspace: prepared.workspace, offered: false };
-                    assert!(domain.job_workspaces.insert(task, kept).is_ok(), "one job assignment per task");
-                }
-                let mut out = Queue::uncapped();
-                jig_domain_hub_link::step(
-                    &mut domain.hub_link,
-                    env.now,
-                    jig_domain_hub_link::Event::StartJob {
-                        job: jig_domain_hub_link::JobStart {
-                            task,
-                            attempt,
-                            workstream: prepared.workstream,
-                            kind,
-                            spec,
-                            deadline,
-                            result,
-                            grants,
-                            workspace,
-                        },
-                    },
-                    &mut out,
-                );
-                for _ in 0..out.len() {
-                    let jig_domain_hub_link::Request::Core(core::Event::Fleet(event)) =
-                        out.pop().expect("link job start")
-                    else {
-                        unreachable!("a job start routes to the fleet")
-                    };
-                    emit(decision, &env.limits, Delivery::Fleet(event));
-                }
-            }
-            None
-        }
-        core::Ask::DropSubscription { request } => {
-            if connector == domain.config.forge_connector {
-                drop(domain.forge_subscribing.remove(&request));
-                drop(domain.forge_unsubscribing.remove(&request));
-            }
-            None
-        }
-        core::Ask::RepairRefused { repair, number, why } => {
+        Ask::Resources(resources::Ask::RepairRefused { repair, number, why }) => {
             if connector == domain.config.forge_connector
                 && let Some((forming, reason)) = &mut domain.forge_forming
                 && *forming == number
@@ -540,9 +323,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             {
                 forge_route::hold_reason(domain, owner, b"landing branch repair admission was refused");
             }
-            None
         }
-        core::Ask::DelegateRefused { task } => {
+        Ask::Resources(resources::Ask::DelegateRefused { task }) => {
             if connector == domain.config.forge_connector
                 && let Some(task) = task
                 && let Some(row) = domain.forge.change(task)
@@ -555,47 +337,266 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     b"its delegate admission was refused before work could be accepted",
                 );
             }
-            None
         }
-        core::Ask::StartProcedure { context, step } => {
-            if domain.engine.core().settling() {
-                return;
+        Ask::Projections(projections::Ask::Project { feed }) => {
+            if connector == domain.config.forge_connector {
+                domain.work.push(Work::ProjectGoal(feed));
+            } else if feed.closing {
+                domain.work.push(Work::Connector(
+                    Connector(connector),
+                    Up::Projections(projections::Up::Settled { goal: feed.goal.number }),
+                ));
             }
-            let task = context.task;
-            let code = match context.executor {
-                tasks::Executor::Job { .. } => return,
-                tasks::Executor::Procedure { code, .. } => code,
-                tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
-                    unreachable!("procedure route owns a procedure context")
-                }
-            };
-            if connector == domain.config.forge_connector && code == forge_route::CHANGE_CODE {
-                if forge_route::delegate_record::start(domain, env, decision, &context) {
-                    return;
-                }
-                if !forge_route::start_change(domain, env, &context) {
-                    forge_route::start_refused(domain, task);
-                }
-            } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
-                forge_route::start_landing_step(domain, env, &context);
-            } else if connector == domain.config.forge_connector && code == forge_route::GOAL_CLOSER_CODE {
-                if let Some(row) = domain.engine.core().tasks.task(task)
-                    && row.due_reason == tasks::Why::Released
-                {
-                    domain.forge.release_closer_wait(task, env.wall);
-                }
-                forge_route::start_closer_step(domain, env, decision, &context);
-            } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
-                forge_route::start_status_step(domain, env, &context);
-            } else if connector == domain.config.forge_connector && code == forge_route::FOLLOW_CODE {
-                forge_route::follow_route::step(domain, env, &context);
-            } else if connector == domain.config.forge_connector && code == forge_route::AFTER_LANDING_CODE {
-                forge_route::start_tier_step(domain, env, &context);
-            } else {
-                emit(decision, &env.limits, Delivery::Procedure { task, step, connector, code });
-            }
-            None
         }
+        Ask::Topics(topics::Ask::Subscribed { request, .. }) => {
+            if connector == domain.config.forge_connector
+                && let Some(pending) = domain.forge_subscribing.remove(&request)
+            {
+                let names = forge_route::watch_names(domain, &env.limits, &pending)
+                    .expect("connector names preflighted at subscription");
+                let owner = pending.task;
+                domain.work.push(Work::Forge(forge::Event::Subscribe { subscription: pending }));
+                domain.work.push(Work::Forge(forge::Event::Names { task: owner, resources: names }));
+            }
+        }
+        Ask::Topics(topics::Ask::Unsubscribed { request, .. }) => {
+            if connector == domain.config.forge_connector
+                && let Some((owner, topic)) = domain.forge_unsubscribing.remove(&request)
+            {
+                domain.work.push(Work::Forge(forge::Event::Unsubscribe { task: owner, topic }));
+            }
+        }
+        Ask::Topics(topics::Ask::Refused { request }) => {
+            if connector == domain.config.forge_connector {
+                drop(domain.forge_subscribing.remove(&request));
+                drop(domain.forge_unsubscribing.remove(&request));
+            }
+        }
+        Ask::Requests(requests::Ask::Drop { owner }) => {
+            super::applications::drop(domain, owner);
+        }
+        Ask::Requests(requests::Ask::Decide { request, token, owner, retention, role, person, .. }) => {
+            super::applications::admitted(domain, request, token, owner, retention, role, person, env, decision);
+        }
+        Ask::Lifecycle(lifecycle::Ask::ReleaseProject { project }) if connector != domain.config.forge_connector => {
+            domain.work.push(Work::Connector(Connector(connector), Up::Lifecycle(lifecycle::Up::Released { project })));
+        }
+        Ask::Resources(resources::Ask::Unname { task }) if connector == domain.config.forge_connector => {
+            forge_route::drop_erased(domain, env, decision, task);
+            forward(domain, ask);
+        }
+        Ask::Effects(
+            ask @ (effects::Ask::Describe { .. }
+            | effects::Ask::DescribeProposal { .. }
+            | effects::Ask::Keep { .. }
+            | effects::Ask::KeepProposal { .. }
+            | effects::Ask::Drop { .. }
+            | effects::Ask::Judge { .. }),
+        ) => {
+            forge_route::effect_ask(domain, env, decision, connector, ask);
+        }
+        Ask::Parts(ask @ parts::Ask::Public { .. }) => super::public::ask(domain, env, connector, ask),
+        Ask::Settings(settings::Ask::Judge { owner, revision, proposal, items }) => {
+            if connector == domain.config.forge_connector {
+                let mut local = true;
+                for item in &items {
+                    local &= item.edit == settings::Edit::Remove && item.kind != 12 && item.kind != 13;
+                }
+                let asked = settings::Ask::Judge { owner, revision, proposal, items };
+                if local {
+                    forward(domain, Ask::Settings(asked));
+                } else {
+                    super::kinds::ask(domain, env, decision, asked);
+                }
+            }
+        }
+        Ask::Settings(
+            ask @ (settings::Ask::Keep { .. } | settings::Ask::KeepProposal { .. } | settings::Ask::Restore { .. }),
+        ) => {
+            if connector == domain.config.forge_connector {
+                super::kinds::ask(domain, env, decision, ask);
+            }
+        }
+        ask @ (Ask::Lifecycle(lifecycle::Ask::CatchUp | lifecycle::Ask::ReleaseProject { .. })
+        | Ask::Resources(resources::Ask::Hold { .. } | resources::Ask::Unname { .. })
+        | Ask::Effects(effects::Ask::Resolve { .. } | effects::Ask::DropProposal { .. })
+        | Ask::Topics(topics::Ask::Ended { .. })
+        | Ask::Parts(parts::Ask::DropDocument { .. })
+        | Ask::Procedures(procedures::Ask::WaitsRefused { .. })
+        | Ask::Projections(projections::Ask::Forget { .. })
+        | Ask::Settings(
+            settings::Ask::ForgetReplaced { .. }
+            | settings::Ask::DropProposal { .. }
+            | settings::Ask::SaveDefaults { .. },
+        )
+        | Ask::Requests(requests::Ask::PartAnswered { .. })) => {
+            if connector == domain.config.forge_connector {
+                forward(domain, ask);
+            }
+        }
+    }
+}
+
+type BatchHoldings = Box<[Box<[resources::Holding]>]>;
+
+fn batch_holdings(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    connector: u16,
+    parent: u64,
+    members: &[resources::HoldingsNeed],
+) -> (Option<BatchHoldings>, Option<resources::HoldingsRefusal>) {
+    if connector != domain.config.forge_connector {
+        return (None, None);
+    }
+    let mut collected = List::with_capacity(u32::try_from(members.len()).expect("bounded delegate batch"));
+    for member in members {
+        match forge_route::task_holdings(
+            domain,
+            env,
+            member.project,
+            member.root,
+            member.number,
+            member.executor,
+            &member.spec,
+            Some(parent),
+            member.tracked,
+            &member.symbols,
+        ) {
+            Ok(holdings) => collected.push(holdings).expect("one per member"),
+            Err(refused) => return (None, refused),
+        }
+    }
+    (Some(collected.into_boxed()), None)
+}
+
+pub(super) fn forward(domain: &mut Domain, ask: Ask) {
+    domain.work.push(Work::Forge(forge::Event::Ask(ask)));
+}
+
+/// The engine marks a held output in the decision; the journal releases it after commit.
+pub(super) fn connector_released(
+    domain: &Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    Connector(connector): Connector,
+    released: Released,
+) {
+    assert_eq!(connector, domain.config.forge_connector, "numbered forge release");
+    match released {
+        Released::Make { entry } => emit(decision, &env.limits, Delivery::ForgeCommitted { entry }),
+        Released::Answered { .. } => unreachable!("this root sends its own acts with reply tokens"),
+    }
+}
+
+/// Application routes that are not connector capabilities.
+#[expect(clippy::too_many_lines, reason = "one dispatcher for the remaining application hand-offs")]
+pub(super) fn application(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    connector: u16,
+    ask: core::Ask,
+) {
+    let request = if let core::Ask::Workers(workers) = ask {
+        assert!(
+            super::now(domain, crate::Request::Worker(crate::WorkerRequest::Settings(workers))),
+            "worker table door reserved"
+        );
+        None
+    } else if let core::Ask::Catalogue { models } = ask {
+        domain.catalogue_pending = true;
+        let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
+        assert!(
+            super::now(domain, crate::Request::Store(crate::StoreRequest::Catalogue { names })),
+            "catalogue store door reserved"
+        );
+        assert!(
+            super::now(domain, crate::Request::Party(crate::PartyRequest::Catalogue { models })),
+            "catalogue clients door reserved"
+        );
+        None
+    } else if let core::Ask::Providers(providers) = ask {
+        emit(decision, &env.limits, Delivery::Providers(providers));
+        None
+    } else if let core::Ask::Gather { section, budget } = ask {
+        Some(brief::GatherRequest::Gather { connector, section, budget })
+    } else if let core::Ask::CutTo { section, size } = ask {
+        Some(brief::GatherRequest::CutTo { connector, section, size })
+    } else if let core::Ask::Drop { section } = ask {
+        Some(brief::GatherRequest::Drop { connector, section })
+    } else if let core::Ask::ClaimDone { task, attempt, kinds, version } = ask {
+        if connector == domain.config.forge_connector {
+            let workspace = &domain.assignment_parts.get(&task).expect("admitted assignment").workspace;
+            let (writes, designs, holders) = forge_route::claimed_writes(domain, env, task, workspace)
+                .expect("the admitted assignment retains its bounded held forge writes");
+            if !writes.is_empty() || !designs.is_empty() {
+                domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, designs, holders }));
+            }
+            let mut out = Queue::uncapped();
+            jig_domain_hub_link::step(
+                &mut domain.hub_link,
+                env.now,
+                jig_domain_hub_link::Event::Start { task, attempt, kinds, version },
+                &mut out,
+            );
+            for _ in 0..out.len() {
+                let jig_domain_hub_link::Request::Core(core::Event::Fleet(mut event)) = out.pop().expect("link start")
+                else {
+                    unreachable!("a start routes to the fleet")
+                };
+                if let jig_domain_fleet::Event::Start { workstream, .. } = &mut event {
+                    *workstream = domain.assignment_parts.get(&task).expect("temper workspace").workstream;
+                }
+                emit(decision, &env.limits, Delivery::Fleet(event));
+            }
+        }
+        None
+    } else if let core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } = ask {
+        if connector == domain.config.forge_connector {
+            forge_route::job_history::claimed(domain, task, attempt, kind.0);
+            let crate::boundary::PreparedWorkspace { workspace: prepared, claim_names } =
+                domain.run_workspaces.remove(&task).expect("prepared job workspace").into_prepared();
+            drop(super::now::claim_workspace(domain, env, task, &prepared, claim_names));
+            let (writes, designs, holders) = forge_route::claimed_writes(domain, env, task, &prepared.workspace)
+                .expect("the admitted job retains its bounded held forge writes");
+            if !writes.is_empty() || !designs.is_empty() {
+                domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, designs, holders }));
+            }
+            if workspace.is_some() {
+                let kept = crate::boundary::JobWorkspace { attempt, workspace: prepared.workspace, offered: false };
+                assert!(domain.job_workspaces.insert(task, kept).is_ok(), "one job assignment per task");
+            }
+            let mut out = Queue::uncapped();
+            jig_domain_hub_link::step(
+                &mut domain.hub_link,
+                env.now,
+                jig_domain_hub_link::Event::StartJob {
+                    job: jig_domain_hub_link::JobStart {
+                        task,
+                        attempt,
+                        workstream: prepared.workstream,
+                        kind,
+                        spec,
+                        deadline,
+                        result,
+                        grants,
+                        workspace,
+                    },
+                },
+                &mut out,
+            );
+            for _ in 0..out.len() {
+                let jig_domain_hub_link::Request::Core(core::Event::Fleet(event)) = out.pop().expect("link job start")
+                else {
+                    unreachable!("a job start routes to the fleet")
+                };
+                emit(decision, &env.limits, Delivery::Fleet(event));
+            }
+        }
+        None
+    } else {
+        unreachable!("the engine separates connector asks from application asks: {ask:?}")
     };
     if let Some(request) = request {
         let mut child = Queue::with_capacity(1);
@@ -604,162 +605,11 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
     }
 }
 
-/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge/change/gates.md, 3).
-fn hold_changed_charter(
-    domain: &mut Domain,
-    task: u64,
-    step: u64,
-    delegation: Option<temper_engine_domain_forge_change::Delegate>,
-    refusal: &core::StepRefusal,
-) -> bool {
-    use temper_engine_domain_forge_change::{Delegate, GateKind};
-    let Some((owner, 2, current)) = domain.engine.core().tasks.procedure_due(task) else { return false };
-    if owner != domain.config.forge_connector || current != step {
-        return false;
-    }
-    let Some(row) = domain.forge.change(task) else { return false };
-    let (role, charter, choice): (&[u8], u32, _) = match delegation {
-        Some(Delegate::Gate { number, .. }) => {
-            let mut kind = None;
-            for gate in &row.change.gates {
-                if gate.number == number {
-                    kind = Some(gate.kind);
-                    break;
-                }
-            }
-            match kind {
-                Some(GateKind::Agent) => (b"review", row.review_charter, &row.review_llm),
-                Some(GateKind::Check) => (b"producer", row.producing_charter, &row.producing_llm),
-                Some(GateKind::Person | GateKind::Follow) | None => return false,
-            }
-        }
-        Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
-            (b"producer", row.producing_charter, &row.producing_llm)
-        }
-        Some(Delegate::Merge { .. } | Delegate::Close) | None => return false,
-    };
-    let model_and_speed = match refusal {
-        core::StepRefusal::Denied { findings, .. }
-            if executor_refused(findings)
-                && (!domain
-                    .engine
-                    .core()
-                    .authority
-                    .rules()
-                    .ceiling
-                    .delegation
-                    .kinds
-                    .contains(&jig_domain_authority::Executor::Charter(charter))
-                    || domain.engine.core().charter(charter).is_none()) =>
-        {
-            None
-        }
-        core::StepRefusal::Refused(tasks::Problem {
-            why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Charter },
-            ..
-        }) => Some((*model, None)),
-        core::StepRefusal::Refused(tasks::Problem {
-            why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Speed },
-            ..
-        }) => {
-            let Some(choice) = choice else { return false };
-            let Some(speed) = forge_route::refused_speed(domain, *model, choice) else { return false };
-            Some((*model, Some(speed)))
-        }
-        core::StepRefusal::Moved { .. } | core::StepRefusal::Refused(_) | core::StepRefusal::Denied { .. } => {
-            return false;
-        }
-    };
-    let Some(words) = changed_charter_words(domain, role, charter, model_and_speed) else { return false };
-    domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
-        task,
-        why: tasks::Hold::Procedure,
-        source: Box::new(tasks::HoldSource::Account { connector: domain.config.forge_connector, entry: None, words }),
-    }));
-    true
-}
-
-fn changed_charter_words(
-    domain: &Domain,
-    role: &[u8],
-    charter: u32,
-    model_and_speed: Option<(u8, Option<skein_lib::Name<32>>)>,
-) -> Option<Box<[u8]>> {
-    const CHARTER: &[u8] = b", which charter ";
-    const DISALLOWED: &[u8] = b" no longer allows";
-    const REMEDY: &[u8] = b"; cancel the change or make it again";
-    const AT_SPEED: &[u8] = b" at speed ";
-    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    let charter_number = forge_route::decimal(u64::from(charter));
-    append_hold(&mut words, b"the change's ");
-    append_hold(&mut words, role);
-    match model_and_speed {
-        Some((model, speed)) => {
-            append_hold(&mut words, b" choice names model ");
-            match domain.engine.core().settings.models.get(usize::from(model)) {
-                Some(configured) => {
-                    if let Some(speed) = speed {
-                        // Leave room for the speed even when a long model name needs shortening.
-                        let tail = AT_SPEED
-                            .len()
-                            .saturating_add(speed.as_bytes().len())
-                            .saturating_add(CHARTER.len())
-                            .saturating_add(charter_number.len())
-                            .saturating_add(DISALLOWED.len())
-                            .saturating_add(REMEDY.len());
-                        let room = skein_lib::usize_of(words.room()).saturating_sub(tail);
-                        append_hold_name(&mut words, &configured.name, room);
-                    } else {
-                        append_hold(&mut words, &configured.name);
-                    }
-                }
-                None if speed.is_some() => append_hold(&mut words, &forge_route::decimal(u64::from(model))),
-                None => return None,
-            }
-            if let Some(speed) = speed {
-                append_hold(&mut words, AT_SPEED);
-                append_hold(&mut words, speed.as_bytes());
-            }
-            append_hold(&mut words, CHARTER);
-            append_hold(&mut words, &charter_number);
-            append_hold(&mut words, DISALLOWED);
-        }
-        None => {
-            append_hold(&mut words, b" charter ");
-            append_hold(&mut words, &charter_number);
-            append_hold(&mut words, b" is no longer offered");
-        }
-    }
-    append_hold(&mut words, REMEDY);
-    Some(words.into_boxed())
-}
-
-fn append_hold_name(words: &mut List<u8>, name: &[u8], room: usize) {
-    if name.len() <= room {
-        append_hold(words, name);
-    } else {
-        const CUT: &[u8] = b"...";
-        let prefix = skein_lib::bytes::utf8_prefix(name, room.saturating_sub(CUT.len()));
-        append_hold(words, prefix);
-        append_hold(words, CUT);
-    }
-}
-
-fn executor_refused(findings: &[jig_domain_authority::Finding]) -> bool {
-    for finding in findings {
-        if let jig_domain_authority::Finding::Executor { .. } = finding {
-            return true;
-        }
-    }
-    false
-}
-
-fn append_hold(words: &mut List<u8>, bytes: &[u8]) {
-    for byte in bytes {
-        if words.room() > 0 {
-            words.push(*byte).expect("checked hold account room");
-        }
-    }
+#[cfg(test)]
+pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: Ask) {
+    let mut requests = Queue::with_capacity(1);
+    requests.push(core::Request::Ask { connector, ask: core::Ask::Connector(ask) });
+    super::route_core_requests(domain, env, decision, requests);
 }
 
 fn step_made(

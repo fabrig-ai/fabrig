@@ -4,6 +4,7 @@ use jig_core_world::{
     faults::plan_fixture,
     world::{Setup, World},
 };
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, Admit};
 use jig_domain_tasks as tasks;
@@ -52,12 +53,18 @@ fn delegate(world: &mut World, parent: (u64, u64), completion: u32, members: Vec
 }
 
 fn foreign(world: &mut World, number: u64) {
-    world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
-        project: 1,
-        name: tasks::Name { connector: 1, path: Box::new([Box::from(b"z".as_slice()), number.to_be_bytes().into()]) },
-        role: core::effects::connector::ResourceRole::Owned,
-        hold: core::effects::connector::HoldKind::Exclusive { wait: true },
-    })));
+    world.send(root::Event::connector_up(
+        1,
+        jig::Up::Resources(jig::resources::Up::Resource {
+            project: 1,
+            name: tasks::Name {
+                connector: 1,
+                path: Box::new([Box::from(b"z".as_slice()), number.to_be_bytes().into()]),
+            },
+            role: core::effects::connector::ResourceRole::Owned,
+            hold: core::effects::connector::HoldKind::Exclusive { wait: true },
+        }),
+    ));
 }
 
 fn world(seed: u64, capacity: u32, bound: u64) -> (World, root::Limits) {
@@ -92,34 +99,14 @@ fn world(seed: u64, capacity: u32, bound: u64) -> (World, root::Limits) {
     (world, limits)
 }
 
-// A connector emits one report burst before its holdings answer. Interleaving
-// begins after that answer pins the batch; delayed reports can then arrive singly.
-fn holdings_burst(
-    world: &mut World,
-    rng: &mut Rng,
-    first: u64,
-    count: u64,
-    missing: &mut Vec<u64>,
-) -> Vec<(u64, core::Event)> {
-    let mut delayed = Vec::new();
-    let mut events = Vec::new();
-    let mut member_at = 0_u64;
-    while let Some(event) = world.domain.pop_holdings() {
-        if matches!(event, core::Event::EffectConnector(core::effects::connector::Event::Resource { .. })) {
-            if rng.below(3) == 0 {
-                missing.push(first + member_at);
-                delayed.push((first + member_at, event));
-            } else {
-                events.push(root::Event::Core(event));
-            }
-            member_at += 1;
-        } else {
-            events.push(root::Event::Core(event));
-        }
-    }
-    assert_eq!(member_at, count);
-    world.send_all(events);
-    delayed
+// Script a delay for individual resource reports, not for the holdings judgement.
+fn holding_reports(world: &mut World, missing: &[u64]) -> Vec<(u64, core::engine::In)> {
+    let reports = missing
+        .iter()
+        .map(|&task| (task, world.domain.take_holding_report(1).expect("one report per withheld member")))
+        .collect();
+    assert!(world.domain.take_holding_report(1).is_none());
+    reports
 }
 
 fn outcome(world: &World, seed: u64, first: u64, count: u64, live: u64, capacity: u32, missing: &[u64]) -> usize {
@@ -195,15 +182,24 @@ fn full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline() {
         for number in 1..=u64::from(capacity) {
             foreign(&mut world, number);
         }
-        world.domain.script_holdings();
         let batch = (1..=count).map(|at| member(&authority, live + at)).collect();
         let first = parent.0 + live + 1;
         let completion = u32::try_from(live + 1).unwrap();
         let answers = world.answers.len();
-        delegate(&mut world, parent, completion, batch);
-        let mut missing = Vec::new();
         let parked = world.clocks().0;
-        let delayed = holdings_burst(&mut world, &mut rng, first, count, &mut missing);
+        let mut missing = Vec::new();
+        let choices = (0..count)
+            .map(|offset| {
+                let delayed = rng.below(3) == 0;
+                if delayed {
+                    missing.push(first + offset);
+                }
+                delayed
+            })
+            .collect();
+        world.domain.delay_holding_reports(1, choices);
+        delegate(&mut world, parent, completion, batch);
+        let delayed = holding_reports(&mut world, &missing);
         let (now, wall) = world.clocks();
         let deadline = if world.domain.core().awaiting_resources_flights() == 1 {
             let deadline = parked.saturating_add(limits.core.tasks.hold_wait);
@@ -220,7 +216,7 @@ fn full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline() {
                 let by = Duration::from_nanos(rng.below(1_000_000_001));
                 world.fire_due(now.saturating_add(by), Wall::from_nanos(wall.as_nanos() + by.as_nanos()));
                 if world.answers.len() == answers && rng.below(2) == 0 {
-                    world.send(root::Event::Core(event));
+                    world.send(root::Event::Engine(event));
                     missing.retain(|missing| *missing != number);
                 }
             }

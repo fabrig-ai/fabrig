@@ -337,7 +337,6 @@ impl Application for OpsApplication {
                 | core::Held::PublicRead { .. }
                 | core::Held::PublicWait { .. }
                 | core::Held::Applied { .. }
-                | core::Held::MakeEffect { .. }
                 | core::Held::SettledCall { .. }
                 | core::Held::Assign { .. }
                 | core::Held::Grant { .. }
@@ -369,6 +368,7 @@ impl Application for OpsApplication {
                 | core::Held::StopRun { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
+                | core::Held::Connector(_, _)
                 | core::Held::NotesDeleted { .. },
             )
             | root::Output::Now(

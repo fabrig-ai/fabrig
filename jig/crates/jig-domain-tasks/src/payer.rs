@@ -1,12 +1,7 @@
 //! Financial payer queries (domain/accounts-uses.md, 1.1; domain/authority-budgets.md, section 1).
-use crate::{Domain, Funder};
+pub use jig_domain_contract::ops::Payer;
 
-/// The end of a task's financial chain, independent of its requester.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Payer {
-    Party(u64),
-    Project(u32),
-}
+use crate::{Domain, Funder};
 
 /// A prospective task's financial link. Staged links replace live links, so the same query
 /// serves a batch, acceptance, refunding or a compound's ordered preview.

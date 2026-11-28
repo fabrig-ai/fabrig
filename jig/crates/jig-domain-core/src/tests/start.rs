@@ -81,7 +81,7 @@ fn every_operational_entrance_consumes_input() {
         Entrance {
             name: "reserve_connector_subscription",
             input: |core, _| {
-                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1).is_some());
+                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1, 1, 1).is_some());
             },
         },
         Entrance {

@@ -1,5 +1,6 @@
 //! A change gives up its decision and number, not its place (forge/room.md, 3–4).
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, Check, Error, Op, Read, Write};
 use skein_lib::List;
 use temper_engine_domain_forge_change as change;
@@ -275,7 +276,9 @@ fn a_projection_stays_behind_an_unasked_or_asked_change() {
         for request in projected {
             assert!(!matches!(
                 request,
-                Request::ProjectionEffect { .. } | Request::ProjectionFailed { .. } | Request::ProjectionSettled { .. }
+                Request::ProjectionEffect { .. }
+                    | Request::ProjectionFailed { .. }
+                    | Request::Up(contract::Up::Projections(contract::projections::Up::Settled { .. }))
             ));
         }
     }

@@ -1,14 +1,16 @@
 //! Run admission, briefs and workspace preparation across the task, brief,
 //! notes and account children (`domain/engine/vocabulary.md`, section 1.4, and `domain/engine/executors-transcripts.md`, section 1).
 
+use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof,
+    Core, Event, Limits, Now, Request, RunCharter, RunProof,
     engine::store,
     routing::{NoteRoute, Work, children::remember_due},
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
+use jig_domain_contract as contract;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
@@ -743,7 +745,11 @@ pub(crate) fn route_activate(
             },
             tasks::Executor::Procedure { connector, .. } => {
                 if let Some(step) = context.previous_attempt.checked_add(1) {
-                    out.push(Request::Ask { connector, ask: Ask::StartProcedure { context, step } });
+                    let chat = core.tasks.served_chat(number);
+                    out.push(connector_ask(
+                        connector,
+                        contract::Ask::Procedures(contract::procedures::Ask::Start { context, step, chat }),
+                    ));
                 } else {
                     work.push(Work::Event(Event::Tasks(tasks::Event::Hold {
                         task: number,

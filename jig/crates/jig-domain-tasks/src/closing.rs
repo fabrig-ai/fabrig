@@ -321,7 +321,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     assert!(task.delegates.is_empty(), "all delegates ended before requester");
     let requester = task.requester;
     let status = status(&ending);
-    let endings = task.ended_below.ended(status);
+    let endings = crate::index::with_ending(task.ended_below, status);
     let subscriptions = task.subscriptions.clone();
     let placed = task.placed;
     let mut ended = task.clone();
@@ -454,8 +454,8 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
                 }
             }
             task.record.delegates = remaining.into_boxed();
-            task.record.ended_below.add(endings);
-            task.record.ended_delegates = task.record.ended_delegates.ended(status);
+            crate::index::add_endings(&mut task.record.ended_below, endings);
+            task.record.ended_delegates = crate::index::with_ending(task.record.ended_delegates, status);
             task.record.last_activity = env.wall;
             wake = crate::closer::wake_for_delegate(&task.record, number, &ending);
             crate::closer::ended(domain, env, parent, number, &ending, out);

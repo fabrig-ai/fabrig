@@ -530,7 +530,7 @@ fn fold_phase(folded: &mut List<FoldedCount>, parent: u64, root: u64, phase: &ta
     for index in 0..folded.len() {
         let fold = folded.get_mut(index).expect("fold index");
         if fold.parent == parent {
-            fold.phases.add(phase);
+            count_phase(&mut fold.phases, phase);
             fold.held_below = fold.phases.held;
             return;
         }
@@ -540,7 +540,7 @@ fn fold_phase(folded: &mut List<FoldedCount>, parent: u64, root: u64, phase: &ta
     }
     if folded.room() > 0 {
         let mut phases = PhaseCounts::ZERO;
-        phases.add(phase);
+        count_phase(&mut phases, phase);
         folded.push(FoldedCount { parent, held_below: phases.held, phases }).expect("fold room checked");
         return;
     }
@@ -551,7 +551,7 @@ fn fold_phase(folded: &mut List<FoldedCount>, parent: u64, root: u64, phase: &ta
     };
     let fold = folded.get_mut(index).expect("overflow fold index");
     fold.parent = root;
-    fold.phases.add(phase);
+    count_phase(&mut fold.phases, phase);
     fold.held_below = fold.phases.held;
 }
 

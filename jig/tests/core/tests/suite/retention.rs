@@ -17,13 +17,17 @@ pub(super) fn world(seed: u64, forgotten: bool) -> World {
 }
 
 pub(super) fn world_with_sign_in(seed: u64, forgotten: bool, lifetime: Duration) -> World {
+    World::new(setup(seed, forgotten, lifetime))
+}
+
+fn setup(seed: u64, forgotten: bool, lifetime: Duration) -> Setup {
     let (mut config, mut limits) = fixture(seed, false);
     limits.core.documents.rows = 1;
     limits.core.people.sign_in_lifetime = lifetime;
     limits.core.people.requests = 16;
     config.core.grants = Box::new([people::ActGrant { connector: 1, may: Box::new([people::ActKind::RemoveProject]) }]);
     let initial = forgotten.then(jig_test_profile::fixtures::forgettable_conversation);
-    World::new(Setup { seed, configuration: Some(config), limits, initial, ..Setup::default() })
+    Setup { seed, configuration: Some(config), limits, initial, ..Setup::default() }
 }
 pub(super) fn key(key: tasks::Key) -> root::Key {
     root::Key::Core(core::Key::Tasks(key))
@@ -107,7 +111,13 @@ fn turns_stage_drops_only_the_transcript_at_day_fifteen() {
 
 #[test]
 fn record_stage_keeps_only_summary_and_ended_indexes_at_day_thirty_one() {
-    let mut w = world(4002, false);
+    const SEED: u64 = 4002;
+    let mut setup = setup(SEED, false, Duration::from_nanos(800 * DAY));
+    // Both connectors own task resource rows in this story, so both declare that capability.
+    let writes = tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } };
+    setup.configuration.as_mut().expect("retention configuration").resource_kinds =
+        [Box::new([writes]), Box::new([writes])];
+    let mut w = World::new(setup);
     let record = finish(&mut w);
     read(&mut w, &record);
     let decided_at = record.ended_at.expect("ended");
@@ -141,7 +151,7 @@ fn record_stage_keeps_only_summary_and_ended_indexes_at_day_thirty_one() {
             record: jig_test_connector::Record::Task { task, project: 1, resources: Box::new([]) },
         },
     ]));
-    w.restart(4002, false);
+    w.restart(SEED, false);
     let rows = own(&w, record.number);
     assert_ne!(rows, []);
     let kept = indexes(&w, record.number);
@@ -161,7 +171,7 @@ fn record_stage_keeps_only_summary_and_ended_indexes_at_day_thirty_one() {
                 number,
                 key: jig_test_connector::RecordKey::Task(record.number)
             }),
-            "every connector hears Unname"
+            "every resource connector hears Unname"
         );
     }
     assert!(!places(&mut w, record.number));

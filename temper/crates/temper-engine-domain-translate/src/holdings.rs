@@ -210,33 +210,3 @@ pub fn in_subtree(tasks: &tasks::Domain, task: &tasks::TaskRecord, goal: u64) ->
     }
     false
 }
-
-#[must_use]
-pub fn resource_report(
-    connector: u16,
-    limits: &tasks::Limits,
-    project: u32,
-    name: &forge::Name,
-    role: forge::Access,
-    hold: forge::resources::HoldKind,
-) -> Option<jig_domain_core::Event> {
-    let name = hub_name(connector, name, limits)?;
-    let role = match role {
-        forge::Access::Owned => jig_domain_core::effects::connector::ResourceRole::Owned,
-        forge::Access::Participant => jig_domain_core::effects::connector::ResourceRole::Participant,
-        forge::Access::Context => jig_domain_core::effects::connector::ResourceRole::Context,
-        forge::Access::Unavailable => jig_domain_core::effects::connector::ResourceRole::Unavailable,
-    };
-    let hold = match hold {
-        forge::resources::HoldKind::Shared => jig_domain_core::effects::connector::HoldKind::Shared,
-        forge::resources::HoldKind::Exclusive { wait } => {
-            jig_domain_core::effects::connector::HoldKind::Exclusive { wait }
-        }
-    };
-    Some(jig_domain_core::Event::EffectConnector(jig_domain_core::effects::connector::Event::Resource {
-        project,
-        name,
-        role,
-        hold,
-    }))
-}

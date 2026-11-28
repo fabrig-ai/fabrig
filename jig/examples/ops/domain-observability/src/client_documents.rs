@@ -78,7 +78,7 @@ fn scoped(scope: ClientScope, project: u32) -> Result<(), DocumentMissing> {
     if scope == ClientScope::Project(project) { Ok(()) } else { Err(DocumentMissing::Unknown) }
 }
 
-fn make(
+pub(crate) fn make(
     domain: &Domain,
     limits: &Limits,
     scope: ClientScope,

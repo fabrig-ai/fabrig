@@ -1,5 +1,6 @@
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -256,16 +257,18 @@ fn the_restart_oracle_masks_only_reported_procedure_wait_projections() {
         };
         let task = *task;
         // This report is not part of the connector's script, so it is absent after restart.
-        world.send(root::Event::Core(core::Event::Waits {
-            connector: 1,
-            task,
-            waits: List::from_boxed(Box::new([core::Reported {
-                kind: WaitKind::Step,
-                object: WaitObject::Procedure { step: 0, things: List::with_capacity(0) },
-                since: world.clocks().1,
-                bound: core::ReportedBound::At { at: REPORT_BOUND, then: AtBound::Hold },
-            }])),
-        }));
+        world.send(root::Event::connector_up(
+            1,
+            jig::Up::Procedures(jig::procedures::Up::Waits {
+                task,
+                waits: List::from_boxed(Box::new([core::Reported {
+                    kind: WaitKind::Step,
+                    object: WaitObject::Procedure { step: 0, things: List::with_capacity(0) },
+                    since: world.clocks().1,
+                    bound: core::ReportedBound::At { at: REPORT_BOUND, then: AtBound::Hold },
+                }])),
+            }),
+        ));
         world.reads = Some(reads::Parties::new(world.store.applied));
         (world, task)
     };

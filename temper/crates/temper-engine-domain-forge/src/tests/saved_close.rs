@@ -1,5 +1,6 @@
 //! Saved branches join the stored release path (temper/docs/design/domain/forge/branches.md).
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, Error, Op, Write};
 
 const SAVED_HOLDS: u32 = 1; // The fixture names one saved branch.
@@ -57,7 +58,7 @@ fn deleted(d: &mut Domain, task: u64, missing: bool) {
     let answered = fixtures::answer(d, call, result);
     assert!(answered.contains(&Request::ContinueRelease { task }));
     let completed = outputs(d, Event::ContinueRelease { task, entry: NEXT });
-    assert!(completed.contains(&Request::Released { task }));
+    assert!(completed.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task }))));
     assert!(d.hold(&name()).is_none());
 }
 
@@ -81,7 +82,10 @@ fn a_closing_tasks_saved_work_is_deleted() {
             }]
         );
         let closing = close(&mut d, TASK, ROOT, ending);
-        assert!(!closing.contains(&Request::Released { task: TASK }), "delete precedes Released");
+        assert!(
+            !closing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK }))),
+            "delete precedes Released"
+        );
         deleted(&mut d, TASK, false);
     }
 }
@@ -100,7 +104,7 @@ fn a_failed_tasks_saved_work_stays_with_its_root_until_it_closes() {
     saved(&mut d, TASK);
     let closing = close(&mut d, TASK, ROOT, ReleaseEnding::Failed);
     assert!(closing.contains(&Request::Retained { task: TASK, root: ROOT, resource: name() }));
-    assert!(closing.contains(&Request::Released { task: TASK }));
+    assert!(closing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK }))));
     assert_eq!(d.hold(&name()).expect("root retains saved branch").task, ROOT);
     no_delete(&closing);
     close(&mut d, ROOT, ROOT, ReleaseEnding::Done);
@@ -131,7 +135,7 @@ fn a_name_another_task_holds_is_left_alone() {
     saved(&mut d, OTHER);
     assert!(saved(&mut d, TASK).is_empty());
     let closed = close(&mut d, TASK, ROOT, ReleaseEnding::Done);
-    assert!(closed.contains(&Request::Released { task: TASK }));
+    assert!(closed.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK }))));
     assert_eq!(d.hold(&name()).expect("other task's branch").task, OTHER);
     no_delete(&closed);
 }
@@ -153,7 +157,7 @@ fn full_holds_leave_the_branch_and_the_close_completes() {
     assert_eq!(d.holds.len(), LIMITS.holds);
     assert!(saved(&mut d, TASK).is_empty());
     let closed = close(&mut d, TASK, ROOT, ReleaseEnding::Done);
-    assert!(closed.contains(&Request::Released { task: TASK }));
+    assert!(closed.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK }))));
     assert!(!release_failed(&closed, TASK));
     assert!(d.hold(&name()).is_none());
 }

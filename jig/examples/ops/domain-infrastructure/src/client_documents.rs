@@ -212,7 +212,7 @@ fn describe(domain: &Domain, effect: &crate::Effect) -> ClientDescription {
 }
 
 #[expect(clippy::too_many_lines, reason = "each part constructs its owner's bounded current vocabulary")]
-fn make(
+pub(crate) fn make(
     domain: &Domain,
     limits: &Limits,
     scope: ClientScope,

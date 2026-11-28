@@ -36,15 +36,40 @@ use crate::{
     *,
 };
 use fixtures::CurrentFixtures;
+use jig_domain_contract as contract;
 use jig_domain_link::{Form, Hello, Hosting, Phase, Problem, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 fn empty_declarations(config: &Config) -> Box<[Declaration]> {
     let mut declarations = List::with_capacity(u32::try_from(config.connectors.len()).unwrap());
     for connector in &config.connectors {
-        declarations.push(Declaration::empty(*connector)).unwrap();
+        declarations.push(Declaration::empty(jig_domain_contract::Connector(*connector))).unwrap();
     }
     declarations.into_boxed()
+}
+
+fn declared_write() -> jig_domain_contract::effects::EffectKind {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    EffectKind { kind: 1, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false }
+}
+
+fn shared_holds() -> Box<[tasks::ResourceKind]> {
+    Box::new([tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Shared }])
+}
+
+fn fixture_declarations(config: &Config, resources: &[u16], effects: &[u16], projects: &[u16]) -> Box<[Declaration]> {
+    let mut declarations = empty_declarations(config);
+    for declaration in &mut declarations {
+        let connector = declaration.connector.0;
+        if resources.contains(&connector) {
+            declaration.resources = shared_holds();
+        }
+        if effects.contains(&connector) {
+            declaration.effects = Box::new([declared_write()]);
+        }
+        declaration.projects_goals = projects.contains(&connector);
+    }
+    declarations
 }
 
 pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
@@ -179,16 +204,27 @@ fn a_busy_effect_description_gives_back_only_its_own_place() {
             origin: EffectOrigin::Call { to: ReplyTo::new(ROOM_REPLY), key: ROOM_NEXT, deadline: Wall::EPOCH },
         },
     );
-    let [Request::Ask { ask: Ask::Effect(connector::Ask::Describe { owner: asked }), .. }] = out.as_ref() else {
+    let [
+        Request::Ask {
+            ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Describe { owner: asked })),
+            ..
+        },
+    ] = out.as_ref()
+    else {
         panic!("the admitted call asks for a description: {out:?}")
     };
     assert_eq!(*asked, owner);
     assert!(!core.reserve_connector_call(ROOM_FRESH));
 
-    let busy = || Event::EffectConnector(connector::Event::DescribeBusy { owner });
-    let out = watch_outputs(&mut core, &limits, busy());
-    let [Request::Ask { ask: Ask::Effect(connector::Ask::Drop { owner: dropped, .. }), .. }, Request::Now(now)] =
-        out.as_ref()
+    let busy = || contract::Up::Effects(contract::effects::Up::Busy { owner });
+    let out = watch_connector_outputs(&mut core, &limits, 1, busy());
+    let [
+        Request::Ask {
+            ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Drop { owner: dropped, .. })),
+            ..
+        },
+        Request::Now(now),
+    ] = out.as_ref()
     else {
         panic!("busy, without a call row: {out:?}")
     };
@@ -198,7 +234,7 @@ fn a_busy_effect_description_gives_back_only_its_own_place() {
     assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
     assert!(core.replay_call(ROOM_NEXT).is_none());
     assert!(core.reserve_connector_call(ROOM_FRESH));
-    assert!(watch_outputs(&mut core, &limits, busy()).is_empty(), "the late description owns nothing");
+    assert!(watch_connector_outputs(&mut core, &limits, 1, busy()).is_empty(), "the late description owns nothing");
     assert!(!core.call_room(ROOM_NEXT));
     assert_retained(&core, ROOM_CALL, CallPart::Controlled);
 }
@@ -826,7 +862,12 @@ fn core_with_limits(limits: &Limits) -> Core {
 }
 
 fn core_with_config(config: Config, limits: &Limits) -> Core {
-    let mut core = seeded_core(config, limits).expect("fixture core configuration");
+    let declarations = empty_declarations(&config);
+    core_with_declarations(config, limits, &declarations)
+}
+
+fn core_with_declarations(config: Config, limits: &Limits, declarations: &[Declaration]) -> Core {
+    let mut core = seeded_core_with_declarations(config, declarations, limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     restore_key_account(&mut core, limits, 0, 1, 1);
     let mut out = Queue::uncapped();
@@ -1119,6 +1160,15 @@ fn tree_core_with_kinds(
     effects: Box<[jig_domain_contract::effects::EffectKind]>,
     resources: Box<[tasks::ResourceKind]>,
 ) -> (Core, Limits) {
+    tree_core_with_capabilities(effects, resources, &[], &[])
+}
+
+fn tree_core_with_capabilities(
+    effects: Box<[jig_domain_contract::effects::EffectKind]>,
+    resources: Box<[tasks::ResourceKind]>,
+    more_effects: &[u16],
+    projects: &[u16],
+) -> (Core, Limits) {
     let (old, mut limits) = core();
     limits.views.watchers = 8;
     limits.views.watchers_per_party = 8;
@@ -1136,12 +1186,14 @@ fn tree_core_with_kinds(
     given.delegation.tasks = 17;
     given.delegation.depth = 5;
     set_seed_role_authority(&mut config, given);
-    let mut connectors = empty_declarations(&config);
+    let mut connectors = fixture_declarations(&config, &[], more_effects, projects);
     let first = connectors.first_mut().expect("first connector");
-    assert_eq!(first.connector, 1);
-    first.effects = effects;
+    assert_eq!(first.connector, jig_domain_contract::Connector(1));
+    if !effects.is_empty() {
+        first.effects = effects;
+    }
     let Some(declaration) = connectors.get_mut(1) else { panic!("second connector") };
-    assert_eq!(declaration.connector, 2);
+    assert_eq!(declaration.connector, jig_domain_contract::Connector(2));
     declaration.resources = resources;
     let mut core = seeded_core_with_declarations(config, &connectors, &limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
@@ -1208,11 +1260,15 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
 
 /// A live parent with three delegates, one held for budget.
 pub(crate) fn make_tree() -> (Core, Limits) {
-    let (mut core, limits) = tree_core();
+    let (core, limits) = tree_core();
+    (make_tree_in(core, &limits), limits)
+}
+
+fn make_tree_in(mut core: Core, limits: &Limits) -> Core {
     let root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     send_task(
         &mut core,
-        &limits,
+        limits,
         tasks::Event::Make {
             reads_project: false,
             maker: None,
@@ -1229,7 +1285,7 @@ pub(crate) fn make_tree() -> (Core, Limits) {
     ];
     send_task(
         &mut core,
-        &limits,
+        limits,
         tasks::Event::Make {
             reads_project: false,
             maker: None,
@@ -1240,8 +1296,8 @@ pub(crate) fn make_tree() -> (Core, Limits) {
         },
     );
     assert!(core.tasks.task(4).is_some());
-    send_task(&mut core, &limits, tasks::Event::Hold { task: 3, why: tasks::Hold::Budget });
-    (core, limits)
+    send_task(&mut core, limits, tasks::Event::Hold { task: 3, why: tasks::Hold::Budget });
+    core
 }
 
 #[test]
@@ -2200,23 +2256,28 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     );
     let name = tasks::Name { connector: 2, path: Box::new([Box::from(&b"resource"[..])]) };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut work = Queue::uncapped();
-    connector(
+    let connector = jig_domain_contract::Connector(name.connector);
+    let _adopted = crate::routing::step_connector(
         &mut core,
         &env,
-        &mut work,
-        connector::Event::Adopted { project: 1, name: name.clone(), role: connector::AdoptionRole::Owned, home: true },
+        connector,
+        jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Adopted {
+            project: 1,
+            name: name.clone(),
+            role: connector::AdoptionRole::Owned,
+            home: true,
+        }),
     );
-    connector(
+    let _resource = crate::routing::step_connector(
         &mut core,
         &env,
-        &mut work,
-        connector::Event::Resource {
+        connector,
+        jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Resource {
             project: 1,
             name,
             role: connector::ResourceRole::Owned,
             hold: connector::HoldKind::Shared,
-        },
+        }),
     );
     let Document::Project(project) =
         make(&core, &limits, 1, &Subject::Project { project: 1 }, &window(), Wall::EPOCH).unwrap()
@@ -2619,6 +2680,14 @@ fn watch_core() -> (Core, Limits) {
     (core, limits)
 }
 
+pub(crate) fn connector_step(core: &mut Core, env: &Env<Limits>, connector: u16, up: contract::Up) -> Queue<Request> {
+    crate::routing::step_connector(core, env, contract::Connector(connector), up)
+}
+
+fn watch_connector_outputs(core: &mut Core, limits: &Limits, connector: u16, up: contract::Up) -> Box<[Request]> {
+    watch_decision(connector_step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, connector, up))
+}
+
 fn watch_outputs(core: &mut Core, limits: &Limits, event: Event) -> Box<[Request]> {
     watch_decision(step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event))
 }
@@ -2845,7 +2914,14 @@ fn an_application_watch_asks_its_connector_with_the_clamped_window() {
     assert_eq!(out.len(), 1);
     let Request::Ask {
         connector: owner,
-        ask: Ask::Document { watcher: got, scope: got_scope, subject: got_subject, party, window },
+        ask:
+            Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Document {
+                watcher: got,
+                scope: got_scope,
+                subject: got_subject,
+                party,
+                window,
+            })),
     } = &out[0]
     else {
         panic!("connector construction")
@@ -3813,6 +3889,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
                 people::Request::Route { request, .. } => routed = Some(request),
                 people::Request::Act { .. }
                 | people::Request::Acted { .. }
+                | people::Request::ConnectorActed { .. }
                 | people::Request::Save { .. }
                 | people::Request::Erase { .. }
                 | people::Request::Reply { .. }
@@ -4260,7 +4337,8 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
 
 #[test]
 fn projection_readiness_shares_generation_restore_and_pending_connector_rules() {
-    let (mut core, limits) = make_tree();
+    let (core, limits) = tree_core_with_capabilities(Box::new([]), Box::new([]), &[], &[1]);
+    let mut core = make_tree_in(core, &limits);
     core.counters.next_commit();
     assert!(core.finish_owed());
     finish_watch_outputs(&mut core, &limits);
@@ -4303,7 +4381,7 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
     assert!(core.tasks.task(1).unwrap().tracked.is_none());
     assert!(core.finish_owed());
     finish_watch_outputs(&mut core, &limits);
-    assert!(!core.projections.get(&1).unwrap().pending.is_empty());
+    assert_eq!(core.projections.get(&1).unwrap().pending.as_ref(), &[1]);
     assert!(!core.finish_owed(), "an untracked goal waits on its closing connectors first");
     core.projections.get_mut(&1).unwrap().changed = true;
     assert!(!core.finish_owed(), "pending connectors take precedence over changed");

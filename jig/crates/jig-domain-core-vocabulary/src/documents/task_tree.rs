@@ -4,6 +4,11 @@
 //! phase counts; held counts cover the whole subtree. Goal progress uses retained
 //! goal projections, including ended rows. Nothing here mutates a task or policy.
 
+pub use jig_domain_contract::parts::{
+    BudgetLine, Dependency, Ending, EscalationState, HoldPhaseLine, PhaseCounts, PlacedLine, PriorPhase, ResourceLine,
+    ResultValue,
+};
+
 use super::{Chip, Cursor, Missing, Proposer, Text};
 use crate::Limits;
 use alloc::boxed::Box;
@@ -67,32 +72,6 @@ pub enum ContractLine {
     Change { connector: u16, kind: u16, words: u32 },
 }
 
-/// Contract-shaped result words and an optional connector-owned value.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ResultValue {
-    /// Whole approved state and optional bounded explanation.
-    Approved { state: Box<[u8]>, words: Option<Text> },
-    /// Successful report.
-    Report(Text),
-    /// A selected verdict code with its explanation.
-    Verdict { code: u32, fields: Box<[tasks::ResultField]>, words: Text },
-    /// A connector value with summary words.
-    Change { kind: u16, part: Part, words: Text },
-    /// A task that could not complete its contract.
-    Failure(Text),
-}
-
-/// Ending carried while a live task closes, or in an ended result document.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Ending {
-    /// Completed its contract.
-    Done(ResultValue),
-    /// Failed with these words.
-    Failed(Text),
-    /// Cancelled, preserving any previously completed result.
-    Cancelled { reason: Text, result: Option<ResultValue>, by: tasks::Party, at: Wall },
-}
-
 /// One task reference, including a retained result still named by live work.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TaskLink {
@@ -104,96 +83,11 @@ pub enum TaskLink {
     Stored { number: u64, status: Option<tasks::Status> },
 }
 
-/// Dependency facts from its owning task and the prerequisite's live row or stub
-/// (client/domain/contract/documents.md, 1; domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Dependency {
-    pub number: u64,
-    pub pending: bool,
-    pub added: Option<tasks::Added>,
-    pub keeps: bool,
-    pub status: Option<tasks::Status>,
-}
-
 /// A pending proposal's immutable identity.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ProposalRef {
     pub proposer: Proposer,
     pub number: u64,
-}
-
-/// Current held-decision recipient and any durable rejection words.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum EscalationState {
-    /// The hold is being routed to its eligible holder in this decision.
-    Routing,
-    /// An identified holder may decide it.
-    Waiting { holder: tasks::EscalationHolder, entry: u64, since: Wall },
-    /// Decided to leave it held.
-    Rejected { by: tasks::EscalationDecider, reason: Text },
-}
-
-/// A hold's reason, revision and prior lifecycle, with its escalation.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct HoldPhaseLine {
-    pub placed: Option<PlacedLine>,
-    /// Connector-supplied account retained with the hold, never reconstructed by a client.
-    pub words: Option<Text>,
-    pub circle: Option<tasks::Circle>,
-    /// The connector's account, independently of the resource or outbox origin.
-    pub account: Option<Part>,
-    pub source: Option<Part>,
-    pub reason: tasks::Hold,
-    pub revision: u64,
-    pub before: PriorPhase,
-    pub escalation: Option<EscalationState>,
-    pub tries: tasks::Tries,
-    pub hold_wait_since: Option<Wall>,
-}
-
-/// A placed hold and the reader's ownership admission (client/domain/contract/documents.md, 6).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PlacedLine {
-    pub number: u64,
-    pub owner: jig_domain_people::HoldOwner,
-    pub mode: tasks::Mode,
-    pub scope: tasks::Scope,
-    pub reason: Box<[u8]>,
-    pub placed_at: Wall,
-    pub revision: u64,
-    pub lifted: bool,
-    pub may_lift: bool,
-}
-
-/// The lifecycle preserved by a hold.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum PriorPhase {
-    /// Waiting for dependencies or resource holdings.
-    Waiting,
-    /// An activation's phase.
-    Active(tasks::Active),
-    /// Closing through this obligation.
-    Closing(tasks::Stage),
-}
-
-/// A task's concrete allotment and its financial source.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct BudgetLine {
-    pub numbers: tasks::Numbers,
-    pub left: u64,
-    pub funder: tasks::Funder,
-    pub deadline: Option<Wall>,
-}
-
-/// A resource the task holds or awaits, and its authentic writer if present.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ResourceLine {
-    pub part: Part,
-    pub kind: u16,
-    pub taken: bool,
-    pub holder: Option<u64>,
-    pub writer: Option<tasks::Writer>,
-    pub writer_lost: bool,
 }
 
 /// A bounded specification parameter; connector resources remain references.
@@ -301,57 +195,6 @@ pub struct Task {
     pub proposals: List<ProposalRef>,
     /// At least one list omitted rows; individual text values state their cuts.
     pub cut: bool,
-}
-
-/// Phase totals of every task counted, independent of visible rows.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct PhaseCounts {
-    pub waiting: u32,
-    pub idle: u32,
-    pub starting: u32,
-    pub running: u32,
-    pub backing_off: u32,
-    pub closing: u32,
-    pub held: u32,
-    pub done: u32,
-    pub failed: u32,
-    pub cancelled: u32,
-}
-
-impl PhaseCounts {
-    /// Begin a bounded phase census.
-    pub const ZERO: Self = Self {
-        waiting: 0,
-        idle: 0,
-        starting: 0,
-        running: 0,
-        backing_off: 0,
-        closing: 0,
-        held: 0,
-        done: 0,
-        failed: 0,
-        cancelled: 0,
-    };
-
-    pub fn add(&mut self, phase: &tasks::Phase) {
-        let count = match phase {
-            tasks::Phase::Waiting => &mut self.waiting,
-            tasks::Phase::Active(active) => match active {
-                tasks::Active::Idle => &mut self.idle,
-                tasks::Active::Due | tasks::Active::Preparing | tasks::Active::Claimed { .. } => &mut self.starting,
-                tasks::Active::Running { .. } => &mut self.running,
-                tasks::Active::BackingOff { .. } => &mut self.backing_off,
-            },
-            tasks::Phase::Closing(_) => &mut self.closing,
-            tasks::Phase::Held { .. } => &mut self.held,
-            tasks::Phase::Ended(ending) => match ending {
-                tasks::Ending::Done(_) => &mut self.done,
-                tasks::Ending::Failed { .. } => &mut self.failed,
-                tasks::Ending::Cancelled { .. } => &mut self.cancelled,
-            },
-        };
-        *count = count.checked_add(1).expect("census bounded by task limits");
-    }
 }
 
 /// A visible live descendant and its immediate requester relationship.
@@ -726,4 +569,24 @@ pub fn dependency_rows(limits: &Limits, row: &tasks::TaskRecord) -> List<Depende
             .expect("bounded dependency facts");
     }
     facts
+}
+
+pub fn count_phase(counts: &mut PhaseCounts, phase: &tasks::Phase) {
+    let count = match phase {
+        tasks::Phase::Waiting => &mut counts.waiting,
+        tasks::Phase::Active(active) => match active {
+            tasks::Active::Idle => &mut counts.idle,
+            tasks::Active::Due | tasks::Active::Preparing | tasks::Active::Claimed { .. } => &mut counts.starting,
+            tasks::Active::Running { .. } => &mut counts.running,
+            tasks::Active::BackingOff { .. } => &mut counts.backing_off,
+        },
+        tasks::Phase::Closing(_) => &mut counts.closing,
+        tasks::Phase::Held { .. } => &mut counts.held,
+        tasks::Phase::Ended(ending) => match ending {
+            tasks::Ending::Done(_) => &mut counts.done,
+            tasks::Ending::Failed { .. } => &mut counts.failed,
+            tasks::Ending::Cancelled { .. } => &mut counts.cancelled,
+        },
+    };
+    *count = count.checked_add(1).expect("census bounded by task limits");
 }

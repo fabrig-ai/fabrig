@@ -1,4 +1,5 @@
 //! Visitor stories against the independent forge (temper/docs/design/client/forge/README.md, 9.5).
+use jig_domain_contract as contract;
 use skein_lib::Reader;
 use temper_client_protocol_wire::public_v1 as w;
 use temper_client_protocol_wire::v1::Record;
@@ -89,7 +90,9 @@ fn a_deleted_never_made_and_another_public_projects_change_are_unknown_alike() {
             "another public project, seed {SEED}"
         );
     }
-    world.event(top::Event::ReleaseProject { project: landings::PROJECT, request: skein_lib::Token::new(100) });
+    world.event(top::Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject {
+        project: landings::PROJECT,
+    })));
     for kind in [w::PUBLIC_CHANGE, w::PUBLIC_LANDING] {
         assert!(world.public(landings::PROJECT, kind, Some(CHANGE), &handed).is_none(), "deleted, seed {SEED}");
     }

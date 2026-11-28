@@ -550,7 +550,6 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
 
 #[test]
 fn committed_rules_and_item_overlays_feed_the_same_inputs() {
-    use jig_domain_core::effects::connector;
     use jig_domain_core::settings::application;
     const RULE_BYTES: u32 = 32;
     let (mut domain, env) = fixture();
@@ -579,8 +578,7 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
         &mut domain,
         &env,
         &mut decision,
-        0,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([application::Item {

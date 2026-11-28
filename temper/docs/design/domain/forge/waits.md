@@ -61,7 +61,7 @@ its own, a goal branch's making and a release's cleanup.
   one report per live procedure after a start ends (jig's `waits.md`,
   6). A report equal to the task's last changes nothing, so a read again
   that changes nothing keeps its wait's *since*.
-- **A refusal** (jig's `WaitsRefused`) is a fault of the top's: it steps
+- **A refusal** (jig's `procedures::Ask::WaitsRefused`) is a fault of the top's: it steps
   no procedure, and the worlds' checks find it
   (`../../testing/engine-checks.md`, 3.1).
 - **The figures** are the core's own, `waits.step_ms`, `waits.room_ms`

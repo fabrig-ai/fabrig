@@ -95,7 +95,8 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
         )
         .expect("delegation admitted");
         let [tasks::Holding::Write { resource, .. }] = holdings.as_ref() else { panic!("one write holding") };
-        let name = super::forge_name(connector, resource, env.limits.forge.name_bytes).expect("forge holding");
+        let name = temper_engine_domain_translate::forge_name(connector, resource, env.limits.forge.name_bytes)
+            .expect("forge holding");
         assert_eq!((name.forge, name.repository), (number, 1));
     }
 }
@@ -143,7 +144,7 @@ fn goal_spec() -> super::tasks::Spec {
 #[test]
 fn a_tracked_task_naming_its_own_goal_branch_holds_g_in_the_home() {
     use super::{Work, tasks};
-    use jig_domain_core::{Event, effects::connector};
+    use jig_domain_core::effects::connector;
     let (mut domain, env) = two_forges();
     let forge_connector = domain.config.forge_connector;
     let holdings = super::task_holdings(
@@ -190,7 +191,15 @@ fn a_tracked_task_naming_its_own_goal_branch_holds_g_in_the_home() {
     let tasks::Holding::Write { resource: goal_resource, .. } = expected_goal else { unreachable!() };
     let mut reported = false;
     while let Some(work) = domain.work.pop() {
-        if let Work::Core(Event::EffectConnector(connector::Event::Resource { project, name, role, hold })) = work
+        if let Work::Connector(
+            _,
+            jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Resource {
+                project,
+                name,
+                role,
+                hold,
+            }),
+        ) = work
             && name == goal_resource
         {
             assert_eq!(project, GOAL_PROJECT);
@@ -272,7 +281,7 @@ fn holdings_asks_keep_the_refused_symbol() {
     let (mut domain, env) = two_forges();
     let connector = domain.config.forge_connector;
     let request = skein_lib::Token::new(GOAL_TASK);
-    let ask = core::Ask::TaskHoldings {
+    let ask = jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Holdings {
         request,
         project: GOAL_PROJECT,
         root: GOAL_ROOT,
@@ -281,10 +290,17 @@ fn holdings_asks_keep_the_refused_symbol() {
         spec: goal_spec(),
         tracked: true,
         symbols: Box::new([UNKNOWN_SYMBOL]),
-    };
+    });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::super::asks::ask(&mut domain, &env, &mut decision, connector, ask);
-    let Some(super::Work::Core(core::Event::Holdings { refused, holdings, request: answered, .. })) = domain.work.pop()
+    let Some(super::Work::Connector(
+        _,
+        jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Holdings {
+            refused,
+            holdings,
+            request: answered,
+        }),
+    )) = domain.work.pop()
     else {
         panic!("holdings answer")
     };
@@ -590,7 +606,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
         &env,
         &mut decision,
         0,
-        connector::Ask::Drop {
+        jig_domain_contract::effects::Ask::Drop {
             owner,
             answer: super::authority::Answer::Wait,
             findings: Box::new([]),
@@ -976,7 +992,17 @@ fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
     // The core's terminal acknowledgement asks Lost for parked and ended answers alike.
     let connector = domain.config.forge_connector;
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    super::super::asks::ask(&mut domain, &env, &mut decision, connector, core::Ask::Lost { task: 41, attempt: 1 });
+    super::super::asks::ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector,
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Lost {
+            task: 41,
+            attempt: 1,
+            resources: Box::new([]),
+        }),
+    );
     let Some(Work::Forge(finished @ forge::Event::Finished { task: 41, attempt: 1, lost: false })) = domain.work.pop()
     else {
         panic!("the parked attempt finishes before its push report")
@@ -1732,7 +1758,11 @@ fn a_finding_blame_mark_reaches_the_core_as_a_milestone_parts_mark() {
     out.push(forge::Request::MilestoneMarked { task: 812 });
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
-    let Some(Work::Core(jig_domain_core::Event::PartsMarked { connector, tasks })) = domain.work.pop() else {
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(connector),
+        jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Marked { tasks }),
+    )) = domain.work.pop()
+    else {
         panic!("finding marks the milestone's parts")
     };
     assert_eq!(connector, domain.config.forge_connector);
@@ -1784,23 +1814,26 @@ fn an_erased_tasks_unname_reaches_the_forge_as_unnamed() {
     let (mut domain, env, _) = restored_change([]);
     let connector = domain.config.forge_connector;
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    super::effect_ask(
+    crate::route::asks::ask(
         &mut domain,
         &env,
         &mut decision,
         connector,
-        jig_domain_core::effects::connector::Ask::Unname { task: 7 },
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Unname { task: 7 }),
     );
-    let Some(Work::Forge(forge::Event::Unnamed { task: 7 })) = domain.work.pop() else {
+    let Some(Work::Forge(forge::Event::Ask(jig_domain_contract::Ask::Resources(
+        jig_domain_contract::resources::Ask::Unname { task: 7 },
+    )))) = domain.work.pop()
+    else {
         panic!("the erased task reaches the forge");
     };
     assert!(domain.work.is_empty());
-    super::effect_ask(
+    crate::route::asks::ask(
         &mut domain,
         &env,
         &mut decision,
         connector + 1,
-        jig_domain_core::effects::connector::Ask::Unname { task: 7 },
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Unname { task: 7 }),
     );
     assert!(domain.work.is_empty());
 }
@@ -2231,6 +2264,25 @@ fn reserved_turn_landing_with_limits(
     (domain, env, row)
 }
 
+fn take_landing_admission(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+) -> (super::forge::LandingRow, Box<[super::forge::Name]>) {
+    use super::Work;
+    use jig_domain_contract::{Up, resources};
+    use jig_domain_core::{Event, engine::In};
+
+    let Some(Work::Connector(connector, up @ Up::Resources(resources::Up::Resource { .. }))) = domain.work.pop() else {
+        panic!("branch resource")
+    };
+    assert_eq!(connector.0, domain.config.forge_connector);
+    drop(crate::engine::step(&mut domain.engine, env, In::Connector(connector, up)));
+    let Some(Work::Core(event @ Event::ConnectorRepair { .. })) = domain.work.pop() else { panic!("landing task") };
+    drop(crate::engine::step(&mut domain.engine, env, In::Core(event)));
+    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    (row, names)
+}
+
 fn form_turn_landing(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> super::forge::LandingRow {
     use super::{Work, forge, forge_change};
     let mut row = change_row(Some(7));
@@ -2253,11 +2305,7 @@ fn form_turn_landing(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
         }
     ));
     super::start_landing(domain, env, 7);
-    let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), resource));
-    let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), event));
-    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    let (row, names) = take_landing_admission(domain, env);
     assert_eq!(row.landing.members[0].change, 7);
     for name in names {
         domain.work.push(Work::Forge(forge::Event::Hold {
@@ -2458,7 +2506,7 @@ fn offer_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, t
         env,
         &mut decision,
         domain.config.forge_connector,
-        jig_domain_core::Ask::StartProcedure { context, step },
+        jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::Start { context, step, chat: None }),
     );
     crate::decision::accept_routed(
         &mut domain.journal,
@@ -4204,7 +4252,7 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             &env,
             &mut decision,
             connector,
-            jig_domain_core::Ask::StepRefused {
+            jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused {
                 task,
                 step,
                 why: jig_domain_core::StepRefusal::Refused(tasks::Problem {
@@ -4213,7 +4261,7 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
                     blocked_by: None,
                     capacity: None,
                 }),
-            },
+            }),
         );
         match role {
             Some(role) => {
@@ -4566,7 +4614,11 @@ fn a_live_room_refusal_rearms_the_change_delegate() {
         &env,
         &mut decision,
         connector,
-        jig_domain_core::Ask::StepRefused { task, step, why: jig_domain_core::StepRefusal::Refused(problem) },
+        jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused {
+            task,
+            step,
+            why: jig_domain_core::StepRefusal::Refused(problem),
+        }),
     );
     let Some(Work::Forge(forge::Event::DelegateAdmissionRefused {
         task: refused,
@@ -4735,11 +4787,11 @@ fn a_refused_change_step_still_holds_its_task_with_the_failure_words() {
         &env,
         &mut decision,
         connector,
-        jig_domain_core::Ask::StepRefused {
+        jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused {
             task,
             step,
             why: jig_domain_core::StepRefusal::Refused(tasks::Problem::new(Some(task), tasks::Refusal::Busy)),
-        },
+        }),
     );
     apply_change_task_work(&mut domain, &env);
     assert_failed_change_task(&domain, task);
@@ -5519,7 +5571,7 @@ fn a_refused_change_delegate_holds_with_words_and_recovery() {
         &env,
         &mut decision,
         0,
-        jig_domain_core::Ask::DelegateRefused { task: Some(task) },
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::DelegateRefused { task: Some(task) }),
     );
     let Some(Work::Forge(forge::Event::DelegateRefused { .. })) = domain.work.pop() else { panic!("forge refusal") };
     let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {

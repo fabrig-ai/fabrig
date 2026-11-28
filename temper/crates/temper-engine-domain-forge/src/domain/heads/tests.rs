@@ -2,6 +2,7 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect emitted requests with iterator predicates")]
 use super::super::*;
 use crate::tests::{self, fixtures};
+use jig_domain_contract as contract;
 
 const TASK: u64 = 2;
 const DELEGATE: u64 = 90;
@@ -285,7 +286,10 @@ fn completing_release_erases_deleted_change_head_but_keeps_a_live_base() {
         assert!(d.holds.get(&name(BRANCH)).is_none());
         assert_eq!(d.branch_head(&name(BRANCH)), Some(TIP));
         continue_release(&mut d, &env, TASK, 6, &mut out);
-        assert!(out.iter().any(|r| *r == Request::Released { task: TASK }));
+        assert!(
+            out.iter()
+                .any(|r| *r == Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK })))
+        );
         assert!(out.iter().any(|r| *r == Request::Erase { key: Key::BranchHead(name(BRANCH)) }));
         assert_eq!(d.branch_head(&name(BRANCH)), None);
         assert_eq!(d.branch_head(&name(b"main")), Some(TIP));

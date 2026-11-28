@@ -1,5 +1,6 @@
 //! Explicit connector terminals belong to core bookkeeping even for live tasks
 //! (`temper/docs/design/domain/forge/issues.md`; `jig/docs/design/domain/connectors.md`, 8).
+use jig_domain_contract as contract;
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, In, Out};
 use jig_domain_tasks as tasks;
@@ -69,27 +70,28 @@ pub(crate) fn make_task(
     goal
 }
 
-fn terminal(domain: &mut crate::Domain, env: &Env<crate::Limits>, goal: u64) -> core::Event {
+fn terminal(domain: &mut crate::Domain, env: &Env<crate::Limits>, goal: u64) -> In {
     let when = Wall::from_nanos(1);
     assert_eq!(domain.forge.next_wall_deadline(), None);
     domain.forge.projection_after(goal, when);
     assert_eq!(domain.forge.next_wall_deadline(), Some(when));
     assert!(domain.engine.core().tasks.task(goal).is_some(), "terminal arrives while task is live");
     let mut out = Queue::uncapped();
-    out.push(forge::Request::ProjectionSettled { goal });
+    out.push(forge::Request::Up(contract::Up::Projections(contract::projections::Up::Settled { goal })));
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::forge_route::outputs(domain, env, &mut decision, &mut out);
-    let Some(crate::Work::Core(event)) = domain.work.pop() else {
+    let Some(crate::Work::Connector(
+        connector,
+        up @ contract::Up::Projections(contract::projections::Up::Settled { goal: received }),
+    )) = domain.work.pop()
+    else {
         panic!("explicit terminal must reach core while task is live");
     };
-    let core::Event::ProjectionSettled { goal: received, connector } = &event else {
-        panic!("core receives the explicit projection terminal");
-    };
-    assert_eq!(*received, goal);
-    assert_eq!(*connector, domain.config.forge_connector);
+    assert_eq!(received, goal);
+    assert_eq!(connector.0, domain.config.forge_connector);
     assert!(domain.work.is_empty());
     assert_eq!(domain.forge.next_wall_deadline(), None, "terminal cancels the forge timer");
-    event
+    In::Connector(connector, up)
 }
 
 #[test]
@@ -97,7 +99,7 @@ fn a_live_tracked_goal_forwards_its_explicit_terminal_and_cancels_its_timer() {
     let (mut domain, env, goal) = live_goal(Some(1));
     let event = terminal(&mut domain, &env, goal);
     let mut out = Queue::uncapped();
-    engine::step(&mut domain.engine, &crate::limits::environment_core(&env), In::Core(event), &mut out);
+    engine::step(&mut domain.engine, &crate::limits::environment_core(&env), event, &mut out);
     assert!(out.is_empty());
 
     assert!(domain.engine.core().tasks.task(goal).is_some());
@@ -146,7 +148,7 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     (domain, _) = super::resume_fixture::root_with_records(super::resume_fixture::config(7), &env.limits, &records);
     let event = terminal(&mut domain, &env, goal);
     let mut out = Queue::uncapped();
-    engine::step(&mut domain.engine, &crate::limits::environment_core(&env), In::Core(event), &mut out);
+    engine::step(&mut domain.engine, &crate::limits::environment_core(&env), event, &mut out);
     for key in [
         core::ProjectionKey::TaskWords { goal, task: goal },
         core::ProjectionKey::Task { goal, task: goal },
@@ -161,13 +163,13 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
         };
         assert_eq!(received, key);
     }
-    let Some(Out::Core(core::Request::Ask { connector, ask: core::Ask::ForgetProjection { goal: received } })) =
+    let Some(Out::Ask(connector, contract::Ask::Projections(contract::projections::Ask::Forget { goal: received }))) =
         out.pop()
     else {
-        panic!("core forgets the settled connector projection");
+        panic!("core forgets the settled connector projection")
     };
     assert_eq!(received, goal);
-    assert_eq!(connector, domain.config.forge_connector);
+    assert_eq!(connector.0, domain.config.forge_connector);
     assert!(out.is_empty());
 
     assert_eq!(domain.engine.core().tasks.task(goal).expect("untracking keeps task live").tracked, None);

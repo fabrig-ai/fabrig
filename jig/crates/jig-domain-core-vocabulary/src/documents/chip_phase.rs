@@ -1,65 +1,13 @@
 //! Nonrecursive chip facts (`client/domain/objects.md`, 3 and 5). Durable
 //! lifecycle clocks remain distinct from best-effort engine receipt clocks.
 
-use super::{BudgetLine, HoldPhaseLine, Missing, Part, PartKey, PartKind, ResourceLine};
+pub use jig_domain_contract::parts::{ChipDetails, ChipObservation, ChipWork};
+
+use super::{Missing, Part, PartKey, PartKind, ResourceLine};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Token, Wall};
-
-/// Latest whole activity name, without transport or provisional content.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ChipWork {
-    Preparing,
-    Starting,
-    Active,
-    Writing,
-    Tool { call: Box<[u8]>, tool: Box<[u8]> },
-    Waiting,
-    Ending,
-}
-
-/// Fenced host observation; all walls are engine receipt times.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChipObservation {
-    pub channel: Token,
-    pub work: ChipWork,
-    pub since: Wall,
-    pub reported_at: Wall,
-    pub started: Option<Wall>,
-}
-
-/// Facts needed beside every chip, without nesting other chips or histories.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChipDetails {
-    pub dependencies: List<super::task_tree::Dependency>,
-    /// Owner context for a role address, including in a standalone retained chip.
-    pub project: u32,
-    /// Concrete owner identity; the chip's coarse executor kind remains separate.
-    pub executor: tasks::Executor,
-    pub phase_since: Wall,
-    /// Placement/adoption, never inferred to be actual agent start.
-    pub run_since: Option<Wall>,
-    pub attempt: Option<u64>,
-    pub retry: Option<tasks::RetryNotice>,
-    pub wake: tasks::WakePolicy,
-    pub person_wait: Option<tasks::PersonWait>,
-    pub hold: Option<HoldPhaseLine>,
-    pub budget: BudgetLine,
-    /// Exact immutable activity tail for retained failure/result explanations.
-    pub activity: u64,
-    pub resources: List<ResourceLine>,
-    pub resources_cut: bool,
-    /// False for a row-only read: missing holder/writer is then unknown.
-    pub resources_observed: bool,
-    pub procedure: Option<Part>,
-    pub live_delegates: u32,
-    /// Connectors the task waits on (domain/engine/views.md, 3), unknown in an unjoined stored closing row.
-    pub closing_connectors: Option<List<u16>>,
-    pub ending: Option<super::Ending>,
-    pub ended_at: Option<Wall>,
-    pub observation: Option<ChipObservation>,
-}
+use skein_lib::List;
 
 pub fn from_row(
     limits: &Limits,

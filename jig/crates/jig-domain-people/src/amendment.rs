@@ -39,14 +39,7 @@ pub struct AddressChange {
     pub address: PersonAddress,
 }
 
-/// Who may take or answer the task in its project.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum PersonAddress {
-    /// One named party, without a role claim.
-    Person(u64),
-    /// Any holder of this project role.
-    Role(u32),
-}
+pub use jig_domain_contract::ops::party::PersonAddress;
 
 /// Human supplied words, parameters and retained inputs.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

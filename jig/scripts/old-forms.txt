@@ -5,7 +5,7 @@ JournalRoom 0
 takes 0
 worst_case 0
 inner_allow 0
-child_state 49
-child_event 29
+child_state 35
+child_event 23
 comment:actual 109
 comment:genuine 18

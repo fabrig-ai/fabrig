@@ -1003,7 +1003,7 @@ fn forge_declaration_offers_every_write_and_makes_merges_wait() {
     };
     const FORGE: u16 = 7;
     let declaration = crate::translate::forge_declaration(FORGE);
-    assert_eq!(declaration.connector, FORGE);
+    assert_eq!(declaration.connector, jig_domain_contract::Connector(FORGE));
     assert_eq!(
         declaration.resources.as_ref(),
         &[ResourceKind { kind: 1, hold: Rule::Exclusive { taken: Taken::Waits } }]

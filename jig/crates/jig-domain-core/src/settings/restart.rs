@@ -1,4 +1,5 @@
 //! Settings restore precedes live work; stored defaults survive until its holders are known (domain/engine/settings-store.md, 1, and domain/engine/settings.md, 8).
+use crate::vocabulary::connector_ask;
 use crate::{
     Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write,
     settings::{
@@ -7,6 +8,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract as contract;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue};
@@ -855,10 +857,10 @@ pub(crate) fn forget_replaced(core: &Core, before: u32, out: &mut Queue<Request>
         connectors.insert(kind.connector, ()).expect("kind owners");
     }
     for (&connector, ()) in &connectors {
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: crate::Ask::Effect(crate::effects::connector::Ask::ForgetReplaced { before: u64::from(before) }),
-        });
+            contract::Ask::Settings(contract::settings::Ask::ForgetReplaced { before: u64::from(before) }),
+        ));
     }
 }
 /// Notify only when a record fell outside retained history, including the old newest.

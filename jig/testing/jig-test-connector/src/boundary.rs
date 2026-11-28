@@ -569,8 +569,19 @@ pub enum SystemEvent {
 }
 
 /// What the root tells the connector for this part of its contract.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Debug)]
 pub enum Event {
+    Ask(jig_domain_contract::Ask),
+    Released(jig_domain_contract::Released),
+    StageEffect {
+        owner: Token,
+        effect: Effect,
+        start: Option<jig_domain_contract::effects::EffectOrigin>,
+    },
+    WriterRead {
+        resource: jig_domain_contract::resources::Name,
+        event: SystemEvent,
+    },
     /// Read the live resources and settle the restored outbox after opening.
     CatchUp {
         procedures: Box<[u64]>,

@@ -3,6 +3,7 @@ use crate::settings::{self as s, Kind, KindScope, application as app};
 use crate::start::{Action, ApplicationWhy, Failure, Phase};
 use crate::tests::new_core;
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 fn kind(number: u32, connector: u16, scope: KindScope) -> Kind {
     Kind { number, connector, scope, value_bytes: 8, per_scope: 2, charters: 1 }
@@ -21,10 +22,11 @@ fn default(size: u32, differs: bool) -> connector::DefaultState {
 }
 fn answer(core: &mut Core, env: &Env<Limits>, connector: u16, defaults: Box<[connector::DefaultState]>) {
     assert!(
-        step(
+        connector_step(
             core,
             env,
-            Event::EffectConnector(connector::Event::SettingsDefaults { connector, defaults, dropped: Box::new([]) })
+            connector,
+            contract::Up::Settings(contract::settings::Up::Defaults { defaults, dropped: Box::new([]) }),
         )
         .is_empty()
     );
@@ -53,14 +55,14 @@ fn complete_with_dropped(
         action = match action {
             Action::Step(Phase::RestoreConnector { connector: 2 }) => {
                 assert!(
-                    step(
+                    connector_step(
                         core,
                         env,
-                        Event::EffectConnector(connector::Event::SettingsDefaults {
-                            connector: 2,
+                        2,
+                        contract::Up::Settings(contract::settings::Up::Defaults {
                             defaults: defaults.take().unwrap(),
-                            dropped: dropped.take().unwrap(),
-                        })
+                            dropped: dropped.take().unwrap()
+                        }),
                     )
                     .is_empty()
                 );
@@ -119,7 +121,10 @@ fn restart(configured: Config, env: &Env<Limits>, rows: &Map<Key, Record>) -> Co
 fn saved(out: &[Request]) -> Box<[(u16, Option<u64>)]> {
     let mut saves = List::with_capacity(4);
     for request in out {
-        if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::SaveSettingsDefaults { revision }) } = request
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::SaveDefaults { revision })),
+        } = request
         {
             saves.push((*connector, *revision)).unwrap();
         }
@@ -427,7 +432,10 @@ fn project_deletion_erases_its_states_with_release_project_and_preserves_other_s
             Request::Write(Write::Erase(Key::Core(CoreKey::Settings(s::Key::Changed(setting))))) => {
                 erased.push(setting).unwrap();
             }
-            Request::Ask { connector, ask: Ask::ReleaseProject { project: 1 } } => {
+            Request::Ask {
+                connector,
+                ask: Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: 1 })),
+            } => {
                 assert!(!core.current.applications.contains_key(&setting(2, 1, 1)));
                 assert!(!core.current.applications.contains_key(&setting(2, 1, 2)));
                 released.push(connector).unwrap();

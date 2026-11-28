@@ -13,7 +13,6 @@ pub fn moved_bytes(limits: &jig_protocol_config::Limits) -> u64 {
 
 /// Translate the core events the clients' component issues. An internal core
 /// event on this boundary aborts the component instead of deciding root work.
-#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the clients' core boundary")]
 pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> {
     let value = match event {
         core::Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
@@ -71,19 +70,14 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
-        | core::Event::Parts { .. }
-        | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
-        | core::Event::ApplicationFinished { .. }
         | core::Event::ProjectionSettled { .. }
         | core::Event::SettledCall { .. }
         | core::Event::EffectStart { .. }
-        | core::Event::EffectConnector(..)
         | core::Event::EffectDeadline
         | core::Event::RunCall { .. }
         | core::Event::RunInput { .. }
@@ -108,12 +102,8 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::NamedAnswer { .. }
         | core::Event::NamedAction { .. }
         | core::Event::Delegate { .. }
-        | core::Event::DelegateHoldings { .. }
-        | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }
         | core::Event::Brief(..)
-        | core::Event::Holdings { .. }
-        | core::Event::ProjectReleased { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
         | core::Event::Notes(..)

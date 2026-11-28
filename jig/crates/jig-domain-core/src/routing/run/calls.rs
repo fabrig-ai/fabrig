@@ -15,6 +15,13 @@ use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 
+fn connector_topic(kind: tasks::SubscriptionKind) -> Option<(u16, u64)> {
+    match kind {
+        tasks::SubscriptionKind::Topic { connector, topic } => Some((connector, topic)),
+        tasks::SubscriptionKind::Task { .. } | tasks::SubscriptionKind::Timer { .. } => None,
+    }
+}
+
 pub(crate) fn call_decision(core: &mut Core, out: &mut Queue<Request>, to: ReplyTo, key: CallKey, part: CallPart) {
     if !core.decide_pending_call(key, part.clone()) {
         return;
@@ -624,7 +631,8 @@ pub(crate) fn named_action(
                 );
                 return out;
             };
-            let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
+            let topic = connector_topic(kind);
+            let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription, topic });
             work.push(Work::Event(Event::Tasks(tasks::Event::Subscribe {
                 reads_project: false,
                 reply_to: ReplyTo::new(token),
@@ -633,7 +641,20 @@ pub(crate) fn named_action(
             })));
         }
         NamedAction::Unsubscribe { subscription } => {
-            let token = core.fly_call(token, RoutedCall::Unsubscribe(key));
+            let mut route = RoutedCall::Unsubscribe { key, subscription, topic: None };
+            if let Some(task) = core.tasks.task(key.task) {
+                for interest in &task.subscriptions {
+                    if interest.number == subscription {
+                        route = RoutedCall::Unsubscribe {
+                            key,
+                            subscription: interest.number,
+                            topic: connector_topic(interest.kind),
+                        };
+                        break;
+                    }
+                }
+            }
+            let token = core.fly_call(token, route);
             work.push(Work::Event(Event::Tasks(tasks::Event::Unsubscribe {
                 reply_to: ReplyTo::new(token),
                 task: key.task,
@@ -773,11 +794,11 @@ pub(crate) fn named_action(
         }
         NamedAction::ProposeBatch { batch, reason, as_holder } => {
             let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder };
-            return propose_batch(core, env, proposing, batch, None);
+            return propose_batch(core, env, work, proposing, batch, None);
         }
         NamedAction::ProposeGoal { goal, priority, reason } => {
             let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder: true };
-            return propose_batch(core, env, proposing, Box::new([*goal]), Some(priority));
+            return propose_batch(core, env, work, proposing, Box::new([*goal]), Some(priority));
         }
         NamedAction::Note { mut entry, recalled, records } => {
             if recalled.is_none() && entry.name != 0 {

@@ -234,9 +234,21 @@ fn a_report_answer_after_removal_does_not_judge_the_check() {
 
 fn cancel(d: &mut Domain) {
     remove(d);
-    let out = outputs(d, Event::SettleEffects { task: CHANGE, root: CHANGE, ending: ReleaseEnding::Cancelled });
+    let out = outputs(
+        d,
+        Event::Ask(contract::Ask::Effects(contract::effects::Ask::Close {
+            task: CHANGE,
+            root: CHANGE,
+            ending: contract::ops::Ending::Cancelled {
+                by: contract::ops::Party::Person(WRITER),
+                at: env().wall,
+                reason: b"cancelled".as_slice().into(),
+                result: None,
+            },
+        })),
+    );
     assert_retired(d, &out, Outcome::Withdrawn);
-    assert!(out.contains(&Request::EffectsSettled { task: CHANGE }));
+    assert!(out.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: CHANGE }))));
 }
 
 #[test]

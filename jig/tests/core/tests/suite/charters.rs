@@ -1,5 +1,6 @@
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_link::Hello;
 use jig_domain_people as people;
@@ -114,30 +115,40 @@ fn a_procedure_hears_its_step_refused_for_a_model_outside_its_charter() {
     // Inspect the core's refusal before the root translates it to the connector's vocabulary.
     let (configuration, _) = jig_test_profile::two_charters(SEED);
     let env = world.env().with(world.env().limits.core);
-    let mut recovered = super::start_links::recovered(&world, configuration.core, &env);
+    let mut recovered = crate::first_support::with_effects(configuration.core, &env.limits, &[]);
+    super::start_links::reopen(recovered.core_mut(), &world, &env);
     let mut requests =
-        core::step(&mut recovered, &env, core::Event::ProcedureStep { task, step, connector, code, decision });
+        core::step(recovered.core_mut(), &env, core::Event::ProcedureStep { task, step, connector, code, decision });
     let mut refusal = None;
     while let Some(request) = requests.pop() {
         match request {
-            core::Request::Ask { connector, ask: core::Ask::ProcedureHoldings { .. } } => {
-                let mut answered = core::step(
+            core::Request::Ask {
+                connector,
+                ask: core::Ask::Connector(jig::Ask::Resources(jig::resources::Ask::ProcedureHoldings { .. })),
+            } => {
+                let mut answered = jig_core_world::test_support::answer_connector(
                     &mut recovered,
                     &env,
-                    core::Event::ProcedureHoldings {
+                    connector,
+                    jig::Up::Resources(jig::resources::Up::ProcedureHoldings {
                         task,
                         step,
-                        connector,
                         holdings: Some(Box::new([Box::new([])])),
                         refused: None,
-                    },
+                    }),
                 );
                 while let Some(request) = answered.pop() {
                     requests.push(request);
                 }
             }
             core::Request::Ask {
-                ask: core::Ask::StepRefused { task: refused_task, step: refused_step, why }, ..
+                ask:
+                    core::Ask::Connector(jig::Ask::Procedures(jig::procedures::Ask::StepRefused {
+                        task: refused_task,
+                        step: refused_step,
+                        why,
+                    })),
+                ..
             } => {
                 assert_eq!((refused_task, refused_step), (task, step));
                 refusal = Some(why);
@@ -162,7 +173,10 @@ fn a_procedure_hears_its_step_refused_for_a_model_outside_its_charter() {
 
     let before = task_records(&world);
     let decision = research_step(&world, task);
-    world.send(root::Event::Core(core::Event::ProcedureStep { task, step, connector, code, decision }));
+    world.send(root::Event::connector_up(
+        connector,
+        jig::Up::Procedures(jig::procedures::Up::Step { task, step, code, decision }),
+    ));
     assert_eq!(task_records(&world), before, "the refused step writes no task records");
     let record =
         jig_test_connector::Record::ProcedureDelegateOutcome { task, step, child: None, revisions: Box::new([]) };

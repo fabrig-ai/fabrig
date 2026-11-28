@@ -581,6 +581,7 @@ impl World {
                     self.stats.routes += 1;
                     self.acts.push((request, connector, *act));
                 }
+                Request::ConnectorActed { .. } => unreachable!("world uses reply tokens for acts"),
                 Request::Acted { to, outcome } => replies.push((to.into_token().raw(), Reply::Outcome(outcome))),
                 Request::Save { record } => changes.push(Change::Save(record)),
                 Request::Erase { key } => changes.push(Change::Erase(key)),

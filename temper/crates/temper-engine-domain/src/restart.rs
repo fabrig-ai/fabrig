@@ -416,22 +416,6 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     }
 }
 
-pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::effects::connector::RestartStage) {
-    use jig_domain_core::effects::connector::RestartStage;
-    if domain.engine.core().stopping() || domain.settling.active() {
-        return;
-    }
-    let connector = domain.config.forge_connector;
-    match stage {
-        RestartStage::Restored => domain.work.push(Work::StartDone(Phase::Link)),
-        RestartStage::ReadAfresh => {
-            domain.engine.core_mut().catch_up_done(connector, stage);
-            crate::route::forge_route::limit_holds::restart(domain);
-        }
-        RestartStage::Settled => domain.engine.core_mut().catch_up_done(connector, stage),
-    }
-}
-
 fn stop_load(domain: &mut Domain, failure: loads::Failure) {
     let range = loads::kind(domain.startup_range.as_ref().expect("startup range in flight"));
     domain.stop_start(crate::StartStop::Load(loads::RestoreFailure { range, failure }));
@@ -556,11 +540,11 @@ fn give_settings_defaults(domain: &mut Domain) {
             .push(jig_domain_core::effects::connector::DroppedDefault { kind, scope, number })
             .expect("one name per dropped forge default");
     }
-    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-        jig_domain_core::effects::connector::Event::SettingsDefaults {
-            connector: domain.config.forge_connector,
+    domain.work.push(Work::Connector(
+        jig_domain_contract::Connector(domain.config.forge_connector),
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Defaults {
             defaults: defaults.into_boxed(),
             dropped: dropped.into_boxed(),
-        },
-    )));
+        }),
+    ));
 }

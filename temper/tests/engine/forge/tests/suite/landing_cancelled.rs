@@ -1,4 +1,5 @@
 //! A person's cancellation redispatches proof without repairing the member (domain/landing-proof.md, 2.4, and domain/landing.md, 15–16).
+use jig_domain_contract as contract;
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;
@@ -152,13 +153,19 @@ fn cancelled_landing_frees_its_write_entries() {
     world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Cancelled });
     assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Cancelled);
     assert!(world.stored().contains_key(&top::Key::Entry(dispatch)), "do not erase a sent write at cancel");
-    assert!(!world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    assert!(!world.take_seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: LANDING }))
+    )));
     trains.judge(&mut world);
     assert_eq!(world.landing_of(CHANGE), None, "the unsettled write still holds the row's place");
     let seen = frees_room_for_waiter(&mut world, dispatch);
     assert!(seen.iter().any(|request| matches!(request, top::Request::ContinueRelease { task: LANDING })));
     world.event(top::Event::ContinueRelease { task: LANDING, entry: 0 });
-    assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    assert!(world.take_seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: LANDING }))
+    )));
     assert!(world.landing(LANDING).entries.is_empty());
     assert_eq!(world.landing(LANDING).follows(), []);
     trains.judge(&mut world);
@@ -183,7 +190,10 @@ fn failed_landing_withdraws_unsent_writes_and_awaits_sent_writes() {
     } if *entry == unsent)));
     assert!(!world.stored().contains_key(&top::Key::Entry(unsent)));
     assert!(world.stored().contains_key(&top::Key::Flight { task: LANDING, entry: dispatch }));
-    assert!(!closing.iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    assert!(!closing.iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: LANDING }))
+    )));
     trains.judge(&mut world);
     assert_eq!(world.landing_of(CHANGE), None, "a sent write still keeps the row's place");
 
@@ -194,7 +204,10 @@ fn failed_landing_withdraws_unsent_writes_and_awaits_sent_writes() {
     } if *entry == dispatch)));
     assert!(settled.iter().any(|request| matches!(request, top::Request::ContinueRelease { task: LANDING })));
     world.event(top::Event::ContinueRelease { task: LANDING, entry: 0 });
-    assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    assert!(world.take_seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: LANDING }))
+    )));
     assert!(!world.stored().contains_key(&top::Key::Entry(dispatch)));
     assert!(world.landing(LANDING).entries.is_empty());
     assert_eq!(world.landing(LANDING).follows(), []);
@@ -290,7 +303,10 @@ fn a_landed_landing_frees_its_write_entries() {
     assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
     assert_eq!(runs(&world)[0].conclusion, Some(raw::Conclusion::Success));
     world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Done });
-    assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    assert!(world.take_seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: LANDING }))
+    )));
     world.produce(b"temper/53");
     landings::ready_change(&mut world, 53, b"temper/53");
     trains.judge(&mut world);

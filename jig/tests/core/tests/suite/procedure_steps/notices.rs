@@ -1,6 +1,7 @@
 use super::{decide, make_delegate, program_world_with_batch};
 use jig_core_world::fixtures::live_row;
 use jig_core_world::world::World;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -25,7 +26,7 @@ fn message(target: u64, kind: tasks::MessageKind, words: &[u8], notice: Option<u
 }
 
 fn wake(world: &mut World, task: u64) {
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task })));
 }
 
 fn question_world(seed: u64) -> (World, u64, u64, u64) {

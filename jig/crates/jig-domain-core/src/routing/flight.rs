@@ -163,7 +163,7 @@ impl Flight {
                     | RoutedCall::RecordNote { key, .. }
                     | RoutedCall::Introduce(key)
                     | RoutedCall::Subscribe { key, .. }
-                    | RoutedCall::Unsubscribe(key)
+                    | RoutedCall::Unsubscribe { key, .. }
                     | RoutedCall::Control { key, .. } => key,
                 };
                 ("call", Some(key.task))

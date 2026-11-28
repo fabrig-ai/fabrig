@@ -6,6 +6,13 @@ use crate::ops::{
 };
 use alloc::boxed::Box;
 
+mod waits;
+pub use waits::{ReportRefusal, Reported, ReportedBound};
+
+use crate::effects::{Answer, Finding};
+use crate::ops::{Problem, RunContext, party::Moved};
+use skein_lib::List;
+
 /// A dependency named by a delegate before the core assigns batch task IDs.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Dependency {
@@ -161,4 +168,36 @@ pub enum ProcedureEnd {
 pub enum Budget {
     Named,
     AsAllowed { cap: Option<u64> },
+}
+
+/// Why an entire connector-owned procedure step was refused.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum StepRefusal {
+    Moved { task: u64, now: Moved },
+    Refused(Problem),
+    Denied { answer: Answer, findings: Box<[Finding]> },
+}
+
+/// What the engine asks of a procedure connector.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum Ask {
+    /// Notification: start a procedure task with this context; no answer.
+    Start { context: Box<RunContext>, step: u64, chat: Option<u64> },
+    /// Notification: the step committed with these spec revisions; no answer.
+    StepMade { task: u64, step: u64, first: Option<u64>, revisions: Box<[(u64, u64)]> },
+    /// Notification: no part of the step committed; no answer.
+    StepRefused { task: u64, step: u64, why: StepRefusal },
+    /// Notification: the waits report was refused independently of the step; no answer.
+    WaitsRefused { task: u64, why: ReportRefusal },
+}
+
+/// A procedure connector's choices and wait reports.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum Up {
+    /// A procedure step's decision.
+    Step { task: u64, step: u64, code: u32, decision: ProcedureStep },
+    /// Unasked: replace the task's wait report; empty clears it.
+    Waits { task: u64, waits: List<Reported> },
+    /// Unasked: a procedure is ready to step again.
+    Wake { task: u64 },
 }

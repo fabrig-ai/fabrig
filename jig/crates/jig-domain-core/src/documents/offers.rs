@@ -271,7 +271,7 @@ fn effect(core: &Core, limits: &Limits, act: Act, subject: &Subject) -> Option<a
                 }
                 let child = core.tasks.task(candidate.number).expect("live census task");
                 if candidate.number != number {
-                    impact.tasks.add(&child.phase);
+                    crate::documents::task_tree::count_phase(&mut impact.tasks, &child.phase);
                 }
                 if tasks::run_attempt(&child.phase).is_some() {
                     impact.live_runs = impact.live_runs.checked_add(1).expect("live task bound");

@@ -93,52 +93,14 @@ impl ClientPeer {
             root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Application { .. } => true,
-            root::Delivery::Core(held) => match held {
+            root::Delivery::Core(held) => matches!(
+                held,
                 core::Held::PeopleReply { .. }
-                | core::Held::Read { .. }
-                | core::Held::Delivery { .. }
-                | core::Held::WatchEnded { .. }
-                | core::Held::CarriedUnused { .. } => true,
-                core::Held::Acted { .. }
-                | core::Held::ApplicationDelivery { .. }
-                | core::Held::ApplicationWatchEnded { .. }
-                | core::Held::Applied { .. }
-                | core::Held::Store(_)
-                | core::Held::PublicRead { .. }
-                | core::Held::PublicWait { .. }
-                | core::Held::MakeEffect { .. }
-                | core::Held::SettledCall { .. }
-                | core::Held::Assign { .. }
-                | core::Held::Grant { .. }
-                | core::Held::Relayed { .. }
-                | core::Held::Inbound { .. }
-                | core::Held::Relay { .. }
-                | core::Held::CallAnswer { .. }
-                | core::Held::NeedArrived { .. }
-                | core::Held::Result { .. }
-                | core::Held::Acknowledge { .. }
-                | core::Held::TaskTerminalAcknowledged { .. }
-                | core::Held::TaskPartKept { .. }
-                | core::Held::AcknowledgePart { .. }
-                | core::Held::PartBusy { .. }
-                | core::Held::TaskTurnKept { .. }
-                | core::Held::AcknowledgeTurn { .. }
-                | core::Held::Drained
-                | core::Held::Restarting { .. }
-                | core::Held::Cancel { .. }
-                | core::Held::ReadUsage { .. }
-                | core::Held::ReadList { .. }
-                | core::Held::Sources { .. }
-                | core::Held::PauseWorker { .. }
-                | core::Held::CheckSource { .. }
-                | core::Held::SignOutSource { .. }
-                | core::Held::SourceSignedOut { .. }
-                | core::Held::Refuse { .. }
-                | core::Held::TurnBusy { .. }
-                | core::Held::StopRun { .. }
-                | core::Held::NotesWritten { .. }
-                | core::Held::NotesDeleted { .. } => false,
-            },
+                    | core::Held::Read { .. }
+                    | core::Held::Delivery { .. }
+                    | core::Held::WatchEnded { .. }
+                    | core::Held::CarriedUnused { .. }
+            ),
             root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
             | root::Delivery::AssignedJob { .. }
@@ -151,6 +113,7 @@ impl ClientPeer {
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
             | root::Delivery::Store(_)
+            | root::Delivery::Connector(..)
             | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => false,
         }

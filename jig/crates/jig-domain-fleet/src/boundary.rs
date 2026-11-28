@@ -48,19 +48,12 @@
 //! [`Request::Drop`] that tells the parent to forget it. Tokens of different
 //! families may be equal.
 
+pub use jig_domain_contract::ops::HostKind;
+
 use alloc::boxed::Box;
 pub(crate) use jig_domain_link::{Grant, GrantTable, Hello, Hosting, Phase};
 
 use skein_lib::{Duration, ReplyTo, Token};
-
-/// A kind of host that can run an attempt.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HostKind {
-    /// A worker connected on a channel.
-    Worker,
-    /// The engine's own host.
-    Engine,
-}
 
 /// The kinds a run's charter permits.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

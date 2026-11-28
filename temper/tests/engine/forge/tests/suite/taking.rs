@@ -1,4 +1,5 @@
 //! Taking and its meeting with landing (temper/docs/design/domain/forge/change/opened.md, 4).
+use jig_domain_contract as contract;
 use skein_forge::api::{Commit, Error, Op, Read, Write};
 use skein_lib::Duration;
 use temper_engine_domain_forge as top;
@@ -68,7 +69,7 @@ fn release(world: &mut World, ending: top::ReleaseEnding) {
                 top::Request::ContinueRelease { task: TASK } => {
                     world.event(top::Event::ContinueRelease { task: TASK, entry });
                 }
-                top::Request::EffectsSettled { task: TASK } => {
+                top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: TASK })) => {
                     world.event(top::Event::Release { task: TASK, root: TASK, ending, reason: None, entry });
                 }
                 _ => {}

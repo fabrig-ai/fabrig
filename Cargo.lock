@@ -1341,6 +1341,7 @@ dependencies = [
  "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-notes",
@@ -1374,6 +1375,7 @@ dependencies = [
  "jig-conformance",
  "jig-domain-accounts",
  "jig-domain-authority",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
@@ -1454,6 +1456,7 @@ dependencies = [
 name = "jig-domain-accounts"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "jig-domain-link",
  "skein-lib",
 ]
@@ -1521,6 +1524,7 @@ dependencies = [
 name = "jig-domain-fleet"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "jig-domain-link",
  "skein-lib",
 ]
@@ -1582,6 +1586,7 @@ dependencies = [
 name = "jig-domain-views"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 
@@ -1852,6 +1857,7 @@ version = "0.0.0"
 name = "jig-ops-domain-infrastructure"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 
@@ -1859,6 +1865,7 @@ dependencies = [
 name = "jig-ops-domain-observability"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 
@@ -1895,6 +1902,7 @@ dependencies = [
  "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
@@ -2502,6 +2510,7 @@ dependencies = [
 name = "jig-test-connector"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 
@@ -2624,6 +2633,7 @@ dependencies = [
  "jig-client-test-protocol-wire",
  "jig-domain-accounts",
  "jig-domain-brief",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
@@ -6895,6 +6905,7 @@ dependencies = [
 name = "temper-engine-domain-forge"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -6967,6 +6978,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
  "jig-domain-authority",
+ "jig-domain-contract",
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -7169,6 +7181,7 @@ name = "temper-engine-forge-world"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
+ "jig-domain-contract",
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -7212,6 +7225,7 @@ dependencies = [
 name = "temper-engine-protocol-forge-world"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "jig-domain-people",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",

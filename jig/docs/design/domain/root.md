@@ -121,9 +121,13 @@ iterate, after the step:
   engine's `step` and `fire`, and asks `due` and `next_deadline` under
   its `Admit`. What comes back is `Out::Core`, a request whose mark the
   root keeps as above, or `Out::Held(Peer::Store(..))`, a load, which it
-  holds as any held output and gives its store once released, each in
-  the order the engine made it; the store's answers go back to the
-  engine as `In::Store`, always taken (engine/vocabulary.md, 2.4). What else it
+  holds as any held output and gives its store once released, or
+  `Out::Ask(connector, ask)`, which it hands to that connector within the
+  decision, or `Out::Held(Peer::Connector(..))`, which it gives that
+  connector as `Released` once released, each in the order the engine
+  made it; the store's answers go back to the engine as `In::Store`,
+  always taken (engine/vocabulary.md, 2.4), and what a connector says up
+  as `In::Connector`, in the same decision (engine/vocabulary.md, 2.5). What else it
   reads or calls of the core, its children's state and its methods, it
   reaches through the engine's access while the move runs
   (engine/vocabulary.md, 2.3), and its own quiescence reads them as
@@ -315,15 +319,19 @@ It inspects nothing it holds. What jig asks of it:
     connectors-facts.md, 1.5);
   - a connector's system's events and answers to that connector;
   - a timer to the child that armed it.
-- **Hand-offs between children,** within one step: what the core asks of
-  a connector (describe, judge, keep, drop, gather, cut, hand over, step,
-  project, release, subscribe, restore, read afresh, settle, decide a
-  party's request, make a document) goes to the connector the core
-  names by number, and its answer back; what a connector says up (a
-  step's decision, news, an outcome, a pool's slots, drift) goes to the
-  core. What the core says of a procedure's step, the task it made, goes
-  to the procedure's connector in the same decision, and is never
-  dropped (connectors-procedures.md, 1.3).
+- **Hand-offs between children,** within one step: the engine's
+  `Out::Ask(connector, ask)` goes to the connector it names, one arm per
+  connector and none per ask, as that connector's `Ask` event; what the
+  connector says up, an answer or what it says unasked (a step's
+  decision, news, an outcome, a pool's slots, drift), goes back to the
+  engine as `In::Connector(connector, up)` in the same decision
+  (engine/vocabulary.md, 2.5). The root reads neither. What the core says
+  of a procedure's step, the task it made, goes to the procedure's
+  connector in the same decision, and is never dropped
+  (connectors-procedures.md, 1.3). A brief section's gathering and cutting
+  and a run's workspace still go by the core's own requests, which the
+  root routes by the section's or the task's connector
+  (engine/vocabulary.md, 3).
 - **Settings of the application's kinds** (engine/settings-application.md, 1): a change's
   items of a kind go, as a hand-off within the change's step, to the
   connector the kind names, and its judgement back to the core; the
@@ -371,9 +379,13 @@ It inspects nothing it holds. What jig asks of it:
 - **Small total functions,** one per pair of vocabularies, matching
   exhaustively, with no `_` arm, so a change on either side breaks the
   build in one place.
-- **The core's connector vocabulary** (engine/vocabulary.md, 1.1) is translated to
-  each connector's own and back: a connector's number, its resources'
-  names as paths, its effect descriptions, its verdicts, its news.
+- **No translation between the engine and a connector:** both speak the
+  contract (connectors.md, 2), which the root routes by number. A
+  connector that keeps a vocabulary of its own translates at its own
+  step's edge (`temper/docs/design/draft/jig-domain-api.md`, 14.1). What
+  a connector's operations on jig's work still need of the core's
+  vocabulary the root translates until the operations come
+  (engine/vocabulary.md, 3).
 - **The hub's agent vocabulary** is translated to smith's parent face and
   back, with the same functions whichever of smith's agent capabilities
   the root composes, smith's payloads among it by hand-out (section 5;
@@ -386,8 +398,8 @@ It inspects nothing it holds. What jig asks of it:
   (section 8).
 - **Configuration** is split the same way: the root gives each child its
   part, and the engine each connector's declaration (connectors.md, 2),
-  which the root translates from the kinds a connector that keeps its own
-  vocabulary exposes, as it translates its descriptions.
+  which the root builds from the connector's table of kinds, or states
+  itself for a connector that keeps none.
 
 ## 7. Putting outputs together
 
@@ -456,8 +468,10 @@ stops taking them.
 - **Across connectors:** the judge of a requirement may be any connector;
   the root routes by the number the core names, never deciding which.
 - **Made after the commit:** the request to make an outbox entry is a
-  held output addressed to its connector, released once its commit is
-  durable and fed back to the connector by `iterate`.
+  held output addressed to its connector, `Peer::Connector(connector,
+  Released::Make { entry })`, released once its commit is durable and
+  fed back to the connector by `iterate`, as is an act's answer under its
+  key (engine/vocabulary.md, 2.5).
 
 ## 10. Worst cases and limits
 

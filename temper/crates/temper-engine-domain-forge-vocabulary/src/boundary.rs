@@ -2200,16 +2200,7 @@ pub enum Key {
     HistoryLanding { project: u32, landing: u64, number: u64 },
     HistoryLast { project: u32, number: u64, change: u64 },
 }
-/// A completed phase of the connector's restart contract.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum RestartStage {
-    /// Durable connector records and entries are restored.
-    Restored,
-    /// Every live resource has had its first fresh read.
-    ReadAfresh,
-    /// Every uncertain restored entry has been looked for.
-    Settled,
-}
+pub use jig_domain_contract::lifecycle::RestartStage;
 /// Volatile connection information, rebuilt from routing at every start (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Connection {
@@ -2289,6 +2280,10 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// An ask from the engine's connector port.
+    Ask(jig_domain_contract::Ask),
+    /// An output whose commit has released it to the connector.
+    Released(jig_domain_contract::Released),
     /// Take the checked, raised environment's at-once limits in every holder.
     LimitsRaised,
     /// Routing's chosen place, or busy after the bounded attempts (protocol/setup/place.md, 2).
@@ -2445,12 +2440,6 @@ pub enum Event {
     VetoTier {
         task: u64,
         entry: u64,
-    },
-    /// Release adoptions after the project's tasks are erased
-    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
-    ReleaseProject {
-        project: u32,
-        request: Token,
     },
     /// Removal completions (temper/docs/design/domain/forge/adoption-connection.md, 1).
     SecretsErased {
@@ -3071,6 +3060,8 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// An answer or fact for the engine's connector port.
+    Up(jig_domain_contract::Up),
     /// A table report, words after `serve: ` (protocol/service-process.md, 1.3).
     FullTableFact {
         words: Box<[u8]>,
@@ -3157,10 +3148,6 @@ pub enum Request {
         /// Execution facts retained when a terminal decision clears the tier row.
         projection: Option<Box<[u8]>>,
         entry: Option<u64>,
-    },
-    /// The project's adoption erasures precede this post-commit reply.
-    ProjectReleased {
-        request: Token,
     },
     /// Make or refresh the runtime (temper/docs/design/protocol/forge/engine.md, 2).
     ForgeKept(ForgeRecord),
@@ -3404,30 +3391,12 @@ pub enum Request {
         account: Option<Box<[u8]>>,
         outcome: skein_forge_client::Outcome,
     },
-    /// Projection recovery belongs to the connector and settles no task or call.
-    ProjectionOutcome {
-        entry: u64,
-        outcome: skein_forge_client::Outcome,
-    },
-    /// A held entry settled as not made, by a person or its task's close.
-    NotMade {
-        entry: u64,
-        task: u64,
-    },
     /// A prior effect or release write settled; advance the closing task.
     ContinueRelease {
         task: u64,
     },
     /// A missing goal branch needs a fresh outbox number (domain/forge/branches.md, 1).
     ContinueGoalBranch {
-        task: u64,
-    },
-    /// All effects issued before resource cleanup have settled.
-    EffectsSettled {
-        task: u64,
-    },
-    /// All connector resources of a closing task are released.
-    Released {
         task: u64,
     },
     /// A failed task's resource remains held by its tree root until that root closes.
@@ -3452,10 +3421,6 @@ pub enum Request {
     ProjectAfter {
         goal: u64,
         when: Option<skein_lib::Wall>,
-    },
-    /// The closed projection has no remaining desired write.
-    ProjectionSettled {
-        goal: u64,
     },
     /// A projection could not continue under current facts or limits.
     ProjectionFailed {

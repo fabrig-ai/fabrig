@@ -117,11 +117,11 @@ pub(super) fn ask(
 }
 
 fn answer(domain: &mut Domain, flight: Flight) {
-    domain.work.push(Work::Core(core::Event::Parts {
-        connector: flight.connector,
-        token: flight.ask.token,
-        parts: flight.made,
-    }));
+    use jig_domain_contract::{Connector, Up, parts};
+    domain.work.push(Work::Connector(
+        Connector(flight.connector),
+        Up::Parts(parts::Up::Lines { token: flight.ask.token, parts: flight.made }),
+    ));
 }
 fn push(flight: &mut Flight, part: MadePart) {
     flight.made.push(part).expect("ask shape");
@@ -241,7 +241,7 @@ fn make(domain: &mut Domain, env: &Env<Limits>, party: u64, row: &TaskLine, kind
 pub(super) fn marked(domain: &mut Domain, task: u64) {
     let mut tasks = List::with_capacity(1);
     tasks.push(task).expect("one milestone mark");
-    domain.work.push(Work::Core(core::Event::PartsMarked { connector: domain.config.forge_connector, tasks }));
+    super::forge_up(domain, jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Marked { tasks }));
 }
 
 pub(super) fn saved(domain: &mut Domain, record: &core::Record) {

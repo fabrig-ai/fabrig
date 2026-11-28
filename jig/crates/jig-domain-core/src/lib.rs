@@ -18,6 +18,7 @@ mod ended_groups;
 pub mod engine;
 mod funding;
 mod inbox;
+mod judgements;
 mod limits;
 mod loads;
 use jig_domain_core_vocabulary::numbers;
@@ -148,6 +149,7 @@ pub struct Core {
     pub(crate) start: start::Script,
     person_answers: bool,
     routes: u32,
+    judgements: judgements::Pending,
     run_inbox: u32,
     /// Configured task depth and tree size used by proposal-holder inspection.
     proposal_bounds: (u32, u32),
@@ -187,6 +189,7 @@ pub struct Core {
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
     declarations: Box<[Declaration]>,
+    connector_recipients: declarations::Recipients,
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     /// Subjects owned by the parent; the child echoes each watch token.
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
@@ -418,6 +421,7 @@ impl Core {
             erasures: erase::Erasures::new(),
             deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
+            judgements: judgements::Pending::new(limits.routes),
             run_inbox: limits.tasks.run_inbox,
             proposal_bounds: (limits.tasks.depth, limits.tasks.tree_tasks),
             wait_limits: *limits,
@@ -484,6 +488,7 @@ impl Core {
             public_reads: skein_lib::Slab::with_capacity(limits.load_slots),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
+            connector_recipients: declarations::recipients(&config.connectors, connectors),
             connectors: config.connectors,
             declarations: Box::from(connectors),
             jobs: config.jobs,
