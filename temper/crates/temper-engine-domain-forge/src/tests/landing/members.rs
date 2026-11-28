@@ -220,6 +220,7 @@ fn departed_with_ask(mut landing: LandingRow, ask: change::Ask, why: policy::Lea
     fixtures::connect(&mut d);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
     let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
     row.change.way = change::Way::Turn;
     row.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };

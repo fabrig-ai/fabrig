@@ -92,6 +92,11 @@ impl State {
         self.reads.contains_key(&owner)
     }
 
+    #[cfg(test)]
+    pub(crate) fn has_pending_read(&self) -> bool {
+        !self.reads.is_empty()
+    }
+
     fn observed(&self, project: u32) -> u64 {
         match self.rows.get(&project) {
             Some(row) => row.observed,

@@ -3,12 +3,16 @@ use crate::{Undecodable, application, keys, records};
 use skein_codec::Record;
 use temper_engine_domain_forge_vocabulary as forge;
 
-// Tier rows dominate Row: eight full waiting filings and the row framing.
-const APPLICATION_ROW_BYTES: u32 = 3_995_550;
+// The repository revision dominates Row: the bounded method files and row framing.
+const APPLICATION_ROW_BYTES: u32 = 4_199_281;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
-    // The bound includes eight full waiting filings in a tier row.
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let limits = bounds.limits();
+    // Row adds the two-byte version and one-byte variant tag to each payload.
+    assert_eq!(crate::v25::DotTemperRevision::encoded_bound(limits), Some(u64::from(APPLICATION_ROW_BYTES) - 3));
+    assert_eq!(crate::v25::TierRow::encoded_bound(limits), Some(3_995_547));
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
         Some(jig_protocol_store::sizes::Application {
@@ -112,7 +116,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     let old_view = crate::v25::GoalView::encoded_bound(&before).expect("old view size");
     let new_view = crate::v25::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
-    // The schema's fixed framing plus the measured view; tier rows dominate Row.
+    // The schema's fixed framing plus the measured view; the repository revision dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
     assert_eq!(crate::v25::IssueRow::encoded_bound(&before), Some(5657));

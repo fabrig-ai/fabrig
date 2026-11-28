@@ -1952,7 +1952,9 @@ fn step_departed_change(d: &mut Domain, head: [u8; 32], cancelled: bool) -> Box<
             }
             Op::Read(_) | Op::Write(_) => panic!("unexpected departed change read {op:?}"),
         };
-        requests = fixtures::answer(d, call, Ok(answer));
+        let clock = env();
+        let out = fixtures::answer_at(d, &clock, call, Ok(answer));
+        requests = collected(fixtures::ordinary_method_probes(d, &clock, out));
     }
     panic!("departed change decides");
 }

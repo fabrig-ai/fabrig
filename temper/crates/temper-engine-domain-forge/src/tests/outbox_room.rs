@@ -10,6 +10,7 @@ const FRESH: u64 = 101;
 
 pub(super) fn full() -> Domain {
     let mut d = refusals::adopted_domain();
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
     for number in 1..=u64::from(env().limits.entries) {
         outputs(&mut d, Event::Enqueue { entry: refusals::entry(number) });
     }
@@ -505,7 +506,8 @@ fn pull_step_at(d: &mut Domain, task: u64, entry: u64, kind: &str, green: bool, 
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
             unexpected => panic!("change's CI, containment or reviews: {unexpected:?}"),
         };
-        let mut out = fixtures::answer_at(d, clock, call, Ok(answer));
+        let out = fixtures::answer_at(d, clock, call, Ok(answer));
+        let mut out = fixtures::ordinary_method_probes(d, clock, out);
         d.reclaim();
         let mut saved = List::uncapped();
         while let Some(request) = out.pop() {

@@ -149,6 +149,7 @@ fn gathering() -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
 
     fixtures::step_change(&mut d);
     d
@@ -446,7 +447,7 @@ fn change_steps_wait_without_reads_until_their_forge_connects() {
         Some(Connection::Connecting),
     ] {
         let mut d = domain();
-        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restore { record: Stored::Repository(Repository { home: false, ..adopted() }) });
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(fixtures::opening_row())) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);

@@ -50,6 +50,7 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
         ));
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);
+        fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
 
         fixtures::step_change(&mut d);
         let mut pull = fixtures::open_pull();
@@ -60,13 +61,12 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
         if checking {
             fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
         }
-        for answer in [
-            fixtures::checks(skein_forge::api::Check::Pending),
-            Answer::Commits { commits: Box::new([]), more: false },
-            Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
-        ] {
-            fixtures::answer_next_ordinary(&mut d, Ok(answer));
-        }
+        fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::answer_next_without_method(
+            &mut d,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let row = d.change(fixtures::CHANGE).expect("ready change");
         assert_eq!(row.change.way, way);
         if way == c::Way::Turn {
@@ -854,6 +854,7 @@ fn reversed_openings(lower_requested: bool) -> (Domain, Token) {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
 
     let mut row = fixtures::opening_row();
     row.pending = None;
@@ -1117,6 +1118,7 @@ fn first_change(protection: Protection, pull_ci: skein_forge::api::Ci, mergeable
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
 
     let mut row = fixtures::opening_row();
     row.pending = None;
@@ -1146,7 +1148,8 @@ fn merge_after_base_reads(d: &mut Domain) {
     assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
     fixtures::answer(d, call, Ok(fixtures::checks(Check::Passed)));
     fixtures::answer_next(d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    let finished = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+    let finished =
+        fixtures::answer_next_without_method(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let mut merging = false;
     for request in &finished {
         if let Request::ChangeDecision {
@@ -1173,7 +1176,7 @@ fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
         assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
         fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
         fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-        let finished = fixtures::answer_next_ordinary(
+        let finished = fixtures::answer_next_without_method(
             &mut d,
             Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
         );
@@ -1226,7 +1229,7 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             d = first_change(Protection::Absent, Ci::Passed, true, false);
         }
         fixtures::finish_open(&mut d);
-        let finished = fixtures::answer_next_ordinary(
+        let finished = fixtures::answer_next_without_method(
             &mut d,
             Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
         );
@@ -1251,7 +1254,7 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
             fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
             fixtures::finish_open(&mut d);
-            let finished = fixtures::answer_next_ordinary(
+            let finished = fixtures::answer_next_without_method(
                 &mut d,
                 Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             );
@@ -3073,6 +3076,7 @@ fn a_moved_base_wakes_a_change_from_its_turn() {
 fn held_landing(effect: temper_engine_domain_forge_change::EffectResult) -> (Domain, ChangeRow) {
     use temper_engine_domain_forge_change as change;
     let mut d = fixtures::adopted_domain();
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
     seen_base(&mut d, fixtures::BASE);
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
@@ -3101,7 +3105,7 @@ fn gather_open_landing(d: &mut Domain) -> Box<[Request]> {
     assert!(matches!(op, Op::Read(Read::Pull { number: 1, .. })));
     fixtures::answer(d, call, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(d);
-    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+    fixtures::answer_next_without_method(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
 #[test]

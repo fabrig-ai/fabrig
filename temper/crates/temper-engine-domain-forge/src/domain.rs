@@ -166,6 +166,15 @@ impl PendingStep {
     pub(crate) fn comparing_paths(&self) -> bool {
         self.stage == StepStage::Paths
     }
+
+    pub(crate) fn method_probe(&self) -> Option<&skein_forge::api::Read> {
+        if self.stage == StepStage::TemperProbe
+            && let Some((_, read)) = &self.read
+        {
+            return Some(read);
+        }
+        None
+    }
 }
 
 /// Comparison at its head and the first time the last judged reviews were kept.

@@ -67,6 +67,11 @@ fn fresh() -> Domain {
     restore_done(&mut d);
     d
 }
+fn fresh_with_home_read() -> Domain {
+    let mut d = fresh();
+    fixtures::settle_home_reads(&mut d, &env(), TIP);
+    d
+}
 fn restore_done(d: &mut Domain) {
     outputs(d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(d, Event::CatchUp);
@@ -226,7 +231,7 @@ fn a_goal_branch_hold_is_exclusive_and_refusing() {
 
 #[test]
 fn taking_a_missing_goal_branch_makes_it_at_the_default_branchs_tip() {
-    let mut d = fresh();
+    let mut d = fresh_with_home_read();
     take(&mut d);
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
@@ -336,7 +341,7 @@ fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
             Some(b"its outbox entry 1 is already in use".as_slice()),
         ),
     ] {
-        let mut d = fresh();
+        let mut d = fresh_with_home_read();
         outputs(&mut d, Event::Hold { entry: number, task: GOAL, resource: name(GOAL_BRANCH), from: None });
         fixtures::answer_next(&mut d, Err(Error::Missing));
         let (call, _) = fixtures::next_call(&mut d);
@@ -543,6 +548,7 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
         at_step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) });
         at_step(&mut d, &environment, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         at_step(&mut d, &environment, Event::CatchUp);
+        fixtures::settle_home_reads(&mut d, &environment, TIP);
 
         for number in 1..=u64::from(entries) {
             at_step(&mut d, &environment, Event::Enqueue { entry: status(number, 9) });
@@ -701,7 +707,7 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
 
 #[test]
 fn taking_an_existing_goal_branch_makes_nothing() {
-    let mut d = fresh();
+    let mut d = fresh_with_home_read();
     take(&mut d);
     let answered = fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
     assert_no_making(&answered);
@@ -842,7 +848,7 @@ fn landed_row(head: Option<skein_forge::api::Commit>) -> ChangeRow {
 }
 
 fn held_goal_with_change(row: ChangeRow) -> Domain {
-    let mut d = fresh();
+    let mut d = fresh_with_home_read();
     take(&mut d);
     fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
@@ -1455,6 +1461,7 @@ fn goal_branch_reads_wait_out_an_outage_with_capped_backoff_reset_by_an_answer()
         at_step(&mut d, &env, Event::Restore { record: Stored::Repository(adopted()) });
         at_step(&mut d, &env, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         at_step(&mut d, &env, Event::CatchUp);
+        fixtures::settle_home_reads(&mut d, &env, TIP);
 
         at_step(&mut d, &env, Event::Hold { entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None });
         for seconds in waits {
@@ -1490,6 +1497,7 @@ fn a_goal_branch_making_reads_past_a_restored_default_tip() {
         Event::Restore { record: Stored::BranchHead(BranchHead { name: name(b"main"), commit: TIP, owned: false }) },
     );
     restore_done(&mut d);
+    fixtures::settle_home_reads(&mut d, &env(), CURRENT);
     take(&mut d);
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
     assert_no_making(&missing);
@@ -1564,7 +1572,9 @@ fn a_goal_branch_taking_blocks_a_writer_during_its_reads() {
 
 #[test]
 fn a_goal_branch_taking_waits_for_its_forge_to_connect() {
-    let mut d = fresh();
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(Repository { home: false, ..adopted() }) });
+    restore_done(&mut d);
     take(&mut d);
     fixtures::answer_next(&mut d, Err(Error::NotConnected));
     assert!(!d.is_ready());

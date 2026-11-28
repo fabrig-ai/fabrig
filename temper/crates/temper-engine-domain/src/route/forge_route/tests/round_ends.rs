@@ -21,17 +21,12 @@ const RED: api::Commit = [12; 32];
 const TEST: &[u8] = b"test bin broken";
 const ROUND_PULL: u64 = 99;
 
-fn has_ready(out: &Queue<forge::Request>) -> bool {
+fn has_handoff(out: &Queue<forge::Request>, include_decision: bool) -> bool {
     for r in out {
         if let forge::Request::LandingReady { .. } = r {
             return true;
         }
-    }
-    false
-}
-fn has_handoff(out: &Queue<forge::Request>) -> bool {
-    for r in out {
-        if let forge::Request::LandingReady { .. } | forge::Request::LandingDecision { .. } = r {
+        if include_decision && let forge::Request::LandingDecision { .. } = r {
             return true;
         }
     }
@@ -418,6 +413,9 @@ impl Round {
             )),
             Read::Protection { .. } => Ok(Answer::Protection(None)),
             Read::File { .. } => Err(Error::Missing),
+            Read::Compare { before, after } => {
+                Ok(Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) })
+            }
             other => panic!("unexpected round read {other:?}"),
         }
     }
@@ -448,17 +446,22 @@ impl Round {
         self.read_until_handoff(out)
     }
     fn decide(&mut self) -> Queue<forge::Request> {
-        let out = self.gather();
-        if !has_ready(&out) {
-            return out;
+        let mut out = self.gather();
+        // A handoff can start the candidate check; its answer brings a new handoff.
+        for _ in 0_u32..2 {
+            if !has_handoff(&out, false) {
+                return out;
+            }
+            out = Queue::uncapped();
+            self.domain.forge.decide_landing(&self.env.with(self.env.limits.forge), self.task, true, &mut out);
+            out = self.read_until_handoff(out);
         }
-        let mut out = Queue::uncapped();
-        self.domain.forge.decide_landing(&self.env.with(self.env.limits.forge), self.task, true, &mut out);
-        self.read_until_handoff(out)
+        assert!(!has_handoff(&out, false), "the candidate check leads to a decision");
+        out
     }
     fn read_until_handoff(&mut self, mut out: Queue<forge::Request>) -> Queue<forge::Request> {
         for _ in 0_u32..128 {
-            if has_handoff(&out) {
+            if has_handoff(&out, true) {
                 return out;
             }
             for r in &out {
@@ -467,7 +470,7 @@ impl Round {
                 }
             }
             forge::resume(&mut self.domain.forge, &self.env.with(self.env.limits.forge), &mut out);
-            if has_handoff(&out) {
+            if has_handoff(&out, true) {
                 return out;
             }
             let (call, Op::Read(read)) = take_call(&mut out).expect("round reads") else {
@@ -696,7 +699,7 @@ impl Round {
     fn lost(&mut self, expected: policy::Decision) {
         let prior = self.domain.forge.landing(self.task).unwrap().clone();
         let out = self.gather();
-        assert!(has_ready(&out));
+        assert!(has_handoff(&out, false));
         // The offered step is consumed before the follow-up's final read is routed.
         self.take_step();
         self.route(out);
@@ -909,10 +912,10 @@ fn a_key_read_finishing_after_its_step_was_taken_wakes_the_landing() {
     r.forward(policy::Decision::Open);
     r.forward(policy::Decision::None);
     let ready = r.gather();
-    assert!(has_ready(&ready));
+    assert!(has_handoff(&ready, false));
     let mut out = Queue::uncapped();
     r.domain.forge.decide_landing(&r.env.with(r.env.limits.forge), r.task, true, &mut out);
-    assert!(!has_handoff(&out), "the key is still reading its tree");
+    assert!(!has_handoff(&out, true), "the key is still reading its tree");
     r.take_step();
     let out = r.read_until_handoff(out);
     let mut keyed = false;
