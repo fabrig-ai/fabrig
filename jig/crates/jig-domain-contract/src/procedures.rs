@@ -182,7 +182,7 @@ pub enum StepRefusal {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     /// Notification: start a procedure task with this context; no answer.
-    Start { context: Box<RunContext>, step: u64 },
+    Start { context: Box<RunContext>, step: u64, chat: Option<u64> },
     /// Notification: the step committed with these spec revisions; no answer.
     StepMade { task: u64, step: u64, first: Option<u64>, revisions: Box<[(u64, u64)]> },
     /// Notification: no part of the step committed; no answer.

@@ -39,7 +39,7 @@ pub fn bridge_ask(Connector(connector): Connector, ask: contract::Ask) -> Reques
             effects::Ask::Judge { owner, judge, state, resources } => {
                 Ask::Effect(connector::Ask::Judge { owner, judge, state, resources })
             }
-            effects::Ask::Keep { owner, entry, task, key } => {
+            effects::Ask::Keep { owner, entry, task, key, project: _ } => {
                 Ask::Effect(connector::Ask::Keep { owner, entry, task, key })
             }
             effects::Ask::KeepProposal { owner, proposal, task, project } => {
@@ -73,7 +73,7 @@ pub fn bridge_ask(Connector(connector): Connector, ask: contract::Ask) -> Reques
             }
         },
         contract::Ask::Procedures(ask) => match ask {
-            procedures::Ask::Start { context, step } => Ask::StartProcedure { context, step },
+            procedures::Ask::Start { context, step, chat: _ } => Ask::StartProcedure { context, step },
             procedures::Ask::StepMade { task, step, first, revisions } => {
                 Ask::StepMade { task, step, first, revisions }
             }

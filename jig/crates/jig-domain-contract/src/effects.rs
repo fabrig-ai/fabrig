@@ -381,7 +381,7 @@ pub enum Ask {
     /// Judgement: judge the requirement for this state and resources, answered by `Up::Verdict`.
     Judge { owner: Token, judge: Judge, state: [u8; 32], resources: Box<[Name]> },
     /// Notification: keep the effect under its outbox key; no answer.
-    Keep { owner: Token, entry: u64, task: u64, key: EffectKey },
+    Keep { owner: Token, entry: u64, task: u64, key: EffectKey, project: Option<u32> },
     /// Notification: keep the effect under its proposal number; no answer.
     KeepProposal { owner: Token, proposal: u64, task: u64, project: u32 },
     /// Notification: drop the effect with its reason and findings; no answer.

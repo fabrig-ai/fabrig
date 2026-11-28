@@ -745,9 +745,13 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     let purpose = complete_accept(core, work, out, origin, flight.connector, entry, description.purpose);
     let key =
         EffectKey { deployment: core.counters.deployment().id, task, origin: purpose, purpose: description.purpose };
+    let project = match core.tasks.task(task) {
+        Some(row) => Some(row.project),
+        None => None,
+    };
     out.push(connector_ask(
         flight.connector,
-        contract::Ask::Effects(contract::effects::Ask::Keep { owner, entry, task, key }),
+        contract::Ask::Effects(contract::effects::Ask::Keep { owner, entry, task, key, project }),
     ));
     out.push(Request::Held(Box::new(Held::Connector(
         contract::Connector(flight.connector),

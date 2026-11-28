@@ -72,15 +72,8 @@ pub(super) fn described(
     }
 }
 
-pub(super) fn subscribed(
-    domain: &mut Domain,
-    number: u16,
-    request: Token,
-    key: core::CallKey,
-    subscription: u64,
-    work: &mut Queue<Work>,
-) {
-    if let Some(row) = domain.engine.core().tasks.task(key.task) {
+pub(super) fn subscribed(domain: &mut Domain, number: u16, task: u64, subscription: u64, work: &mut Queue<Work>) {
+    if let Some(row) = domain.engine.core().tasks.task(task) {
         for interest in &row.subscriptions {
             if interest.number == subscription {
                 match interest.kind {
@@ -88,7 +81,7 @@ pub(super) fn subscribed(
                         work.push(Work::Connector {
                             number,
                             event: connector::Event::Subscribe {
-                                task: key.task,
+                                task,
                                 topic: u16::try_from(topic).expect("connector topic number"),
                                 wake_at: 2,
                                 keep_at: 1,
@@ -102,11 +95,6 @@ pub(super) fn subscribed(
             }
         }
     }
-    work.push(Work::Core(core::Event::NamedAnswer {
-        to: ReplyTo::new(request),
-        key,
-        part: core::CallPart::Subscribed { subscription },
-    }));
 }
 
 pub(super) fn sync(domain: &mut Domain, number: u16, task: u64, work: &mut Queue<Work>) {
@@ -123,21 +111,6 @@ pub(super) fn sync(domain: &mut Domain, number: u16, task: u64, work: &mut Queue
             work.push(Work::Connector { number, event: connector::Event::Unsubscribe { task, topic } });
         }
     }
-}
-
-pub(super) fn unsubscribed(
-    domain: &mut Domain,
-    number: u16,
-    request: Token,
-    key: core::CallKey,
-    work: &mut Queue<Work>,
-) {
-    sync(domain, number, key.task, work);
-    work.push(Work::Core(core::Event::NamedAnswer {
-        to: ReplyTo::new(request),
-        key,
-        part: core::CallPart::Unsubscribed,
-    }));
 }
 
 pub(super) fn news(

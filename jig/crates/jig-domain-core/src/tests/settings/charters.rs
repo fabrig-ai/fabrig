@@ -71,7 +71,7 @@ fn a_full_store_work_lane_does_not_delay_a_procedure() {
     for request in out {
         if let Request::Ask {
             connector: 1,
-            ask: Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::Start { context, step: 1 })),
+            ask: Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::Start { context, step: 1, .. })),
         } = request
         {
             assert_eq!(context.task, 2);

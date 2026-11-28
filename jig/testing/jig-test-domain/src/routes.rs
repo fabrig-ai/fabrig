@@ -381,12 +381,10 @@ fn route_ask(
         }
         core::Ask::ProjectGoal { feed } => hold(decision, Delivery::Projection { connector: number, feed }),
         core::Ask::EndTopic { task, .. } => crate::topics::sync(domain, number, task, work),
-        core::Ask::SubscriptionDone { request, key, subscription } => {
-            crate::topics::subscribed(domain, number, request, key, subscription, work);
+        core::Ask::SubscriptionDone { key, subscription, .. } => {
+            crate::topics::subscribed(domain, number, key.task, subscription, work);
         }
-        core::Ask::UnsubscriptionDone { request, key } => {
-            crate::topics::unsubscribed(domain, number, request, key, work);
-        }
+        core::Ask::UnsubscriptionDone { key, .. } => crate::topics::sync(domain, number, key.task, work),
         core::Ask::Workers(workers) => domain.now.push(crate::Request::Workers(workers)),
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;

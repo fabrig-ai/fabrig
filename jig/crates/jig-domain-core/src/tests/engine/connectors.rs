@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::{Ask, Held, effects::connector, engine::Peer};
+use jig_domain_authority as authority;
 use jig_domain_contract::{
     self as contract, Connector, Declaration, Released, Up, effects, lifecycle, parts, procedures, projections,
     requests, resources, settings, topics,
@@ -16,6 +17,10 @@ const EMPTY: Connector = Connector(2);
 const OWNER: Token = Token::new(31);
 const TASK: u64 = 1;
 const ENTRY: u64 = 7;
+const PERSON: u64 = 1;
+const PROJECT: u32 = 1;
+const WATCHED: &[u8] = b"watched";
+const EFFECT_KIND: u16 = 1;
 const KEY: [u8; 16] = [0xf5; 16];
 const CALL: crate::CallKey = crate::CallKey { task: TASK, attempt: 1, completion: 1, position: 0 };
 
@@ -26,7 +31,7 @@ fn declarations() -> [Declaration; 2] {
             connector: DECLARER,
             resources: Box::new([resources::ResourceKind { kind: 1, hold: resources::Rule::Shared }]),
             effects: Box::new([effects::EffectKind {
-                kind: 1,
+                kind: EFFECT_KIND,
                 form: effects::EffectForm::Set,
                 recovery: effects::Recovery::Keyed,
                 waits_for_dependencies: false,
@@ -69,17 +74,23 @@ fn ask(old: Ask, expected: contract::Ask) {
     requests.push(Request::ProjectMade { project: 1 });
     requests.push(Request::Ask { connector: DECLARER.0, ask: Ask::Connector(expected) });
     requests.push(Request::Held(Box::new(Held::Drained)));
-    let hash = BuildHasherDefault::<DefaultHasher>::default();
-    let old = hash.hash_one(Request::Ask { connector: DECLARER.0, ask: old });
     let mut out = Queue::uncapped();
     engine::append(requests, &mut out);
     let Some(Out::Core(Request::ProjectMade { project: 1 })) = out.pop() else { panic!("core output first") };
     let Some(Out::Ask(number, actual)) = out.pop() else { panic!("ask crosses by its port") };
     assert_eq!(number, DECLARER);
-    assert_eq!(hash.hash_one(engine::bridge_ask(number, actual)), old);
+    assert_bridge(old, actual);
     let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("held after the ask") };
     let Held::Drained = *held else { panic!("unchanged held") };
     assert!(out.is_empty());
+}
+
+fn assert_bridge(old: Ask, ask: contract::Ask) {
+    let hash = BuildHasherDefault::<DefaultHasher>::default();
+    assert_eq!(
+        hash.hash_one(engine::bridge_ask(DECLARER, ask)),
+        hash.hash_one(Request::Ask { connector: DECLARER.0, ask: old }),
+    );
 }
 
 #[test]
@@ -126,13 +137,13 @@ fn resources_port() {
     );
 }
 
-fn open_period(core: &mut Core, env: &Env<Limits>) -> tasks::Funder {
+fn open_period(core: &mut Core, env: &Env<Limits>, project: u32) -> tasks::Funder {
     crate::tests::send_task(
         core,
         &env.limits,
-        tasks::Event::OpenPeriod { reply_to: ReplyTo::new(OWNER), project: 1, period: 1, budget: 1000 },
+        tasks::Event::OpenPeriod { reply_to: ReplyTo::new(OWNER), project, period: 1, budget: 1000 },
     );
-    tasks::Funder::Period { project: 1, period: 1 }
+    tasks::Funder::Period { project, period: 1 }
 }
 
 #[test]
@@ -140,7 +151,7 @@ fn a_description_is_outstanding_until_its_owner_answers_on_either_entrance() {
     use crate::judgements::Subject;
     let (mut core, mut engine, env) = port_twins();
     for core in [&mut core, engine.core_mut()] {
-        let funder = open_period(core, &env);
+        let funder = open_period(core, &env, PROJECT);
         let goal = crate::tests::new_row(core, TASK, funder, Some(1));
         fixtures::make_batch(core, &env.limits, tasks::Party::Person(1), Box::new([goal]));
         assert!(core.projections.contains_key(&TASK));
@@ -189,6 +200,10 @@ fn topics_port() {
         Ask::SubscriptionDone { request: OWNER, key: CALL, subscription: 2 },
         contract::Ask::Topics(topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: 2 }),
     );
+    ask(
+        Ask::UnsubscriptionDone { request: OWNER, key: CALL },
+        contract::Ask::Topics(topics::Ask::Unsubscribed { request: OWNER, key: CALL }),
+    );
     answer(
         Up::Topics(topics::Up::News {
             task: TASK,
@@ -231,6 +246,128 @@ fn procedures_port() {
         Up::Procedures(procedures::Up::Wake { task: TASK }),
         Event::Tasks(tasks::Event::WakeProcedure { task: TASK }),
     );
+}
+
+#[test]
+fn a_procedure_start_names_only_a_direct_person_conversation() {
+    const REQUESTER: u64 = 2;
+    const CODE: u32 = 1;
+    const FIRST_STEP: u64 = 1;
+    for (parent_conversation, expected) in [(Some(true), Some(REQUESTER)), (Some(false), None), (None, None)] {
+        let (_, mut engine, env) = port_twins();
+        let core = engine.core_mut();
+        let period = open_period(core, &env, PROJECT);
+        let (creator, funder) = match parent_conversation {
+            Some(conversation) => {
+                let mut parent = crate::tests::new_row(core, REQUESTER, period, None);
+                parent.flags.conversation = conversation;
+                fixtures::make_batch(core, &env.limits, tasks::Party::Person(PERSON), Box::new([parent]));
+                (tasks::Party::Task(REQUESTER), tasks::Funder::Task(REQUESTER))
+            }
+            None => (tasks::Party::Person(PERSON), period),
+        };
+        let mut procedure = crate::tests::new_row(core, TASK, funder, None);
+        procedure.executor = tasks::Executor::Procedure { connector: DECLARER.0, code: CODE };
+        fixtures::make_batch(core, &env.limits, creator, Box::new([procedure]));
+        let context = core.tasks.run_context(TASK).expect("procedure ready to activate");
+        let mut out = Queue::uncapped();
+        engine::step(&mut engine, &env, In::Core(Event::Activate { context, ready: true }), &mut out);
+        let mut start = None;
+        while let Some(output) = out.pop() {
+            if let Out::Ask(DECLARER, contract::Ask::Procedures(ask @ procedures::Ask::Start { .. })) = output {
+                assert!(start.replace(ask).is_none(), "one procedure start");
+            }
+        }
+        let start = start.expect("start of the assigned procedure");
+        let procedures::Ask::Start { context, step: FIRST_STEP, chat } = &start else {
+            panic!("first step of the procedure: {start:?}");
+        };
+        assert_eq!(context.task, TASK);
+        assert_eq!(*chat, expected, "requester's conversation flag: {parent_conversation:?}");
+        assert_bridge(
+            Ask::StartProcedure { context: context.clone(), step: FIRST_STEP },
+            contract::Ask::Procedures(start),
+        );
+    }
+}
+
+#[test]
+fn a_kept_effect_names_its_tasks_project() {
+    const OTHER_PROJECT: u32 = 3;
+    const TRACKED: u32 = 1;
+    let (mut engine, env) = engine_with_effect_grant(OTHER_PROJECT);
+    let core = engine.core_mut();
+    let funder = open_period(core, &env, OTHER_PROJECT);
+    let mut goal = crate::tests::new_row(core, TASK, funder, Some(TRACKED));
+    goal.project = OTHER_PROJECT;
+    fixtures::make_batch(core, &env.limits, tasks::Party::Person(PERSON), Box::new([goal]));
+    let owner = core.effect_owner();
+    let mut out = Queue::uncapped();
+    let start = effects::Up::Start { owner, origin: effects::EffectOrigin::Projection { goal: TASK, entry: None } };
+    engine::step(&mut engine, &env, In::Connector(DECLARER, Up::Effects(start)), &mut out);
+    let description = Box::new(effects::EffectDescription { connector: DECLARER.0, purpose: ENTRY, effect: effect() });
+    out = Queue::uncapped();
+    engine::step(
+        &mut engine,
+        &env,
+        In::Connector(DECLARER, Up::Effects(effects::Up::Described { owner, description })),
+        &mut out,
+    );
+    let mut kept = None;
+    for output in &out {
+        if let Out::Ask(DECLARER, contract::Ask::Effects(keep @ effects::Ask::Keep { task: TASK, .. })) = output {
+            assert!(kept.replace(keep).is_none(), "one effect kept");
+        }
+    }
+    let Some(keep @ effects::Ask::Keep { owner: kept_owner, entry, task, key, project }) = kept else {
+        panic!("keep the effect: {out:?}");
+    };
+    assert_eq!(*kept_owner, owner);
+    assert_eq!(*project, Some(OTHER_PROJECT));
+    assert_bridge(
+        Ask::Effect(connector::Ask::Keep { owner, entry: *entry, task: *task, key: *key }),
+        contract::Ask::Effects(keep.clone()),
+    );
+    drop(crate::finish_decision(engine.core_mut(), &env));
+}
+
+fn engine_with_effect_grant(project: u32) -> (Engine, Env<Limits>) {
+    const PROJECTS_WITH_EFFECT: u32 = 2; // The default project and the effect's project.
+    let mut env = environment();
+    let mut config = config(SEED);
+    let grant = authority::Grant {
+        connector: DECLARER.0,
+        kind: EFFECT_KIND,
+        pattern: authority::Pattern { segments: Box::new([]), last: authority::Last::Exact(WATCHED.into()) },
+    };
+    config.defaults.rules.ceiling.grants = Box::new([grant.clone()]);
+    let seed = &mut config.seed_projects[0];
+    seed.policy.policy.ceiling.grants = Box::new([grant.clone()]);
+    seed.policy.policy.roles[0].authority.grants = Box::new([grant.clone()]);
+    seed.policy.policy.projections = Box::new([grant]);
+    if project != PROJECT {
+        env.limits.authority.projects = PROJECTS_WITH_EFFECT;
+        env.limits.people.projects = PROJECTS_WITH_EFFECT + 1; // A separate roster for the deployment.
+        let other =
+            crate::SeedProject { number: project, name: Box::from("Another project"), policy: seed.policy.clone() };
+        config.seed_projects = Box::new([config.seed_projects[0].clone(), other]);
+    }
+    let mut engine = Engine::new(config, &declarations(), &env.limits).expect("connector with a grant");
+    fixtures::open_core(engine.core_mut(), &env);
+    (engine, env)
+}
+
+fn effect() -> authority::Effect {
+    authority::Effect {
+        connector: DECLARER.0,
+        kind: EFFECT_KIND,
+        name: authority::Name { segments: Box::new([WATCHED.into()]) },
+        state: [0; 32],
+        price: None,
+        access: authority::EffectAccess::Owned,
+        additional: Box::new([]),
+        guards: Box::new([]),
+    }
 }
 
 #[test]
@@ -466,7 +603,7 @@ fn a_lost_attempt_names_only_each_declarers_own_writes() {
         );
     }
     let reply = || ReplyTo::new(OWNER);
-    let funder = open_period(core, &env);
+    let funder = open_period(core, &env, PROJECT);
     let mut run = crate::tests::new_row(core, TASK, funder, None);
     run.holdings = names.clone().map(|resource| tasks::Holding::Write { resource, kind: 1 }).into();
     fixtures::make_batch(core, &env.limits, tasks::Party::Person(1), Box::new([run]));
@@ -524,6 +661,85 @@ fn a_lost_attempt_names_only_each_declarers_own_writes() {
         [(DECLARER, Box::<[tasks::Name]>::from([first])), (EMPTY, Box::<[tasks::Name]>::from([second]))]
     );
     drop(crate::finish_decision(engine.core_mut(), &env));
+}
+
+#[test]
+fn the_core_settles_subscriptions_after_any_connector_notification() {
+    const TOPIC: u64 = 3;
+    const SUBSCRIPTION: u64 = 1; // The first message-family number in a fresh engine.
+    const UNSUBSCRIBE: crate::CallKey = crate::CallKey { position: 1, ..CALL };
+    let subscribe = |kind| Event::NamedAction {
+        to: ReplyTo::new(OWNER),
+        key: CALL,
+        action: crate::NamedAction::Subscribe { kind },
+    };
+    for (call, subscribed, unsubscribed) in [
+        (
+            Event::SubscribeTopic {
+                to: ReplyTo::new(OWNER),
+                key: CALL,
+                connector: DECLARER.0,
+                topic: TOPIC,
+                resources: Box::new([effect()]),
+            },
+            Some(topics::Ask::Subscribed { request: OWNER, key: CALL, subscription: SUBSCRIPTION }),
+            Some(topics::Ask::Unsubscribed { request: OWNER, key: UNSUBSCRIBE }),
+        ),
+        (subscribe(tasks::SubscriptionKind::Timer { at: fixtures::TASK_ALARM_AT, period: None }), None, None),
+    ] {
+        let (mut engine, env) = engine_with_effect_grant(PROJECT);
+        let core = engine.core_mut();
+        crate::tests::make_task(core, &env.limits, TASK);
+        let proof = crate::RunProof::claimed(TASK, CALL.attempt, TASK, None, jig_domain_fleet::HostKind::Worker);
+        core.proofs.insert(TASK, proof).expect("proof for the subscribing run");
+        let unsubscribe = Event::NamedAction {
+            to: ReplyTo::new(OWNER),
+            key: UNSUBSCRIBE,
+            action: crate::NamedAction::Unsubscribe { subscription: SUBSCRIPTION },
+        };
+        for (call, key, ask, part) in [
+            (call, CALL, subscribed, crate::CallPart::Subscribed { subscription: SUBSCRIPTION }),
+            (unsubscribe, UNSUBSCRIBE, unsubscribed, crate::CallPart::Unsubscribed),
+        ] {
+            let mut out = Queue::uncapped();
+            engine::step(&mut engine, &env, In::Core(call), &mut out);
+            assert_subscription_answer(&out, key, ask, &part);
+            assert!(!engine.core().pending_calls.contains_key(&key));
+            drop(crate::finish_decision(engine.core_mut(), &env));
+        }
+    }
+}
+
+fn assert_subscription_answer(out: &Queue<Out>, key: crate::CallKey, ask: Option<topics::Ask>, part: &crate::CallPart) {
+    use crate::{CoreRecord, Record, Write};
+    let mut outputs = Queue::uncapped();
+    for output in out {
+        if let Out::Ask(_, contract::Ask::Topics(_))
+        | Out::Core(Request::Write(Write::Save(Record::Core(CoreRecord::Call(_))))) = output
+        {
+            outputs.push(output);
+            continue;
+        }
+        if let Out::Core(Request::Held(held)) = output
+            && let Held::CallAnswer { .. } = held.as_ref()
+        {
+            outputs.push(output);
+        }
+    }
+    if let Some(ask) = ask {
+        let Some(Out::Ask(connector, contract::Ask::Topics(notification))) = outputs.pop() else {
+            panic!("topic notification precedes decision: {out:?}");
+        };
+        assert_eq!((*connector, notification), (DECLARER, &ask));
+    }
+    let Some(Out::Core(Request::Write(Write::Save(Record::Core(CoreRecord::Call(row)))))) = outputs.pop() else {
+        panic!("{part:?} is recorded without further input: {out:?}");
+    };
+    assert_eq!((row.key, &row.part, &row.settled), (key, part, &None));
+    let Some(Out::Core(Request::Held(held))) = outputs.pop() else { panic!("held {part:?}: {out:?}") };
+    let Held::CallAnswer { to, key: answered, part: answer } = held.as_ref() else { panic!("call answer") };
+    assert_eq!((to, *answered, answer), (&ReplyTo::new(OWNER), key, part));
+    assert!(outputs.pop().is_none(), "one answer and no other notification");
 }
 
 #[test]

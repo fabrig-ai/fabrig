@@ -193,23 +193,19 @@ fn call_done(
         }
         RoutedCall::Subscribe { key, subscription, connector } => {
             if let Some(connector) = connector {
-                core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
                 out.push(connector_ask(
                     connector,
                     contract::Ask::Topics(contract::topics::Ask::Subscribed { request, key, subscription }),
                 ));
-                return;
             }
             (key, CallPart::Subscribed { subscription })
         }
         RoutedCall::Unsubscribe { key, connector } => {
             if let Some(connector) = connector {
-                core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
                 out.push(connector_ask(
                     connector,
                     contract::Ask::Topics(contract::topics::Ask::Unsubscribed { request, key }),
                 ));
-                return;
             }
             (key, CallPart::Unsubscribed)
         }

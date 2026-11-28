@@ -1,10 +1,9 @@
 //! The core's connector asks, translated for temper's forge and brief
 //! (jig's `domain/root.md`, 5; `examples/ops/domain/src/route.rs`).
 use super::{
-    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, decide_call, emit, forge,
+    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, emit, forge,
     forge_release_ending, forge_route,
 };
-use crate::CallAnswer;
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
@@ -412,32 +411,23 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
-        core::Ask::SubscriptionDone { request, key, subscription } => {
-            if connector == domain.config.forge_connector {
-                if let Some(pending) = domain.forge_subscribing.remove(&request) {
-                    let names = forge_route::watch_names(domain, &env.limits, &pending)
-                        .expect("connector names preflighted at subscription");
-                    let owner = pending.task;
-                    domain.work.push(Work::Forge(forge::Event::Subscribe { subscription: pending }));
-                    domain.work.push(Work::Forge(forge::Event::Names { task: owner, resources: names }));
-                }
-                decide_call(
-                    domain,
-                    &env.limits,
-                    decision,
-                    ReplyTo::new(request),
-                    key,
-                    CallAnswer::Subscribed { subscription },
-                );
+        core::Ask::SubscriptionDone { request, .. } => {
+            if connector == domain.config.forge_connector
+                && let Some(pending) = domain.forge_subscribing.remove(&request)
+            {
+                let names = forge_route::watch_names(domain, &env.limits, &pending)
+                    .expect("connector names preflighted at subscription");
+                let owner = pending.task;
+                domain.work.push(Work::Forge(forge::Event::Subscribe { subscription: pending }));
+                domain.work.push(Work::Forge(forge::Event::Names { task: owner, resources: names }));
             }
             None
         }
-        core::Ask::UnsubscriptionDone { request, key } => {
-            if connector == domain.config.forge_connector {
-                if let Some((owner, topic)) = domain.forge_unsubscribing.remove(&request) {
-                    domain.work.push(Work::Forge(forge::Event::Unsubscribe { task: owner, topic }));
-                }
-                decide_call(domain, &env.limits, decision, ReplyTo::new(request), key, CallAnswer::Unsubscribed);
+        core::Ask::UnsubscriptionDone { request, .. } => {
+            if connector == domain.config.forge_connector
+                && let Some((owner, topic)) = domain.forge_unsubscribing.remove(&request)
+            {
+                domain.work.push(Work::Forge(forge::Event::Unsubscribe { task: owner, topic }));
             }
             None
         }

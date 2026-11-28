@@ -770,42 +770,15 @@ fn core_ask(
                 work.push(Work::Core(core::Event::ProjectionSettled { goal: feed.goal.number, connector: number }));
             }
         }
-        (Some(Connector::Observability), core::Ask::SubscriptionDone { request, key, subscription }) => {
+        (Some(Connector::Observability), core::Ask::SubscriptionDone { key, subscription, .. }) => {
             work.push(Work::Observability(observability::Event::LinkWatch { task: key.task, subscription }));
-            work.push(Work::Core(core::Event::NamedAnswer {
-                to: ReplyTo::new(request),
-                key,
-                part: core::CallPart::Subscribed { subscription },
-            }));
-        }
-        (Some(Connector::Infrastructure), core::Ask::SubscriptionDone { request, key, subscription }) => {
-            work.push(Work::Core(core::Event::NamedAnswer {
-                to: ReplyTo::new(request),
-                key,
-                part: core::CallPart::Subscribed { subscription },
-            }));
-        }
-        (
-            Some(Connector::Infrastructure | Connector::Observability),
-            core::Ask::UnsubscriptionDone { request, key },
-        ) => {
-            work.push(Work::Core(core::Event::NamedAnswer {
-                to: ReplyTo::new(request),
-                key,
-                part: core::CallPart::Unsubscribed,
-            }));
         }
         (
             Some(Connector::Observability) | None,
             core::Ask::DropApplication { .. } | core::Ask::ClaimDone { .. } | core::Ask::JobClaimed { .. },
         )
-        | (
-            None,
-            core::Ask::Close { .. }
-            | core::Ask::Release { .. }
-            | core::Ask::SubscriptionDone { .. }
-            | core::Ask::UnsubscriptionDone { .. },
-        )
+        | (None, core::Ask::Close { .. } | core::Ask::Release { .. })
+        | (Some(Connector::Infrastructure) | None, core::Ask::SubscriptionDone { .. })
         | (
             Some(Connector::Infrastructure | Connector::Observability) | None,
             core::Ask::Providers(_)
@@ -817,6 +790,7 @@ fn core_ask(
             | core::Ask::Adopt { .. }
             | core::Ask::Hold { .. }
             | core::Ask::EndTopic { .. }
+            | core::Ask::UnsubscriptionDone { .. }
             | core::Ask::Drop { .. }
             | core::Ask::Lost { .. }
             | core::Ask::DropSubscription { .. }
