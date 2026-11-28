@@ -124,6 +124,7 @@ fn committed_call_outcomes_survive_with_or_without_an_explicit_result_block() {
             input: text(b"input"),
             outcome: Some(text(b"refused")),
             failed: true,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         })];

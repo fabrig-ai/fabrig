@@ -45,6 +45,7 @@ fn call(number: u64, tool: &[u8], input: &[u8], failed: bool) -> c::Block {
         input: text(input),
         outcome: Some(text(b"denied\nprivate details")),
         failed,
+        answer: None,
         objects: List::with_capacity(0),
         parts: List::with_capacity(0),
     })

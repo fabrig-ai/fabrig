@@ -211,6 +211,7 @@ fn activity(called: &[u64], heard: bool) -> c::ActivityPage {
             input: text(b"{}"),
             outcome: Some(text(b"Delegated tasks: 2")),
             failed: false,
+            answer: None,
             objects,
             parts: List::with_capacity(0),
         }))
