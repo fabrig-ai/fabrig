@@ -55,6 +55,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "skein-throwaway-forgejo::suite" = "real-loop" # Host login, native CLI scripts, and starting or attaching and stopping real children.
 "skein-tls-kit::drive" = "step" # Prompt wire's byte-queue fill operation.
 "skein-tls-world::suite" = "machine"
+"skein-toml-tests::suite" = "step" # Whole-document TOML reader, generated models and byte sweeps.
 "skein-ui-screen-tests::suite" = "simulated" # step and simulated: drawing functions and terminal iterate over fake io.
 "skein-ui-tests::suite" = "step" # UI containers, value functions and allocation bounds.
 "skein-ui-text-tests::suite" = "simulated" # Terminal iterate over simulated pipes and clock.
