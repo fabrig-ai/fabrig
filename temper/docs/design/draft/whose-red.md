@@ -87,7 +87,7 @@ In fabrig, `.temper/checked-close` settles, then runs pre-PR's close check. With
 ### 4.2 Its hold and its release
 
 - **The hold** is the close change's refusal (6.1). Its words name the first failures and the record, and it escalates to the goal at once, as a held close does today (`../domain/forge/change/repairs-releases.md`, 1).
-- **Its release** checks again only when what the close checked has changed: the goal's branch tip, its landing branch's tip, or the published counts the check judged against (`tools/pre-pr/design.md`, 4), each recorded with the refusal. Landed work supersedes a held close, as today (`../domain/forge/branches.md`, 2). Its decider may ask for a fresh measurement instead (6.3).
+- **Its release** checks again only when what the close checked has changed: the goal's branch tip, its landing branch's tip, or the published counts the check judged against (`tools/pre-pr/design.md`, 4), each recorded with the refusal. Landed work supersedes a held close, as today (`../domain/forge/branches-closer.md`, 1). Its decider may ask for a fresh measurement instead (6.3).
 - **A close that broke** has no verdict to keep: its release runs it again, unchanged inputs or not.
 - **The replay cache retires.** With no try after a refusal, pre-PR's cache of hard refusals (`tools/pre-pr/design.md`, 4) has nothing left to replay.
 

@@ -230,7 +230,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
   branch's hold is released and the branch deleted as it closes, by
   queue and by turn alike (`forge/branches.md`). Its requester hears
   the result as any delegate's, so a goal's closer's *Land* ends at the
-  goal's landing and the goal with it (`forge/branches.md`, section 2),
+  goal's landing and the goal with it (`forge/branches-closer.md`, section 1),
   and a goal that depends on that goal, in a milestone or not, starts
   then (`milestones.md`, section 4; `forge/dependencies.md`). Holding
   them for verification would protect nothing: the change is on its

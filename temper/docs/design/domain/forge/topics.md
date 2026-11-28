@@ -28,7 +28,7 @@ goals.
   (jig's `domain/connectors-facts.md`, 1.4): the landings on the branches its
   subtree's changes target, which the core subscribes it to as the first
   change into each is made, until the goal ends. A goal ended by its
-  closer (`branches.md`, 2) takes no subscription to the repository's default
+  closer (`branches-closer.md`, 1) takes no subscription to the repository's default
   branch's landings, including for a repair there. Landing such a goal's
   held branch creates no main-landing subscription, either at the change's
   start or when its plan is projected. Reds still reach the goal through

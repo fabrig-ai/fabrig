@@ -1,4 +1,4 @@
-//! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches.md, 2).
+//! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches-closer.md, 1).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{Box, Decision, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
 use forge::closer_words::{append_ending, branch_reason};

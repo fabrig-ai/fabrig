@@ -155,7 +155,7 @@ Refused, naming why, in these words, checked in this order:
   goal template's (template 2, as the `goal` tool takes them,
   `route/goal.rs`), ended by its closer, procedure 6 of the forge's
   connector, as template 4's goal is; it holds its own branch as a goal
-  `goal start` makes does (`forge/branches.md`, section 2;
+  `goal start` makes does (`forge/branches-closer.md`, section 1;
   `GOAL_BRANCH_SYMBOL`), so it lands as any goal does, ending at
   landing.
 - **The triager's delegate,** whoever acted: made by the root for the

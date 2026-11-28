@@ -1,4 +1,4 @@
-//! A closer's attempt bound over seeded endings (temper/docs/design/domain/forge/branches.md, 2).
+//! A closer's attempt bound over seeded endings (temper/docs/design/domain/forge/branches-closer.md, 1).
 use skein_lib::Rng;
 use temper_engine_domain_forge_closer::{
     Child, CloseJob, Closer, Decision, Facts, ReportFields, ReportRead, Running, Step, step,

@@ -39,7 +39,7 @@ unchecked save included. No stored record identifies checked heads; the
 worker's wire carries no such distinction. The dependent's own delivery
 checks cover its whole tree (`../../draft/delivery-checks.status.md`).
 
-`change/README.md`, section 1, and `branches.md`, section 2's close changes and goal closer are built, including
+`change/README.md`, section 1, and `branches-closer.md`, section 1's close changes and goal closer are built, including
 the ordered report, Left sections and CI selection. The engine-domain
 world's `forge_routes::close_change`, `forge_routes::goal_closer` and
 `forge_routes::goal_closes` stories exercise the composed path with fake

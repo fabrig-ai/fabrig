@@ -196,6 +196,8 @@ forge, temper adds:
   - `domain/agent/tools-change.md`: a change in the run's words.
   - `domain/agent/tools-goal.md`: a goal in the run's words.
   - `domain/forge/README.md`: the forge connector and its documents.
+  - `domain/forge/branches.md`: task branches and held resources.
+  - `domain/forge/branches-closer.md`: the goal closer's close, land and report steps.
   - `domain/forge/effects.md`: effects and recovery across restarts.
   - `domain/forge/writes.md`: the record of temper's own writes, and drift judged against it.
   - `domain/forge/releases.md`: a task's release: it finds first, and each failure's account.

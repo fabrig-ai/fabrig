@@ -807,7 +807,7 @@ its base in (`source ancestry is incomplete`). Where its job asks, those
 two are typed as its outdated finding (*Its typed refusal*, below),
 which the goal's closer answers with the goal's catch-up from main and
 a close again, once
-(`temper/docs/design/domain/forge/branches.md`, 2, *A close found
+(`temper/docs/design/domain/forge/branches-closer.md`, 1, *A close found
 outdated*). Neither refuses nor passes with a warning, since a refusal holds
 until the goal's branch or main moves
 (`temper/docs/design/domain/forge/change/repairs-releases.md`, 1), and

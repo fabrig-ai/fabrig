@@ -270,7 +270,7 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
     }
 }
 
-// An ended live state's single hold stores its ending cause (temper/docs/design/domain/forge/branches.md, 2).
+// An ended live state's single hold stores its ending cause (temper/docs/design/domain/forge/branches-closer.md, 1).
 fn encode_change_state(state: &d::State, ended_held: Option<d::Cause>) -> w::ChangeState {
     let mut holds = List::with_capacity(1);
     if let d::State::Held { was, hold } = state {

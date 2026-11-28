@@ -1,4 +1,4 @@
-//! Closer change and hold words (temper/docs/design/domain/forge/branches.md, 2).
+//! Closer change and hold words (temper/docs/design/domain/forge/branches-closer.md, 1).
 use crate::routing::{append, decimal};
 use crate::{Ending, hex, text};
 use alloc::boxed::Box;

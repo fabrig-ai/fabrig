@@ -75,4 +75,4 @@ higher priority.
 | t5 | CI, agent | CI passes on b2′; a review, asked again since an LLM resolved a conflict, approves it | |
 | t5 | Engine | merges B2 at exactly b2′ | main is M3 |
 | t5 | Engine | news for B (its own change landed: kept) and A (no overlap: kept); B2's result leaves B nothing to await, so jig makes B's closer and wakes no run (jig's `domain/tasks/lifecycle-endings.md`, 3) | |
-| t5 | Closer B | B holds no goal branch: no close step and no landing; its report, B1's and B2's pull requests and Left sections and their CI selection, ends goal B (`branches.md`, 2), and the issue's last milestone carries it | goal B is done |
+| t5 | Closer B | B holds no goal branch: no close step and no landing; its report, B1's and B2's pull requests and Left sections and their CI selection, ends goal B (`branches-closer.md`, 1), and the issue's last milestone carries it | goal B is done |

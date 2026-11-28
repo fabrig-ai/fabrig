@@ -224,7 +224,7 @@ since 2026-11-25, and outdated since 2026-11-27:
   published counts cover` or `its ancestry was incomplete`. The change
   keeps the finding beside the tips it read (below), and its closer,
   reading its end, catches the goal up from main and closes again, once
-  (`../branches.md`, 2, *A close found outdated*). A close run by a
+  (`../branches-closer.md`, 1, *A close found outdated*). A close run by a
   worker that can't carry the ask (`../../../protocol/wires.md`, 8) has
   its command not told, and breaks as before.
 - **Broke:** the close check didn't judge the goal. A job that fails for
@@ -253,8 +253,8 @@ taken, before it decides.
 The change released decides afresh at producing, and a close change
 makes a close job only for what is new to check:
 
-- **While its closer waits on its goal's new work** (`../branches.md`,
-  2, *New work waits for, and reopens, the steps*: a repair or a
+- **While its closer waits on its goal's new work** (`../branches-closer.md`,
+  1, *New work waits for, and reopens, the steps*: a repair or a
   catch-up the goal made after its close step), it makes no job and
   waits, with no hold, until its closer wakes it once that work has
   ended, and then decides afresh. A release meanwhile is taken, never
@@ -396,7 +396,7 @@ Its **way out** follows from its cause, as the table says, and its words name it
 | | `red_stands` | its red stands after a repair that changed nothing (`repairs.md`, 1) | an amendment, then a release, asking a fresh repair; a release once its head has moved; or a fresh measurement (4) |
 | A failure | `failed` | a delegate or an effect failed for good (1), a close check that broke among them | a release, which retires what failed and asks afresh |
 
-- **Held once.** A held change takes no step that writes, and a cause found while it is held changes nothing in its record: what that cause would hold for is found again from fresh facts after the release. A change ending while held keeps its cause as its ending's (`../branches.md`, 2).
+- **Held once.** A held change takes no step that writes, and a cause found while it is held changes nothing in its record: what that cause would hold for is found again from fresh facts after the release. A change ending while held keeps its cause as its ending's (`../branches-closer.md`, 1).
 - **Projected:** the panel names the step and the cause (`../../../client/forge/records.md`, 4). The client's and the public wire read `runner`, `red_stands` and `close_refused` as `failed`, their account saying which (`../../../protocol/wires.md`, 9).
 
 *Why* (`../../../draft/whose-red.md`, 6): fourteen hold arms each grew a release of its own, and blocked changes were cancelled and cut again by hand. A cause of a kind keeps the differences in data (what a release resets, whether it judges), not in code paths. The words are kept, not made again, because what made them (a read's evidence, a delegate's failure) is gone by a later step, and words rebuilt from what survived could say less. They are made in one place, the root's, which reads every fact they name (a read's evidence, the row's accounts, the bounds), since words composed in the change's step, the forge and the root apart said the same judgement three ways (2026-11-27). One record, not a stack: a release reads every fact afresh, so a second cause found while held is found again, and a stack only made one release lift one cause to show the next. Turned down: storing the way out, which the cause gives; and the kind as a type each cause nests in, which every reader would match twice.

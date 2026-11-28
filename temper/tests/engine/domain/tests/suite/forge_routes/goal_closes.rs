@@ -1,6 +1,6 @@
 //! Stock template goals close without an agent's judgement after their work lands
 //! (temper/docs/design/protocol/configuration/stock.md;
-//! temper/docs/design/domain/forge/branches.md, 2; jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
+//! temper/docs/design/domain/forge/branches-closer.md, 1; jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 use super::close_change::{CLOSE_COUNTS, CLOSE_FAILURE, finish_with, refusal_with};
 use super::goal_branch::{branch_tip, stock_defaults};
 use super::goal_closer::{
@@ -552,7 +552,7 @@ fn finish_catch_up(world: &mut World, task: u64, job: &host::JobAssignment, bran
     assert!(matches!(row(world, task).change.state, change::State::Landed { .. }));
 }
 
-/// temper/docs/design/domain/forge/branches.md, 2: the closer catches up once for the same request.
+/// temper/docs/design/domain/forge/branches-closer.md, 1: the closer catches up once for the same request.
 #[test]
 fn an_outdated_close_catches_up_from_main_and_closes_again() {
     let OutdatedStory { mut world, goal, branch, work, closer, close, main } = outdated_close_world(SINGLE_ATTEMPT);
@@ -600,7 +600,7 @@ fn assert_closer_hold(
     assert_hold_words(world, closer, words);
 }
 
-/// temper/docs/design/domain/forge/branches.md, 2: close again, but never catch up the same request again.
+/// temper/docs/design/domain/forge/branches-closer.md, 1: close again, but never catch up the same request again.
 #[test]
 fn a_close_outdated_again_after_its_catch_up_holds_naming_both() {
     use temper_engine_domain_forge_closer::Step;
@@ -631,7 +631,7 @@ fn a_close_outdated_again_after_its_catch_up_holds_naming_both() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge/branches.md, 2: a failed catch-up needs a release even below the attempt bound.
+/// temper/docs/design/domain/forge/branches-closer.md, 1: a failed catch-up needs a release even below the attempt bound.
 #[test]
 fn a_catch_up_that_ends_without_landing_holds_the_closer_naming_both() {
     use temper_engine_domain_forge_closer::Step;

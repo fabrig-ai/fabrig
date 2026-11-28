@@ -5,7 +5,7 @@ and a project's own tooling: the `prepare` and `key` commands a project
 that lands by turn may name (`../domain/landing-prepare.md`, 1.3, and `../domain/landing-proof.md`, 1.1),
 the `merge` command any repository may keep for the merge job
 (`../domain/forge/change/repairs.md`), and the `close` command any repository may keep
-for a goal's closer (`../domain/forge/branches.md`, 2), each its hook or, in a
+for a goal's closer (`../domain/forge/branches-closer.md`, 1), each its hook or, in a
 repository without `.temper/hooks/`, a path its project names (`hooks.md`); what temper gives them,
 what they write, and how they end. temper runs them as jobs on a worker
 (`../domain/worker/jobs.md`). What is open is `tooling.md`, section 7.
@@ -372,7 +372,7 @@ text form; another form refuses the change's start (2026-11-04).
 
 ### 4.2 `close`
 
-The close job's command (`../domain/forge/branches.md`, 2; `../domain/worker/jobs.md`
+The close job's command (`../domain/forge/branches-closer.md`, 1; `../domain/worker/jobs.md`
 ): it settles, with no model, what a goal leaves in its branch once
 every change of it has ended, before the goal's landing takes the branch
 into its base. fabrig's settles the goal's in-flight status entries

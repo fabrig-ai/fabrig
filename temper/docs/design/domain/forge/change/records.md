@@ -25,8 +25,8 @@ changes live at once, never every change made.
   - **its goal lives:** the tracked goal it served (its row's `goal`),
     or else the tracked ancestor its goal's closer finds for it, is a
     live task. The closer reads every original change of its goal for
-    the landed set, its close request and its report (`../branches.md`,
-    2), and the close command settles each `[in flight: change N]` tag
+    the landed set, its close request and its report (`../branches-closer.md`,
+    1), and the close command settles each `[in flight: change N]` tag
     by it (`../../../protocol/tooling.md`, 4.2): a goal's change goes
     only once its goal has ended;
   - **a landing names it:** a landing row of `../../landing.md`, ended

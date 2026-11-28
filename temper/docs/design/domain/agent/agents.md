@@ -533,7 +533,7 @@ and the goal's closer reads its `Left:` line.
   `Left:` what remains: each part it planned and has not cut into changes,
   and what it leaves undone, with why, the line left out where nothing
   remains, since a goal's closer holds on it before it ends the goal
-  (`../forge/branches.md`, 2); `Risk:` what could go wrong; `Decided:` what it decided
+  (`../forge/branches-closer.md`, 1); `Risk:` what could go wrong; `Decided:` what it decided
   itself, each with its time. A message that changes the plan becomes an
   amendment the goal shows the person first.
 - **What its request asked for in its result:** where the goal's request
@@ -544,7 +544,7 @@ and the goal's closer reads its `Left:` line.
   line whose start, past spaces, is `Left: `, `Risk: ` or `Decided: `, or
   the body's end, a line for each thing asked: its answer, or plainly
   that it couldn't be had, and why. The goal's closer carries the block
-  into the goal's end report (`../forge/branches.md`, 2, *The report*),
+  into the goal's end report (`../forge/branches-closer.md`, 1, *The report*),
   which is where its requester reads what it asked for; a body with no
   `Asked: ` line has no block, and its end report has no part for one.
   The client reads the block's lines as a paragraph's.

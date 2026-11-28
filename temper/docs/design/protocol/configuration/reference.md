@@ -38,7 +38,7 @@ place (jig's `domain/engine/overlays.md`).
   - *template 4, the goal template for drafts:* charter 5; ended by
     temper's goal closer, `ended_by` `{"closer": {"connector": 1,
     "code": 6}}` (jig's `protocol/configuration-templates.md`, 2;
-    `../../domain/forge/branches.md`, 2);
+    `../../domain/forge/branches-closer.md`, 1);
     `../../draft/reference-code-production.md`, section 4's LLM choice,
     Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, and a later
     choice (`../../draft/per-wake.md`, section 5), Opus 5.5 at high with
@@ -86,7 +86,7 @@ place (jig's `domain/engine/overlays.md`).
   the triage delegate: the stock's charter 5 designs and cuts its goal
   itself, answers what its changes ask with questions `up`, triages a
   red of its goal's tier, and parks while its goal's closer lands the
-  goal and reports (`../../domain/forge/branches.md`, 2); the stock's
+  goal and reports (`../../domain/forge/branches-closer.md`, 1); the stock's
   charter 2 checks its spec before it asks and reports what it leaves
   under Left (`stock.md`). Charters 6, 7 and 8 are no settings of the
   reference's, and its delegation names none of them.

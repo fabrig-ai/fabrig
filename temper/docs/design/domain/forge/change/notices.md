@@ -1,7 +1,7 @@
 # A relay's notices to its senders
 
 What a change's relay (`questions.md`, 1) and a goal's closer's
-(`../branches.md`, 2) tell the task that sends them an answer or words:
+(`../branches-closer.md`, 1) tell the task that sends them an answer or words:
 that an answer is held, by what and since when, and when it is
 delivered; and, for an answer or words neither takes, a refusal that
 names what is open. Written from `../../../draft/bounded-waits.md`, 6.1
@@ -14,7 +14,7 @@ sender here is a task; a party's words to a change are
 - **Held.** An answer a relay holds, a change's for a pending
   dependency or for message room (`questions.md`, 1, *Held for a
   dependency it did not start from* and *Held for message room*), a
-  closer's for message room (`../branches.md`, 2, *Room and
+  closer's for message room (`../branches-closer.md`, 1, *Room and
   admission*), tells its sender so, once, in the step that takes it and
   holds it, in words:
   - for a dependency: `Your answer to question Q is held until task D
@@ -46,10 +46,10 @@ sender here is a task; a party's words to a change are
   notice go in one step, or wait together for a step with room for both,
   as *Held for message room* says. Where that change holds the answer in
   turn, its own notice goes to the closer, which passes it up to its goal
-  as its open steps' words (`../branches.md`, 2).
+  as its open steps' words (`../branches-closer.md`, 1).
 - **Ended first.** An answer whose asker has ended tells its sender so,
   as `questions.md`, 1, *An asker that ends first*, and
-  `../branches.md`, 2, *A change that ends first*, say, in place of the
+  `../branches-closer.md`, 1, *A change that ends first*, say, in place of the
   delivered notice.
 - **Why in the question's room.** A relay short of message room can't
   send a notice through that same room, and a sender whose inbox is full
@@ -100,7 +100,7 @@ sender here is a task; a party's words to a change are
   caller its answerer; a closer's, its standing question's number) and
   LINE that question's first line as the relay's record keeps it (a
   change's asked question's line; the first line of a closer's standing
-  question's words, as `../branches.md`, 2 cuts it). For these two
+  question's words, as `../branches-closer.md`, 1 cuts it). For these two
   targets these words replace jig's reference refusal, which names no
   question. An answer matching the open question passes to jig, which
   admits it as before.
@@ -117,7 +117,7 @@ sender here is a task; a party's words to a change are
   where they were taken and dropped.
 - **None dropped for room.** A reply above that finds no message room
   at its step stays on the relay's record and goes at the next step,
-  due at once, as a closer's retained replies do (`../branches.md`, 2,
+  due at once, as a closer's retained replies do (`../branches-closer.md`, 1,
   *Room and admission*), so nothing a relay takes is dropped unanswered.
 
 ## 4. Open questions

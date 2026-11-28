@@ -23,7 +23,7 @@ branch. Its parameters:
   (`../updates.md`, section 1), parameter 16, its producer that job and no agent; or,
   for a goal's close step, the close request (`../../../protocol/tooling.md`,
   4.2), bytes parameter 17, its producer the close job, kind 4, run at
-  a branch made at its landing branch's tip, and no agent (`../branches.md`, 2);
+  a branch made at its landing branch's tip, and no agent (`../branches-closer.md`, 1);
 - **its agents' LLM choices,** by role (jig's `domain/tasks/README.md`, section
   3): the producer's, for its producing task, its repairs, its
   resolutions and its checks' gates; the reviews', for its agents'
@@ -162,7 +162,7 @@ the branch:
   is cut and says that the change's full words are on its task in temper.
 - **Held by its requester, not by the change.** The change takes no
   hold of the branch and hands none: its requester holds it for its own
-  life (`../branches.md`, 1). A goal's landing made by the goal's closer (`../branches.md`, 2) is on
+  life (`../branches.md`, 1). A goal's landing made by the goal's closer (`../branches-closer.md`, 1) is on
   the goal's held branch, its requester's requester's: the goal holds
   it, and the closer, which holds none, makes no other change on it. The change writes it only through its own delegates (its
   repairs and its resolution) and the updates it asks for, each taking
@@ -193,7 +193,7 @@ refuses the change's start as a malformed parameter. Its start is refused,
 naming the kind, where its authority does not delegate to kind 4. Like a
 catch-up's, its producer is the job: the change makes its own branch at its
 landing branch's tip, the job's checkout, and a job that pushed nothing ends
-the change with no change, as a catch-up already contained does (`../branches.md`, 2).
+the change with no change, as a catch-up already contained does (`../branches-closer.md`, 1).
 Its job finds the close command in its checkout, `.temper/hooks/close`
 or, where it holds no `.temper/hooks/`, the project's `close_job`
 (`../../../protocol/hooks.md`, 4.2 and 4.3). Bytes parameter 20, the

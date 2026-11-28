@@ -472,7 +472,7 @@ apart.
     whose change names no base;
   - the closer: whether the landing branch holds the goal branch, the
     goal's landing into it, and the pulls its report quotes as landed
-    there (`branches.md`, 2); and a closer-ended goal's skip of the
+    there (`branches-closer.md`, 1); and a closer-ended goal's skip of the
     landing branch's landings;
   - the landing queue: a train's batch cap and the project's landing
     gates and their proofs, a held goal branch's upstream, and a

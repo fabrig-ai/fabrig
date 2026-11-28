@@ -174,7 +174,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   `close_job`, a relative path of at most 4,096 bytes, without `..`, in
   each repository a goal's branch of the project is in, none when
   absent: the project's close command (`../tooling.md`, 4.2), and with it
-  the close step of each goal's closer (`../../domain/forge/branches.md`, 2),
+  the close step of each goal's closer (`../../domain/forge/branches-closer.md`, 1),
   where the job's checkout of the goal's branch's tip holds no
   `.temper/hooks/`, as `merge_job` (`../hooks.md`, 4.3 and 5). It
   is read as `merge_job` is, its errors named at
@@ -185,7 +185,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   goal closer's changes for one step, its close step's or its land
   step's, may end cancelled or failed, each made again with no one's
   judgement, before the closer asks its goal
-  (`../../domain/forge/branches.md`, 2). A project with no landing
+  (`../../domain/forge/branches-closer.md`, 1). A project with no landing
   entry has 3. One past its bounds, 0 among them, refuses the start at
   its member, `application.landing.projects[i].landing_attempts`.
 - **The turn's project settings,** beside `by`:

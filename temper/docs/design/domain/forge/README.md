@@ -102,6 +102,7 @@ Documents:
 - `change/README.md`: the change procedure and its documents.
 - `queues.md`: landing queues.
 - `branches.md`: task branches and held resources.
+- `branches-closer.md`: the goal closer's close, land and report steps.
 - `issues.md`: goals' issues on the forge.
 - `attention.md`: what reaches a person.
 - `follows.md`: following another project's branch.
