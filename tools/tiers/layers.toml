@@ -177,6 +177,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-box::suite" = "end-to-end"
 "temper-box::system" = "system" # A fresh sitting's settings on the client world joined to the engine.
 "temper-charter-set::assembly" = "step" # Assembly functions on fixture texts.
+"temper-charter-set::charter" = "step" # Project charter reader and writer on supplied text.
 "temper-client-browser-world::browser_all" = "end-to-end" # Chromium on the shipped bundle and service.
 "temper-client-browser-world::settings_sitting" = "real-loop" # Hosted serve and ctl commit browser settings on one real loop.
 "temper-client-bundle::steps" = "step" # Build decisions on sample paths, files and commands.

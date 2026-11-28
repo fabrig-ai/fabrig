@@ -6043,6 +6043,7 @@ name = "temper-charter-set"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-toml",
 ]
 
 [[package]]

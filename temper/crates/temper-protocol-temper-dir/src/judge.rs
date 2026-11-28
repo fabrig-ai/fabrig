@@ -106,7 +106,7 @@ fn charter(path: &[u8], body: &[u8], report: &mut Report) {
     };
     match temper_charter_set::read_file(text) {
         Ok(_) => {}
-        Err(FormatFault::FrontMatter { line }) => {
+        Err(FormatFault::FrontMatter { line } | FormatFault::Settings { front_matter_line: line, .. }) => {
             report.add(path, line, bytes::copy_of(b"front matter holds format = N alone"));
         }
         Err(FormatFault::BadFormat) => report.add(path, 2, bytes::copy_of(BAD_FORMAT)),
