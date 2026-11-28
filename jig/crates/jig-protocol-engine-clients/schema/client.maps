@@ -762,7 +762,8 @@ record SettingsProposal = d::SettingsProposal
 record SettingsDocument = d::Settings
 record ApplicationSize
 enum SizedEdit = st::application::SizedEdit
-record SettingDocument = r::SettingDocument { overlay boxed }
+record ProjectCharterDocument = r::ProjectCharterDocument { parts slice }
+record SettingDocument = r::SettingDocument { overlay boxed, project boxed }
 enum RevisionEdit by hand
 enum RevisionReplaced by hand
 record RevisionItem by hand

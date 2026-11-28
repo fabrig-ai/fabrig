@@ -1096,7 +1096,7 @@ enum SettingMember { documents, name_segments, name_segment_bytes, path, heading
 enum SettingRule { maximum, minimum, registered }
 record SettingDetail { member: SettingMember document: u32 segment: u32 rule: SettingRule supplied: u32 bound: u32 }
 record MalformedSettings { setting: Setting fault: SettingFault detail: option SettingDetail }
-record ReadSetting { setting: Setting revision: u32 proposal: option ProposalKey }
+record ReadSetting { setting: Setting revision: u32 proposal: option ProposalKey project: option u32 = none }
 record ReadRevision { number: u32 }
 record ReadRevisions { before: option u32 }
 enum SettingFollows { default, change, overlay }
@@ -1113,7 +1113,8 @@ record SettingsProposal { proposer: Proposer number: u32 }
 record SettingsDocument { newest: u32 settings: list 512 SettingLine held: list 32 HeldRevision pending: list 32 SettingsProposal }
 record ApplicationSize { size: u32 }
 enum SizedEdit { set: ApplicationSize, remove, reset }
-record SettingDocument { setting: Setting revision: u32 value: option SettingValue application: option ApplicationState proposed: option SizedEdit overlay: option Overlay }
+record ProjectCharterDocument { name: text 32 revision: u64 source: bytes 256 settings: text 32 instructions: text 1114240 parts: list 8 CharterPart }
+record SettingDocument { setting: Setting revision: u32 value: option SettingValue application: option ApplicationState proposed: option SizedEdit overlay: option Overlay project: option ProjectCharterDocument = none }
 record Size { bytes: u64 }
 record ApplicationEdit { edit: SizedEdit }
 enum RevisionEdit { set: SettingSet, too_large: Size, removed, reset, application: ApplicationEdit }

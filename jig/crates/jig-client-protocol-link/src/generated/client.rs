@@ -6692,6 +6692,23 @@ pub fn charter_document_to_domain(record: jig_client_protocol_wire::v44::Charter
     }
 }
 
+#[must_use]
+pub fn charter_part_to_record(value: &jig_client_domain::contract::CharterPart) -> jig_client_protocol_wire::v44::CharterPart {
+    let jig_client_domain::contract::CharterPart { on: field_000000, instructions: field_000001 } = value;
+    jig_client_protocol_wire::v44::CharterPart {
+        on: *field_000000,
+        instructions: crate::translate::client::charter_words_to_record(field_000001)
+    }
+}
+
+pub fn charter_part_to_domain(record: jig_client_protocol_wire::v44::CharterPart) -> Result<jig_client_domain::contract::CharterPart, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::CharterPart { on: field_000000, instructions: field_000001 } = record;
+    Ok(jig_client_domain::contract::CharterPart {
+        on: field_000000,
+        instructions: match crate::translate::client::charter_words_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::CHARTER_PART_INSTRUCTIONS.problem(reason)) }
+    })
+}
+
 pub fn rules_to_domain(record: jig_client_protocol_wire::v44::Rules, context: &crate::Limits) -> Result<jig_client_domain::contract::Rules, jig_client_protocol_wire::v44::Problem> {
     let jig_client_protocol_wire::v44::Rules { ceiling: field_000000, period_spend: field_000001, minimum_run_spend: field_000002, maximum_run_spend: field_000003, implies: field_000004, requirements: field_000005 } = record;
     Ok(jig_client_domain::contract::Rules {
@@ -6907,13 +6924,20 @@ pub fn malformed_settings_to_domain(record: jig_client_protocol_wire::v44::Malfo
 
 #[must_use]
 pub fn read_setting_to_record(value: &jig_client_domain::contract::ReadSetting) -> jig_client_protocol_wire::v44::ReadSetting {
-    let jig_client_domain::contract::ReadSetting { setting: field_000000, revision: field_000001, proposal: field_000002 } = value;
+    let jig_client_domain::contract::ReadSetting { setting: field_000000, revision: field_000001, proposal: field_000002, project: field_000003 } = value;
     jig_client_protocol_wire::v44::ReadSetting {
         setting: setting_to_record(field_000000),
         revision: *field_000001,
         proposal: match field_000002 {
             Some(item) => {
                 let converted = proposal_key_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        project: match field_000003 {
+            Some(item) => {
+                let converted = *item;
                 Some(converted)
             }
             None => None,
@@ -7126,6 +7150,49 @@ pub fn sized_edit_to_domain(record: jig_client_protocol_wire::v44::SizedEdit) ->
         jig_client_protocol_wire::v44::SizedEdit::Remove => jig_client_domain::contract::SizedEdit::Remove,
         jig_client_protocol_wire::v44::SizedEdit::Reset => jig_client_domain::contract::SizedEdit::Reset,
     }
+}
+
+#[must_use]
+pub fn project_charter_document_to_record(value: &jig_client_domain::contract::ProjectCharterDocument) -> jig_client_protocol_wire::v44::ProjectCharterDocument {
+    let jig_client_domain::contract::ProjectCharterDocument { name: field_000000, revision: field_000001, source: field_000002, settings: field_000003, instructions: field_000004, parts: field_000005 } = value;
+    jig_client_protocol_wire::v44::ProjectCharterDocument {
+        name: field_000000.clone(),
+        revision: *field_000001,
+        source: field_000002.clone(),
+        settings: field_000003.clone(),
+        instructions: crate::translate::client::charter_words_to_record(field_000004),
+        parts: {
+            let source = field_000005;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = charter_part_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    }
+}
+
+pub fn project_charter_document_to_domain(record: jig_client_protocol_wire::v44::ProjectCharterDocument) -> Result<jig_client_domain::contract::ProjectCharterDocument, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::ProjectCharterDocument { name: field_000000, revision: field_000001, source: field_000002, settings: field_000003, instructions: field_000004, parts: field_000005 } = record;
+    Ok(jig_client_domain::contract::ProjectCharterDocument {
+        name: field_000000,
+        revision: field_000001,
+        source: field_000002,
+        settings: field_000003,
+        instructions: match crate::translate::client::charter_words_to_domain(field_000004) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS.problem(reason)) },
+        parts: {
+            let source = field_000005;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = charter_part_to_domain(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
 }
 
 #[must_use]

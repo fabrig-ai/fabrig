@@ -2,10 +2,10 @@
 //! (jig/docs/design/domain/engine/project-charters.md, 2–4 and 6).
 use super::*;
 
-mod binding;
+pub(super) mod binding;
 
 const PROJECT: u32 = 1;
-const NAME: &[u8] = b"implementer";
+pub(super) const NAME: &[u8] = b"implementer";
 
 pub(super) fn set(revision: u64) -> ProjectCharters {
     ProjectCharters {

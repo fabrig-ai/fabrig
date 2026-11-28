@@ -8,6 +8,7 @@ context crate::Limits
 direction to domain
 # Additional client translation leaves.
 refuses s::text_to_domain
+refuses h::charter_words_to_domain
 refuses h::basis_to_domain
 refuses h::decision_to_domain
 with context h::decision_to_domain
@@ -852,7 +853,7 @@ record SettingModel by hand
 record CatalogueEntry by hand
 enum SettingHosts = c::SettingHosts both ways
 record CharterDocument = c::CharterDocument both ways
-record CharterPart by hand
+record CharterPart = c::CharterPart both ways { instructions via h::charter_words }
 record Charter by hand
 record Overlay by hand
 # Check the edited roles before the ceiling.
@@ -894,6 +895,7 @@ record SettingsProposal = c::SettingsProposal
 record SettingsDocument = c::SettingsDocument
 record ApplicationSize
 enum SizedEdit = c::SizedEdit
+record ProjectCharterDocument = c::ProjectCharterDocument both ways { instructions via h::charter_words }
 # Check the overlay before the current value.
 record SettingDocument by hand
 record Size = c::Size

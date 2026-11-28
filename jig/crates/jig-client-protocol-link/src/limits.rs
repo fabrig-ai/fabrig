@@ -183,7 +183,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.history_page_rows, &mut wire.note_acts, &mut wire.note_page_rows, &mut wire.object_page_rows,
         &mut wire.ended_page_rows, &mut wire.inbox_page_selection_some, &mut wire.inbox_page_rows,
         &mut wire.settings_review_items, &mut wire.overlay_instructions, &mut wire.charter_instructions, &mut wire.charter_part_instructions, &mut wire.revision_document_items,
-        &mut wire.settings_document_settings,
+        &mut wire.settings_document_settings, &mut wire.project_charter_document_instructions,
     ]);
     #[rustfmt::skip]
     narrow(client.rows, &mut [
@@ -204,7 +204,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.proposed_task_dependencies, &mut wire.retained_amendment_dependencies_some,
         &mut wire.amendment_state_dependencies, &mut wire.note_tasks, &mut wire.subject_chips_tasks,
         &mut wire.overlay_documents_some, &mut wire.overlay_parts, &mut wire.overlay_alternatives_some,
-        &mut wire.charter_documents, &mut wire.charter_parts, &mut wire.charter_alternatives, &mut wire.setting_model_efforts,
+        &mut wire.project_charter_document_parts, &mut wire.charter_documents, &mut wire.charter_parts, &mut wire.charter_alternatives, &mut wire.setting_model_efforts,
         &mut wire.setting_policy_projections, &mut wire.setting_policy_roles,
         &mut wire.setting_policy_requirements, &mut wire.setting_policy_permissions,
         &mut wire.setting_policy_templates, &mut wire.rules_implies, &mut wire.rules_requirements,

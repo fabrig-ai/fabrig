@@ -96,6 +96,7 @@ fn ask_temper_reads_and_proposes_the_whole_local_provider() {
     );
     let value = jig(LOCAL.as_bytes());
     let answer = jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+        project: None,
         setting: s::Setting::Provider(3),
         revision: 1,
         value: Some(s::Value::Provider(Box::new(value))),

@@ -209,6 +209,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
             reply_to: ReplyTo::new(token),
             sign_in: driver.session(),
             read: Box::new(core::reads::Read::Setting {
+                project: None,
                 setting: core::settings::Setting::Charter(number),
                 revision: 1,
                 proposal: None,

@@ -5,19 +5,23 @@ use crate::settings::{self as s, Overlay};
 use jig_domain_contract as contract;
 use tasks::{CharterScope, Executor, Reasons};
 
-const PROJECT: u32 = 3;
+pub(in crate::tests) const PROJECT: u32 = 3;
 const PARENT: u64 = 1;
 const CHILD: u64 = 2;
 const REQUESTED: Executor = Executor::Agent { charter: 2 };
 const CAREFUL: Executor = Executor::Agent { charter: 33 };
 const WHOLE_WORDS: &[u8] = b"Deployment instructions.";
-const PROJECT_WORDS: &[u8] = b"Be careful.";
-const FIRST_PART: &[u8] = b"Read the spec.";
+pub(in crate::tests) const PROJECT_WORDS: &[u8] = b"Be careful.";
+pub(in crate::tests) const FIRST_PART: &[u8] = b"Read the spec.";
 const REVISION: u64 = 8;
 const NEXT_SET: u64 = 9;
 const KEY: CallKey = CallKey { task: PARENT, attempt: 1, completion: 1, position: 0 };
 
 fn fixture(resources: &[u16]) -> (Core, Env<Limits>) {
+    fixture_with_roles(resources, &[0, 1, PROJECT])
+}
+
+pub(in crate::tests) fn fixture_with_roles(resources: &[u16], roles: &[u32]) -> (Core, Env<Limits>) {
     let mut cfg = config(17);
     let mut careful_model = scripted_model();
     careful_model.name = b"careful-model".as_slice().into();
@@ -54,7 +58,7 @@ fn fixture(resources: &[u16]) -> (Core, Env<Limits>) {
     limits.people.projects = 3;
     limits.tasks.executor_kinds = 4;
     let declarations = fixture_declarations(&cfg, resources, &[], &[]);
-    let mut core = core_with_roles(cfg, &limits, &declarations, &[0, 1, PROJECT]);
+    let mut core = core_with_roles(cfg, &limits, &declarations, roles);
     let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
     fill::signed_in(&mut core, &env);
     drop(step(&mut core, &env, Event::Period { project: PROJECT, period: 1, budget: 1000, next: None }));
@@ -62,7 +66,7 @@ fn fixture(resources: &[u16]) -> (Core, Env<Limits>) {
     (core, env)
 }
 
-fn take(core: &mut Core, env: &Env<Limits>, revision: u64, settings: &[u8], instructions: &[u8]) {
+pub(in crate::tests) fn take(core: &mut Core, env: &Env<Limits>, revision: u64, settings: &[u8], instructions: &[u8]) {
     let mut input = set(revision);
     input.project = PROJECT;
     input.charters[0].settings = settings.into();
@@ -325,6 +329,16 @@ fn settings_remap_the_executor_models_and_hosts_but_not_the_scope() {
 }
 
 fn setting(core: &mut Core, env: &Env<Limits>, value: s::Value, running: s::Running) -> u32 {
+    change_charter(core, env, 2, value, running)
+}
+
+pub(in crate::tests) fn change_charter(
+    core: &mut Core,
+    env: &Env<Limits>,
+    charter: u32,
+    value: s::Value,
+    running: s::Running,
+) -> u32 {
     core.reclaim();
     let against = core.current.newest();
     let next = against.checked_add(1).unwrap();
@@ -339,7 +353,7 @@ fn setting(core: &mut Core, env: &Env<Limits>, value: s::Value, running: s::Runn
             digest: [key; 32],
             change: Box::new(s::Change {
                 against,
-                items: Box::new([s::Item { setting: s::Setting::Charter(2), edit: s::Edit::Set(value) }]),
+                items: Box::new([s::Item { setting: s::Setting::Charter(charter), edit: s::Edit::Set(value) }]),
                 running,
             }),
         },

@@ -97,6 +97,7 @@ impl Case {
     fn document(&self) -> w::SettingDocument {
         let charter = &self.charter;
         w::SettingDocument {
+            project: None,
             setting: KEY,
             revision: REVISION,
             value: Some(w::SettingValue::Charter(Box::new(charter_record(charter)))),

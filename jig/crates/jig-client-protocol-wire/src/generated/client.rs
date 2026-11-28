@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x4d, 0x1f, 0xbe, 0x26, 0x3d, 0xb5, 0x90, 0xbb, 0x9d, 0xf8, 0xea, 0x12, 0xb6, 0x81, 0x79, 0xfc, 0x76, 0x8b, 0xca,
-    0x4e, 0x9d, 0xda, 0x33, 0x57, 0xf6, 0x3c, 0x10, 0x79, 0xb8, 0x9b, 0x71, 0x65,
+    0x8d, 0xd6, 0x46, 0x1b, 0x05, 0x31, 0x43, 0xae, 0x1e, 0x7b, 0x7c, 0xc8, 0x64, 0x70, 0x80, 0x35, 0x8e, 0x0f, 0xf1,
+    0xb1, 0x36, 0x5b, 0x5a, 0xab, 0x00, 0xbc, 0xa9, 0xfb, 0xba, 0xa3, 0xfb, 0xea,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -418,6 +418,11 @@ pub struct Limits {
     pub settings_document_settings: u32,
     pub settings_document_held: u32,
     pub settings_document_pending: u32,
+    pub project_charter_document_name: u32,
+    pub project_charter_document_source: u32,
+    pub project_charter_document_settings: u32,
+    pub project_charter_document_instructions: u32,
+    pub project_charter_document_parts: u32,
     pub revision_document_items: u32,
     pub revision_row_items: u32,
     pub revisions_page_rows: u32,
@@ -832,6 +837,11 @@ pub const CEILINGS: Limits = Limits {
     settings_document_settings: 512,
     settings_document_held: 32,
     settings_document_pending: 32,
+    project_charter_document_name: 32,
+    project_charter_document_source: 256,
+    project_charter_document_settings: 32,
+    project_charter_document_instructions: 1_114_240,
+    project_charter_document_parts: 8,
     revision_document_items: 16_777_216,
     revision_row_items: 32,
     revisions_page_rows: 32,
@@ -1246,6 +1256,11 @@ pub const LIMIT_NAMES: &[&str] = &[
     "settings_document_settings",
     "settings_document_held",
     "settings_document_pending",
+    "project_charter_document_name",
+    "project_charter_document_source",
+    "project_charter_document_settings",
+    "project_charter_document_instructions",
+    "project_charter_document_parts",
     "revision_document_items",
     "revision_row_items",
     "revisions_page_rows",
@@ -1664,6 +1679,11 @@ impl Limits {
             self.settings_document_settings,
             self.settings_document_held,
             self.settings_document_pending,
+            self.project_charter_document_name,
+            self.project_charter_document_source,
+            self.project_charter_document_settings,
+            self.project_charter_document_instructions,
+            self.project_charter_document_parts,
             self.revision_document_items,
             self.revision_row_items,
             self.revisions_page_rows,
@@ -2083,6 +2103,11 @@ impl Limits {
             settings_document_settings: self.settings_document_settings.min(most),
             settings_document_held: self.settings_document_held.min(most),
             settings_document_pending: self.settings_document_pending.min(most),
+            project_charter_document_name: self.project_charter_document_name.min(most),
+            project_charter_document_source: self.project_charter_document_source.min(most),
+            project_charter_document_settings: self.project_charter_document_settings.min(most),
+            project_charter_document_instructions: self.project_charter_document_instructions.min(most),
+            project_charter_document_parts: self.project_charter_document_parts.min(most),
             revision_document_items: self.revision_document_items.min(most),
             revision_row_items: self.revision_row_items.min(most),
             revisions_page_rows: self.revisions_page_rows.min(most),
@@ -2499,6 +2524,11 @@ const LIMIT_PATHS: &[Path] = &[
     paths::SETTINGS_DOCUMENT_SETTINGS,
     paths::SETTINGS_DOCUMENT_HELD,
     paths::SETTINGS_DOCUMENT_PENDING,
+    paths::PROJECT_CHARTER_DOCUMENT_NAME,
+    paths::PROJECT_CHARTER_DOCUMENT_SOURCE,
+    paths::PROJECT_CHARTER_DOCUMENT_SETTINGS,
+    paths::PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS,
+    paths::PROJECT_CHARTER_DOCUMENT_PARTS,
     paths::REVISION_DOCUMENT_ITEMS,
     paths::REVISION_ROW_ITEMS,
     paths::REVISIONS_PAGE_ROWS,
@@ -5870,6 +5900,7 @@ pub mod paths {
     pub const READ_SETTING_SETTING: Path = Path::new("ReadSetting.setting");
     pub const READ_SETTING_REVISION: Path = Path::new("ReadSetting.revision");
     pub const READ_SETTING_PROPOSAL: Path = Path::new("ReadSetting.proposal");
+    pub const READ_SETTING_PROJECT: Path = Path::new("ReadSetting.project");
     pub const READ_SETTING_TAIL: Path = Path::new("ReadSetting (tail)");
     pub const READ_REVISION_NUMBER: Path = Path::new("ReadRevision.number");
     pub const READ_REVISION_TAIL: Path = Path::new("ReadRevision (tail)");
@@ -5916,12 +5947,20 @@ pub mod paths {
     pub const APPLICATION_SIZE_SIZE: Path = Path::new("ApplicationSize.size");
     pub const APPLICATION_SIZE_TAIL: Path = Path::new("ApplicationSize (tail)");
     pub const SIZED_EDIT_TAG: Path = Path::new("SizedEdit (tag)");
+    pub const PROJECT_CHARTER_DOCUMENT_NAME: Path = Path::new("ProjectCharterDocument.name");
+    pub const PROJECT_CHARTER_DOCUMENT_REVISION: Path = Path::new("ProjectCharterDocument.revision");
+    pub const PROJECT_CHARTER_DOCUMENT_SOURCE: Path = Path::new("ProjectCharterDocument.source");
+    pub const PROJECT_CHARTER_DOCUMENT_SETTINGS: Path = Path::new("ProjectCharterDocument.settings");
+    pub const PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS: Path = Path::new("ProjectCharterDocument.instructions");
+    pub const PROJECT_CHARTER_DOCUMENT_PARTS: Path = Path::new("ProjectCharterDocument.parts");
+    pub const PROJECT_CHARTER_DOCUMENT_TAIL: Path = Path::new("ProjectCharterDocument (tail)");
     pub const SETTING_DOCUMENT_SETTING: Path = Path::new("SettingDocument.setting");
     pub const SETTING_DOCUMENT_REVISION: Path = Path::new("SettingDocument.revision");
     pub const SETTING_DOCUMENT_VALUE: Path = Path::new("SettingDocument.value");
     pub const SETTING_DOCUMENT_APPLICATION: Path = Path::new("SettingDocument.application");
     pub const SETTING_DOCUMENT_PROPOSED: Path = Path::new("SettingDocument.proposed");
     pub const SETTING_DOCUMENT_OVERLAY: Path = Path::new("SettingDocument.overlay");
+    pub const SETTING_DOCUMENT_PROJECT: Path = Path::new("SettingDocument.project");
     pub const SETTING_DOCUMENT_TAIL: Path = Path::new("SettingDocument (tail)");
     pub const SIZE_BYTES: Path = Path::new("Size.bytes");
     pub const SIZE_TAIL: Path = Path::new("Size (tail)");
@@ -69549,6 +69588,7 @@ pub struct ReadSetting {
     pub setting: Setting,
     pub revision: u32,
     pub proposal: Option<ProposalKey>,
+    pub project: Option<u32>,
 }
 
 // Record: ReadSetting.
@@ -69558,11 +69598,13 @@ impl ReadSetting {
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("ProposalKey"),
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 35;
+    pub const ENCODED_AT_ZERO: u64 = 40;
 }
 
 impl Record for ReadSetting {
@@ -69590,6 +69632,7 @@ impl Record for ReadSetting {
         field::write(field::Nested, &self.setting, limits, out, paths::READ_SETTING_SETTING)?;
         field::write(field::U32, &self.revision, limits, out, paths::READ_SETTING_REVISION)?;
         field::write(field::Optional { item: field::Nested }, &self.proposal, limits, out, paths::READ_SETTING_PROPOSAL)?;
+        field::write(field::Optional { item: field::U32 }, &self.project, limits, out, paths::READ_SETTING_PROJECT)?;
         Ok(())
     }
 
@@ -69598,6 +69641,7 @@ impl Record for ReadSetting {
             setting: field::read(field::Nested, limits, reader, paths::READ_SETTING_SETTING)?,
             revision: field::read(field::U32, limits, reader, paths::READ_SETTING_REVISION)?,
             proposal: field::read(field::Optional { item: field::Nested }, limits, reader, paths::READ_SETTING_PROPOSAL)?,
+            project: field::read(field::Optional { item: field::U32 }, limits, reader, paths::READ_SETTING_PROJECT)?,
         })
     }
 }
@@ -70528,6 +70572,77 @@ impl Record for SizedEdit {
     }
 }
 
+// Type: ProjectCharterDocument.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectCharterDocument {
+    pub name: Box<[u8]>,
+    pub revision: u64,
+    pub source: Box<[u8]>,
+    pub settings: Box<[u8]>,
+    pub instructions: Box<[u8]>,
+    pub parts: List<CharterPart>,
+}
+
+// Record: ProjectCharterDocument.
+impl ProjectCharterDocument {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_name) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_source) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_settings) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, project_charter_document_instructions) },
+        skein_codec::bounds::Node::Named("CharterPart"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, project_charter_document_parts), item: 5, size: size_of::<CharterPart>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 6] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
+impl Record for ProjectCharterDocument {
+    type Limits = Limits;
+    const TAIL: Path = paths::PROJECT_CHARTER_DOCUMENT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharterDocument")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectCharterDocument")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.project_charter_document_name.min(CEILINGS.project_charter_document_name) }, &self.name, limits, out, paths::PROJECT_CHARTER_DOCUMENT_NAME)?;
+        field::write(field::U64, &self.revision, limits, out, paths::PROJECT_CHARTER_DOCUMENT_REVISION)?;
+        field::write(field::Bytes { limit: limits.project_charter_document_source.min(CEILINGS.project_charter_document_source) }, &self.source, limits, out, paths::PROJECT_CHARTER_DOCUMENT_SOURCE)?;
+        field::write(field::Text { limit: limits.project_charter_document_settings.min(CEILINGS.project_charter_document_settings) }, &self.settings, limits, out, paths::PROJECT_CHARTER_DOCUMENT_SETTINGS)?;
+        field::write(field::Text { limit: limits.project_charter_document_instructions.min(CEILINGS.project_charter_document_instructions) }, &self.instructions, limits, out, paths::PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS)?;
+        field::write(field::Sequence { limit: limits.project_charter_document_parts.min(CEILINGS.project_charter_document_parts), minimum: 8, item: field::Nested }, &self.parts, limits, out, paths::PROJECT_CHARTER_DOCUMENT_PARTS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.project_charter_document_name.min(CEILINGS.project_charter_document_name) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_NAME)?,
+            revision: field::read(field::U64, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_REVISION)?,
+            source: field::read(field::Bytes { limit: limits.project_charter_document_source.min(CEILINGS.project_charter_document_source) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_SOURCE)?,
+            settings: field::read(field::Text { limit: limits.project_charter_document_settings.min(CEILINGS.project_charter_document_settings) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_SETTINGS)?,
+            instructions: field::read(field::Text { limit: limits.project_charter_document_instructions.min(CEILINGS.project_charter_document_instructions) }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_INSTRUCTIONS)?,
+            parts: field::read(field::Sequence { limit: limits.project_charter_document_parts.min(CEILINGS.project_charter_document_parts), minimum: 8, item: field::Nested }, limits, reader, paths::PROJECT_CHARTER_DOCUMENT_PARTS)?,
+        })
+    }
+}
+
 // Type: SettingDocument.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingDocument {
@@ -70537,6 +70652,7 @@ pub struct SettingDocument {
     pub application: Option<ApplicationState>,
     pub proposed: Option<SizedEdit>,
     pub overlay: Option<Overlay>,
+    pub project: Option<ProjectCharterDocument>,
 }
 
 // Record: SettingDocument.
@@ -70552,11 +70668,13 @@ impl SettingDocument {
         skein_codec::bounds::Node::Option { item: 6 },
         skein_codec::bounds::Node::Named("Overlay"),
         skein_codec::bounds::Node::Option { item: 8 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9] },
+        skein_codec::bounds::Node::Named("ProjectCharterDocument"),
+        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 436;
+    pub const ENCODED_AT_ZERO: u64 = 465;
 }
 
 impl Record for SettingDocument {
@@ -70587,6 +70705,7 @@ impl Record for SettingDocument {
         field::write(field::Optional { item: field::Nested }, &self.application, limits, out, paths::SETTING_DOCUMENT_APPLICATION)?;
         field::write(field::Optional { item: field::Nested }, &self.proposed, limits, out, paths::SETTING_DOCUMENT_PROPOSED)?;
         field::write(field::Optional { item: field::Nested }, &self.overlay, limits, out, paths::SETTING_DOCUMENT_OVERLAY)?;
+        field::write(field::Optional { item: field::Nested }, &self.project, limits, out, paths::SETTING_DOCUMENT_PROJECT)?;
         Ok(())
     }
 
@@ -70598,6 +70717,7 @@ impl Record for SettingDocument {
             application: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_APPLICATION)?,
             proposed: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_PROPOSED)?,
             overlay: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_OVERLAY)?,
+            project: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_DOCUMENT_PROJECT)?,
         })
     }
 }
@@ -74993,6 +75113,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ProgramState", nodes: ProgramState::SHAPE },
     skein_codec::bounds::Declaration { name: "Project", nodes: Project::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectCapacity", nodes: ProjectCapacity::SHAPE },
+    skein_codec::bounds::Declaration { name: "ProjectCharterDocument", nodes: ProjectCharterDocument::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectMember", nodes: ProjectMember::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectPolicy", nodes: ProjectPolicy::SHAPE },
     skein_codec::bounds::Declaration { name: "ProjectPolicyRole", nodes: ProjectPolicyRole::SHAPE },
@@ -75830,6 +75951,11 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.settings_document_settings,
     CEILINGS.settings_document_held,
     CEILINGS.settings_document_pending,
+    CEILINGS.project_charter_document_name,
+    CEILINGS.project_charter_document_source,
+    CEILINGS.project_charter_document_settings,
+    CEILINGS.project_charter_document_instructions,
+    CEILINGS.project_charter_document_parts,
     CEILINGS.revision_document_items,
     CEILINGS.revision_row_items,
     CEILINGS.revisions_page_rows,

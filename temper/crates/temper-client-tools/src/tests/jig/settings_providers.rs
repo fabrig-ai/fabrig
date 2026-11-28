@@ -34,6 +34,7 @@ fn identity(number: u32) -> c::Setting {
 }
 fn document(number: u32, withdrawn: bool) -> c::ReadResult {
     c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+        project: None,
         setting: identity(number),
         revision: 5,
         value: Some(provider(number, withdrawn)),
@@ -97,7 +98,7 @@ fn ctl_applies_proposes_and_shows_a_provider_setting() {
     root.serve(call, inventory());
     assert_eq!(
         root.reads.get(&call).unwrap().1,
-        c::Read::Setting(c::ReadSetting { setting: identity(3), revision: 5, proposal: None })
+        c::Read::Setting(c::ReadSetting { project: None, setting: identity(3), revision: 5, proposal: None })
     );
     root.serve(call, document(3, false));
     let answer = root.answer(call).unwrap();
@@ -121,7 +122,12 @@ fn ctl_shows_all_providers_with_stock_and_withdrawn_marks() {
         for (number, withdrawn) in [(1, false), (3, true)] {
             assert_eq!(
                 root.reads.get(&call).unwrap().1,
-                c::Read::Setting(c::ReadSetting { setting: identity(number), revision: 5, proposal: None })
+                c::Read::Setting(c::ReadSetting {
+                    project: None,
+                    setting: identity(number),
+                    revision: 5,
+                    proposal: None
+                })
             );
             root.serve(call, document(number, withdrawn));
         }

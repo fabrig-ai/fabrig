@@ -107,6 +107,7 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     setup.truth.settings = Some(values::settings_document());
     let mut settings_values = values::settings_values().into_boxed().into_vec();
     setup.truth.setting_values.push(c::SettingDocument {
+        project: None,
         overlay: None,
         setting: c::Setting::Rules,
         revision: 6,
@@ -146,7 +147,7 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     story.event(client::Event::Watch { handle: watch, subject: client::Watchable::Jig(c::Subject::Settings) });
     let queries = [
         c::Read::Settings,
-        c::Read::Setting(c::ReadSetting { setting: c::Setting::Rules, revision: 6, proposal: None }),
+        c::Read::Setting(c::ReadSetting { project: None, setting: c::Setting::Rules, revision: 6, proposal: None }),
         c::Read::Revision(c::ReadRevision { number: 6 }),
         c::Read::Revisions(c::ReadRevisions { before: None }),
     ];

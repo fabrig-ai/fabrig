@@ -689,6 +689,7 @@ ProgramSignOut: ceilings encoded=4102 decoded=4096; at_most(3) encoded=9 decoded
 ProgramState: ceilings encoded=4102 decoded=4096; at_most(3) encoded=9 decoded=3
 Project: ceilings encoded=155525711 decoded=155530880; at_most(3) encoded=1139 decoded=1401
 ProjectCapacity: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
+ProjectCharterDocument: ceilings encoded=10028572 decoded=10028672; at_most(3) encoded=73 decoded=93
 ProjectMember: ceilings encoded=131096 decoded=131072; at_most(3) encoded=30 decoded=6
 ProjectPolicy: ceilings encoded=84149561 decoded=84150656; at_most(3) encoded=272 decoded=288
 ProjectPolicyRole: ceilings encoded=33817060 decoded=33817856; at_most(3) encoded=110 decoded=87
@@ -764,14 +765,14 @@ ReadResult: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ReadRevision: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 ReadRevisionAnswer: ceilings encoded=16777265 decoded=16777216; at_most(3) encoded=52 decoded=3
 ReadRevisions: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
-ReadSetting: ceilings encoded=35 decoded=0; at_most(3) encoded=35 decoded=0
+ReadSetting: ceilings encoded=40 decoded=0; at_most(3) encoded=40 decoded=0
 ReadSpend: ceilings encoded=1065 decoded=1056; at_most(3) encoded=12 decoded=3
 ReadTask: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ReadTaskText: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 ReadTasks: ceilings encoded=2211 decoded=2160; at_most(3) encoded=95 decoded=42
 ReadTooLinked: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 ReadTurn: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
-ReadValue: ceilings encoded=1281543544 decoded=1281644332; at_most(3) encoded=2936 decoded=6265
+ReadValue: ceilings encoded=1291572117 decoded=1291673004; at_most(3) encoded=3010 decoded=6358
 ReadWaits: ceilings encoded=1085 decoded=1056; at_most(3) encoded=32 decoded=3
 Readiness: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Recipient: ceilings encoded=137 decoded=128; at_most(3) encoded=21 decoded=12
@@ -912,7 +913,7 @@ SetRoles: ceilings encoded=424 decoded=512; at_most(3) encoded=47 decoded=48
 SetVisibility: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 Setting: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
 SettingDetail: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
-SettingDocument: ceilings encoded=1281543543 decoded=1281644332; at_most(3) encoded=2935 decoded=6265
+SettingDocument: ceilings encoded=1291572116 decoded=1291673004; at_most(3) encoded=3009 decoded=6358
 SettingEdit: ceilings encoded=1254385468 decoded=1254445552; at_most(3) encoded=1462 decoded=3364
 SettingFault: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 SettingFollows: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -1122,4 +1123,4 @@ WorkerPauseMode: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 WorkerSetting: ceilings encoded=174 decoded=128; at_most(3) encoded=49 decoded=3
 WorkerState: ceilings encoded=185 decoded=128; at_most(3) encoded=60 decoded=3
 WritingCall: ceilings encoded=65877 decoded=65856; at_most(3) encoded=30 decoded=9
-family: ceilings encoded=2508771995 decoded=2508892124; at_most(3) encoded=2975 decoded=6740
+family: ceilings encoded=2508771995 decoded=2508892124; at_most(3) encoded=3010 decoded=6740

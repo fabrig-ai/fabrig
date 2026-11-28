@@ -258,6 +258,8 @@ pub struct ReadSetting {
     pub setting: Setting,
     pub revision: u32,
     pub proposal: Option<ProposalKey>,
+    /// A charter preview at the newest settings, without a revision or proposal.
+    pub project: Option<u32>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReadRevision {
@@ -339,6 +341,17 @@ pub struct SettingDocument {
     pub value: Option<SettingValue>,
     pub application: Option<ApplicationState>,
     pub proposed: Option<SizedEdit>,
+    pub project: Option<Box<ProjectCharterDocument>>,
+}
+/// The project charter whole, beside the deployment value and overlay (jig/docs/design/domain/engine/project-charters.md, 7).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectCharterDocument {
+    pub name: Box<[u8]>,
+    pub revision: u64,
+    pub source: Box<[u8]>,
+    pub settings: Box<[u8]>,
+    pub instructions: Text,
+    pub parts: List<CharterPart>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Size {

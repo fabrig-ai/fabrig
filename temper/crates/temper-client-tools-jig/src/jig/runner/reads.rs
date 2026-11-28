@@ -529,6 +529,7 @@ fn setting_page(
     if let Some(kind) = file {
         let number = u32::try_from(number(call, argument).expect("setting number")).expect("parsed u32");
         let what = c::Read::Setting(c::ReadSetting {
+            project: None,
             setting: kind.setting(number),
             revision: settings.newest,
             proposal: None,
@@ -898,13 +899,20 @@ fn setting_read(runner: &Runner, reading: &mut Reading, inventory: Option<&c::Se
             super::application::read(runner, reading, super::application::Query::Setting(setting), out);
         }
         (_, Some(revision), _) => {
-            read(runner, reading, 1, c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }), out);
+            read(
+                runner,
+                reading,
+                1,
+                c::Read::Setting(c::ReadSetting { project: None, setting, revision, proposal: None }),
+                out,
+            );
         }
         (_, None, Some(inventory)) => {
             if let c::Setting::Provider(_) = setting {
                 super::providers::defaults(reading, inventory);
             }
-            let what = c::Read::Setting(c::ReadSetting { setting, revision: inventory.newest, proposal: None });
+            let what =
+                c::Read::Setting(c::ReadSetting { project: None, setting, revision: inventory.newest, proposal: None });
             read(runner, reading, 1, what, out);
         }
         (_, None, None) => read(runner, reading, 6, c::Read::Settings, out),

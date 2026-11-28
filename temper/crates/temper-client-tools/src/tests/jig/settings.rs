@@ -171,6 +171,7 @@ fn a_settings_file_charter_names_documents() {
     let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("wire value");
     let wire = jig_client_protocol_wire::SettingDocument {
+        project: None,
         overlay: None,
         setting: jig_client_protocol_wire::Setting::Charter(jig_client_protocol_wire::SettingNumber { number: 3 }),
         revision: 5,
@@ -236,6 +237,7 @@ fn settings_show_charter_renders_its_documents() {
             let answer = read(
                 &argv,
                 c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    project: None,
                     overlay: None,
                     setting,
                     revision: 5,
@@ -586,6 +588,7 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                project: None,
                 overlay: None,
                 setting: request.setting,
                 revision: 6,
@@ -657,6 +660,7 @@ fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
 }
 fn setting_read(setting: c::Setting, value: c::SettingValue) -> c::ReadValue {
     c::ReadValue::Setting(Box::new(c::SettingDocument {
+        project: None,
         overlay: None,
         setting,
         revision: 5,
@@ -758,6 +762,7 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
     for (setting, value) in cases {
         let bounds = crate::limits::form();
         let wire = jig_client_protocol_wire::SettingDocument {
+            project: None,
             overlay: None,
             setting: jig_client_protocol_link::translate::settings::wire_setting(&setting),
             revision: 5,
@@ -1084,6 +1089,7 @@ fn settings_reads_request_the_exact_contract_and_do_not_watch_settings() {
         (
             vec!["settings", "show", "charter", "3", "--revision", "5"],
             c::Read::Setting(c::ReadSetting {
+                project: None,
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
                 revision: 5,
                 proposal: None,
@@ -1113,7 +1119,7 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
         assert!(root.answer(call).is_none());
         assert_eq!(
             root.reads.get(&call).expect("value read").1,
-            c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+            c::Read::Setting(c::ReadSetting { project: None, setting, revision: 5, proposal: None })
         );
         root.serve(call, c::ReadResult::None(c::ReadNone::Unknown));
         assert_eq!(root.answer(call).expect("value refusal").status, 2);
@@ -1130,7 +1136,7 @@ fn stock_setting_names_send_the_inventoried_numbers() {
             root.serve(call, stock_name_inventory());
             assert_eq!(
                 root.reads.get(&call).expect("value read").1,
-                c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+                c::Read::Setting(c::ReadSetting { project: None, setting, revision: 5, proposal: None })
             );
         }
     }
@@ -1206,6 +1212,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
         let answer = read(
             &argv,
             c::ReadValue::Setting(Box::new(c::SettingDocument {
+                project: None,
                 overlay: None,
                 setting,
                 revision: 5,
@@ -2002,12 +2009,13 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             serve_review(&mut root, call, large_charter_review(setting));
             assert_eq!(
                 root.reads.get(&call).expect("now read").1,
-                c::Read::Setting(c::ReadSetting { setting, revision: 6, proposal: None })
+                c::Read::Setting(c::ReadSetting { project: None, setting, revision: 6, proposal: None })
             );
             assert!(root.answer(call).is_none());
             root.serve(
                 call,
                 c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    project: None,
                     overlay: None,
                     setting,
                     revision: 6,
@@ -2019,6 +2027,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             assert_eq!(
                 root.reads.get(&call).expect("proposed read").1,
                 c::Read::Setting(c::ReadSetting {
+                    project: None,
                     setting,
                     revision: 0,
                     proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
@@ -2030,6 +2039,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                 root.serve(
                     call,
                     c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                        project: None,
                         overlay: None,
                         setting,
                         revision: 6,
@@ -2082,6 +2092,7 @@ fn restore_review_compares_resolved_rules_values() {
                     assert_eq!(
                         root.reads.get(&call).expect("rules read").1,
                         c::Read::Setting(c::ReadSetting {
+                            project: None,
                             setting: c::Setting::Rules,
                             revision: if index == 0 { 4 } else { 0 },
                             proposal: (index == 1)
@@ -3071,7 +3082,7 @@ fn propose_policy_file(root: &mut fixtures::Harness, values: &[(c::Setting, c::S
     newest_for_setting(root, call);
     assert_eq!(
         root.reads.get(&call).expect("policy 1 read").1,
-        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+        c::Read::Setting(c::ReadSetting { project: None, setting, revision: 5, proposal: None })
     );
     serve_policy_value(root, call, setting, &default);
     let shown = root.answer(call).expect("policy 1");
@@ -3108,6 +3119,7 @@ fn serve_policy_value(root: &mut fixtures::Harness, call: u32, setting: c::Setti
     root.serve(
         call,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            project: None,
             overlay: None,
             setting,
             revision: 5,
@@ -3131,6 +3143,7 @@ fn proposal_show_resolves_current_project_policy_whole() {
                     assert_eq!(
                         root.reads.get(&call).expect("whole setting fallback").1,
                         c::Read::Setting(c::ReadSetting {
+                            project: None,
                             setting: *setting,
                             revision: if is_proposed { 0 } else { 5 },
                             proposal: is_proposed
@@ -3370,6 +3383,7 @@ fn settings_show_template_resources_apply_again_unchanged() {
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("wire template");
     let wire = jig_client_protocol_wire::SettingDocument {
+        project: None,
         overlay: None,
         setting: jig_client_protocol_wire::Setting::Template(jig_client_protocol_wire::SettingNumber { number: 4 }),
         revision: 5,
@@ -3418,6 +3432,7 @@ fn settings_show_template_resources_are_readable_when_present() {
         let printed = read(
             &["settings", "show", "template", "4"],
             c::ReadValue::Setting(Box::new(c::SettingDocument {
+                project: None,
                 overlay: None,
                 setting,
                 revision: 5,
@@ -3458,6 +3473,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                project: None,
                 overlay: None,
                 setting,
                 revision: 5,
@@ -3497,6 +3513,7 @@ fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, templa
     let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("client wire");
     let wire = w::SettingDocument {
+        project: None,
         overlay: None,
         setting: w::Setting::Template(w::SettingNumber { number: 4 }),
         revision: 5,
@@ -4115,7 +4132,7 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let (mut root, call) = fixtures::read_call(&["settings", "show", "model", "4", "--revision", "5"]);
     assert_eq!(
         root.reads.get(&call).unwrap().1,
-        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+        c::Read::Setting(c::ReadSetting { project: None, setting, revision: 5, proposal: None })
     );
     root.serve(call, c::ReadResult::Value(setting_read(setting, value.clone())));
     let answer = root.answer(call).unwrap();
@@ -4186,11 +4203,12 @@ fn ctl_shows_applies_and_proposes_a_models_speeds() {
     newest_for_setting(&mut root, call);
     assert_eq!(
         root.reads.get(&call).unwrap().1,
-        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+        c::Read::Setting(c::ReadSetting { project: None, setting, revision: 5, proposal: None })
     );
     root.serve(
         call,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            project: None,
             overlay: None,
             setting,
             revision: 5,
@@ -4247,11 +4265,12 @@ fn ctl_applies_proposes_and_shows_a_worker_setting() {
     let (mut root, call) = fixtures::read_call(&["settings", "show", "worker", "2", "--revision", "5"]);
     assert_eq!(
         root.reads.get(&call).unwrap().1,
-        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+        c::Read::Setting(c::ReadSetting { project: None, setting, revision: 5, proposal: None })
     );
     root.serve(
         call,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            project: None,
             overlay: None,
             setting,
             revision: 5,

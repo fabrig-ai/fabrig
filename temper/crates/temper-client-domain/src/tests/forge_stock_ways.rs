@@ -247,6 +247,7 @@ fn policy_page(policy: Box<c::SettingPolicy>) -> Readout {
 }
 fn policy_document(project: u32, revision: u32, value: Option<c::SettingValue>) -> Readout {
     Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+        project: None,
         overlay: None,
         setting: c::Setting::ProjectPolicy { project },
         revision,
@@ -542,6 +543,7 @@ fn delegation_reads_policy_then_sends_only_missing_executors() {
             assert_eq!(
                 read,
                 &c::Read::Setting(c::ReadSetting {
+                    project: None,
                     setting: c::Setting::ProjectPolicy { project: f::PROJECT },
                     revision: NEXT,
                     proposal: None,

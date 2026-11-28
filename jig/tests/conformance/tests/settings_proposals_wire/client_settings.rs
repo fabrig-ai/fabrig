@@ -130,7 +130,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     assert_eq!(translate::settings::restore_change_settings(&wire, &limits), Ok(values::settings_change()));
     for read in [
         c::Read::Settings,
-        c::Read::Setting(c::ReadSetting { setting: c::Setting::Rules, revision: 6, proposal: None }),
+        c::Read::Setting(c::ReadSetting { project: None, setting: c::Setting::Rules, revision: 6, proposal: None }),
         c::Read::Revision(c::ReadRevision { number: 6 }),
         c::Read::Revisions(c::ReadRevisions { before: Some(8) }),
     ] {
@@ -177,6 +177,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     );
     let mut value = values::settings_values().into_boxed().into_vec();
     let document = c::SettingDocument {
+        project: None,
         overlay: None,
         setting: c::Setting::Rules,
         revision: 6,
@@ -244,6 +245,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     config.core.defaults.rules.ceiling.models = jig_domain_authority::Models::ALL;
     let spend = config.core.defaults.rules.period_spend;
     let source = reads::SettingDocument {
+        project: None,
         overlay: None,
         setting: s::Setting::Rules,
         revision: 6,

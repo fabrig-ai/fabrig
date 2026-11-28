@@ -461,6 +461,7 @@ pub(crate) fn inventory_next(reading: &crate::jig::runner::reads::Reading) -> Op
         return Some((
             2,
             Readable::Jig(c::Read::Setting(c::ReadSetting {
+                project: None,
                 setting: c::Setting::Limits,
                 revision: document.newest,
                 proposal: None,

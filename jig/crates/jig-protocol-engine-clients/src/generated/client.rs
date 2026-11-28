@@ -5484,8 +5484,29 @@ pub fn sized_edit_to_record(value: &jig_domain_core_vocabulary::settings::applic
     }
 }
 
+pub fn project_charter_document_to_record(value: &jig_domain_core_vocabulary::reads::ProjectCharterDocument) -> Result<jig_client_protocol_wire::v44::ProjectCharterDocument, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::reads::ProjectCharterDocument { name: field_000000, revision: field_000001, source: field_000002, settings: field_000003, instructions: field_000004, parts: field_000005 } = value;
+    Ok(jig_client_protocol_wire::v44::ProjectCharterDocument {
+        name: field_000000.clone(),
+        revision: *field_000001,
+        source: field_000002.clone(),
+        settings: field_000003.clone(),
+        instructions: field_000004.clone(),
+        parts: {
+            let source = field_000005;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROJECT_CHARTER_DOCUMENT_PARTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = charter_part_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
 pub fn setting_document_to_record(value: &jig_domain_core_vocabulary::reads::SettingDocument, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::SettingDocument, jig_client_protocol_wire::v44::Problem> {
-    let jig_domain_core_vocabulary::reads::SettingDocument { setting: field_000000, revision: field_000001, value: field_000002, application: field_000003, proposed: field_000004, overlay: field_000005 } = value;
+    let jig_domain_core_vocabulary::reads::SettingDocument { setting: field_000000, revision: field_000001, value: field_000002, application: field_000003, proposed: field_000004, overlay: field_000005, project: field_000006 } = value;
     Ok(jig_client_protocol_wire::v44::SettingDocument {
         setting: setting_to_record(field_000000),
         revision: *field_000001,
@@ -5513,6 +5534,13 @@ pub fn setting_document_to_record(value: &jig_domain_core_vocabulary::reads::Set
         overlay: match field_000005 {
             Some(item) => {
                 let converted = overlay_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        project: match field_000006 {
+            Some(item) => {
+                let converted = project_charter_document_to_record(item)?;
                 Some(converted)
             }
             None => None,
