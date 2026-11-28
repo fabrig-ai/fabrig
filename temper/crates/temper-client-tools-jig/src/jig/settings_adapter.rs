@@ -80,13 +80,7 @@ pub fn form_overlay(v: &c::Overlay) -> n::Overlay {
             None => None,
         },
         instructions: form_text(&v.instructions),
-        parts: {
-            let mut out = List::with_capacity(v.parts.len());
-            for p in &v.parts {
-                out.push(n::CharterPart { on: p.on, instructions: form_text(&p.instructions) }).expect("same count");
-            }
-            out
-        },
+        parts: form_parts(&v.parts),
     }
 }
 pub fn client_overlay(v: &n::Overlay) -> c::Overlay {
@@ -149,17 +143,17 @@ pub fn client_overlay(v: &n::Overlay) -> c::Overlay {
         },
     }
 }
+fn form_parts(parts: &List<c::CharterPart>) -> List<n::CharterPart> {
+    let mut out = List::with_capacity(parts.len());
+    for part in parts {
+        out.push(n::CharterPart { on: part.on, instructions: form_text(&part.instructions) }).expect("same count");
+    }
+    out
+}
 pub fn form_charter(v: &c::Charter) -> n::Charter {
     n::Charter {
         name: v.name.clone(),
-        parts: {
-            let mut out = List::with_capacity(v.parts.len());
-            for item in &v.parts {
-                out.push(n::CharterPart { on: item.on, instructions: form_text(&item.instructions) })
-                    .expect("one value per input");
-            }
-            out
-        },
+        parts: form_parts(&v.parts),
         rest: v.rest,
         documents: {
             let mut out = List::with_capacity(v.documents.len());
@@ -827,6 +821,17 @@ pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
         },
         proposed: match &v.proposed {
             Some(v) => Some(form_sized_edit(v)),
+            None => None,
+        },
+        project: match &v.project {
+            Some(v) => Some(Box::new(n::ProjectCharterDocument {
+                name: v.name.clone(),
+                revision: v.revision,
+                source: v.source.clone(),
+                settings: v.settings.clone(),
+                instructions: form_text(&v.instructions),
+                parts: form_parts(&v.parts),
+            })),
             None => None,
         },
     }

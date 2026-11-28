@@ -358,6 +358,7 @@ pub const SETTING: Tool = Tool {
         &[positional(b"kind", b"limits", Kind::Word { set: &[b"limits"] }, Required, b"Overrides of jig's limits")],
         &[positional(b"kind", b"temper-limits", Kind::Word { set: &[b"temper-limits"] }, Required, b"Overrides of temper's limits"), revision_flag()],
         rows::SETTING.forms[2],
+        rows::CHARTER_PREVIEW,
     ],
     ..rows::SETTING
 };

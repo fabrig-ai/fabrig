@@ -963,6 +963,39 @@ const SETTING_REVISION: super::table::Argument = flag(
     Optional,
     b"Its value at this revision; the newest when absent",
 );
+/// The project at slot 3 distinguishes this from application setting forms.
+pub const CHARTER_PREVIEW_PROJECT: usize = 3;
+pub const CHARTER_PREVIEW_REASON: u8 = 2;
+pub const CHARTER_PREVIEW: &[super::table::Argument] = &[
+    positional(
+        b"kind",
+        b"charter",
+        Kind::Word { set: &[b"charter"] },
+        Required,
+        b"A charter as a new project task would run by it",
+    ),
+    positional(
+        b"number",
+        b"NUMBER",
+        Kind::NameOrNumber { min: 0, max: 4_294_967_295 },
+        Required,
+        b"The charter's name or number",
+    ),
+    flag(
+        b"reason",
+        b"REASON",
+        Kind::Word { set: &settings_form::view::REASON_NAMES },
+        Optional,
+        b"Only parts read on this reason; every part when absent",
+    ),
+    flag(
+        b"project",
+        b"PROJECT",
+        Kind::Project { empty: false },
+        Required,
+        b"Preview for this project, at the newest revision",
+    ),
+];
 pub const SETTING: Tool = Tool {
     name: b"settings show",
     line: b"Read one setting's value whole",
@@ -1004,10 +1037,11 @@ pub const SETTING: Tool = Tool {
             ),
             SETTING_REVISION,
         ],
+        CHARTER_PREVIEW,
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"The JSON value is what a settings file's `set` takes.\n",
+    notes: b"The JSON value is what a settings file's `set` takes.\nWith --project, preview a charter's instructions and parts by source.\n--json prints the whole read, regardless of --reason.\n--revision cannot be used with --project on a charter.\n",
 };
 pub const REVISION: Tool = Tool {
     name: b"revision show",

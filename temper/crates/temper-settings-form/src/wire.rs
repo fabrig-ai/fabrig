@@ -728,16 +728,21 @@ pub(crate) fn facts_document_text(value: &w::DocumentText, limits: &Limits) -> R
     })
 }
 
-pub fn restore_overlay(value: &w::Overlay) -> Result<c::Overlay, w::Problem> {
-    let mut parts = List::with_capacity(value.parts.len());
-    for item in &value.parts {
+fn restore_parts(values: &List<w::CharterPart>) -> Result<List<c::CharterPart>, w::Problem> {
+    let mut parts = List::with_capacity(values.len());
+    for item in values {
         parts
             .push(c::CharterPart {
                 on: item.on,
                 instructions: settings_text(item.instructions.as_ref(), w::CEILINGS.charter_part_instructions)?,
             })
-            .expect("same count");
+            .expect("same capacity");
     }
+    Ok(parts)
+}
+
+pub fn restore_overlay(value: &w::Overlay) -> Result<c::Overlay, w::Problem> {
+    let parts = restore_parts(&value.parts)?;
     Ok(c::Overlay {
         charters: List::with_capacity(0),
         parts,
@@ -869,15 +874,7 @@ pub(crate) fn settings_restore_charter(value: &w::Charter) -> Result<c::Charter,
             })
             .expect("same capacity");
     }
-    let mut parts = List::with_capacity(value.parts.len());
-    for item in &value.parts {
-        parts
-            .push(c::CharterPart {
-                on: item.on,
-                instructions: settings_text(item.instructions.as_ref(), w::CEILINGS.charter_part_instructions)?,
-            })
-            .expect("same capacity");
-    }
+    let parts = restore_parts(&value.parts)?;
     Ok(c::Charter {
         name: value.name.clone(),
         parts,
@@ -1004,6 +1001,21 @@ pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> 
             Some(v) => Some(restore_sized_edit(v)),
             None => None,
         },
+        project: match &value.project {
+            Some(v) => Some(Box::new(restore_project_charter(v)?)),
+            None => None,
+        },
+    })
+}
+
+fn restore_project_charter(value: &w::ProjectCharterDocument) -> Result<c::ProjectCharterDocument, w::Problem> {
+    Ok(c::ProjectCharterDocument {
+        name: value.name.clone(),
+        revision: value.revision,
+        source: value.source.clone(),
+        settings: value.settings.clone(),
+        instructions: settings_text(&value.instructions, w::CEILINGS.project_charter_document_instructions)?,
+        parts: restore_parts(&value.parts)?,
     })
 }
 

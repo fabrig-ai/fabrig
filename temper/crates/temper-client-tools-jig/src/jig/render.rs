@@ -271,6 +271,8 @@ pub trait Parts: core::fmt::Debug {
 
     fn diagnostic_prefix(&self) -> &'static [u8];
     fn command_prefix(&self) -> &'static [u8];
+    /// The repository directory of project charter files, with its trailing slash.
+    fn project_charter_directory(&self) -> &'static [u8];
     /// What a hold for failed runs asks first.
     fn failures_recovery(&self) -> &'static [u8];
     fn phrasebook(&self, text: u32) -> skein_ui::phrases::Phrasebook;
@@ -565,6 +567,11 @@ fn deleted_project(project: u32) -> Box<[u8]> {
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
+        (crate::jig::rows::SETTING_AT, 1, ReadValue::Setting(document))
+            if crate::jig::settings_file::preview_project(call).is_some() =>
+        {
+            if document::settings::valid_preview(document) { Ok(()) } else { Err(()) }
+        }
         (crate::jig::rows::ROLE_LIST_AT | 2, 1, ReadValue::Tasks(_))
         | (crate::jig::rows::ROLE_LIST_AT, 8.., ReadValue::Notes(_))
         | (crate::jig::rows::WAITS_AT, 1, ReadValue::Waits(_))
