@@ -258,7 +258,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
                 engine::step(
                     &mut domain.engine,
                     &env.with(env.limits.core),
-                    In::Core(core::Event::Fill { bytes: fill }),
+                    In::Store(engine_store::In::Fill { bytes: fill }),
                     &mut filled,
                 );
             } else {

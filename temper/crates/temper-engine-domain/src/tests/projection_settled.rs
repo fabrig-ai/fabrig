@@ -155,9 +155,7 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
         core::ProjectionKey::GoalWords(goal),
         core::ProjectionKey::Goal(goal),
     ] {
-        let Some(Out::Core(core::Request::Write(core::Write::Erase(core::Key::Core(core::CoreKey::Projection(
-            received,
-        )))))) = out.pop()
+        let Some(Out::Write(core::Write::Erase(core::Key::Core(core::CoreKey::Projection(received))))) = out.pop()
         else {
             panic!("core erases the retained projection row");
         };

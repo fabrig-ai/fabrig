@@ -160,7 +160,9 @@ pub(super) fn owner_loaded(
         engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
             super::rows::person_owner(core, &env.limits, &range, &rows, next.as_ref(), project)
         }
-        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        engine_store::Answer::Rows(
+            engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. } | engine_store::Rows::Start { .. },
+        )
         | engine_store::Answer::Cut { .. }
         | engine_store::Answer::Failed(
             engine_store::Failure::Busy | engine_store::Failure::Failed | engine_store::Failure::Unread,

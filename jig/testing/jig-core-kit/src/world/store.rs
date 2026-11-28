@@ -3,7 +3,7 @@ use super::{Fault, StoreOut, Up, World, connector, core, fixture, root, tasks};
 impl World {
     pub(super) fn point_load(&mut self, out: core::engine::store::Out) {
         use core::engine::store::{Out, Range};
-        let Out::Load { load, range } = &out;
+        let Out::Load { load, range } = &out else { unreachable!("the test root drives its own start") };
         assert!(self.internal_reads.insert(*load), "one internal point load");
         if matches!(range, Range::Record(core::Key::Tasks(tasks::Key::Ended(_))))
             && let Some(pending) = &mut self.pending_ended_loads

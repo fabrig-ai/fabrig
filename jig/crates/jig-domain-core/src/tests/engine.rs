@@ -1,6 +1,7 @@
 //! Pass-through decisions and timer admission (`jig/docs/design/domain/engine/vocabulary.md`, 2).
 
 mod connectors;
+mod start;
 use crate::{
     Config, Core, Event, Limits, Request, Timer,
     engine::{self, Admit, Engine, In, Out},
@@ -59,6 +60,9 @@ fn same_decision(core: &Core, engine: &Engine, requests: &Queue<Request>, out: &
         {
             let Out::Held(engine::Peer::Store(wrapped)) = output else { panic!("one held store load: {output:?}") };
             assert_eq!(hash.hash_one(load), hash.hash_one(wrapped), "{wrapped:?} differs from {load:?}");
+        } else if let Request::Write(write) = request {
+            let Out::Write(wrapped) = output else { panic!("one store write: {output:?}") };
+            assert_eq!(hash.hash_one(write), hash.hash_one(wrapped), "{wrapped:?} differs from {write:?}");
         } else {
             let Out::Core(wrapped) = output else { panic!("one core request: {output:?}") };
             assert_eq!(hash.hash_one(request), hash.hash_one(wrapped), "{wrapped:?} differs from {request:?}");

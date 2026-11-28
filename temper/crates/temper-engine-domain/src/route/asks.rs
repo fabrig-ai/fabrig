@@ -417,6 +417,7 @@ pub(super) fn connector_ask(
                 super::kinds::ask(domain, env, decision, ask);
             }
         }
+        Ask::Lifecycle(lifecycle::Ask::Restore) => {}
         ask @ (Ask::Lifecycle(lifecycle::Ask::CatchUp | lifecycle::Ask::ReleaseProject { .. })
         | Ask::Resources(resources::Ask::Hold { .. } | resources::Ask::Unname { .. })
         | Ask::Effects(effects::Ask::Resolve { .. } | effects::Ask::DropProposal { .. })

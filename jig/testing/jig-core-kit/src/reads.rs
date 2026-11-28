@@ -106,6 +106,12 @@ impl Parties {
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
             | root::Event::Engine(_)
+            | root::Event::Store(
+                engine_store::In::Opened { .. }
+                | engine_store::In::Switched
+                | engine_store::In::Fill { .. }
+                | engine_store::In::Census(..),
+            )
             | root::Event::StartDone(_) => {}
         }
     }

@@ -212,13 +212,11 @@ impl Harness {
     fn engine_outputs(&mut self, out: &mut Queue<Out>) {
         while let Some(output) = out.pop() {
             match output {
-                Out::Core(
-                    core::Request::Write(_)
-                    | core::Request::Ask {
-                        ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),
-                        ..
-                    },
-                ) => {}
+                Out::Write(_)
+                | Out::Core(core::Request::Ask {
+                    ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),
+                    ..
+                }) => {}
                 Out::Core(core::Request::Now(now)) => {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));

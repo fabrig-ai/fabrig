@@ -91,7 +91,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                     out.push(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Released { project })));
                 }
                 // Watch state belongs to its task. No separate adoptions or project settings are kept.
-                lifecycle::Ask::Adopt { .. } => {}
+                lifecycle::Ask::Adopt { .. } | lifecycle::Ask::Restore => {}
             },
             jig::Ask::Effects(ask) => effect(domain, env, ask, &mut system, out),
             jig::Ask::Topics(ask) => match ask {

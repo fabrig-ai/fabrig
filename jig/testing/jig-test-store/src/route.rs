@@ -108,6 +108,11 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             }
             restart(routes, owner, None)?
         }
+        StoreOut::Engine(
+            engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+        ) => {
+            unreachable!("the test root drives its own start")
+        }
         StoreOut::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
             let owner = routes.keep(Flight::Read(load));
             Request::Read { owner, range: *range }

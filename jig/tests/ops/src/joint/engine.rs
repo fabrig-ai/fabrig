@@ -274,6 +274,7 @@ impl Application for OpsApplication {
                         Delivery::Root(Box::new(root::Output::Store(engine_store::Out::Load { load, range }))),
                     );
                 }
+                engine_store::Range::Start { .. } => unreachable!("the ops root drives its own start"),
                 engine_store::Range::Read(range) => read_page(store, &range, peers.tree_tasks),
                 range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }) => {
                     conformance::point(store, &range)

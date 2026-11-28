@@ -198,6 +198,7 @@ pub enum Up {
 }
 
 /// Route one root request; table saturation refuses before issuing a load.
+#[expect(clippy::too_many_lines, reason = "the store adapter lists each routed request and its bound together")]
 #[must_use]
 pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store::Request> {
     Some(match request {
@@ -241,6 +242,11 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             let owner = routes.token()?;
             routes.reads.insert(owner, (waiter, true)).ok()?;
             store::Request::Read { owner, range: *range }
+        }
+        engine::StoreRequest::Engine(
+            engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+        ) => {
+            unreachable!("the root drives its own start")
         }
         engine::StoreRequest::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
             let owner = routes.token()?;

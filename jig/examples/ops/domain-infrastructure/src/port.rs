@@ -153,7 +153,7 @@ fn ask_engine(
                 out.push(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Released { project })));
             }
             // Task reliance is released with the task; there are no separate adoptions or project settings.
-            lifecycle::Ask::Adopt { .. } => {}
+            lifecycle::Ask::Adopt { .. } | lifecycle::Ask::Restore => {}
         },
         jig::Ask::Resources(ask) => resources(domain, env, ask, system, out),
         jig::Ask::Effects(ask) => effects(domain, env, ask, system, out),

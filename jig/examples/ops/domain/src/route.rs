@@ -220,6 +220,10 @@ fn engine_out(
     for _ in 0..out.len() {
         match out.pop().expect("engine output count") {
             Out::Core(request) => core_request(domain, env, decision, request, work),
+            Out::Write(write) => core_request(domain, env, decision, core::Request::Write(write), work),
+            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => {
+                unreachable!("the root drives its own start")
+            }
             Out::Ask(number, ask) => match jig_ops_domain_connectors::connector(number.0) {
                 Some(Connector::Infrastructure) => work.push(Work::Infrastructure(infrastructure::Event::Ask(ask))),
                 Some(Connector::Observability) => work.push(Work::Observability(observability::Event::Ask(ask))),
@@ -253,6 +257,7 @@ pub(crate) fn core_request(
     work: &mut Queue<Work>,
 ) {
     match request {
+        core::Request::Write(core::Write::Wires) => write(domain, decision, Write::Wires),
         core::Request::Write(core::Write::DropHistory { task }) => {
             write(domain, decision, Write::DropHistory { task });
         }

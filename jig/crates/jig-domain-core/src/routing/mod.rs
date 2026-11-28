@@ -347,9 +347,38 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
 
 /// Store completions take the same decision entrance, including during stopping.
 pub(crate) fn step_store(core: &mut Core, env: &Env<Limits>, input: crate::engine::store::In) -> Queue<Request> {
-    let crate::engine::store::In::Loaded { load, .. } = &input;
-    if !crate::loads::awaited(core, *load) {
-        return Queue::uncapped();
+    use crate::engine::store::In;
+    match &input {
+        In::Loaded { load, .. } => {
+            if !crate::loads::awaited(core, *load) {
+                return Queue::uncapped();
+            }
+        }
+        In::Fill { .. } | In::Census(..) => {
+            use crate::start::Phase;
+            if let Some(
+                Phase::LoadCore
+                | Phase::LoadInbox
+                | Phase::RestoreConnector { .. }
+                | Phase::Link
+                | Phase::Sweep
+                | Phase::Switch
+                | Phase::Wires,
+            ) = core.start_phase()
+            {
+                if !core.stopping && core.start_failure().is_none() {
+                    match input {
+                        In::Fill { bytes } => core.start.fill = Some(bytes),
+                        In::Census(value) => core.start.census = Some(value),
+                        In::Loaded { .. } | In::Opened { .. } | In::Switched => {
+                            unreachable!("only reports wait for adoption")
+                        }
+                    }
+                }
+                return Queue::uncapped();
+            }
+        }
+        In::Opened { .. } | In::Switched => return Queue::uncapped(),
     }
     core.start_input();
     if core.start_failure().is_some() {
@@ -365,7 +394,11 @@ pub(crate) fn step_connector(
     up: jig_domain_contract::Up,
 ) -> Queue<Request> {
     if let jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done { stage }) = up {
-        core.catch_up_done(connector, stage);
+        use jig_domain_contract::lifecycle::RestartStage;
+        match stage {
+            RestartStage::Restored => {}
+            RestartStage::ReadAfresh | RestartStage::Settled => core.catch_up_done(connector, stage),
+        }
         return Queue::uncapped();
     }
     core.start_input();
@@ -510,7 +543,21 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
         }
         Work::Event(event) => step_one(core, env, event, work),
         Work::Connector(connector, up) => connectors::step(core, env, work, connector, up),
-        Work::Store(event) => crate::loads::loaded(core, env, work, event),
+        Work::Store(event) => match event {
+            crate::engine::store::In::Loaded { load, result } => crate::loads::loaded(core, env, work, load, result),
+            crate::engine::store::In::Fill { bytes } => {
+                core.fill = bytes;
+                stopping::empty()
+            }
+            crate::engine::store::In::Census(value) => {
+                core.census = Some(value);
+                core.touch_deployment();
+                stopping::empty()
+            }
+            crate::engine::store::In::Opened { .. } | crate::engine::store::In::Switched => {
+                unreachable!("start handshakes do not enter runtime routing")
+            }
+        },
         Work::Resources(batch) => {
             let mut out = task::resume_resources(core, env, work, batch);
             crate::admission::deletion::advance(core, env, &mut out);
@@ -555,15 +602,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             *change,
         ),
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
-        Event::Fill { bytes } => {
-            core.fill = bytes;
-            stopping::empty()
-        }
-        Event::Census(value) => {
-            core.census = Some(value);
-            core.touch_deployment();
-            stopping::empty()
-        }
         Event::Settling => {
             core.settling = true;
             stopping::empty()

@@ -178,6 +178,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Out>) {
 fn asked(domain: &mut Domain, env: &Env<Limits>, ask: jig::Ask, raw: &mut Queue<Request>, out: &mut Queue<Out>) {
     let event = match ask {
         jig::Ask::Lifecycle(ask) => match ask {
+            lifecycle::Ask::Restore => return,
             lifecycle::Ask::CatchUp => {
                 let mut procedures = List::with_capacity(domain.procedures.len());
                 for (task, _) in &domain.procedures {

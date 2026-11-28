@@ -94,7 +94,7 @@ pub(crate) fn done(
     if domain.engine.core().start_opened()
         && let Some(bytes) = domain.start.fill.take()
     {
-        work.push(Work::Core(core::Event::Fill { bytes }));
+        work.push(Work::Store(core::engine::store::In::Fill { bytes }));
     }
     crate::route::core_out(domain, env, decision, out, work);
     work.push(Work::Start(action));

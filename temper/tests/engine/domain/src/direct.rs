@@ -274,6 +274,7 @@ impl Driver {
                     match &range {
                         engine_store::Range::Read(_) => {}
                         engine_store::Range::Notes(range) => self.note_loads.push((load, range.clone())),
+                        engine_store::Range::Start { .. } => unreachable!("the root drives its own start"),
                         engine_store::Range::Window { .. } => unreachable!("window answered above"),
                         engine_store::Range::Record(key) => {
                             self.point_loads.push((load, engine_store::Range::Record(key.clone())));

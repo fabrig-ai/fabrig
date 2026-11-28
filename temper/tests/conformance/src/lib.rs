@@ -472,6 +472,7 @@ impl Application for Temper {
                 let loaded =
                     |answer| Input::Event(Event::Root(engine::Event::Store(engine::StoreInput::Engine(answer))));
                 return Ok(match range {
+                    engine_store::Range::Start { .. } => unreachable!("the root drives its own start"),
                     engine_store::Range::Window { task, from } => {
                         store.window(load, task, from).into_iter().map(loaded).collect()
                     }

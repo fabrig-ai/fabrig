@@ -79,6 +79,10 @@ fn route_engine_outputs(
                     route_request(domain, env, decision, request, work);
                 }
             }
+            Out::Write(write) => route_request(domain, env, decision, core::Request::Write(write), work),
+            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => {
+                unreachable!("the root drives its own start")
+            }
             Out::Ask(connector, ask) => match connector.0 {
                 1 => work.push(Work::Connector { number: 1, event: connector::Event::Ask(ask) }),
                 2 => work.push(Work::Connector { number: 2, event: connector::Event::Ask(ask) }),
@@ -98,6 +102,7 @@ pub(super) fn route_request(
     work: &mut Queue<Work>,
 ) {
     match request {
+        core::Request::Write(core::Write::Wires) => write(domain, decision, Write::Wires),
         core::Request::Write(core::Write::DropHistory { task }) => {
             write(domain, decision, Write::DropHistory { task });
         }

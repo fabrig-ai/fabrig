@@ -80,6 +80,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         out.push(Request::Held(Box::new(Held::Restarting { wait })));
     }
     core.stopping = true;
+    crate::start::port::stop(core);
     crate::loads::discard_waiting_points(core);
     core.loads.cancel_notes_retry();
     core.draining = Some(true);
@@ -177,8 +178,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::StartRecurring { .. }
         | Event::Period { .. } => Err(empty()),
         event @ (Event::Settling
-        | Event::Fill { .. }
-        | Event::Census(..)
         | Event::Waits { .. }
         | Event::Marked { .. }
         | Event::Read { .. }

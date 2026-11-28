@@ -303,7 +303,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Store(crate::StoreInput::Census(census)) => {
             if domain.start_runtime() {
-                domain.work.push(Work::Core(core::Event::Census(census)));
+                domain.work.push(Work::EngineStore(core::engine::store::In::Census(census)));
             } else {
                 domain.startup_census = Some(census);
                 return;
@@ -322,7 +322,11 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             }
             domain.durable_commit = number;
             if domain.start_runtime() {
-                let _filled = crate::engine::step(&mut domain.engine, env, In::Core(core::Event::Fill { bytes: fill }));
+                let _filled = crate::engine::step(
+                    &mut domain.engine,
+                    env,
+                    In::Store(core::engine::store::In::Fill { bytes: fill }),
+                );
             } else {
                 domain.startup_fill = Some(fill);
             }
@@ -488,6 +492,10 @@ fn route_engine_with_job(
     for _ in 0..outputs.len() {
         let request = match outputs.pop().expect("engine output count") {
             Out::Core(request) => request,
+            Out::Write(write) => core::Request::Write(write),
+            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => {
+                unreachable!("the root drives its own start")
+            }
             Out::Ask(connector, ask) => {
                 asks::connector_ask(domain, env, decision, connector, ask);
                 continue;
@@ -502,6 +510,9 @@ fn route_engine_with_job(
             }
         };
         match request {
+            core::Request::Write(core::Write::Wires) => {
+                save(decision, &env.limits, Write::Wires);
+            }
             core::Request::Write(core::Write::Save(record)) => {
                 if let core::Record::Core(core::CoreRecord::Part(part)) = &record {
                     domain.hold_bytes(skein_lib::len_u64(part.body.len()));

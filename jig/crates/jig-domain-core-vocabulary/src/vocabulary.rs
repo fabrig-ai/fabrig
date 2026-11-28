@@ -1,11 +1,12 @@
 //! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
+pub use crate::engine::store::Write;
 pub use jig_domain_contract::ops::Carried;
 pub use jig_domain_contract::procedures::StepRefusal;
 pub use jig_domain_contract::resources::{HoldingsNeed, HoldingsRefusal};
 
 use crate::waits::Figures;
-use crate::{CallKey, CallPart, Delegate, Key, ProcedureStep, Record, RunCharter};
+use crate::{CallKey, CallPart, Delegate, ProcedureStep, RunCharter};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
@@ -110,29 +111,6 @@ pub enum Ask {
         grants: Box<[jig_domain_link::Grant]>,
         workspace: Option<Box<[u8]>>,
     },
-}
-
-/// Store mutation issued by a child of the core.
-#[derive(Hash, Debug)]
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "durable run proofs carry placement evidence; writes retain the shared record vocabulary"
-    )
-)]
-pub enum Write {
-    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1;
-    /// jig/docs/design/domain/people/acts.md, 2).
-    DropTranscript { task: u64 },
-    /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
-    DropHistory { task: u64 },
-    /// Copy the old held revision to history without materialising it in the core.
-    CopySettingsRevision(u32),
-    /// Save one authentic core or child record.
-    Save(Record),
-    /// Erase one authentic core or child key.
-    Erase(Key),
 }
 
 /// Core output that must follow the decision's commit.
@@ -768,10 +746,6 @@ pub enum Event {
     SettingsCommit { room: u32 },
     /// A connector's deployment act, without a party or sign-in (domain/people/acts.md, 3).
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<people::Act>, carried: Option<Carried> },
-    /// Store map bytes from each commit answer; needs no commit (protocol/store/growth.md, 1.2).
-    Fill { bytes: u64 },
-    /// Last store report; refresh the deployment document (protocol/store/growth.md, 1.3).
-    Census(Box<crate::documents::deployment::StoreCensus>),
     /// Refuse new decisions while the service drains (domain/engine/restart.md, 5).
     Stopping,
     /// Place nothing while taking every commit (domain/engine/restart.md, 5).
@@ -1179,8 +1153,6 @@ impl Event {
             | Self::Period { .. }
             | Self::NamedAction { .. } => true,
             Self::SettingsCommit { .. }
-            | Self::Fill { .. }
-            | Self::Census(..)
             | Self::Settling
             | Self::Stopping
             | Self::Waits { .. }
@@ -1557,15 +1529,6 @@ mod admission_tests {
         let reply_to = ReplyTo::new(Token::new(1));
         for (event, new) in [
             (Event::Stopping, false),
-            (Event::Fill { bytes: 0 }, false),
-            (
-                Event::Census(Box::new(crate::documents::StoreCensus {
-                    commit: 0,
-                    since: 0,
-                    keyspaces: skein_lib::List::with_capacity(0),
-                })),
-                false,
-            ),
             (Event::Unwatch { watcher: Token::new(1) }, false),
             (Event::Fleet(fleet::Event::Lost { channel: Token::new(1) }), false),
             (

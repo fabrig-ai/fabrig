@@ -466,14 +466,16 @@ fn a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken() {
     let mut load_token = None;
     while let Some(request) = out.pop() {
         match request {
-            Out::Core(Request::Write(_)) => {}
+            Out::Write(_) => {}
             Out::Held(Peer::Store(engine_store::Out::Load {
                 load,
                 range: engine_store::Range::Window { task: FIRST, from: (1, 1) },
             })) => {
                 assert!(load_token.replace(load).is_none(), "one held request for the entire window");
             }
-            other @ (Out::Core(_) | Out::Held(_) | Out::Ask(..)) => panic!("unexpected preparation output: {other:?}"),
+            other @ (Out::Core(_) | Out::Held(_) | Out::Ask(..) | Out::Now(_)) => {
+                panic!("unexpected preparation output: {other:?}")
+            }
         }
     }
     let token = load_token.expect("the engine loads the window on the held port");

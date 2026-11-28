@@ -1136,6 +1136,11 @@ impl World {
                 let result = self.store.read(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             }
+            engine::StoreRequest::Engine(
+                engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+            ) => {
+                unreachable!("the root drives its own start");
+            }
             engine::StoreRequest::Engine(engine_store::Out::Load {
                 load,
                 range:

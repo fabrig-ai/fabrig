@@ -140,7 +140,9 @@ pub(super) fn proposal_loaded(
     }
     let project = core.tasks.task(key.task).expect("current reading task").project;
     let value = match result {
-        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        engine_store::Answer::Rows(
+            engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. } | engine_store::Rows::Start { .. },
+        )
         | engine_store::Answer::Cut { .. }
         | engine_store::Answer::Failed(
             engine_store::Failure::Busy
@@ -243,7 +245,9 @@ pub(super) fn run_loaded(
     let range = pending.range.clone();
     core.loads.retire(name);
     let value = match result {
-        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        engine_store::Answer::Rows(
+            engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. } | engine_store::Rows::Start { .. },
+        )
         | engine_store::Answer::Cut { .. }
         | engine_store::Answer::Failed(
             engine_store::Failure::TooLinked { .. }
@@ -610,7 +614,11 @@ pub(super) fn project_proposal_loaded(
         Answer::None(Why::Unknown)
     } else {
         match result {
-            engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+            engine_store::Answer::Rows(
+                engine_store::Rows::Records { .. }
+                | engine_store::Rows::Turns { .. }
+                | engine_store::Rows::Start { .. },
+            )
             | engine_store::Answer::Cut { .. }
             | engine_store::Answer::Failed(
                 engine_store::Failure::Busy
@@ -651,7 +659,11 @@ pub(super) fn metadata_loaded(
         Answer::None(Why::Unknown)
     } else {
         match result {
-            engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+            engine_store::Answer::Rows(
+                engine_store::Rows::Records { .. }
+                | engine_store::Rows::Turns { .. }
+                | engine_store::Rows::Start { .. },
+            )
             | engine_store::Answer::Cut { .. }
             | engine_store::Answer::Failed(
                 engine_store::Failure::TooLinked { .. }

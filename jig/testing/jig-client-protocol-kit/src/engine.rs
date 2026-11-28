@@ -437,8 +437,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
     match event {
         core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => Some(*watcher),
         core::Event::SettingsCommit { .. }
-        | core::Event::Fill { .. }
-        | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
         | core::Event::Waits { .. }

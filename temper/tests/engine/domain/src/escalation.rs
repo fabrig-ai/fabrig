@@ -712,6 +712,12 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
+                engine::Request::Store(engine::StoreRequest::Engine(
+                    engine_store::Out::Switch
+                    | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+                )) => {
+                    unreachable!("the root drives its own start");
+                }
                 engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
                     load,
                     range:

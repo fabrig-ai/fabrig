@@ -66,8 +66,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         core::Event::StreamDelivered { watcher } => root::PartyInput::StreamDelivered { watcher },
         core::Event::SettingsCommit { .. }
         | core::Event::SubscribeTopic { .. }
-        | core::Event::Fill { .. }
-        | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
         | core::Event::Waits { .. }
