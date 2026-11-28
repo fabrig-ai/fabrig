@@ -196,7 +196,23 @@ impl World {
         engine::WorkerInput::DecodedHostCall { to, body }
     }
 
-    /// Stop once the changed branch opens, or the unchanged close ends durably.
+    pub(super) fn is_close_hook_story(&self) -> bool {
+        self.close_job.as_ref().is_some_and(|story| story.fallback.is_empty())
+    }
+
+    pub(super) fn close_hook_revision_read(&self, head: skein_forge::api::Commit, path: &[u8]) -> bool {
+        if !self.is_close_hook_story() {
+            return false;
+        }
+        let tip = self.forge.branch(REMOTE, b"main").expect("home landing tip");
+        // temper/docs/design/domain/forge/temper-dir.md, 2: the home revision reads
+        // the pinned hooks listing and its listed config, never a hook executable.
+        head == temper_engine_forge_world::translate::commit(tip)
+            && (path == b".temper/hooks"
+                || (path == b".temper/hooks/config.toml" && self.forge.tree(tip).contains_key(path)))
+    }
+
+    /// Record the job's delivery, then check that the hooks-only goal lands.
     pub fn run_close_job(&mut self) -> CloseJobReport {
         for _ in 0..STEPS {
             self.tick();
@@ -218,7 +234,7 @@ impl World {
         let tree = head.map(|head| self.forge.tree(head)).unwrap_or_default();
         let story = self.close_job.as_ref().expect("close story");
         let spawn = story.spawn.as_ref().unwrap_or_else(|| panic!("close command spawned: {change:?}"));
-        CloseJobReport {
+        let report = CloseJobReport {
             hello: story.hello.clone(),
             tip: story.tip.expect("goal tip"),
             head,
@@ -233,7 +249,27 @@ impl World {
             args: spawn.args.clone(),
             request: spawn.request.clone(),
             directory: spawn.directory.clone(),
+        };
+        if self.is_close_hook_story() {
+            self.finish_close_hook();
         }
+        report
+    }
+
+    fn finish_close_hook(&mut self) {
+        let before = self.forge.branch(REMOTE, b"main").expect("home landing tip");
+        for _ in 0..STEPS {
+            self.tick();
+            let head = self.forge.branch(REMOTE, b"main").expect("home landing tip");
+            if head != before {
+                assert_eq!(
+                    self.forge.tree(head).get(b"status.md".as_slice()).map(Vec::as_slice),
+                    Some(b"settled\n".as_slice())
+                );
+                return;
+            }
+        }
+        panic!("hooks-only goal did not land: {:?}; close {:?}", self.observed, self.close_change());
     }
 
     fn close_change(&self) -> Option<temper_engine_domain_forge::ChangeRow> {

@@ -1427,11 +1427,18 @@ impl World {
     fn forge(&mut self, call: Token, repository: skein_forge::api::Repository, op: &skein_forge::api::Op) {
         use skein_forge::api::{Op, Read};
         if (self.merge_job.is_some() || self.close_job.is_some())
-            && let Op::Read(Read::File { path, .. }) = op
+            && let Op::Read(Read::File { head, path, .. }) = op
+            && (path.as_ref() == b".temper/hooks" || path.starts_with(b".temper/hooks/"))
         {
             assert!(
-                path.as_ref() != b".temper/hooks" && !path.starts_with(b".temper/hooks/"),
-                "the worker finds hooks in its checkout, not through the forge"
+                self.close_hook_revision_read(*head, path),
+                "the worker finds hook executables in its checkout, not through the forge: {op:?}"
+            );
+        }
+        if self.is_close_hook_story() {
+            assert!(
+                !matches!(op, Op::Read(Read::Compare { .. })),
+                "the hooks-only repository needs no landing comparison (temper/docs/design/domain/forge/temper-dir.md, 4)"
             );
         }
         if self.hold_workload_close(call, repository, op) {
