@@ -91,10 +91,6 @@ sections 1.3 and 1.5, list them.
   the API names them by login in paths and bodies. The component keeps
   a table of the two (connection-calls.md, section 1).
 
-### 1.2 Each operation
-
-Moved to [`forgejo-operations.md`](forgejo-operations.md), section 1.
-
 ### 1.3 Decoding answers
 
 - **Streams, not documents.** Each answer's decoder is a state machine

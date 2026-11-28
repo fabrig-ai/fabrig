@@ -299,7 +299,7 @@ the output stream is finished once what is queued has gone.
 
 - **With a stream each way,** reading goes on until the peer ends or the
   owner closes.
-- **Over one stream,** ../runtime/lib.md's contract allows finishing only with no read
+- **Over one stream,** the stream contract allows finishing only with no read
   outstanding (../runtime/lib-streams.md, section 1). The machine finishes once the read in
   flight is answered, or has crossed the end, and reads nothing after it.
   An owner that must read until the peer's end finishes after it hears
@@ -347,7 +347,7 @@ the output stream is finished once what is queued has gone.
 | output failed | with a stream each way, the write stream failed |
 | closed | the terminal, with why |
 
-- **Below,** the machine speaks ../runtime/lib.md's stream: read-only demands to the
+- **Below,** the machine speaks ../runtime/lib-streams.md's stream: read-only demands to the
   stream it reads, and `../runtime/lib-streams.md`, section 1.1's output to the stream it writes.
 - **Bounds.** Each entry point has a most-outputs bound, which the owner
   reserves first.

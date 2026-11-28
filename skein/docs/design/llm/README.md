@@ -65,10 +65,6 @@ headers.
   by the prompt's affinity; Anthropic's cache breakpoints sit at positions
   fixed by the prompt's shape.
 
-## 2. Vocabulary and ownership
-
-Moved to [`vocabulary.md`](vocabulary.md), section 1.
-
 ## 3. Driving the stack
 
 `client::down` accepts `Start`, `Next`, `Cancel` and `Close`.
@@ -112,10 +108,6 @@ It uses `abort` with `TimedOut { phase }` to report its timeout, or with
 the transport's failure. Failures include evidence: unsent, possibly
 sent, or a provider response received with its status. This does not
 instruct a caller to retry.
-
-## 4. Bounds and wire format
-
-Moved to [`wire.md`](wire.md), section 1.
 
 ## 5. Verification
 
@@ -242,7 +234,7 @@ unless marked:
   stories need an API key that no live run lends, so the owner runs them,
   one at a time (section 5). How the owner runs them is decided later.
 - **Anthropic's decoded bound.** `anthropic::decoded_bound` is OpenAI's with
-  Anthropic's added (4), so it counts OpenAI's request items, which Anthropic
+  Anthropic's added (`wire.md`, 1), so it counts OpenAI's request items, which Anthropic
   never holds. Dropping them changes what a public function returns. Its one
   reader outside the crate, `skein-fake-llm-protocol`, asks only whether it
   is `Some`, so it can shrink when a consumer wants the room.

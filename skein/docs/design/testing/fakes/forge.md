@@ -558,10 +558,6 @@ against.
   service's. A bridge for real git is designed separately, and lands
   here.
 
-## 4. The protocol layer
-
-Moved to [`forgejo.md`](forgejo.md), section 1.
-
 ## 5. The forge peer
 
 `skein_fake_peers::forge::Peer` hosts the protocol layer as the LLM and OAuth
