@@ -1,12 +1,13 @@
 # Any project: temper without fabrig's way
 
-Draft, 2026-11-27, from a session with the user that day. temper is being made "more 'consumable' by any project": [ways.md](ways.md) and [pair.md](pair.md) move configuration and ownership into a repository's `.temper/`, and the user is starting on how a person meets it. What was still missing is "how ways like 'goal' and 'milestone' (or really any complex way the users may want, possibly fully custom, see the ways-gallery.md for reference) would work for a random project". Two questions: how much the stock is "'biased' towards fabrig's own way of developing, in particular the docs/design approach, with its drafts, .execution.md's, .status.md's"; and "what would a random project do to take advantage of temper's capabilities? how would a new project just 'plug' temper into it?". The user's direction: "encourage 'design as contract' but not quite require it (and expecially not require a certain definite form of it, like docs/design) and perhaps let it live more in a 'spectrum', where you can still take advanage of temper in your own way". This draft surveys where fabrig's way is built in (section 2), lays design out as a spectrum (3), splits who says what (4), gives a goal a plan of its own that never lands (5), carries goals and milestones to any project (6), and says how a project plugs temper in (7). It changes the stock charters ([stock-charters.md](stock-charters.md)), the chat's goal start, and [ways-temper-dir.md](ways-temper-dir.md), section 7's first change.
+Draft, 2026-11-27, from a session with the user that day. temper is being made "more 'consumable' by any project": [ways.md](ways.md) and [pair.md](pair.md) move configuration and ownership into a repository's `.temper/`, and the user is starting on how a person meets it. What was still missing is "how ways like 'goal' and 'milestone' (or really any complex way the users may want, possibly fully custom, see the ways-gallery.md for reference) would work for a random project". Two questions: how much the stock is "'biased' towards fabrig's own way of developing, in particular the docs/design approach, with its drafts, .execution.md's, .status.md's"; and "what would a random project do to take advantage of temper's capabilities? how would a new project just 'plug' temper into it?". The user's direction: "encourage 'design as contract' but not quite require it (and expecially not require a certain definite form of it, like docs/design) and perhaps let it live more in a 'spectrum', where you can still take advanage of temper in your own way". This draft surveys where fabrig's way is built in (section 2), lays design out as a spectrum (3), splits who says what (4), gives a goal a plan of its own that never lands (5), carries goals and milestones to any project (6), and says how a project plugs temper in (7). On 2026-11-28 the user kept this first pass to the rungs' basics and mechanics: temper agnostic of any one form, and fabrig "its first concrete consumer, at rung 4, with fabrig's own tweaks living in its .temper/ (eventually, when the ways work completes) and in its AGENTS.md (and related documents)" (section 8). Proposing a higher rung to a project is left out. It changes the stock charters ([stock-charters.md](stock-charters.md)), the chat's goal start, and [ways-temper-dir.md](ways-temper-dir.md), section 7's first change.
 
 ## 1. In one page
 
 - **Nothing fails without fabrig's way, but the stock brings it along** (section 2). A project with no `docs/design/` can start a goal from words. The stock goal is then told to write "documents that outlast the goal", status entries and a contracts document into a repository that never asked for them, and the web's goal start commits a chat's draft at `docs/design/draft/`. A few words of fabrig's are fixed in code: `focused` and `fuzzy`, `main` and `temper`.
-- **Design as contract, on a spectrum of four rungs** (section 3): the request alone; a plan of the goal's own; a record that stays; a design the code follows. Each rung keeps more and costs more. fabrig sits on the fourth. temper works on all four, and its stock goal stands on the second, so every goal gets the plan's benefits and no project gets files it didn't ask for.
-- **The project's guide says its convention; temper's words say the method** (section 4). Where design lives and how it is kept is the project's, for every agent and person, so it belongs in `AGENTS.md`, where fabrig already says "the design is the contract". What a goal does with it is temper's, in a new stock charter file, `design`, that defers to the guide. The stock's words lose DESIGN.md's model, which moves to fabrig's own words. The rung is no setting.
+- **Design as contract, on a spectrum of four rungs** (section 3): the request alone; a plan of the goal's own; a record that stays; a design the code follows. Each rung keeps more and costs more. temper works on all four, and its stock goal stands on the second, so every goal gets the plan's benefits and no project gets files it didn't ask for.
+- **The project's guide says its convention; temper's words say the method** (section 4). Where design lives and how it is kept is the project's, for every agent and person, so it belongs in `AGENTS.md`, where fabrig already says "the design is the contract". What a goal does with it is temper's, in a new stock charter file, `design`, that defers to the guide. The stock's words lose DESIGN.md's model. The rung is no setting.
+- **fabrig is the first consumer, on the fourth rung** (section 8). temper knows nothing of its form. Its convention is its guide's, `AGENTS.md` and `DESIGN.md`, and its method its own charters' words: its overlay today, its `.temper/` once the ways work lands. What it needs is what any project on rung 4 would write.
 - **A goal's own plan lives in `.goal/` on its branch** (section 5): its changes read it in their checkouts, code takes it out before the branch lands, and the landing's pull request keeps it. It replaces the contracts document and the last change that deletes it.
 - **Goals start from words, a draft or an issue** (section 6). The draft is optional on the web, and a chat's draft is committed only where the project keeps drafts. A milestone's design sits at the project's rung, and a person, or later a planner agent, cuts it into goals.
 - **Plugging in is a ladder** (section 7). It starts with a forge, a repository and a model, and nothing written: Pair and Hand it over run as they are. Each rung after that pays on its own: a guide, a check at delivery, CI, ways of the project's own, a higher design rung. Ask temper reads the repository and proposes the setup as one change a person reads, "Set up temper here", in place of "Add .temper/ with your ways".
@@ -77,7 +78,6 @@ Each benefit costs writing and keeping. A project buys only as much as it values
 ### 3.4 Encouraged, not required
 
 - **Seen working:** every goal's plan is on its page while it runs, and in its pull request after. A person sees design as contract pay off before being asked to keep anything.
-- **Offered at the right moment:** Ask temper, reading a project's landed goals, proposes the next rung once its plans repeat what a record would hold, as a change to the guide a person decides (7.4).
 - **Never a gate:** no rung is checked, and no way refuses work for want of a design.
 
 ## 4. Who says what
@@ -105,9 +105,12 @@ A sixth file in the stock's set ([stock-charters.md](stock-charters.md), section
 - **The other stock files lose DESIGN.md's model:** "documents that outlast the goal" becomes "the design, kept as `design` says"; the contracts document becomes `.goal/contracts.md`, and its deleting change goes; **Not yet**, `[in flight: change N]`, **Design departs** and "the status the project keeps" leave the stock; "world or file" becomes "the project's test layout"; "test kits'" goes.
 - **Composed in place by a way** (`ways-recipes.md`, section 2) like any file: a project with its own ways edits its `design` file to fix its rung, or a way names another, as Hotfix's might.
 
-### 4.3 What moves to fabrig's words
+### 4.3 What fabrig keeps, and where
 
-fabrig's overlay gains what the stock drops, so fabrig's goals read the same rules as today ([stock-charters.md](stock-charters.md), section 5): status entries and their tags as `DESIGN.md`, section 2 says, **Design departs**, test worlds. Its contracts document moves to `.goal/contracts.md` like every project's (10, question 4).
+- **Its convention, in its guide:** `AGENTS.md`, section 1 says the design is the contract, and `DESIGN.md` says how drafts, design documents and status files are kept, with their **Not yet** entries, their `[in flight: change N]` tags and **Design departs**. Read through the stock's `design` file (4.2), they hold for fabrig's goals as they do today. Its overlay already says "Status follows `DESIGN.md`, section 2" (`temper/docs/charters/fabrig/goal.md`).
+- **Its method, in its charters' words:** what only temper's roles need, which no other agent or person reads: the suites a spec names, budgets, reds' keys, the citations' maps. It is its overlay today ([stock-charters.md](stock-charters.md), section 5), and its `.temper/charters/` once the ways work lands ([ways.md](ways.md), section 10).
+- **What the stock drops and fabrig still needs:** where `DESIGN.md` doesn't already say it, fabrig's overlay gains it in the same landing, so that fabrig's goals read the same rules as before. Test worlds are one such rule.
+- **Its contracts document** moves to `.goal/contracts.md`, like every project's (10, question 4).
 
 ## 5. A goal's own plan
 
@@ -176,13 +179,10 @@ Each step is a change to the repository, and none needs the next.
 - **It lands by the project's rules,** so that the first thing temper writes in a repository is a change a person reads. Every word an agent will read is then in the repository or in the stock's files: "no magic, expecially around prompts" ([ways.md](ways.md), second pass).
 - **Judgement is Ask temper's, the change is code's:** reading a repository and choosing is a model's; opening the change and checking `.temper/` before it lands are temper's ([ways-temper-dir.md](ways-temper-dir.md), section 6).
 
-### 7.4 Climbing later
-
-Ask temper proposes the next rung as it sees a project use temper: plans that repeat what a record would hold, a red that a check at delivery would have caught, a way the project keeps adjusting. Each proposal is a change a person decides. It is left for later (section 11).
-
 ## 8. fabrig and dev.fabrig.ai
 
-- **fabrig stays on rung 4,** said by its guide as now, its method in its overlay's words (4.3) until it picks its ways, then in its own `.temper/charters/`.
+- **The first consumer, on rung 4:** fabrig uses temper as any project on that rung would, with nothing in temper's code or stock words that knows its form. Each of its tweaks lives in its own repository: its convention in `AGENTS.md` and `DESIGN.md`, its method in its overlay's words until it picks its ways, then in its `.temper/charters/` (4.3).
+- **The test of the split:** whatever fabrig still needs from temper that its guide and its charters can't say is a coupling left in temper, to be named and removed.
 - **dev.fabrig.ai runs as before:** its lean charter is rebuilt from charter 5 by a script kept outside this repository ([ways.md](ways.md), section 10), so the stock's `design` file and fabrig's added words reach it together, in the release that carries both, by the by-hand step that release names under `## Dev` ([ways.execution.md](ways.execution.md), section 2).
 - **The contracts document and its deleting change go** for fabrig too, once `.goal/` lands (10, question 4).
 
@@ -205,7 +205,6 @@ Ask temper proposes the next rung as it sees a project use temper: plans that re
 ## 11. Later
 
 - **Issues as goals:** a goal started from an issue, its plan and progress written back to it.
-- **Climbing:** Ask temper proposing the next rung from what it sees (7.4).
 - **Plan and schedule:** the gallery entry of 6.2.
 - **Documentation other than Markdown:** a goal's own delivery taking the project's documentation formats where rung 3 or 4 keeps records in another.
 - **Rungs in the gallery:** an entry per rung, its `design` file shown beside its way.
