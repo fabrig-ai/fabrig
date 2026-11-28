@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 1: a close change's start is refused where it carries no parameter 20 and its project names no `close_job`, and parameter 20 is written and read [in flight: change 21664].
 
 
 

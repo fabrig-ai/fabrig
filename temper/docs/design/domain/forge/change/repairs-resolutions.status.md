@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [repairs-resolutions.md](repairs-resolutions.md).
 
-- **Not yet:** 1, *The merge job*: the change reads `.temper/hooks/` at the merge's head first, and makes no merge job where it finds no command [in flight: change 21664].
 
 - **Not yet:** "A repair" and "A resolution": the preservation words, a resolution's instructions, full and compact, and the coding charter's line yield to the request as revised and an answer, not the current spec and rulings, and a resolution's merge-job result takes its room before the change's context [in flight: change 6059].
 

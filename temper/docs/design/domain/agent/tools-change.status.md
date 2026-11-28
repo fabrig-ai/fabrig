@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
 
-- **Not yet:** 1, `merge`: a catch-up whose branch's tip has no merge command holds, its words naming why [in flight: change 21664].
 
 
 `tools-change.md`, section 1 has no known implementation gap in whole-goal child isolation:

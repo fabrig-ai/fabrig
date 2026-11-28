@@ -2,9 +2,6 @@
 
 2026-11-27. Where temper's code lags or departs from [wires.md](wires.md).
 
-- **Not yet:** 8: `JobSpec` has no `find` or `fallback`, and `Items` no `hook_timeout_max_seconds` [in flight: change 21656].
-- **Not yet:** 8: the engine sets no `find` or `fallback` on a merge or close job [in flight: change 21664].
-- **Not yet:** 8: the engine sends no hook ceiling in the items, gives merge and close jobs the kinds' ten minutes rather than the project's ceiling, and both sides declare those kinds at ten minutes [in flight: change 21666].
 
 
 - **Not yet:** 5: the engine fits a start to the room at its own layout before converting it, and fits nothing again after: a start that would fit at the worker's layout once cut is refused as invalid, and one that grows past the room is refused without the cuts that would fit it. A converted frame past the room takes `Bound::Room` and is answered `Invalid(Start)`, not *untranslated*.
