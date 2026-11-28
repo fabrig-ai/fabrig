@@ -25,7 +25,7 @@ put it. The kind of each ask: ◆ judgement, · notification, ▷ operation that
 | | `ReleaseProject { project }` | ▷ `Released` | `C::ReleaseProject` |
 | `resources` | `Unname { task }` | · | `E::Unname` |
 | | `Hold { task, resource, entry }` | · | `C::Hold` |
-| | `Lost { task, attempt }` | · | `C::Lost` |
+| | `Lost { task, attempt, resources }` | · | `C::Lost`; `resources: Box<[Name]>` are the asked connector's names whose writer was that attempt, now lost (the tasks child's `lost_writes`, taken as the core makes the ask), so its connector reads them afresh from nothing of the root's; empty where it wrote none |
 | | `Holdings { request, project, root, number, executor, spec, tracked, symbols }` | ◆ `Holdings` | `C::TaskHoldings` |
 | | `DelegateHoldings { request, from, members }` | ◆ `DelegateHoldings` | `C::DelegateHoldings` |
 | | `ProcedureHoldings { task, step, members }` | ◆ `ProcedureHoldings` | `C::ProcedureHoldings` |
@@ -107,7 +107,8 @@ The crate's root wraps them, as `vocabulary.md`, 2.5 shows: `Ask` and `Up` one c
 `Up::Act { key, act, carried }` (today's `C::Act` less `reply_to` and `connector`), and
 `Released::Make { entry }` (today's `Held::MakeEffect`) and `Released::Answered { key, outcome }`
 (today's `Held::Acted`'s outcome, for a connector's act). Each enum derives what today's does
-(`Hash`, `Debug`), and none takes a `_` arm anywhere.
+(`Hash`, `Debug`) and `PartialEq`, `Eq`, as does every value its cases carry, so a connector's
+own vocabulary that holds them keeps its equality; and none takes a `_` arm anywhere.
 
 Not cased, and gone once no root names them: `E`'s `Names`, `Hold`, `ReleaseHold`, `Writer`,
 `Make`, `ProcedureMade`, `ProcedureActivate`, `ProcedureMessage`, `ProcedureClose`, `Project`,
