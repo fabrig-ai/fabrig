@@ -23,9 +23,9 @@ implementer's checkout, `.temper/hooks/finish` being a link to it
 wrapper that runs it, is what a build that reads no hooks calls
 (`temper/docs/design/protocol/hooks.md`, 5). It checks current files,
 including staged, unstaged and new sources.
-The checker creates a private Git index and object store from those files. An
-exported source tree also works. Git ignore rules select sources, and an existing
-checkout's tracked files stay included even if they match an ignore rule.
+The checker creates a private Git index and object store from those files, in
+a git checkout alone (*What changed*, below). Git ignore rules select sources,
+and the checkout's tracked files stay included even if they match an ignore rule.
 The private index starts from the checkout's own index and objects, so only
 changed files are hashed, unless an entry is marked assume-unchanged or
 skip-worktree. The checker rechecks the source tree before publishing its
@@ -226,8 +226,7 @@ receipts, this section takes precedence.
   `target/temper/goal-close-pre-pr.json`, ignored by git and outside the
   git directory, so that an agent's `read` reaches it; the file stays
   until the next completed check replaces it. Section 6 gives their
-  shape under the name `target/temper/pre-pr-failures.json`, which no
-  mode writes now.
+  shape.
 - **Its results for temper.** Under temper's marker it writes
   `temper/check-results` at its end, passed or refused: its tree, base
   and verdict, the goal's reds it passed or failed, and its flakes with
@@ -1038,12 +1037,12 @@ cause.
   - the failures line, naming the failures file (below) and counting
     its entries by class, the same counts as the file's:
     `failures: <N> new, <F> flakes, <I> inherited, <B> broke; every key in
-    target/temper/pre-pr-failures.json`, the file's path from the
+    <file>`, `<file>` the mode's failures file, its path from the
     checkout's root, as an agent's `read` takes it in its workspace
     (smith's `smith-protocol-machine` refuses any path with a `.git`
     part, and the check names no such path). Where the file could not be
     written: `failures: <N> new, <F> flakes, <I> inherited, <B> broke; not written
-    to target/temper/pre-pr-failures.json: <error>`, `<error>` the
+    to <file>: <error>`, `<error>` the
     error's first line, at most 512 bytes, cut at a character's end;
   - the sets: `lints: <packages>`, `tests: <packages>`;
   - section 4's starved lines, the focused run's then the fuzzy run's,
@@ -1079,10 +1078,11 @@ cause.
 - **The failures file** holds every failure the run found, new, flake
   and inherited alike, so that a key the summary had no room for is
   still there to read once the run's directories are gone:
-  - **Where:** `target/temper/pre-pr-failures.json` under the
-    checkout's root, the directory `.temper/pre-pr` runs from (`git
-    rev-parse --show-toplevel`): in a linked worktree, that worktree's
-    root, so each worktree has its own. It is that path whatever cargo's
+  - **Where:** each mode's own path under the checkout's root, a
+    delivery's `target/temper/pre-pr-light-failures.json` and a close's
+    `target/temper/goal-close-pre-pr.json`, the checkout's root being
+    the directory the check runs from (`git rev-parse --show-toplevel`):
+    in a linked worktree, that worktree's root, so each worktree has its own. It is that path whatever cargo's
     target directory is (`CARGO_TARGET_DIR` does not move it), and the
     repository's `.gitignore` ignores `/target/`, so the file is never in
     the delivery's tree, the snapshot or a commit. It is outside the git
@@ -1091,7 +1091,7 @@ cause.
     and smith keeps that guard: an exception naming this file would put
     the application's knowledge in the kit
     (`temper/docs/design/draft/archive/small-fixes-1116.md`, 1). It is written
-    through `target/temper/pre-pr-failures.json.tmp` renamed over it,
+    to a temporary file beside it, renamed over it,
     `target/temper/` made where it is missing, so a reader sees one
     check's file whole. A file an earlier check left in the git
     directory, at `temper/pre-pr-failures.json`, is neither read nor
@@ -1110,7 +1110,7 @@ cause.
     `]}` on the last, so that it reads and searches by line:
 
     ```
-    {"form": "pre-pr-failures 1", "tree": "<tree>", "base": "<base>", "cached": false, "verdict": "refused", "counts": {"new": 2, "flake": 0, "inherited": 1}, "failures": [
+    {"form": "pre-pr-light-failures 1", "tree": "<tree>", "base": "<base>", "cached": false, "verdict": "refused", "counts": {"new": 2, "flake": 0, "inherited": 1}, "comparison": "changes", "scope": "light", "failures": [
     {"class": "new", "name": "test A::rules rule_00", "key": {"kind": "test", "binary": "A::rules", "test": "rule_00"}},
     {"class": "new", "name": "format", "key": null},
     {"class": "inherited", "name": "clippy api clippy::rule api/src/lib.rs", "key": {"kind": "lint", "package": "api", "code": "clippy::rule", "file": "api/src/lib.rs", "message": "<message>"}}
@@ -1122,10 +1122,16 @@ cause.
     - `cached`, `true` on a cache hit alone; `verdict`, `passed`,
       `refused` or `broke`, as the summary's first line;
     - `counts`, the entries of each class, `broke` among them;
+    - `comparison`, `changes`, or `tree-only` where `base` is `null`;
+      `scope`, `light` for a delivery; a
+      close's file has the form `goal-close-pre-pr 1`, `scope` `close`,
+      and `goal_head`, `destination` and `requested_destination` after
+      it (section 4.1);
     - `failures`, one entry for each failure the summary shows or would
       show with room, in its order: the new ones, then the flakes, then
-      the inherited ones, then the check's own errors. `class` is `new`
-      (this delivery's, refusing), `flake` (section 5), `inherited` or
+      the inherited ones, then the check's own errors; a close's in the
+      order its checks found them (section 4.1, *The record's order*).
+      `class` is `new` (this delivery's, refusing), `flake` (section 5), `inherited` or
       `broke` (the check's own, with its error's first line as `detail`);
       `name` is the summary's name
       for it; `key` its structured key: a test's `{"kind": "test",
@@ -1219,8 +1225,8 @@ check's last pass reported. It does write the failures file (section 6),
 saying so: `cached` `true`, `verdict` `passed`, the tree and base it
 reused, zero counts and no failures, since it observed none; after its
 line it prints `failures: a cached pass, none observed; in
-target/temper/pre-pr-failures.json`, or `…; not written to
-target/temper/pre-pr-failures.json: <error>` as the summary's failures
+target/temper/pre-pr-light-failures.json`, or `…; not written to
+target/temper/pre-pr-light-failures.json: <error>` as the summary's failures
 line does.
 The record holds the last pass alone, so a hit is always of the last
 tree that passed here.
