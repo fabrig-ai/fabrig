@@ -27,7 +27,7 @@ pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) {
         return;
     }
     match result(&row.report, row.close_at, pushed) {
-        Some(Verdict::Settled) => {}
+        Some(Verdict::Settled) => clear_findings(row),
         Some(Verdict::Outdated(finding)) => {
             // No landing judgement was made. Leave the job passed so the change can end without a hold.
             let at = row.close_at.as_mut().expect("an outdated finding names its attempt");
