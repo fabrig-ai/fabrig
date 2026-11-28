@@ -27,13 +27,17 @@ for a charter's front matter, and the hooks' `config.toml` reader
   Option<skein_forge::api::Read>` is the next read to send, always a
   `Read::File { head, path, max_bytes }` at that commit, `max_bytes` the
   least of the file's bound (`../../protocol/temper-dir.md`, 3) and
-  `answer_bytes`; `take(&mut self, answer: &Answer) -> Result<(),
-  Unread>` takes its answer.
-- **What `take` keeps:** a `Directory` or `File` answer whose head and
-  path are the call's; `Missing` for `.temper` itself as a tree with no
-  `.temper/`, and for any other path as that entry gone. Any other
-  answer, or one for another head or path, is `Unread`, and the caller
-  ends the read as failed (`temper-dir.md`, 2).
+  `answer_bytes`; `take(&mut self, answer: &Result<Answer, Error>) ->
+  Result<(), Unread>` takes the forge call's result for the read `next`
+  last gave, `Error` being skein-forge's `api::Error`.
+- **What `take` keeps:** an `Ok` `Directory` or `File` answer whose head
+  and path are the call's; `Err(Error::Missing)`, which carries no head
+  or path and so is bound to the pending read, for `.temper` itself as a
+  tree with no `.temper/`, and for any other path as that entry gone. A
+  file the forge cut is an `Ok` answer, judged as
+  `../../protocol/temper-dir.md`, 3 says. Any other answer or error, or an
+  answer for another head or path, is `Unread`, and the caller ends the
+  read as failed (`temper-dir.md`, 2).
 - **Order:** `.temper`'s listing first; then each directory of
   `../../protocol/temper-dir.md`, 2's table it holds, in byte order;
   then each file that table reads, in byte order of its path. `next`
