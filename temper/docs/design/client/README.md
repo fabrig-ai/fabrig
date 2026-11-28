@@ -23,6 +23,8 @@ section 5.
 - **View:** `view.md`, the view; `view-navigation.md`, its navigation.
 - **Browser:** `web/README.md`, the browser's documents.
 - **TUI:** `tui/README.md`, the terminal's documents.
+- **Journeys:** `journey-writer.md`, the after-landing writer;
+  `journey-writer-requests.md`, look requests against its print.
 - **Agents:** `ctl/README.md`, the command-line client's documents.
 
 ## 1. In one page

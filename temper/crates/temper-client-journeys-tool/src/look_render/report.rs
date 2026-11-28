@@ -1,4 +1,4 @@
-//! Tab-separated render verdicts (temper/docs/design/client/journey-writer.md, 6.2, step 8).
+//! Tab-separated render verdicts (temper/docs/design/client/journey-writer-requests.md, 1.2, step 8).
 
 use super::{Why, copies::Page};
 

@@ -286,6 +286,8 @@ forge, temper adds:
   `client/web/journey-redaction.md` a person's recorded file's redaction,
   `client/journey-writer.md` the one writer of main's journey files,
   run after each landing,
+  `client/journey-writer-requests.md` how look requests are compared
+  and rendered against the print, and how their verdicts are kept,
   `client/journey-walks.md` a journey's walk, printed in one process
   with no box, browser or recording,
   `client/web/look-requests.md` the look requests' round trip,

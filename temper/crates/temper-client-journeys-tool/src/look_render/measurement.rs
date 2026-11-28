@@ -1,4 +1,4 @@
-//! Styles and border boxes at the three viewports (temper/docs/design/client/journey-writer.md, 6.2, step 7).
+//! Styles and border boxes at the three viewports (temper/docs/design/client/journey-writer-requests.md, 1.2, step 7).
 
 use std::collections::BTreeMap;
 

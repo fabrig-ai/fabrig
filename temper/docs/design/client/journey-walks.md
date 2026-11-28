@@ -454,7 +454,7 @@ is built from, as `temper-client-journeys` does, under both roots.
 - **A request** is compared by `scripts/look-compare.sh NAME C`, which
   prints its journeys into scratch, `temper-client-walk print --out
   DIR`, and compares DIR's pages three ways with the request's commit's
-  (`journey-writer.md`, 6.1; `web/look-requests.md`, 3).
+  (`journey-writer-requests.md`, 1.1; `web/look-requests.md`, 3).
 - **`welcome-playground`:** the welcome seen and marked, "Try the
   playground" pressed, the playground's New chat seen and marked.
   Two pages.

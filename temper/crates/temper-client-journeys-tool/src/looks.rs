@@ -1,4 +1,4 @@
-//! Landings and the page the writer and refresh share (temper/docs/design/client/journey-writer.md, 6 and 6.3).
+//! Landings and the page the writer and refresh share (temper/docs/design/client/journey-writer-requests.md, 1 and 1.3).
 
 use std::{collections::BTreeMap, fmt::Write as _, path::Path};
 
