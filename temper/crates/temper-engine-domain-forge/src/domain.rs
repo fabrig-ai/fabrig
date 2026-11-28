@@ -6162,6 +6162,10 @@ fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Pend
 }
 
 fn step_touched(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> crate::Touched {
+    // An incomplete comparison covers all classes, regardless of their path sets.
+    if !pending.paths_whole {
+        return crate::Touched::UNKNOWN;
+    }
     match d.repositories.get(&row.repository) {
         Some(repository) => crate::touched(&d.project_classes(repository.project), &pending.paths, pending.paths_whole),
         None => crate::Touched::UNKNOWN,

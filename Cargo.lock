@@ -6907,7 +6907,6 @@ dependencies = [
  "temper-engine-domain-ways",
  "temper-limits-fixtures",
  "temper-protocol-brief",
- "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
 ]
@@ -7094,6 +7093,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
+ "temper-protocol-member-message",
  "temper-protocol-worker-wire",
 ]
 

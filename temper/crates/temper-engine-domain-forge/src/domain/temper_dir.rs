@@ -112,6 +112,9 @@ fn can_check(d: &Domain, row: &ChangeRow, repository: &Repository, step: &Pendin
 }
 
 pub(super) fn needs_probe(d: &Domain, row: &ChangeRow, step: &PendingStep, decision: change::Decision) -> bool {
+    if step.temper_dir.started || step.woken {
+        return false;
+    }
     let landing = if let change::Decision::Effect(change::Effect::Merge { .. }) = decision {
         !d.landing.held
     } else {
@@ -119,8 +122,13 @@ pub(super) fn needs_probe(d: &Domain, row: &ChangeRow, step: &PendingStep, decis
     };
     // An owner-short change waits out of the queue. A new review must be
     // judged before it can become first and propose a merge again.
-    let owner_short = d.temper_dir_owner_short(row);
-    if step.temper_dir.started || step.woken || !(landing || owner_short) {
+    if !landing && !d.temper_dir_owner_short(row) {
+        return false;
+    }
+    let Some(pair) = Pair::at(step) else { return false };
+    // An earlier complete probe of the same immutable pair already established
+    // the step's default, Uncovered; there is no continuation to run.
+    if no_method(d, row.task, pair.head, pair.base) {
         return false;
     }
     if let Some(repository) = d.repository(row.repository) { can_check(d, row, repository, step) } else { false }
@@ -241,7 +249,11 @@ pub(super) fn unread(d: &Domain, row: &ChangeRow) -> TemperDirEvidence {
 }
 
 pub(super) fn fact(d: &Domain, row: &ChangeRow, step: &PendingStep) -> change::TemperDir {
-    if unread(d, row) == TemperDirEvidence::Uncovered { change::TemperDir::Uncovered } else { step.temper_dir.fact }
+    if step.temper_dir.fact == change::TemperDir::Uncovered || unread(d, row) == TemperDirEvidence::Uncovered {
+        change::TemperDir::Uncovered
+    } else {
+        step.temper_dir.fact
+    }
 }
 
 pub(super) fn evidence(d: &Domain, row: &ChangeRow, step: &PendingStep) -> TemperDirEvidence {

@@ -238,7 +238,7 @@ fn tree(env: &Env<Limits>, commit: Commit) -> Tree {
 }
 
 fn next(d: &Domain) -> Option<Token> {
-    if !d.room_for_revision_read() {
+    if d.temper_revisions.reads.is_empty() || !d.room_for_revision_read() {
         return None;
     }
     let mut next = None;
