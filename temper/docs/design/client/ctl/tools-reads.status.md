@@ -5,10 +5,6 @@
 
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
-- **Not yet:** 1: `task runs`, absent from the table. [in flight: change 22684]
-- **Not yet:** 1: `settings show charter` takes no `--project` or
-  `--reason`. [in flight: change 22687]
-- **Not yet:** 1: `charter copy`, absent from the table. [in flight: change 22685]
 - **Not yet:** 1: `settings show charter NUMBER --project PROJECT` heads the
   charter's text with its number and name, but does not say whether the text
   is the stock's or was set whole, when no project charter binds it, its number
