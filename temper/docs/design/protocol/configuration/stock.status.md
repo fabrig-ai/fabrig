@@ -12,7 +12,6 @@
 - **Not yet:** "Claude's cache prices are Anthropic's": the stock prices Claude's cached input as input and no cache write, so C is still 10,896 ("Budgets in runs of the costliest model") [in flight: change 913].
 
 
-- **Not yet:** 5, *Built at each start*: the stock-set test's lint refuses `.goal/contracts.md` as a Markdown file. [in flight: change 22934]
 
 - **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4).
 
