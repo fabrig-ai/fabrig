@@ -2409,7 +2409,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::ReleaseProject { project, request } => adoption::release(d, env, project, request, out),
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
         Event::TakeAdoption { repository, request } => {
-            crate::temper_revision::adopted(d, env, repository, request, out)
+            crate::temper_revision::adopted(d, env, repository, request, out);
         }
         Event::ForgetAdoption { repository, restore } => {
             crate::temper_revision::forget(d, repository);

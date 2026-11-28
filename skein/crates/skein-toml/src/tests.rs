@@ -63,8 +63,13 @@ fn check_value(document: &Document, value: Value, line: u64, expected: &Form) {
     }
 }
 
+fn check_root(input: &str, entries: &[Entry]) {
+    let document = parse(input.as_bytes(), &ROOM).expect(input);
+    check_table(&document, document.root(), TableKind::Root, entries);
+}
+
 #[test]
-fn reads_toml_10_forms_into_ordered_lined_values() {
+fn reads_toml_10_scalars_and_inline_forms() {
     const SCALARS: &str = concat!(
         "\u{feff}# a comment\twith \u{feff}\r\n",
         "bare-key9 = true\r\n",
@@ -127,14 +132,20 @@ fn reads_toml_10_forms_into_ordered_lined_values() {
             ),
         ),
     ];
-    const TREE: &str = concat!(
-        "a . b = 1\n[c]\nd = \"x\"\n",
-        "[implicitly.child]\n[implicitly]\nx = { \"with.dot\".y = [], 'with.dot'.z = {} }\n",
-        "[a.sibling]\n",
-        "[[fruit]]\nname = 'apple'\n[fruit.physical]\ncolor = 'red'\n",
-        "[[fruit.variety]]\nname = 'gala'\n[[fruit.variety]]\nname = 'pink lady'\n",
-        "[[fruit]]\nname = 'banana'\n[[fruit.variety]]\nname = 'plantain'\n",
-    );
+    check_root(SCALARS, SCALAR_ENTRIES);
+}
+
+const TREE: &str = concat!(
+    "a . b = 1\n[c]\nd = \"x\"\n",
+    "[implicitly.child]\n[implicitly]\nx = { \"with.dot\".y = [], 'with.dot'.z = {} }\n",
+    "[a.sibling]\n",
+    "[[fruit]]\nname = 'apple'\n[fruit.physical]\ncolor = 'red'\n",
+    "[[fruit.variety]]\nname = 'gala'\n[[fruit.variety]]\nname = 'pink lady'\n",
+    "[[fruit]]\nname = 'banana'\n[[fruit.variety]]\nname = 'plantain'\n",
+);
+
+#[test]
+fn reads_toml_10_tables_and_arrays() {
     const TREE_ENTRIES: &[Entry] = &[
         (
             "a",
@@ -227,16 +238,23 @@ fn reads_toml_10_forms_into_ordered_lined_values() {
             ]),
         ),
     ];
+    check_root(TREE, TREE_ENTRIES);
+}
+
+#[test]
+fn reads_toml_10_multiline_quotes_and_bom_in_strings() {
     const MORE_STRINGS: &str = "quoted = \"\"\"\"a\"\"b\\\"c\"\"\"\"\nliteral = ''''a''b'''\nmark = '\u{feff}'\n";
     const MORE_ENTRIES: &[Entry] = &[
         ("quoted", 1, 1, Form::String("\"a\"\"b\"c\"")),
         ("literal", 2, 2, Form::String("'a''b")),
         ("mark", 3, 3, Form::String("\u{feff}")),
     ];
-    for (input, entries) in [(SCALARS, SCALAR_ENTRIES), (TREE, TREE_ENTRIES), (MORE_STRINGS, MORE_ENTRIES), ("", &[])] {
-        let document = parse(input.as_bytes(), &ROOM).expect(input);
-        check_table(&document, document.root(), TableKind::Root, entries);
-    }
+    check_root(MORE_STRINGS, MORE_ENTRIES);
+}
+
+#[test]
+fn reads_toml_10_empty_document() {
+    check_root("", &[]);
 }
 
 #[test]
