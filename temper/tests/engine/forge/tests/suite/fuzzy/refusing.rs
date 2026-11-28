@@ -1,4 +1,5 @@
 //! Other users and a finite policy refusal keep the batch checks (testing/fakes.md, 2).
+use jig_domain_contract as contract;
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;
@@ -72,7 +73,9 @@ fn release_unqueued(world: &mut World, branch: &top::Name) {
         world.run_for(1);
         for request in world.take_seen() {
             match request {
-                top::Request::Released { task: OUTSIDE } => released = true,
+                top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: OUTSIDE })) => {
+                    released = true;
+                }
                 top::Request::ContinueRelease { task: OUTSIDE } => {
                     world.event(top::Event::ContinueRelease { task: OUTSIDE, entry });
                 }

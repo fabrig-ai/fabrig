@@ -44,8 +44,8 @@ pub enum Released {
     Observability(observability::Event),
     /// The engine's own run hub, over its permanent link.
     Host(host::Event),
-    /// A procedure may choose its next step after the preceding decision.
-    Procedure { task: u64, step: u64, connector: u16, code: u32 },
+    /// A durable engine output for a numbered connector.
+    Connector(jig_domain_contract::Connector, jig_domain_contract::Released),
     /// Resume the start after its decision is durable.
     Start(core::start::Continuation),
 }

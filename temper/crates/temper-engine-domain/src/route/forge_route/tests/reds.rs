@@ -3,6 +3,7 @@
 #![expect(clippy::disallowed_methods, reason = "test assertions inspect emitted writes and host answers")]
 use super::{adopted, change_row, change_start_fixture, restore_forge, task_change_row, task_event};
 use crate::{Domain, Limits, RunRed, reds_for_run};
+use jig_domain_contract as contract;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Token};
 use temper_engine_domain_forge as forge;
@@ -480,7 +481,11 @@ fn fresh_reads(domain: &mut Domain, env: &Env<Limits>) {
     for _ in 0..env.limits.forge.client.pending {
         forge::resume(&mut domain.forge, &e, &mut out);
         while let Some(request) = out.pop() {
-            if request == (forge::Request::RestartDone { stage: forge::RestartStage::ReadAfresh }) {
+            if request
+                == (forge::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                    stage: forge::RestartStage::ReadAfresh,
+                })))
+            {
                 return;
             }
             if let forge::Request::Call { call, op, .. } = request {

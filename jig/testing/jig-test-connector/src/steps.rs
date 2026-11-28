@@ -1,26 +1,32 @@
-//! Reference connector procedure decisions translated into the core's atomic step.
-use crate::{Domain, Work};
+//! Translate the fake procedure program into the contract's atomic step.
+use crate as connector;
 use alloc::boxed::Box;
-use jig_domain_core as core;
-use jig_domain_tasks as tasks;
-use jig_test_connector as connector;
-use skein_lib::{Decimal, List, Queue, Writer};
+use jig_domain_contract::ops as tasks;
+use jig_domain_contract::procedures as core;
+use skein_lib::{Decimal, List, Writer};
+
+/// The part of the start context the fake program uses when it chooses its step.
+#[derive(Debug)]
+pub(crate) struct StepContext {
+    pub(crate) task: u64,
+    pub(crate) authority: tasks::Authority,
+    pub(crate) numbers: tasks::Numbers,
+}
 
 pub(crate) fn translate(
-    domain: &mut Domain,
-    task: u64,
+    context: &StepContext,
     step: u64,
     number: u16,
     decision: connector::StepDecision,
-    work: &mut Queue<Work>,
-) -> Option<core::ProcedureStep> {
+) -> core::ProcedureStep {
+    let task = context.task;
     let end = match decision {
         connector::StepDecision::Finish { result: connector::ProcedureResult::Succeeded } => {
             core::StepEnd::Result(tasks::TaskResult::Report { words: Box::new([]) })
         }
         connector::StepDecision::Finish { result: connector::ProcedureResult::Local { code } } => {
             core::StepEnd::Result(tasks::TaskResult::Change {
-                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
+                title: tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: number,
                 kind: code,
                 resource: 0,
@@ -30,20 +36,20 @@ pub(crate) fn translate(
         connector::StepDecision::Wait { .. } | connector::StepDecision::Stall => core::StepEnd::Wait,
         connector::StepDecision::Hold { .. } => core::StepEnd::Hold(tasks::Hold::Effects),
         connector::StepDecision::Amend { task, revision, words, priority } => {
-            return Some(amendment(task, revision, words, priority));
+            return amendment(task, revision, words, priority);
         }
         connector::StepDecision::Cancel { task, grace } => {
-            return Some(core::ProcedureStep {
+            return core::ProcedureStep {
                 cancels: Box::new([core::StepCancel {
                     task,
                     reason: b"procedure cancelled delegate".as_slice().into(),
                     grace: Some(grace),
                 }]),
                 ..core::ProcedureStep::new(core::StepEnd::Wait)
-            });
+            };
         }
         connector::StepDecision::Message { task, words } => {
-            return Some(core::ProcedureStep {
+            return core::ProcedureStep {
                 messages: Box::new([core::StepMessage {
                     notice: None,
                     target: task,
@@ -51,40 +57,39 @@ pub(crate) fn translate(
                     words: Decimal::of(words).as_bytes().into(),
                 }]),
                 ..core::ProcedureStep::new(core::StepEnd::Wait)
-            });
+            };
         }
         connector::StepDecision::Propose { spend } => {
-            let mut authority = domain.engine.core().tasks.task(task).expect("procedure task live").authority.clone();
+            let mut authority = context.authority.clone();
             authority.budget.spend = authority.budget.spend.saturating_add(spend);
-            return Some(core::ProcedureStep {
+            return core::ProcedureStep {
                 proposals: Box::new([tasks::ProposalAction::Widen { task, authority }]),
                 ..core::ProcedureStep::new(core::StepEnd::Wait)
-            });
+            };
         }
-        connector::StepDecision::Job { kind, spec, deadline } => return Some(job(domain, task, kind, spec, deadline)),
+        connector::StepDecision::Job { kind, spec, deadline } => return job(context, kind, spec, deadline),
         connector::StepDecision::Delegate { kinds } => {
-            let row = domain.engine.core().tasks.task(task).expect("procedure task live");
             let capacity = u32::try_from(kinds.len()).expect("bounded program");
             let mut batch = List::with_capacity(capacity);
-            let budget = row
+            let budget = context
                 .numbers
                 .budget
-                .saturating_sub(row.numbers.spent)
-                .saturating_sub(row.numbers.spent_below)
-                .saturating_sub(row.numbers.reserved)
+                .saturating_sub(context.numbers.spent)
+                .saturating_sub(context.numbers.spent_below)
+                .saturating_sub(context.numbers.reserved)
                 .checked_div(u64::from(capacity))
                 .unwrap_or(0);
             for kind in kinds {
-                let mut authority = row.authority.clone();
+                let mut authority = context.authority.clone();
                 authority.budget.spend = budget;
                 authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
                 batch
                     .push(core::Delegate {
-                        deadline: jig_domain_tasks::Deadline::Named,
+                        deadline: tasks::Deadline::Named,
                         label: 0,
-                        flags: jig_domain_tasks::Flags::PLAIN,
+                        flags: tasks::Flags::PLAIN,
                         tracked: None,
-                        budget: jig_domain_people::Budget::Named,
+                        budget: core::Budget::Named,
                         executor: tasks::Executor::Agent { charter: u32::from(kind) },
                         spec: specification(words(task, step)),
                         contract: tasks::Contract::Report { words: 128 },
@@ -96,28 +101,16 @@ pub(crate) fn translate(
                     })
                     .expect("one delegate per program kind");
             }
-            return Some(core::ProcedureStep {
-                batch: batch.into_boxed(),
-                ..core::ProcedureStep::new(core::StepEnd::Wait)
-            });
+            return core::ProcedureStep { batch: batch.into_boxed(), ..core::ProcedureStep::new(core::StepEnd::Wait) };
         }
-        connector::StepDecision::Effect(effect) => {
-            let owner = crate::effect_payload(domain, effect);
-            domain.hub_link.keep_effect_procedure(owner, task);
-            work.push(Work::Core(core::Event::EffectStart {
-                owner,
-                connector: number,
-                origin: core::EffectOrigin::Procedure { task, step, entry: None },
-            }));
-            return None;
-        }
+        connector::StepDecision::Effect(_) => unreachable!("effects start through their own port"),
     };
-    Some(core::ProcedureStep::new(end))
+    core::ProcedureStep::new(end)
 }
 
-pub(crate) fn refused(number: u16, task: u64, step: u64, why: core::StepRefusal, work: &mut Queue<Work>) {
-    let why = match why {
-        core::StepRefusal::Moved { now: jig_domain_people::Moved::Spec { revision }, .. } => {
+pub(crate) fn refused(why: core::StepRefusal) -> connector::StepRefusal {
+    match why {
+        core::StepRefusal::Moved { now: tasks::party::Moved::Spec { revision }, .. } => {
             connector::StepRefusal::Moved { revision }
         }
         core::StepRefusal::Refused(problem) if problem.why == tasks::Refusal::Kept => connector::StepRefusal::Kept {
@@ -129,8 +122,7 @@ pub(crate) fn refused(number: u16, task: u64, step: u64, why: core::StepRefusal,
         core::StepRefusal::Moved { .. } | core::StepRefusal::Refused(_) | core::StepRefusal::Denied { .. } => {
             connector::StepRefusal::Refused
         }
-    };
-    work.push(Work::Connector { number, event: connector::Event::StepRefused { task, step, why } });
+    }
 }
 
 fn words(task: u64, step: u64) -> Box<[u8]> {
@@ -208,8 +200,8 @@ fn specification(words: Box<[u8]>) -> tasks::Spec {
 }
 
 /// A job delegate's opaque spec and empty child delegation (jig/docs/design/domain/engine/executors.md, 5).
-fn job(domain: &Domain, task: u64, kind: u32, spec: Box<[u8]>, deadline: skein_lib::Duration) -> core::ProcedureStep {
-    let mut authority = domain.engine.core().tasks.task(task).expect("procedure task live").authority.clone();
+fn job(context: &StepContext, kind: u32, spec: Box<[u8]>, deadline: skein_lib::Duration) -> core::ProcedureStep {
+    let mut authority = context.authority.clone();
     authority.budget.spend = 0;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     core::ProcedureStep {
@@ -218,7 +210,7 @@ fn job(domain: &Domain, task: u64, kind: u32, spec: Box<[u8]>, deadline: skein_l
             label: 0,
             flags: tasks::Flags::PLAIN,
             tracked: None,
-            budget: jig_domain_people::Budget::Named,
+            budget: core::Budget::Named,
             executor: tasks::Executor::Job { kind },
             spec: tasks::Spec {
                 words: Box::new([]),

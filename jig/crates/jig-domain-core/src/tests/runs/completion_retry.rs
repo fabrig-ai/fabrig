@@ -42,8 +42,6 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::NoteBusy { .. }
                 | Now::DropAssignment { .. }
                 | Now::Activate { .. }
-                | Now::CompleteBrief { .. }
-                | Now::BriefCorePlanned { .. }
                 | Now::WorkspaceRequest { .. }
                 | Now::RunPreparationFailed { .. }
                 | Now::BriefFailed { .. }
@@ -82,7 +80,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::Applied { .. }
                 | Held::CarriedUnused { .. }
                 | Held::Delivery { .. }
-                | Held::MakeEffect { .. }
+                | Held::Connector(_, _)
                 | Held::SettledCall { .. }
                 | Held::Assign { .. }
                 | Held::Grant { .. }

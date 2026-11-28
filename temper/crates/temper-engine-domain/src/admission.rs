@@ -125,8 +125,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::TakeBrief { .. }
             | forge::Event::DropBrief { .. }
             | forge::Event::Adopt { .. }
-            | forge::Event::ReleaseProject { .. }
             | forge::Event::TakeAdoption { .. }
+            | forge::Event::Ask(_)
+            | forge::Event::Released(_)
             | forge::Event::ForgetAdoption { .. }
             | forge::Event::Names { .. }
             | forge::Event::Rename { .. }

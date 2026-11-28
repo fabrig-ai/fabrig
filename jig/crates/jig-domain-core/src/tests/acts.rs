@@ -1532,7 +1532,8 @@ fn assert_point_reply(out: &mut Queue<crate::engine::Out>, expected: people::Rep
                     replies.push(reply).unwrap();
                 }
             }
-            Out::Core(Request::Write(_) | Request::Now(_) | Request::Ask { .. } | Request::ProjectMade { .. }) => {}
+            Out::Core(Request::Write(_) | Request::Now(_) | Request::Ask { .. } | Request::ProjectMade { .. })
+            | Out::Ask(..) => {}
         }
     }
     assert_eq!(replies.as_slice(), [expected]);

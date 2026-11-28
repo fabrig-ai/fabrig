@@ -1,6 +1,7 @@
 //! Exhaustive routing of the root's journal, with values kept in their owners (service.md, 4).
 use crate::{Engine, PartyOutput, clients, stop};
 use alloc::boxed::Box;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -49,7 +50,9 @@ pub(super) fn request(engine: &mut Engine, request: root::Request) {
 
 fn deliver(engine: &mut Engine, delivery: root::Delivery) {
     match delivery {
-        root::Delivery::Start(_) => unreachable!("the root resumes its own start continuation"),
+        root::Delivery::Start(_) | root::Delivery::Connector(..) => {
+            unreachable!("the root resumes its own start continuation")
+        }
         root::Delivery::ProjectMade { .. } => {}
 
         root::Delivery::System { connector: number, call } => {
@@ -62,9 +65,10 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
         }
         root::Delivery::Projection { connector, feed } => {
             if feed.closing {
-                engine
-                    .events
-                    .push(root::Event::Core(core::Event::ProjectionSettled { goal: feed.goal.number, connector }));
+                engine.events.push(root::Event::connector_up(
+                    connector,
+                    jig::Up::Projections(jig::projections::Up::Settled { goal: feed.goal.number }),
+                ));
             }
         }
         root::Delivery::Fleet(event) => engine.events.push(root::Event::Core(core::Event::Fleet(event))),
@@ -229,8 +233,6 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::Ask { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::CompleteBrief { .. }
-        | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
@@ -241,94 +243,90 @@ fn immediate(engine: &mut Engine, now: core::Now) {
 }
 
 fn core_held(engine: &mut Engine, held: core::Held) {
-    match held {
-        core::Held::PublicWait { .. } => unreachable!("the root consumes its durability callbacks"),
-        core::Held::ReadUsage { .. }
-        | core::Held::ReadList { .. }
-        | core::Held::Sources { .. }
-        | core::Held::PauseWorker { .. }
-        | core::Held::CheckSource { .. }
-        | core::Held::SignOutSource { .. } => {
-            unreachable!("link translates host-wide source commands")
-        }
-        core::Held::Drained => stop::drained(engine),
-
-        core::Held::Store(_) => {
-            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
-        }
-        held @ (core::Held::PublicRead { .. }
-        | core::Held::Read { .. }
-        | core::Held::Delivery { .. }
-        | core::Held::WatchEnded { .. }
-        | core::Held::PeopleReply { .. }
-        | core::Held::CarriedUnused { .. }) => {
-            if let Some(client) = &mut engine.clients {
-                client.down(clients::to_component(held).expect("clients output"));
-            } else {
-                engine.outputs.push(PartyOutput::Held(root::Delivery::Core(held)));
-            }
-        }
-        // The application's use of need arrivals is its own.
-        core::Held::NeedArrived { .. } | core::Held::Restarting { .. } => {}
-        held @ (core::Held::Acted { .. } | core::Held::Result { .. } | core::Held::SourceSignedOut { .. }) => {
+    if let core::Held::PublicWait { .. } = held {
+        unreachable!("the root consumes its durability callbacks");
+    } else if let core::Held::ReadUsage { .. }
+    | core::Held::ReadList { .. }
+    | core::Held::Sources { .. }
+    | core::Held::PauseWorker { .. }
+    | core::Held::CheckSource { .. }
+    | core::Held::SignOutSource { .. } = held
+    {
+        unreachable!("link translates host-wide source commands")
+    } else if let core::Held::Drained = held {
+        stop::drained(engine);
+    } else if let core::Held::Store(_) = held {
+        unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+    } else if let held @ (core::Held::PublicRead { .. }
+    | core::Held::Read { .. }
+    | core::Held::Delivery { .. }
+    | core::Held::WatchEnded { .. }
+    | core::Held::PeopleReply { .. }
+    | core::Held::CarriedUnused { .. }) = held
+    {
+        if let Some(client) = &mut engine.clients {
+            client.down(clients::to_component(held).expect("clients output"));
+        } else {
             engine.outputs.push(PartyOutput::Held(root::Delivery::Core(held)));
         }
-        core::Held::MakeEffect { connector: number, entry } => {
-            engine.events.push(root::Event::Connector { number, event: connector::Event::Make { entry } });
+    } else if let core::Held::NeedArrived { .. } | core::Held::Restarting { .. } = held {
+    } else if let held @ (core::Held::Acted { .. } | core::Held::Result { .. } | core::Held::SourceSignedOut { .. }) =
+        held
+    {
+        engine.outputs.push(PartyOutput::Held(root::Delivery::Core(held)));
+    } else if let core::Held::PartBusy { channel, run, attempt, part } = held {
+        if let Some(workers) = &mut engine.workers {
+            workers.down(
+                engine.env.now,
+                jig_protocol_engine_workers::Event::PartBusy { channel, run, attempt, part },
+                &mut engine.events,
+            );
         }
-        core::Held::PartBusy { channel, run, attempt, part } => {
-            if let Some(workers) = &mut engine.workers {
-                workers.down(
-                    engine.env.now,
-                    jig_protocol_engine_workers::Event::PartBusy { channel, run, attempt, part },
-                    &mut engine.events,
-                );
-            }
+    } else if let core::Held::TurnBusy { channel, run, attempt, turn } = held {
+        if let Some(workers) = &mut engine.workers {
+            workers.down(
+                engine.env.now,
+                jig_protocol_engine_workers::Event::TurnBusy { channel, run, attempt, turn },
+                &mut engine.events,
+            );
         }
-        core::Held::TurnBusy { channel, run, attempt, turn } => {
-            if let Some(workers) = &mut engine.workers {
-                workers.down(
-                    engine.env.now,
-                    jig_protocol_engine_workers::Event::TurnBusy { channel, run, attempt, turn },
-                    &mut engine.events,
-                );
-            }
+    } else if let core::Held::Refuse { channel, .. } = held {
+        if let Some(workers) = &mut engine.workers {
+            workers.down(
+                engine.env.now,
+                jig_protocol_engine_workers::Event::NotAdmitted { channel, text: b"not admitted".as_slice().into() },
+                &mut engine.events,
+            );
         }
-        core::Held::Refuse { channel, .. } => {
-            if let Some(workers) = &mut engine.workers {
-                workers.down(
-                    engine.env.now,
-                    jig_protocol_engine_workers::Event::NotAdmitted {
-                        channel,
-                        text: b"not admitted".as_slice().into(),
-                    },
-                    &mut engine.events,
-                );
-            }
+    } else if let core::Held::CallAnswer { to, key, part } = held {
+        if let Some(event) = engine.tools.render(to, key, &part, true) {
+            engine.events.push(event);
         }
-        core::Held::CallAnswer { to, key, part } => {
-            if let Some(event) = engine.tools.render(to, key, &part, true) {
-                engine.events.push(event);
-            }
-        }
-        core::Held::Assign { .. }
-        | core::Held::Grant { .. }
-        | core::Held::Relayed { .. }
-        | core::Held::Inbound { .. }
-        | core::Held::Relay { .. }
-        | core::Held::Acknowledge { .. }
-        | core::Held::TaskTerminalAcknowledged { .. }
-        | core::Held::TaskPartKept { .. }
-        | core::Held::AcknowledgePart { .. }
-        | core::Held::TaskTurnKept { .. }
-        | core::Held::AcknowledgeTurn { .. }
-        | core::Held::Cancel { .. }
-        | core::Held::StopRun { .. } => stop::unavailable(engine, b"workers"),
-        core::Held::SettledCall { .. } | core::Held::NotesWritten { .. } | core::Held::NotesDeleted { .. } => {
-            stop::unavailable(engine, b"accounts");
-        }
-        core::Held::Applied { .. }
-        | core::Held::ApplicationDelivery { .. }
-        | core::Held::ApplicationWatchEnded { .. } => stop::invalid_restore(engine),
+    } else if let core::Held::Assign { .. }
+    | core::Held::Grant { .. }
+    | core::Held::Relayed { .. }
+    | core::Held::Inbound { .. }
+    | core::Held::Relay { .. }
+    | core::Held::Acknowledge { .. }
+    | core::Held::TaskTerminalAcknowledged { .. }
+    | core::Held::TaskPartKept { .. }
+    | core::Held::AcknowledgePart { .. }
+    | core::Held::TaskTurnKept { .. }
+    | core::Held::AcknowledgeTurn { .. }
+    | core::Held::Cancel { .. }
+    | core::Held::StopRun { .. } = held
+    {
+        stop::unavailable(engine, b"workers");
+    } else if let core::Held::SettledCall { .. } | core::Held::NotesWritten { .. } | core::Held::NotesDeleted { .. } =
+        held
+    {
+        stop::unavailable(engine, b"accounts");
+    } else if let core::Held::Applied { .. }
+    | core::Held::ApplicationDelivery { .. }
+    | core::Held::ApplicationWatchEnded { .. } = held
+    {
+        stop::invalid_restore(engine);
+    } else {
+        unreachable!("the root forwards only non-connector engine outputs: {held:?}");
     }
 }

@@ -7,52 +7,25 @@ use jig_test_domain as root;
 use skein_lib::Token;
 
 pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
-    match held {
-        core::Held::PeopleReply { to, reply } => Some(kit::Event::Reply { to, reply }),
-        core::Held::PublicRead { reply, answer } => Some(kit::Event::Public { reply, answer }),
-        core::Held::Read { reply, answer } => Some(kit::Event::Read { reply, answer }),
-        core::Held::Delivery { watcher, document } => Some(kit::Event::Delivery { watcher, document }),
-        core::Held::WatchEnded { watcher, why } => Some(kit::Event::WatchEnded { watcher, why }),
-        core::Held::CarriedUnused { number } => Some(kit::Event::Application(kit::FromApplication::Unused { number })),
-        core::Held::Acted { .. }
-        | core::Held::Drained
-        | core::Held::Restarting { .. }
-        | core::Held::ApplicationDelivery { .. }
-        | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::Store(_)
-        | core::Held::PublicWait { .. }
-        | core::Held::Applied { .. }
-        | core::Held::MakeEffect { .. }
-        | core::Held::SettledCall { .. }
-        | core::Held::Assign { .. }
-        | core::Held::Grant { .. }
-        | core::Held::Relayed { .. }
-        | core::Held::Inbound { .. }
-        | core::Held::Relay { .. }
-        | core::Held::CallAnswer { .. }
-        | core::Held::NeedArrived { .. }
-        | core::Held::Result { .. }
-        | core::Held::Acknowledge { .. }
-        | core::Held::TaskTerminalAcknowledged { .. }
-        | core::Held::TaskPartKept { .. }
-        | core::Held::AcknowledgePart { .. }
-        | core::Held::PartBusy { .. }
-        | core::Held::TaskTurnKept { .. }
-        | core::Held::AcknowledgeTurn { .. }
-        | core::Held::Cancel { .. }
-        | core::Held::ReadUsage { .. }
-        | core::Held::ReadList { .. }
-        | core::Held::Sources { .. }
-        | core::Held::PauseWorker { .. }
-        | core::Held::CheckSource { .. }
-        | core::Held::SignOutSource { .. }
-        | core::Held::SourceSignedOut { .. }
-        | core::Held::Refuse { .. }
-        | core::Held::TurnBusy { .. }
-        | core::Held::StopRun { .. }
-        | core::Held::NotesWritten { .. }
-        | core::Held::NotesDeleted { .. } => None,
+    if let core::Held::PeopleReply { to, reply } = held {
+        return Some(kit::Event::Reply { to, reply });
     }
+    if let core::Held::PublicRead { reply, answer } = held {
+        return Some(kit::Event::Public { reply, answer });
+    }
+    if let core::Held::Read { reply, answer } = held {
+        return Some(kit::Event::Read { reply, answer });
+    }
+    if let core::Held::Delivery { watcher, document } = held {
+        return Some(kit::Event::Delivery { watcher, document });
+    }
+    if let core::Held::WatchEnded { watcher, why } = held {
+        return Some(kit::Event::WatchEnded { watcher, why });
+    }
+    if let core::Held::CarriedUnused { number } = held {
+        return Some(kit::Event::Application(kit::FromApplication::Unused { number }));
+    }
+    None
 }
 
 pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option<kit::Event> {
@@ -87,8 +60,6 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::NoteBusy { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::CompleteBrief { .. }
-        | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
@@ -122,6 +93,7 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::System { .. }
         | root::Delivery::LostRead { .. }
         | root::Delivery::Store(_)
+        | root::Delivery::Connector(..)
         | root::Delivery::Start(_)
         | root::Delivery::Procedure { .. } => return None,
     };
@@ -129,146 +101,29 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
 }
 
 pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
-    match value {
-        core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => Some(*watcher),
-        core::Event::SettingsCommit { .. }
-        | core::Event::Fill { .. }
-        | core::Event::Census(..)
-        | core::Event::Settling
-        | core::Event::Stopping
-        | core::Event::Parts { .. }
-        | core::Event::PartsMarked { .. }
-        | core::Event::Waits { .. }
-        | core::Event::Marked { .. }
-        | core::Event::PublicRead { .. }
-        | core::Event::PublicAnswered { .. }
-        | core::Event::PublicDurable { .. }
-        | core::Event::Read { .. }
-        | core::Event::Act { .. }
-        | core::Event::ProposeSettings { .. }
-        | core::Event::ChangeModel { .. }
-        | core::Event::ChangeSettings { .. }
-        | core::Event::Key { .. }
-        | core::Event::Application { .. }
-        | core::Event::ApplicationPart { .. }
-        | core::Event::ApplicationFinished { .. }
-        | core::Event::ProjectionSettled { .. }
-        | core::Event::SettledCall { .. }
-        | core::Event::EffectStart { .. }
-        | core::Event::EffectConnector(..)
-        | core::Event::EffectDeadline
-        | core::Event::SignIn { .. }
-        | core::Event::Unwatch { .. }
-        | core::Event::Delivered { .. }
-        | core::Event::StreamDelivered { .. }
-        | core::Event::RunCall { .. }
-        | core::Event::RunInput { .. }
-        | core::Event::RunText { .. }
-        | core::Event::Tasks(..)
-        | core::Event::StartRecurring { .. }
-        | core::Event::BriefAssembled { .. }
-        | core::Event::WorkspacePrepared { .. }
-        | core::Event::ClaimPrepared { .. }
-        | core::Event::ClaimRefused { .. }
-        | core::Event::ConnectorRepair { .. }
-        | core::Event::PersonTask { .. }
-        | core::Event::Period { .. }
-        | core::Event::People(..)
-        | core::Event::Fleet(..)
-        | core::Event::PartPayload { .. }
-        | core::Event::TurnPayload { .. }
-        | core::Event::AnswerPayload { .. }
-        | core::Event::AcceptedTurn { .. }
-        | core::Event::RefusedPayload { .. }
-        | core::Event::Activate { .. }
-        | core::Event::NamedAnswer { .. }
-        | core::Event::SubscribeTopic { .. }
-        | core::Event::NamedAction { .. }
-        | core::Event::Delegate { .. }
-        | core::Event::DelegateHoldings { .. }
-        | core::Event::ProcedureHoldings { .. }
-        | core::Event::ProcedureStep { .. }
-        | core::Event::Brief(..)
-        | core::Event::Holdings { .. }
-        | core::Event::ProjectReleased { .. }
-        | core::Event::Account(..)
-        | core::Event::View(..)
-        | core::Event::Notes(..) => None,
+    if let core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } = value {
+        return Some(*watcher);
     }
+    None
 }
 
 pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
-    match value {
-        core::Event::ProposeSettings { reply_to, .. }
-        | core::Event::ChangeModel { reply_to, .. }
-        | core::Event::ChangeSettings { reply_to, .. }
-        | core::Event::SignIn { reply_to, .. }
-        | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. }) => {
-            Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
-        }
-        core::Event::PublicRead { reply, .. } => Some(kit::Event::Public { reply, answer: core::PublicAnswer::Busy }),
-        core::Event::Read { reply, .. } => {
-            Some(kit::Event::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Busy) })
-        }
-        core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => {
-            Some(kit::Event::WatchRefused { watcher, why: core::WatchRefusal::Busy })
-        }
-        core::Event::SettingsCommit { .. }
-        | core::Event::Fill { .. }
-        | core::Event::Census(..)
-        | core::Event::Settling
-        | core::Event::Stopping
-        | core::Event::Parts { .. }
-        | core::Event::PartsMarked { .. }
-        | core::Event::Waits { .. }
-        | core::Event::Marked { .. }
-        | core::Event::PublicAnswered { .. }
-        | core::Event::PublicDurable { .. }
-        | core::Event::Act { .. }
-        | core::Event::Key { .. }
-        | core::Event::Application { .. }
-        | core::Event::ApplicationPart { .. }
-        | core::Event::ApplicationFinished { .. }
-        | core::Event::ProjectionSettled { .. }
-        | core::Event::SettledCall { .. }
-        | core::Event::EffectStart { .. }
-        | core::Event::EffectConnector(..)
-        | core::Event::EffectDeadline
-        | core::Event::Unwatch { .. }
-        | core::Event::Delivered { .. }
-        | core::Event::StreamDelivered { .. }
-        | core::Event::RunCall { .. }
-        | core::Event::RunInput { .. }
-        | core::Event::RunText { .. }
-        | core::Event::Tasks(..)
-        | core::Event::StartRecurring { .. }
-        | core::Event::BriefAssembled { .. }
-        | core::Event::WorkspacePrepared { .. }
-        | core::Event::ClaimPrepared { .. }
-        | core::Event::ClaimRefused { .. }
-        | core::Event::ConnectorRepair { .. }
-        | core::Event::PersonTask { .. }
-        | core::Event::Period { .. }
-        | core::Event::People(..)
-        | core::Event::Fleet(..)
-        | core::Event::PartPayload { .. }
-        | core::Event::TurnPayload { .. }
-        | core::Event::AnswerPayload { .. }
-        | core::Event::AcceptedTurn { .. }
-        | core::Event::RefusedPayload { .. }
-        | core::Event::Activate { .. }
-        | core::Event::NamedAnswer { .. }
-        | core::Event::SubscribeTopic { .. }
-        | core::Event::NamedAction { .. }
-        | core::Event::Delegate { .. }
-        | core::Event::DelegateHoldings { .. }
-        | core::Event::ProcedureHoldings { .. }
-        | core::Event::ProcedureStep { .. }
-        | core::Event::Brief(..)
-        | core::Event::Holdings { .. }
-        | core::Event::ProjectReleased { .. }
-        | core::Event::Account(..)
-        | core::Event::View(..)
-        | core::Event::Notes(..) => None,
+    if let core::Event::ProposeSettings { reply_to, .. }
+    | core::Event::ChangeModel { reply_to, .. }
+    | core::Event::ChangeSettings { reply_to, .. }
+    | core::Event::SignIn { reply_to, .. }
+    | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. }) = value
+    {
+        return Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) });
     }
+    if let core::Event::PublicRead { reply, .. } = value {
+        return Some(kit::Event::Public { reply, answer: core::PublicAnswer::Busy });
+    }
+    if let core::Event::Read { reply, .. } = value {
+        return Some(kit::Event::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Busy) });
+    }
+    if let core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } = value {
+        return Some(kit::Event::WatchRefused { watcher, why: core::WatchRefusal::Busy });
+    }
+    None
 }

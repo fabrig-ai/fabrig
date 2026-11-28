@@ -3,8 +3,9 @@
 
 pub use jig_domain_core_vocabulary::engine::*;
 
-use crate::{Config, Core, Held, Limits, Request, Timer};
-use jig_domain_contract::{Declaration, StartProblem};
+use crate::{Ask, Config, Core, Held, Limits, Request, Timer};
+use jig_domain_contract::{Connector, Declaration, StartProblem};
+
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// The core behind the functions a root calls.
@@ -43,6 +44,7 @@ pub fn step(engine: &mut Engine, env: &Env<Limits>, input: In, out: &mut Queue<O
     let requests = match input {
         In::Core(event) => crate::step(&mut engine.core, env, event),
         In::Store(event) => crate::routing::step_store(&mut engine.core, env, event),
+        In::Connector(connector, up) => crate::routing::step_connector(&mut engine.core, env, connector, up),
     };
     append(requests, out);
 }
@@ -77,20 +79,61 @@ pub fn idle(engine: &Engine) -> bool {
     engine.core.quiescent(true)
 }
 
-/// Append requests from a direct core entrance, keeping each held load at its place.
-#[expect(clippy::wildcard_enum_match_arm, reason = "only the store port leaves the core request vocabulary")]
+/// Append requests from a direct core entrance, keeping every output at its place.
 pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
     for _ in 0..requests.len() {
         let request = requests.pop().expect("core request count");
         let output = match request {
-            Request::Held(held) => {
-                if let Held::Store(load) = *held {
-                    Out::Held(Peer::Store(load))
-                } else {
-                    Out::Core(Request::Held(held))
-                }
+            Request::Ask { connector, ask: Ask::Connector(ask) } => Out::Ask(Connector(connector), ask),
+            Request::Held(held) => match *held {
+                Held::Store(load) => Out::Held(Peer::Store(load)),
+                Held::Connector(connector, released) => Out::Held(Peer::Connector(connector, released)),
+                Held::Acted { .. }
+                | Held::Drained
+                | Held::Restarting { .. }
+                | Held::ApplicationDelivery { .. }
+                | Held::ApplicationWatchEnded { .. }
+                | Held::Read { .. }
+                | Held::Applied { .. }
+                | Held::CarriedUnused { .. }
+                | Held::Delivery { .. }
+                | Held::WatchEnded { .. }
+                | Held::SettledCall { .. }
+                | Held::Assign { .. }
+                | Held::ReadUsage { .. }
+                | Held::ReadList { .. }
+                | Held::Sources { .. }
+                | Held::CheckSource { .. }
+                | Held::PauseWorker { .. }
+                | Held::SignOutSource { .. }
+                | Held::SourceSignedOut { .. }
+                | Held::Grant { .. }
+                | Held::Relayed { .. }
+                | Held::Inbound { .. }
+                | Held::Relay { .. }
+                | Held::PeopleReply { .. }
+                | Held::CallAnswer { .. }
+                | Held::Result { .. }
+                | Held::Acknowledge { .. }
+                | Held::TaskTerminalAcknowledged { .. }
+                | Held::TaskPartKept { .. }
+                | Held::AcknowledgePart { .. }
+                | Held::PartBusy { .. }
+                | Held::TaskTurnKept { .. }
+                | Held::AcknowledgeTurn { .. }
+                | Held::Cancel { .. }
+                | Held::Refuse { .. }
+                | Held::TurnBusy { .. }
+                | Held::StopRun { .. }
+                | Held::NotesWritten { .. }
+                | Held::NotesDeleted { .. }
+                | Held::PublicRead { .. }
+                | Held::PublicWait { .. }
+                | Held::NeedArrived { .. } => Out::Core(Request::Held(held)),
+            },
+            other @ (Request::ProjectMade { .. } | Request::Ask { .. } | Request::Write(_) | Request::Now(_)) => {
+                Out::Core(other)
             }
-            other => Out::Core(other),
         };
         out.push(output);
     }

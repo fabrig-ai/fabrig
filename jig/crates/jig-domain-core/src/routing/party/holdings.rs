@@ -3,8 +3,9 @@
 //! (`domain/people/acts.md`, section 1). Controls and decisions are separate
 //! families so each route file stays under 1,500 lines.
 
+use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, Core, Event, HoldingsRefusal, Limits, PersonTaskRoute, Record, Request, Write,
+    Core, Event, HoldingsRefusal, Limits, PersonTaskRoute, Record, Request, Write,
     routing::{
         Creation, CreationKind, Work,
         party::dispatch::{Party, Routed},
@@ -12,6 +13,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
@@ -151,25 +153,27 @@ pub(crate) fn begin_creation(
         }
         CreationKind::Batch { beneath: None, .. } | CreationKind::Propose { .. } => None,
     };
-    let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
-    assert!(remaining > 0, "task creation has a numbered connector");
-    let first = members.first().expect("nonempty creation").clone();
-    let first_symbols = symbols.first().expect("one symbol list per member").clone();
-    let request = core.fly(crate::routing::flight::Flight::Creating {
-        request,
-        route: Creation {
-            kind,
-            root,
-            members,
-            symbols,
-            at: 0,
-            remaining,
-            holdings: List::with_capacity(env.limits.tasks.holdings),
-            answered: List::with_capacity(remaining),
-            failed: false,
-            refused: None,
-        },
-    });
+    let remaining =
+        u32::try_from(core.connector_recipients.resources.len()).expect("configured connector count fits u32");
+    let creating = Creation {
+        kind,
+        root,
+        members,
+        symbols,
+        at: 0,
+        remaining,
+        holdings: List::with_capacity(env.limits.tasks.holdings),
+        answered: List::with_capacity(remaining),
+        failed: false,
+        refused: None,
+    };
+    if remaining == 0 {
+        finish_creation(core, env, routed, request, creating);
+        return;
+    }
+    let first = creating.members.first().expect("nonempty creation").clone();
+    let first_symbols = creating.symbols.first().expect("one symbol list per member").clone();
+    let request = core.fly(crate::routing::flight::Flight::Creating { request, route: creating });
     creation_holdings(core, &mut routed.out, request, root.unwrap_or(first.number), &first, &first_symbols);
 }
 
@@ -182,8 +186,8 @@ pub(crate) fn created_holdings(
     holdings: Option<Box<[tasks::Holding]>>,
     refused: Option<HoldingsRefusal>,
 ) {
-    let known = core.connectors.contains(&connector);
-    let connectors = u32::try_from(core.connectors.len()).expect("connector count");
+    let known = core.connector_recipients.resources.contains(&connector);
+    let connectors = u32::try_from(core.connector_recipients.resources.len()).expect("connector count");
     let Some((_, creating)) = core.creation_mut(request) else { return };
     assert!(creating.remaining > 0, "one holdings answer per connector");
     assert!(known && !creating.answered.as_slice().contains(&connector), "one answer from each numbered connector");
@@ -361,6 +365,7 @@ pub(crate) fn roles_route(
             people::Request::Erase { .. }
             | people::Request::Act { .. }
             | people::Request::Acted { .. }
+            | people::Request::ConnectorActed { .. }
             | people::Request::Route { .. }
             | people::Request::Reply { .. }
             | people::Request::RolesRefused { .. }
@@ -415,6 +420,7 @@ pub(crate) fn make_service_request(
                             }
                             other @ (people::Request::Act { .. }
                             | people::Request::Acted { .. }
+                            | people::Request::ConnectorActed { .. }
                             | people::Request::ReadingLost { .. }
                             | people::Request::RolesApplied { .. }
                             | people::Request::Route { .. }
@@ -451,10 +457,10 @@ pub(crate) fn adopt_request(
 
     match core.role_allowed(person, project, env.limits.tasks.tree_tasks) {
         Ok(()) => {
-            routed.out.push(Request::Ask {
-                connector: adoption.resource.connector,
-                ask: Ask::Adopt { request, project, adoption },
-            });
+            routed.out.push(connector_ask(
+                adoption.resource.connector,
+                contract::Ask::Lifecycle(contract::lifecycle::Ask::Adopt { request, project, adoption }),
+            ));
         }
         Err(why) => {
             routed.work.push(Work::Event(Event::People(people::Event::Decided {
@@ -526,16 +532,16 @@ fn creation_holdings(
     new: &tasks::New,
     symbols: &[people::Symbol],
 ) {
-    for &connector in core.connectors.as_ref() {
+    for &connector in core.connector_recipients.resources.as_ref() {
         let mut named = List::with_capacity(u32::try_from(symbols.len()).expect("bounded member symbols"));
         for symbol in symbols {
             if symbol.connector == connector {
                 named.push(symbol.symbol).expect("at most the member symbols");
             }
         }
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: Ask::TaskHoldings {
+            contract::Ask::Resources(contract::resources::Ask::Holdings {
                 request,
                 project: new.project,
                 root,
@@ -544,7 +550,7 @@ fn creation_holdings(
                 spec: new.spec.clone(),
                 tracked: new.tracked.is_some(),
                 symbols: named.into_boxed(),
-            },
-        });
+            }),
+        ));
     }
 }

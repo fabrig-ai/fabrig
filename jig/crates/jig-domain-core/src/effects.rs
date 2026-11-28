@@ -10,6 +10,7 @@
 //! | Judging | Final verdict | Terminal | Keep and committed make, or drop and goal news |
 //! | Kept | Outcome | Settled or uncertain | Writer settlement and task news |
 
+use crate::vocabulary::connector_ask;
 pub use jig_domain_core_vocabulary::effects::*;
 
 pub mod connector;
@@ -17,12 +18,13 @@ pub(crate) mod relays;
 pub(crate) mod resources;
 
 use crate::{
-    Ask, CallHolder, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record,
-    Request, ToolKind, Write, fresh,
+    CallHolder, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record, Request,
+    ToolKind, Write, fresh,
     routing::{Work, effect::procedure::ProcedureCall, run::Proposing},
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract as contract;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token, Wall};
 
@@ -115,10 +117,10 @@ fn drop_with(
     answer: authority::Answer,
     why: connector::EffectRefusal,
 ) {
-    out.push(Request::Ask {
-        connector: number,
-        ask: Ask::Effect(connector::Ask::Drop { owner, answer, findings: Box::new([]), why }),
-    });
+    out.push(connector_ask(
+        number,
+        contract::Ask::Effects(contract::effects::Ask::Drop { owner, answer, findings: Box::new([]), why }),
+    ));
 }
 
 pub(crate) fn start(
@@ -150,10 +152,10 @@ pub(crate) fn start(
             }
             let proposal_number = proposal.number;
             start_flight(core, env, owner, number, EffectOrigin::Accept { to, key, proposal, by });
-            out.push(Request::Ask {
-                connector: number,
-                ask: Ask::Effect(connector::Ask::DescribeProposal { owner, proposal: proposal_number }),
-            });
+            out.push(connector_ask(
+                number,
+                contract::Ask::Effects(contract::effects::Ask::DescribeProposal { owner, proposal: proposal_number }),
+            ));
             return out;
         }
         EffectOrigin::Call { to, key, deadline } => {
@@ -222,7 +224,7 @@ pub(crate) fn start(
             start_flight(core, env, owner, number, EffectOrigin::Procedure { task, step, entry });
         }
     }
-    out.push(Request::Ask { connector: number, ask: Ask::Effect(connector::Ask::Describe { owner }) });
+    out.push(connector_ask(number, contract::Ask::Effects(contract::effects::Ask::Describe { owner })));
     out
 }
 
@@ -270,7 +272,7 @@ fn propose_start(
         return out;
     }
     start_flight(core, env, owner, number, EffectOrigin::Propose { to, key, reason, as_holder });
-    out.push(Request::Ask { connector: number, ask: Ask::Effect(connector::Ask::Describe { owner }) });
+    out.push(connector_ask(number, contract::Ask::Effects(contract::effects::Ask::Describe { owner })));
     out
 }
 
@@ -290,23 +292,30 @@ fn start_flight(core: &mut Core, env: &Env<Limits>, owner: Token, number: u16, o
     };
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the connector dispatcher handles each effect and settings event exhaustively"
-)]
-pub(crate) fn connector(
+pub(crate) fn up(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    event: connector::Event,
+    source: u16,
+    event: contract::effects::Up,
 ) -> Queue<Request> {
+    use crate::judgements::Subject;
     let mut out = Queue::uncapped();
     match event {
-        connector::Event::SettingsRestored { owner, judged } => return crate::routing::settings::restore::restored(core, env, work, owner, judged),
-        connector::Event::DescribeBusy { owner } => describe_busy(core, env, work, &mut out, owner),
-        connector::Event::DescribeRefused { owner } => describe_refused(core, env, work, &mut out, owner),
-        connector::Event::Described { owner, description } => described(core, env, work, &mut out, owner, description),
-        connector::Event::Verdict { owner, judge, verdict, at, guarded, state } => {
+        contract::effects::Up::Busy { owner } => {
+            core.judgements.answered(source, Subject::Describe(owner));
+            describe_busy(core, env, work, &mut out, owner);
+        }
+        contract::effects::Up::Refused { owner } => {
+            core.judgements.answered(source, Subject::Describe(owner));
+            describe_refused(core, env, work, &mut out, owner);
+        }
+        contract::effects::Up::Described { owner, description } => {
+            core.judgements.answered(source, Subject::Describe(owner));
+            described(core, env, work, &mut out, owner, description);
+        }
+        contract::effects::Up::Verdict { owner, judge, verdict, at, guarded, state } => {
+            core.judgements.answered(source, Subject::Verdict(owner, judge));
             match core.effect_mut(owner) {
                 Some(flight) => {
                     let mut duplicate = false;
@@ -346,66 +355,74 @@ pub(crate) fn connector(
             }
             complete(core, env, work, &mut out, owner);
         }
-        connector::Event::Outbox { connector, entry, task, outcome } => {
+        contract::effects::Up::Outbox { entry, task, outcome } => {
+            let connector = source;
             settled(core, work, &mut out, connector, entry, task, outcome);
         }
-        connector::Event::ProjectionOutbox { connector, entry, outcome } => {
-            if core.connectors.contains(&connector) && entry != 0 && entry <= core.counters.deployment().connector_rows
-            {
-                settle_writers(core, work, entry, outcome);
-            }
+        contract::effects::Up::Closed { task } => {
+            closed(core, &env.limits, work, task, source);
         }
-        connector::Event::Closed { task, connector } => closed(core, &env.limits, work, task, connector),
-        connector::Event::Drift { task, resource } => {
-            work.push(Work::Event(Event::Tasks(tasks::Event::HoldFrom {
-                task,
-                why: tasks::Hold::Drift,
-                source: Box::new(tasks::HoldSource::Resource(resource)),
-            })));
+        contract::effects::Up::Start { owner, origin } => {
+            return start(core, env, owner, source, origin);
         }
-        connector::Event::Resource { project, name, role, hold } => {
-            resources::role(core, &env.limits, project, name.clone(), role);
-            let access = resources::task_access(role);
-            work.push(Work::Event(Event::Tasks(tasks::Event::ResourceAccess { project, name: name.clone(), access })));
-            let hold = match hold {
-                connector::HoldKind::Shared => tasks::HoldKind::Shared,
-                connector::HoldKind::Exclusive { wait } => {
-                    tasks::HoldKind::Exclusive { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
-                }
-                connector::HoldKind::Pooled { slots, wait } => {
-                    work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name.clone(), slots })));
-                    tasks::HoldKind::Pooled { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
-                }
-            };
-            work.push(Work::Event(Event::Tasks(tasks::Event::Resource { name, hold })));
-        }
-        connector::Event::Adopted { project, name, role, home } => {
-            if core.connectors.contains(&name.connector) && tasks::valid_name(&env.limits.tasks, &name) {
-                core.adoptions
-                    .insert(resources::Key { project, name }, resources::Adoption { role, home })
-                    .expect("adoptions are bounded at the connector entrance");
-                core.touch_project_objects(project);
-            }
-        }
-        connector::Event::PoolSlots { name, slots } => {
-            work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name, slots })));
-        }
-        connector::Event::News { task, subscription, class, words, .. } => {
-            if let Some(event) = core.connector_news(task, subscription, class, words, env.wall) {
-                work.push(Work::Event(Event::Tasks(event)));
-            }
-        }
-        connector::Event::Procedure { .. }
-        | connector::Event::SectionReady { .. }
-        | connector::Event::WorkspaceReady { .. }
-        // The root maps connector completion to start_done for the phase it is serving.
-        | connector::Event::RestartDone { .. } => {}
-        connector::Event::SettingsJudged { owner, judged } => return crate::settings::application::judged(core, env, work, owner, judged),
-        connector::Event::SettingsDefaults { connector, defaults, dropped } => {
-            crate::settings::application::defaults(core, connector, defaults, dropped);
+        contract::effects::Up::Released { task } => {
+            return crate::routing::connectors::task_event(core, env, work, tasks::Event::Settled { task });
         }
     }
     out
+}
+
+pub(crate) fn projection_outbox(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    connector: u16,
+    entry: u64,
+    outcome: connector::OutboxOutcome,
+) {
+    if core.connectors.contains(&connector) && entry != 0 && entry <= core.counters.deployment().connector_rows {
+        settle_writers(core, work, entry, outcome);
+    }
+}
+
+pub(crate) fn resource(
+    core: &mut Core,
+    limits: &Limits,
+    work: &mut Queue<Work>,
+    project: u32,
+    name: tasks::Name,
+    role: connector::ResourceRole,
+    hold: connector::HoldKind,
+) {
+    resources::role(core, limits, project, name.clone(), role);
+    let access = resources::task_access(role);
+    work.push(Work::Event(Event::Tasks(tasks::Event::ResourceAccess { project, name: name.clone(), access })));
+    let hold = match hold {
+        connector::HoldKind::Shared => tasks::HoldKind::Shared,
+        connector::HoldKind::Exclusive { wait } => {
+            tasks::HoldKind::Exclusive { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
+        }
+        connector::HoldKind::Pooled { slots, wait } => {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name.clone(), slots })));
+            tasks::HoldKind::Pooled { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
+        }
+    };
+    work.push(Work::Event(Event::Tasks(tasks::Event::Resource { name, hold })));
+}
+
+pub(crate) fn adopted(
+    core: &mut Core,
+    limits: &Limits,
+    project: u32,
+    name: tasks::Name,
+    role: connector::AdoptionRole,
+    home: bool,
+) {
+    if core.connectors.contains(&name.connector) && tasks::valid_name(&limits.tasks, &name) {
+        core.adoptions
+            .insert(resources::Key { project, name }, resources::Adoption { role, home })
+            .expect("adoptions are bounded at the connector entrance");
+        core.touch_project_objects(project);
+    }
 }
 
 fn describe_busy(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mut Queue<Request>, owner: Token) {
@@ -536,15 +553,15 @@ fn described(
         resources.push(resource.name.clone()).expect("additional resource");
     }
     for judge in &flight.judges {
-        out.push(Request::Ask {
-            connector: judge.connector,
-            ask: Ask::Effect(connector::Ask::Judge {
+        out.push(connector_ask(
+            judge.connector,
+            contract::Ask::Effects(contract::effects::Ask::Judge {
                 owner,
                 judge: *judge,
                 state: effect.state,
                 resources: resources.as_slice().into(),
             }),
-        });
+        ));
     }
 }
 
@@ -645,9 +662,9 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
             reasons.push(finding).expect("finding bound");
             findings.push(finding);
         }
-        out.push(Request::Ask {
-            connector: flight.connector,
-            ask: Ask::Effect(connector::Ask::Drop {
+        out.push(connector_ask(
+            flight.connector,
+            contract::Ask::Effects(contract::effects::Ask::Drop {
                 owner,
                 answer: checked,
                 findings: reasons.into_boxed(),
@@ -657,7 +674,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
                     connector::EffectRefusal::Description
                 },
             }),
-        });
+        ));
         match origin {
             Making::Call { to, key, .. } => {
                 let mut reasons = List::with_capacity(findings.len());
@@ -741,11 +758,18 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     let purpose = complete_accept(core, work, out, origin, flight.connector, entry, description.purpose);
     let key =
         EffectKey { deployment: core.counters.deployment().id, task, origin: purpose, purpose: description.purpose };
-    out.push(Request::Ask {
-        connector: flight.connector,
-        ask: Ask::Effect(connector::Ask::Keep { owner, entry, task, key }),
-    });
-    out.push(Request::Held(Box::new(Held::MakeEffect { connector: flight.connector, entry })));
+    let project = match core.tasks.task(task) {
+        Some(row) => Some(row.project),
+        None => None,
+    };
+    out.push(connector_ask(
+        flight.connector,
+        contract::Ask::Effects(contract::effects::Ask::Keep { owner, entry, task, key, project }),
+    ));
+    out.push(Request::Held(Box::new(Held::Connector(
+        contract::Connector(flight.connector),
+        contract::Released::Make { entry },
+    ))));
 }
 
 fn acceptance_room(core: &Core, origin: &Making) -> bool {
@@ -959,10 +983,10 @@ fn complete_accept(
         decision: tasks::ProposalDecision::Accept,
     };
     work.push(Work::Event(Event::Tasks(decided)));
-    out.push(Request::Ask {
-        connector: number,
-        ask: Ask::Effect(connector::Ask::DropProposal { proposal: proposal.number }),
-    });
+    out.push(connector_ask(
+        number,
+        contract::Ask::Effects(contract::effects::Ask::DropProposal { proposal: proposal.number }),
+    ));
     purpose
 }
 
@@ -1273,15 +1297,15 @@ pub(crate) fn procedure_proposed(
     admitted: bool,
 ) -> tasks::Event {
     if admitted {
-        out.push(Request::Ask {
-            connector: route.connector,
-            ask: Ask::Effect(connector::Ask::KeepProposal {
+        out.push(connector_ask(
+            route.connector,
+            contract::Ask::Effects(contract::effects::Ask::KeepProposal {
                 owner: token,
                 proposal: route.proposal,
                 task: route.task,
                 project: core.tasks.task(route.task).expect("proposer exists").project,
             }),
-        });
+        ));
     } else {
         drop_effect(out, route.connector, token, authority::Answer::Refuse);
     }

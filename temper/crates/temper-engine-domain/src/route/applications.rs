@@ -323,7 +323,10 @@ pub(super) fn part(
 }
 
 pub(super) fn finished(domain: &mut Domain, request: Token, outcome: Result<Token, people::Again>) {
-    domain.work.push(Work::Core(core::Event::ApplicationFinished { request, outcome }));
+    super::forge_up(
+        domain,
+        jig_domain_contract::Up::Requests(jig_domain_contract::requests::Up::Decided { request, outcome }),
+    );
 }
 
 pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer> {

@@ -16,6 +16,7 @@ skein-lib.workspace = true
 jig-domain-brief.workspace = true
 
 [dev-dependencies]
+jig-domain-contract.workspace = true
 skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

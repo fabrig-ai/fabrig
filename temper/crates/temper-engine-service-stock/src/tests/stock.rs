@@ -1476,7 +1476,9 @@ fn a_stock_landing_can_start_its_prepare_job() {
     let mut declarations =
         skein_lib::List::with_capacity(u32::try_from(config.connectors.len()).expect("connector count"));
     for connector in &config.connectors {
-        declarations.push(jig_domain_contract::Declaration::empty(*connector)).expect("connector declaration");
+        declarations
+            .push(jig_domain_contract::Declaration::empty(jig_domain_contract::Connector(*connector)))
+            .expect("connector declaration");
     }
     let mut jig = Engine::new(config, declarations.as_slice(), &env.limits).expect("stock core");
     let mut action = jig.core_mut().start_begin(false, env.wall);
@@ -1559,8 +1561,12 @@ fn a_stock_landing_can_start_its_prepare_job() {
         &mut out,
     );
     let mut refused = None;
-    while let Some(Out::Core(request)) = out.pop() {
-        if let jig_domain_core::Request::Ask { ask: jig_domain_core::Ask::StepRefused { why, .. }, .. } = request {
+    while let Some(output) = out.pop() {
+        if let Out::Ask(
+            _,
+            jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepRefused { why, .. }),
+        ) = output
+        {
             refused = Some(why);
         }
     }
@@ -1569,13 +1575,15 @@ fn a_stock_landing_can_start_its_prepare_job() {
     step(
         &mut jig,
         &env,
-        In::Core(Event::ProcedureHoldings {
-            task,
-            step: number,
-            connector: 1,
-            holdings: Some(Box::new([Box::new([])])),
-            refused: None,
-        }),
+        In::Connector(
+            jig_domain_contract::Connector(1),
+            jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::ProcedureHoldings {
+                task,
+                step: number,
+                holdings: Some(Box::new([Box::new([])])),
+                refused: None,
+            }),
+        ),
         &mut out,
     );
     drop(out);

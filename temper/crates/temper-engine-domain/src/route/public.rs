@@ -25,8 +25,10 @@ pub(crate) fn start(
     domain.work.push(Work::Core(core::Event::PublicRead { reply, read }));
 }
 
-pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, connector: u16, ask: core::Ask) {
-    let core::Ask::Public { reply, kind, version, project, task, public } = ask else { unreachable!("public ask") };
+pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, connector: u16, ask: jig_domain_contract::parts::Ask) {
+    let jig_domain_contract::parts::Ask::Public { reply, kind, version, project, task, public } = ask else {
+        unreachable!("public ask")
+    };
     let answer = if connector == domain.config.forge_connector {
         let public = public_tasks(domain, &public);
         match domain
@@ -39,7 +41,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, connector: u16, ask: c
     } else {
         None
     };
-    domain.work.push(Work::Core(core::Event::PublicAnswered { reply, answer }));
+    domain.work.push(Work::Connector(
+        jig_domain_contract::Connector(connector),
+        jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Public { reply, answer }),
+    ));
 }
 pub(crate) fn public_tasks(domain: &Domain, public: &[u64]) -> Box<[PublicTask]> {
     let mut tasks = List::with_capacity(u32::try_from(public.len()).expect("core public tasks bound"));

@@ -1,5 +1,7 @@
 //! Project landings, sittings and briefs (temper/docs/design/domain/forge/attention.md, 2, 3).
 use super::*;
+use crate::tests::project_released;
+use jig_domain_contract as contract;
 use jig_domain_people::ApplicationScope;
 
 const PARTY: u64 = 7;
@@ -307,7 +309,10 @@ fn erased_with_its_project() {
     ] {
         restore(&mut d, &env(), record);
     }
-    let out = outputs(&mut d, Event::ReleaseProject { project: PROJECT, request: REQUEST });
+    let out = outputs(
+        &mut d,
+        Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: PROJECT })),
+    );
     assert_eq!(
         out.as_ref(),
         [
@@ -317,15 +322,19 @@ fn erased_with_its_project() {
             Request::Erase { key: Key::Looked { party: OTHER_PARTY, project: PROJECT } },
             Request::Erase { key: Key::PersonBrief { party: PARTY, project: PROJECT } },
             Request::Erase { key: Key::PersonBrief { party: OTHER_PARTY, project: PROJECT } },
-            Request::ProjectReleased { request: REQUEST },
+            project_released(PROJECT),
         ]
     );
     assert_eq!(d.project_facts.len(), 1);
     assert_eq!(d.looked.len(), 1);
     assert_eq!(d.person_briefs.len(), 1);
     assert_eq!(
-        outputs(&mut d, Event::ReleaseProject { project: PROJECT, request: REQUEST }).as_ref(),
-        [Request::ProjectReleased { request: REQUEST }]
+        outputs(
+            &mut d,
+            Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: PROJECT }))
+        )
+        .as_ref(),
+        [project_released(PROJECT)]
     );
 }
 fn facts_record(project: u32) -> Stored {

@@ -3,11 +3,13 @@
 
 use super::Proposing;
 use crate::routing::{HoldingsNeed, Work, effect::procedure::ProcedureCall};
+use crate::vocabulary::connector_ask;
+use jig_domain_contract as contract;
 
 use crate::loads::point::Point;
 use crate::{
-    Ask, CallHolder, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep,
-    Request, StepRefusal, ToolKind,
+    CallHolder, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep, Request,
+    StepRefusal, ToolKind,
     routing::{
         BatchKind, DelegateCreation, ProcedureCreation,
         run::calls::{admit_named_call, call_decision, named_propose, proposal_refused},
@@ -39,6 +41,7 @@ pub(crate) fn delegate_refused(
 pub(crate) fn delegate(
     core: &mut Core,
     env: &Env<Limits>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     batch: Box<[Delegate]>,
@@ -72,7 +75,7 @@ pub(crate) fn delegate(
         }
     };
     if ids.is_empty() {
-        return delegate_validated(core, env, to, key, batch, Box::new([]));
+        return delegate_validated(core, env, work, to, key, batch, Box::new([]));
     }
     let stubs = List::with_capacity(u32::try_from(ids.len()).expect("bounded input IDs"));
     core.handoff_call(key, CallHolder::Routed, CallHolder::DelegateInput);
@@ -107,6 +110,7 @@ fn load_input(core: &mut Core, env: &Env<Limits>, read: DelegateInput) -> Queue<
 pub(crate) fn input_loaded(
     core: &mut Core,
     env: &Env<Limits>,
+    work: &mut Queue<Work>,
     mut read: DelegateInput,
     row: Option<Box<tasks::TaskRecord>>,
 ) -> Queue<Request> {
@@ -131,7 +135,7 @@ pub(crate) fn input_loaded(
         load_input(core, env, read)
     } else {
         core.handoff_call(read.key, CallHolder::DelegateInput, CallHolder::Routed);
-        delegate_validated(core, env, read.to, read.key, read.batch, read.stubs.into_boxed())
+        delegate_validated(core, env, work, read.to, read.key, read.batch, read.stubs.into_boxed())
     }
 }
 
@@ -142,6 +146,7 @@ pub(crate) fn input_loaded(
 fn delegate_validated(
     core: &mut Core,
     env: &Env<Limits>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     mut batch: Box<[Delegate]>,
@@ -238,27 +243,32 @@ fn delegate_validated(
     }
     let request = to.into_token();
     let members = created.into_boxed();
-    let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
-    assert!(remaining > 0, "delegation has a numbered connector");
-    let asked = holdings_need(root, &members, env.limits.tasks.batch);
-    let request = core.fly(crate::routing::flight::Flight::CreatingDelegates {
-        request,
-        route: DelegateCreation {
-            key,
-            kind: BatchKind::Delegation { stubs, given },
-            members,
-            remaining,
-            answered: List::with_capacity(remaining),
-            failed: false,
-            refused: None,
-        },
-    });
+    let remaining =
+        u32::try_from(core.connector_recipients.resources.len()).expect("configured connector count fits u32");
+    let route = DelegateCreation {
+        key,
+        kind: BatchKind::Delegation { stubs, given },
+        members,
+        remaining,
+        answered: List::with_capacity(remaining),
+        failed: false,
+        refused: None,
+    };
+    if remaining == 0 {
+        return finish_delegate_holdings(core, env, work, request, route);
+    }
+    let asked = holdings_need(root, &route.members, env.limits.tasks.batch);
+    let request = core.fly(crate::routing::flight::Flight::CreatingDelegates { request, route });
     let mut out = Queue::uncapped();
-    for &connector in core.connectors.as_ref() {
-        out.push(Request::Ask {
+    for &connector in core.connector_recipients.resources.as_ref() {
+        out.push(connector_ask(
             connector,
-            ask: Ask::DelegateHoldings { request, from: key.task, members: asked.as_slice().into() },
-        });
+            contract::Ask::Resources(contract::resources::Ask::DelegateHoldings {
+                request,
+                from: key.task,
+                members: asked.as_slice().into(),
+            }),
+        ));
     }
     out
 }
@@ -272,7 +282,7 @@ pub(crate) fn delegate_holdings(
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
     refused: Option<HoldingsRefusal>,
 ) -> Queue<Request> {
-    let known = core.connectors.contains(&connector);
+    let known = core.connector_recipients.resources.contains(&connector);
     let Some((_, flight)) = core.delegate_creation_mut(request) else {
         return Queue::uncapped();
     };
@@ -301,7 +311,17 @@ pub(crate) fn delegate_holdings(
     if flight.remaining > 0 {
         return Queue::uncapped();
     }
-    let (request, mut flight) = core.take_delegate_creation(request).expect("completed delegate holdings");
+    let (request, flight) = core.take_delegate_creation(request).expect("completed delegate holdings");
+    finish_delegate_holdings(core, env, work, request, flight)
+}
+
+fn finish_delegate_holdings(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    request: Token,
+    mut flight: DelegateCreation,
+) -> Queue<Request> {
     if let Some(refused) = flight.refused {
         let problem = holdings_problem(flight.members.first().expect("nonempty delegate batch").number, refused);
         let part = match flight.kind {
@@ -351,6 +371,7 @@ pub(crate) fn delegate_holdings(
 pub(crate) fn propose_batch(
     core: &mut Core,
     env: &Env<Limits>,
+    work: &mut Queue<Work>,
     proposing: Proposing,
     mut batch: Box<[Delegate]>,
     tracked: Option<u32>,
@@ -423,27 +444,32 @@ pub(crate) fn propose_batch(
     }
     let request = to.into_token();
     let members = created.into_boxed();
-    let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
-    assert!(remaining > 0, "proposal has a numbered connector");
-    let asked = holdings_need(root, &members, env.limits.tasks.batch);
-    let request = core.fly(crate::routing::flight::Flight::CreatingDelegates {
-        request,
-        route: DelegateCreation {
-            key,
-            kind: BatchKind::Proposal { reason, as_holder },
-            members,
-            remaining,
-            answered: List::with_capacity(remaining),
-            failed: false,
-            refused: None,
-        },
-    });
+    let remaining =
+        u32::try_from(core.connector_recipients.resources.len()).expect("configured connector count fits u32");
+    let route = DelegateCreation {
+        key,
+        kind: BatchKind::Proposal { reason, as_holder },
+        members,
+        remaining,
+        answered: List::with_capacity(remaining),
+        failed: false,
+        refused: None,
+    };
+    if remaining == 0 {
+        return finish_delegate_holdings(core, env, work, request, route);
+    }
+    let asked = holdings_need(root, &route.members, env.limits.tasks.batch);
+    let request = core.fly(crate::routing::flight::Flight::CreatingDelegates { request, route });
     let mut out = Queue::uncapped();
-    for &connector in core.connectors.as_ref() {
-        out.push(Request::Ask {
+    for &connector in core.connector_recipients.resources.as_ref() {
+        out.push(connector_ask(
             connector,
-            ask: Ask::DelegateHoldings { request, from: key.task, members: asked.as_slice().into() },
-        });
+            contract::Ask::Resources(contract::resources::Ask::DelegateHoldings {
+                request,
+                from: key.task,
+                members: asked.as_slice().into(),
+            }),
+        ));
     }
     out
 }
@@ -597,8 +623,12 @@ pub(crate) fn procedure_step(
             if let Err(problem) = core.resolve_llm(&mut members) {
                 return crate::routing::effect::procedure::refused(core, task, step, StepRefusal::Refused(problem));
             }
-            let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
-            assert!(remaining > 0, "procedure has a numbered connector");
+            let remaining =
+                u32::try_from(core.connector_recipients.resources.len()).expect("configured connector count fits u32");
+            if remaining == 0 {
+                finish_procedure_holdings(core, env, work, task, step, parts, members);
+                return out;
+            }
             let mut asked = List::with_capacity(u32::try_from(members.len()).expect("bounded procedure batch"));
             for member in &members {
                 asked
@@ -626,11 +656,15 @@ pub(crate) fn procedure_step(
                     refused: None,
                 },
             });
-            for &connector in core.connectors.as_ref() {
-                out.push(Request::Ask {
+            for &connector in core.connector_recipients.resources.as_ref() {
+                out.push(connector_ask(
                     connector,
-                    ask: Ask::ProcedureHoldings { task, step, members: asked.as_slice().into() },
-                });
+                    contract::Ask::Resources(contract::resources::Ask::ProcedureHoldings {
+                        task,
+                        step,
+                        members: asked.as_slice().into(),
+                    }),
+                ));
             }
         }
     }
@@ -646,7 +680,7 @@ pub(crate) fn procedure_holdings(
     refused: Option<HoldingsRefusal>,
 ) -> Queue<Request> {
     let ProcedureCall { task, step, connector } = call;
-    let known = core.connectors.contains(&connector);
+    let known = core.connector_recipients.resources.contains(&connector);
     let Some(token) = core.procedure_creation_token(task, step) else { return Queue::uncapped() };
     let Some(crate::routing::flight::Flight::ProcedureCreation { route: flight, .. }) =
         core.flights.get_mut(skein_lib::Id::from_token(token))
@@ -694,19 +728,30 @@ pub(crate) fn procedure_holdings(
                 crate::routing::effect::procedure::problem(task, tasks::Refusal::Holds),
             );
         }
-        let mut decision = flight.decision;
-        decision.batch = flight.members;
-        crate::admission::deadlines::resolve(&mut decision.batch, env.wall);
-        work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
-            reads_project: false,
-            reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
-            task,
-            step,
-            read: core.tasks.procedure_offered(task),
-            decision,
-        })));
+        finish_procedure_holdings(core, env, work, task, step, flight.decision, flight.members);
     }
     out
+}
+
+fn finish_procedure_holdings(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    task: u64,
+    step: u64,
+    mut decision: tasks::ProcedureDecision,
+    members: Box<[tasks::New]>,
+) {
+    decision.batch = members;
+    crate::admission::deadlines::resolve(&mut decision.batch, env.wall);
+    work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
+        reads_project: false,
+        reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
+        task,
+        step,
+        read: core.tasks.procedure_offered(task),
+        decision,
+    })));
 }
 
 pub(crate) fn start_recurring(

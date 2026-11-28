@@ -11,6 +11,7 @@ use crate::{
 /// Infrastructure's bounded working set and durable records.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) port: crate::port::State,
     pub(crate) client_subjects: Map<Token, crate::ClientSubject>,
     pub(crate) application: crate::application::State,
     restart: Option<crate::RestartStage>,
@@ -40,6 +41,7 @@ impl Domain {
     pub fn new(backend: Backend, limits: &Limits) -> Self {
         assert!(crate::valid(limits), "connector limits fit");
         Self {
+            port: crate::port::State::new(),
             client_subjects: Map::with_capacity(limits.proposals),
             application: crate::application::State::new(limits),
             restart: None,
@@ -859,8 +861,11 @@ fn stage(domain: &mut Domain, env: &Env<Limits>, token: Token, effect: Effect, o
 
 /// Routes one event.
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
-pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub fn step_system(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Ask(_) | Event::Released(_) | Event::StageEffect { .. } | Event::EffectOwner { .. } => {
+            unreachable!("the connector port handles engine inputs")
+        }
         Event::ProcedureAdmission { task, answer } => {
             let signal = match answer {
                 crate::Admission::Allow => ProcedureSignal::EffectMade,
@@ -1021,9 +1026,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             | SystemEvent::Environment { other_hand: true, fact: None, .. }) => {
                 let (settle, rest) = split(domain, env, whole).expect("a whole fact splits");
                 let mut parts = Queue::uncapped();
-                step(domain, env, Event::System(settle), &mut parts);
+                step_system(domain, env, Event::System(settle), &mut parts);
                 if let Some(rest) = rest {
-                    step(domain, env, Event::System(rest), &mut parts);
+                    step_system(domain, env, Event::System(rest), &mut parts);
                 }
                 while let Some(request) = parts.pop() {
                     out.push(request);
@@ -1068,7 +1073,7 @@ fn provision_deadline(domain: &Domain, state: &ProcedureState) -> Option<u64> {
 }
 
 /// Rechecks uncertain entries and wakes due procedures at their absolute deadlines.
-pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn fire_system(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.restoring {
         return;
     }

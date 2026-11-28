@@ -1,6 +1,7 @@
 //! A direct giver replaces the financial chain without changing the requester tree.
 use super::{ask_now, sign_in};
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 const OTHER: u64 = 2;
 const TARGET: u64 = 10;
@@ -287,10 +288,11 @@ fn a_procedure_steps_widening_gives_from_the_procedure_task() {
         amendments: Box::new([StepAmendment { task: TARGET, revision, amendment: change }]),
         ..ProcedureStep::new(StepEnd::Wait)
     };
-    drop(watch_outputs(
+    drop(watch_connector_outputs(
         &mut core,
         &limits,
-        Event::ProcedureStep { task: PARENT, step: step_number, connector: 1, code: 1, decision },
+        1,
+        contract::Up::Procedures(contract::procedures::Up::Step { task: PARENT, step: step_number, code: 1, decision }),
     ));
     let task = core.tasks.task(TARGET).expect("target");
     assert_eq!((task.funder, task.numbers.budget, task.numbers.spent), (tasks::Funder::Task(PARENT), 120, 0));

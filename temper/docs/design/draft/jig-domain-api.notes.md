@@ -37,20 +37,20 @@ At `de275134b0`, outside tests.
 | `Event`: `SignIn`, `Read`, `Watch`, `WatchRun`, `Unwatch`, `Delivered`, `StreamDelivered`, `PublicRead`, `People(..)` | `In::Party` (5.3) |
 | `Event`: `Key`, `ChangeModel`, `ChangeSettings`, `ProposeSettings`, `Application` | `Act` by `Actor::Party` (7.1) |
 | `Event`: `Act`, `PersonTask`, `StartRecurring` | `Act` by `Actor::Deployment` (7.1) |
-| `Event`: `EffectConnector(..)`, `EffectStart`, `ProcedureStep`, `Holdings`, `DelegateHoldings`, `ProcedureHoldings`, `Marked`, `View(..)`'s documents made and subjects changed, `ApplicationPart`, `ApplicationFinished`, `ProjectionSettled`, `ProjectReleased`, `PublicAnswered`, `Brief(..)`, `BriefAssembled`, `WorkspacePrepared`, `ClaimPrepared`, `ClaimRefused`, `ConnectorRepair`, `Parts`, `PartsMarked`, `Waits` | `In::Connector(Up)` (6.4), or gone with run preparation (6.6) |
+| `Event`: `EffectStart`, `ProcedureStep`, `Marked`, `View(..)`'s documents made and subjects changed, `ApplicationPart`, `ProjectionSettled`, `Brief(..)`, `BriefAssembled`, `WorkspacePrepared`, `ClaimPrepared`, `ClaimRefused`, `ConnectorRepair`, `Waits` | `In::Connector(Up)` (6.4), or gone with run preparation (6.6) |
 | `Event`: `Account(..)` | `In::Account` (5.4) |
 | `Event`: `Period`, `Stopping`, `Settling` | `In::Application` (5.5) |
 | `Event`: `PublicDurable`, and `Tasks(..)` and `Fleet(..)` callbacks fed back | `In::Resume` (5.6) |
 | `Event`: `Activate`, `EffectDeadline`, and `Tasks(..)` that roots build | inside: scheduled by the engine, fired by `fire`, or the declarations and `Up` (6.2, 6.4) |
 | `Request::Write`, and the start's wires | `Out::Write` (4.3, 5.1) |
-| `Request::Ask`'s `Effect`, `Parts` and `WaitsRefused`, and `effects::connector::Ask` | `Out::Ask` and its nine capabilities (6.3, and the table below) |
+| `Request::Ask`'s `Connector` | `Out::Ask` and its nine capabilities (6.3) |
 | `Request::Ask`'s `Workers` and `Providers` | `Peer::Application` (5.5) |
 | `Held`: `Load`, `ReadLoad`, `NotesLoad`; `Now`: `StartPreparation`, `SeenConversation`, `LoadEndedRead`, `EndedProposal`, `DecidedProposal`, `EndedPersonTask`, `EndedTask`, `PartyInputs`, `EndedEscalation`; the start's generation switch | `Peer::Store` (5.1) |
 | `Held`: `Assign`, `ReadList`, `Sources`, `CheckSource`, `SignOutSource`, `Grant`, `Relayed`, `Inbound`, `Acknowledge`, `AcknowledgeTurn`, `Cancel`, `Refuse`, `TurnBusy`, `SettledCall`, `CallAnswer`, `NotesWritten`, `NotesDeleted`, `ReadUsage`, `PauseWorker`, `AcknowledgePart`, `PartBusy` | `Peer::Host` (5.2) |
 | `Now`: `PartBusy`, `RelayBusy`, `CallBusy`, `DropCall`, `Undelivered`, `EffectAnswer`, `SettledCallRefused`, `NoteBusy`, `Link(Asked)`, `Link(Relayed)`, and the reads' answers `TaskRead`, `SettingsAnswer`, `PersonAnswer`, `ProposalRead`, `NotesIndexed`, `NotesRecalled`, `NotesRefused` | `Peer::Host` (5.2), the reads' answers one (7.2) |
 | `Now`: `Call`, `Ask`, and `Link`'s `DropPayload`, `TurnPayload`, `AnswerPayload`, `AcceptedTurn`, `RefusedPayload`, `PartPayload` | gone: decoded at the edge (the draft's section 8) |
 | `Held`: `Acted`, `Read`, `Delivery`, `WatchEnded`, `PeopleReply`, `Result`, `PublicRead`, `NeedArrived`, `CarriedUnused`, `SourceSignedOut`, `ApplicationDelivery`, `ApplicationWatchEnded`, `Applied`; `Now`: `SignInRefused`, `WatchRefused`, `RunText` | `Peer::Party` (5.3), an application's document as a part (6.6) |
-| `Held::MakeEffect` | `Peer::Connector(Released)` (6.5) |
+| `Held::Connector` | `Peer::Connector(Released)` (6.5) |
 | `Held`: `Relay`, `TaskTerminalAcknowledged`, `TaskTurnKept`, `TaskPartKept`, `StopRun`, `PublicWait` | `Peer::Resume` (5.6) |
 | `Now::Account` | `Peer::Account` (5.4) |
 | `Request::ProjectMade`; `Held`: `Drained`, `Restarting`; `Now`: `BriefFailed`, `RestoreRefused`; the start's header | `Peer::Application` (5.5) |
@@ -59,19 +59,7 @@ At `de275134b0`, outside tests.
 | roots' access to `core.tasks`, `core.people`, `core.fleet` and the other children | gone (the draft's section 10) |
 | the hub and `jig-domain-hub-link` in the engine's root | gone: the engine's own slots a worker (the draft's section 9) |
 
-Today's connector asks, by the capability that takes each (6.3):
-
-| Capability | Today's asks |
-|---|---|
-| `lifecycle` | `Restore`, `CatchUp`, `Adopt` (twice), `ReleaseProject` |
-| `resources` | `Names`, `Unname`, `Hold` (twice), `ReleaseHold`, `Writer`, `Lost`, `Left`, `TaskHoldings`, `DelegateHoldings`, `ProcedureHoldings`, `RepairRefused`, `DelegateRefused` |
-| `effects` | `Describe`, `DescribeProposal`, `Keep`, `KeepProposal`, `Drop`, `DropProposal`, `ResolveUncertain`, `Ask::Effect`, `Judge`, `Close`, `Release` (twice) |
-| `topics` | `Subscribe`, `Unsubscribe`, `EndTopic`, `SubscriptionDone`, `UnsubscriptionDone`, `DropSubscription` |
-| `parts` | `Gather` and `CutTo` (twice each), `Drop`, `Prepare`, `Read`, `Document`, `DropDocument`, `Public`, `ClaimDone`, `JobClaimed`, core `Ask::Parts`, and roots' `BriefCorePlanned` and `WorkspaceRequest` |
-| `procedures` | `ProcedureMade`, `ProcedureActivate`, `ProcedureMessage`, `ProcedureClose`, `StartProcedure`, `StepMade`, `StepRefused`, core `Ask::WaitsRefused`, and roots' `tasks::Event::WakeProcedure` |
-| `projections` | `ProjectGoal`, `Project`, `ForgetProjection` |
-| `settings` | `JudgeSettings`, `KeepSettings`, `KeepProposalSettings`, `DropProposalSettings`, `RestoreSettings`, `ForgetReplaced`, `SaveSettingsDefaults`, `Catalogue` |
-| `requests` | `Application`, `DropApplication`, `ApplicationPartAnswered` |
+The connector capabilities' `Ask`, `Up` and `Released` now cross the engine's port. The remaining run preparation and connector operations outside it are listed in `jig/docs/design/domain/engine/vocabulary.md`, 2.5.
 
 ## 3. The counts' commands
 

@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-domain-contract.workspace = true
 skein-lib.workspace = true
 
 [lints]

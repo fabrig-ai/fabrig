@@ -3,7 +3,7 @@ use skein_lib::{Env, List, Queue, Time, Wall};
 
 use crate::{
     Adoption, Class, Classed, Config, Domain, Event, Hold, HoldMode, Limits, Origin, Path, PoolSpec, Record, Request,
-    ResourceRole, ResourceSpec, SystemEvent, TopicSpec, step,
+    ResourceRole, ResourceSpec, SystemEvent, TopicSpec, step_system as step,
 };
 
 const PROJECT_DOCUMENT: u64 = 800;
@@ -747,7 +747,7 @@ fn restored_outboxes_wait_for_the_scripted_settlement() {
         },
         &mut out,
     );
-    crate::fire(&mut cold, &env, &mut out);
+    crate::fire_system(&mut cold, &env, &mut out);
     assert!(out.is_empty(), "no restored system action before the mark");
     assert_eq!(crate::next_deadline(&cold), None);
     // Activation is the existing scripted stage, after adoption and the mark.
@@ -934,3 +934,5 @@ fn a_procedure_job_waits_for_delegate_done_before_finishing() {
 }
 
 mod settings;
+
+mod port;

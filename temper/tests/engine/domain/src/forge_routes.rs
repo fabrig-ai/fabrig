@@ -3501,21 +3501,21 @@ impl World {
     }
 
     fn check_quiet(&mut self) {
-        if self.quiet() {
-            // The next tick can see the same frozen point. The operator's
-            // landing hold is a separate input that does not bump the revision.
-            let point = (self.root.revision(), self.env.now, self.iteration, self.root.forge().landing_held());
-            if self.checked_quiet != Some(point) {
-                self.checks
-                    .quiet(&self.root, self.env.now, self.iteration)
-                    .unwrap_or_else(|finding| panic!("{finding}"));
-                self.checked_quiet = Some(point);
-            }
-            if let Some((kinds, ledger)) = &mut self.bounds {
-                let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
-                temper_engine_inspect::inspect(&self.root, &mut inspection);
-                ledger.saturation(kinds, &[&inspection], self.env.now).expect("monotonic quiet points");
-            }
+        // A checked point has no more work here unless the saturation ledger
+        // needs another sample. The landing hold can change without a revision.
+        let point = (self.root.revision(), self.env.now, self.iteration, self.root.forge().landing_held());
+        let checked = self.checked_quiet == Some(point);
+        if (checked && self.bounds.is_none()) || !self.quiet() {
+            return;
+        }
+        if !checked {
+            self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            self.checked_quiet = Some(point);
+        }
+        if let Some((kinds, ledger)) = &mut self.bounds {
+            let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+            temper_engine_inspect::inspect(&self.root, &mut inspection);
+            ledger.saturation(kinds, &[&inspection], self.env.now).expect("monotonic quiet points");
         }
     }
 

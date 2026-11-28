@@ -1,4 +1,6 @@
 //! Agent admission and model eligibility for configured charters (domain/engine/fleet.md).
+pub use jig_domain_contract::ops::AgentShortfall;
+
 use crate::{Bounds, Figures, HostKind, Kinds};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, length::len_u64};
@@ -35,21 +37,6 @@ pub struct ModelNeed {
     pub window: u32,
     pub output: u32,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AgentShortfall {
-    Model { charter: u32, model: u32 },
-    Window { charter: u32, model: u32 },
-    Output { charter: u32, model: u32 },
-    Turns { charter: u32 },
-    Spend,
-    Time { charter: u32 },
-    Waiting { charter: u32 },
-    Checks { charter: u32 },
-    Message,
-    Inbox,
-    Unacknowledged,
-}
-
 /// Needs past the fleet's owned byte bound (domain/engine/fleet.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct NeedsPast {

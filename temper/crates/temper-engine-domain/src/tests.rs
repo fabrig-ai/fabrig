@@ -137,6 +137,11 @@ fn accept(journal: &mut Journal, limits: &Limits, decision: Decision, out: &mut 
     }
     Ok(())
 }
+pub(crate) fn accept_step(domain: &mut crate::Domain, env: &skein_lib::Env<crate::Limits>, decision: Decision) {
+    accept_routed(&mut domain.journal, &mut domain.engine.core_mut().counters, &env.limits.journal, decision, false)
+        .unwrap();
+}
+
 fn committed(journal: &mut Journal, number: u64) {
     mark_committed(&mut journal.inner, number);
     if !journal.inner.stopped() {
@@ -862,7 +867,6 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
 
     let (mut domain, env) = resume_fixture::root();
     let fixture = held_assignment();
-    domain.hub_link.keep_brief(fixture.task, Box::new([]));
     domain
         .run_workspaces
         .insert(
@@ -901,6 +905,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         transcript: Box::new([]),
         answered: Box::new([]),
         grants: Box::new([]),
+        brief: Box::new([]),
     })));
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
@@ -1003,7 +1008,7 @@ fn forge_declaration_offers_every_write_and_makes_merges_wait() {
     };
     const FORGE: u16 = 7;
     let declaration = crate::translate::forge_declaration(FORGE);
-    assert_eq!(declaration.connector, FORGE);
+    assert_eq!(declaration.connector, jig_domain_contract::Connector(FORGE));
     assert_eq!(
         declaration.resources.as_ref(),
         &[ResourceKind { kind: 1, hold: Rule::Exclusive { taken: Taken::Waits } }]

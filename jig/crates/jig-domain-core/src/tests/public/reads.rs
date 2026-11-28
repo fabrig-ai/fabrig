@@ -5,11 +5,12 @@ mod fixtures;
 mod races;
 
 use crate::{
-    Ask, Core, Event, Held, Limits, PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts,
-    PublicDocument, PublicExecutor, PublicGoal, PublicIndexLimits, PublicLine, PublicPhase, PublicProject,
-    PublicProjects, PublicRead, Request, documents::Text, people, tasks,
+    Core, Event, Held, Limits, PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts, PublicDocument,
+    PublicExecutor, PublicGoal, PublicIndexLimits, PublicLine, PublicPhase, PublicProject, PublicProjects, PublicRead,
+    Request, documents::Text, people, tasks,
 };
 use fixtures::*;
+use jig_domain_contract as contract;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
 fn read(kind: u16, task: Option<u64>) -> PublicRead {
@@ -31,10 +32,7 @@ fn outputs(mut out: Queue<Request>, expected: &[Request]) {
 
 fn start(core: &mut Core, limits: &Limits, reply: u64, read: PublicRead) -> Queue<Request> {
     core.start_input();
-    let out =
-        crate::step(core, &environment(limits), Event::PublicRead { reply: ReplyTo::new(Token::new(reply)), read });
-    outputs(crate::finish_decision(core, &environment(limits)), &[]);
-    out
+    crate::step(core, &environment(limits), Event::PublicRead { reply: ReplyTo::new(Token::new(reply)), read })
 }
 
 fn wait(mut out: Queue<Request>) -> Token {
@@ -49,30 +47,51 @@ fn asking(mut out: Queue<Request>, read: PublicRead, public: &[u64]) -> Token {
     assert_eq!(out.len(), 1, "only the connector ask");
     let request = out.pop().unwrap();
     let before = format!("{request:?}");
-    let Request::Ask { ask: Ask::Public { reply, .. }, .. } = request else { panic!("{before}") };
+    let Request::Ask {
+        ask: crate::Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Public { reply, .. })),
+        ..
+    } = request
+    else {
+        panic!("{before}")
+    };
     let token = reply.into_token();
     let expected = Request::Ask {
         connector: read.owner.checked_sub(1).unwrap(),
-        ask: Ask::Public {
+        ask: crate::Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Public {
             reply: ReplyTo::new(token),
             kind: read.kind,
             version: read.version,
             project: 1,
             task: read.task,
             public: Box::from(public),
-        },
+        })),
     };
     assert_eq!(before, format!("{expected:?}"));
     token
 }
 
-fn answered(core: &mut Core, limits: &Limits, token: Token, answer: Option<PublicApplication>) -> Token {
-    let out = crate::step(core, &environment(limits), Event::PublicAnswered { reply: ReplyTo::new(token), answer });
+fn answered(
+    core: &mut Core,
+    limits: &Limits,
+    connector: u16,
+    token: Token,
+    answer: Option<PublicApplication>,
+) -> Token {
+    let out = crate::tests::connector_step(
+        core,
+        &environment(limits),
+        connector,
+        contract::Up::Parts(contract::parts::Up::Public { reply: ReplyTo::new(token), answer }),
+    );
     let durable = wait(out);
     assert_eq!(durable, token, "the same pending read waits for durability");
-    outputs(crate::finish_decision(core, &environment(limits)), &[]);
     outputs(
-        crate::step(core, &environment(limits), Event::PublicAnswered { reply: ReplyTo::new(token), answer: None }),
+        crate::tests::connector_step(
+            core,
+            &environment(limits),
+            connector,
+            contract::Up::Parts(contract::parts::Up::Public { reply: ReplyTo::new(token), answer: None }),
+        ),
         &[],
     );
     durable
@@ -84,7 +103,15 @@ fn finish(core: &mut Core, limits: &Limits, token: Token, reply: u64, answer: Pu
     outputs(crate::step(core, &env, Event::PublicDurable { read: token }), &[terminal(reply, answer)]);
     outputs(crate::finish_decision(core, &env), &[]);
     outputs(crate::step(core, &env, Event::PublicDurable { read: token }), &[]);
-    outputs(crate::step(core, &env, Event::PublicAnswered { reply: ReplyTo::new(token), answer: None }), &[]);
+    outputs(
+        crate::tests::connector_step(
+            core,
+            &env,
+            1,
+            contract::Up::Parts(contract::parts::Up::Public { reply: ReplyTo::new(token), answer: None }),
+        ),
+        &[],
+    );
 }
 
 fn line(task: u64, parent: Option<u64>, priority: Option<u32>, working: u32) -> PublicLine {
@@ -274,7 +301,7 @@ fn an_application_read_asks_its_connector_with_the_public_tasks_ascending() {
     let read = PublicRead { owner: 3, kind: 45, version: 7, ..read(2, None) };
     let token = asking(start(&mut core, &limits, 87, read), read, &[2, 4, 8]);
     let answer = PublicApplication { tasks: Box::new([8, 2]), record: Box::new([9, 7]) };
-    let token = answered(&mut core, &limits, token, Some(answer.clone()));
+    let token = answered(&mut core, &limits, 2, token, Some(answer.clone()));
     finish(&mut core, &limits, token, 87, document(PublicDocument::Application(answer), Time::ZERO), Time::ZERO);
     outputs(start(&mut core, &limits, 88, PublicRead { owner: 99, ..read }), &[terminal(88, PublicAnswer::Unknown)]);
 }
@@ -287,14 +314,17 @@ fn an_application_answer_naming_a_task_not_handed_is_unknown() {
         make(&mut core, &limits, 1, None, Some(1), false);
         let read = PublicRead { owner: 2, ..read(3, Some(1)) };
         let token = asking(start(&mut core, &limits, 89, read), read, &[1]);
-        // Even a newly public task was not handed to this connector.
-        make(&mut core, &limits, 2, None, Some(2), false);
+        // A task made public before the connector's answer was not in its hand-off.
+        make_in_decision(&mut core, &limits, 1, 2, None, Some(2), false);
         let token = answered(
             &mut core,
             &limits,
+            1,
             token,
             Some(PublicApplication { tasks: Box::new([task]), record: Box::new([]) }),
         );
+        finish_changes(&mut core, &limits);
+        let token = wait(crate::step(&mut core, &environment(&limits), Event::PublicDurable { read: token }));
         finish(&mut core, &limits, token, 89, PublicAnswer::Unknown, Time::ZERO);
     }
 }
@@ -305,7 +335,7 @@ fn a_connector_answering_none_is_unknown() {
     visibility(&mut core, &limits, true);
     let read = PublicRead { owner: 2, ..read(2, None) };
     let token = asking(start(&mut core, &limits, 90, read), read, &[]);
-    let token = answered(&mut core, &limits, token, None);
+    let token = answered(&mut core, &limits, 1, token, None);
     finish(&mut core, &limits, token, 90, PublicAnswer::Unknown, Time::ZERO);
 }
 

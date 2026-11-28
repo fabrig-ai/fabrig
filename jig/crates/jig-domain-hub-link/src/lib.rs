@@ -16,7 +16,7 @@ mod leaves;
 mod payload;
 pub use core::Assignment;
 pub use down::{down, now};
-pub use leaves::{brief_plan, job_assignment, settled_answer};
+pub use leaves::{job_assignment, settled_answer};
 pub use payload::{Ending, Payload, up};
 
 /// A job the core has claimed, for the fleet to place (jig/docs/design/domain/engine/executors.md, 5).
@@ -80,7 +80,6 @@ pub struct OutboxOwner {
 pub struct Link {
     assignments: Map<u64, Assignment>,
     jobs: Map<u64, JobStart>,
-    briefs: Map<u64, Box<[jig_domain_brief::GatherPlaced]>>,
     payloads: Map<Token, Payload>,
     next_payload: u64,
     turn_backoffs: Deadlines<(Token, Token, u32)>,
@@ -104,7 +103,6 @@ impl Link {
         Self {
             assignments: Map::with_capacity(limits.assignments),
             jobs: Map::with_capacity(limits.assignments),
-            briefs: Map::with_capacity(limits.assignments),
             payloads: Map::with_capacity(limits.payloads),
             next_payload: 1,
             turn_backoffs: Deadlines::with_capacity(limits.turns),
@@ -282,13 +280,6 @@ impl Link {
     pub fn keep_assignment(&mut self, assignment: Assignment) {
         self.assignments.insert(assignment.task, assignment).expect("one assignment per task");
     }
-    pub fn keep_brief(&mut self, task: u64, brief: Box<[jig_domain_brief::GatherPlaced]>) {
-        self.briefs.insert(task, brief).expect("one brief per task");
-    }
-    #[must_use]
-    pub fn take_brief(&mut self, task: u64) -> Option<Box<[jig_domain_brief::GatherPlaced]>> {
-        self.briefs.remove(&task)
-    }
     #[must_use]
     pub const fn pieces_dropped(&self) -> u64 {
         self.pieces_dropped
@@ -342,11 +333,10 @@ pub enum Request {
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the link boundary")]
 pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) {
     match event {
-        Event::Prepared { mut assignment, writes } => {
+        Event::Prepared { assignment, writes } => {
             let task = assignment.task;
             let attempt = assignment.attempt;
             let budget = assignment.run.budget;
-            assignment.brief = link.take_brief(task).expect("completed brief");
             link.keep_assignment(assignment);
             out.push(Request::Core(core::Event::ClaimPrepared { task, attempt, budget, writes }));
         }

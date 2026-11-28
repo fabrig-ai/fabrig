@@ -4,6 +4,7 @@ use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_accounts as accounts;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -193,7 +194,12 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
     while let Some(next) = out.pop() {
         if let core::Request::Ask {
             connector: CONNECTOR,
-            ask: core::Ask::Adopt { request, project: PROJECT, adoption: kept },
+            ask:
+                core::Ask::Connector(jig::Ask::Lifecycle(jig::lifecycle::Ask::Adopt {
+                    request,
+                    project: PROJECT,
+                    adoption: kept,
+                })),
         } = next
         {
             assert_eq!(kept, adoption);

@@ -2,6 +2,7 @@
 use crate::settings_support::{self as support, ask, run_configuration, settings_run_with_limits};
 use jig_core_world::fixtures;
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core::engine::{self, In, Out};
 use jig_domain_core::{self as core, reads};
 use jig_domain_people as people;
@@ -344,14 +345,14 @@ fn person_application_reads_reach_the_connector_as_the_person() {
             }),
             &mut out,
         );
-        let Out::Core(request) = out.pop().expect("connector read or unknown") else {
-            panic!("connector read loads no retained rows")
-        };
+        let output = out.pop().expect("connector read or unknown");
         if allowed {
-            let core::Request::Ask { connector, ask: core::Ask::Read { reply, scope, read, party, window: received } } =
-                request
+            let Out::Ask(
+                jig::Connector(connector),
+                jig::Ask::Parts(jig::parts::Ask::Read { reply, scope, read, party, window: received }),
+            ) = output
             else {
-                panic!("connector read: {request:?}")
+                panic!("connector read: {output:?}")
             };
             assert_eq!(connector, CONNECTOR);
             assert_eq!(reply.into_token(), token);
@@ -360,7 +361,7 @@ fn person_application_reads_reach_the_connector_as_the_person() {
             assert_eq!(party, PERSON);
             assert_eq!(received, window);
         } else {
-            let core::Request::Now(now) = request else { panic!("unknown") };
+            let Out::Core(core::Request::Now(now)) = output else { panic!("unknown") };
             let core::Now::PersonAnswer { answer, .. } = *now else { panic!("person answer") };
             assert_eq!(*answer, reads::Answer::None(reads::Why::Unknown));
         }

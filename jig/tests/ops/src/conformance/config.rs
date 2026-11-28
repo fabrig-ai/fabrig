@@ -57,8 +57,10 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
     core_limits.brief.brief_bytes = 8192;
     core_limits.brief.read_bytes = 8192;
     core_limits.call_answer_bytes = 1024;
+    let policy = jig_ops_domain::Policy::reference();
+    core_limits.brief.gather = policy.brief_timeout;
     let mut limits = Limits {
-        policy: jig_ops_domain::Policy::reference(),
+        policy,
         core: core_limits,
         infrastructure: crate::infrastructure_limits(),
         observability: crate::limits(),

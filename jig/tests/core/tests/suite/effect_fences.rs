@@ -1,14 +1,17 @@
 use crate::first_support::{effect_kind, with_effects};
+use jig::effects::EffectKind;
+use jig_core_world::test_support::answer_connector;
 use jig_core_world::world::Setup;
 use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
-use jig_domain_contract::effects::EffectKind;
+use jig_domain_contract as jig;
+use jig_domain_contract::{Up, effects};
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token};
 
-fn recovered(world: &World, seed: u64, requirement: bool) -> (core::Core, Env<core::Limits>) {
+fn recovered(world: &World, seed: u64, requirement: bool) -> (core::engine::Engine, Env<core::Limits>) {
     let (configuration, limits) = fixture(seed, requirement);
     recovered_with(world, configuration.core, &limits, &[effect_kind(5, false)])
 }
@@ -18,10 +21,10 @@ fn recovered_with(
     configuration: core::Config,
     limits: &root::Limits,
     effects: &[EffectKind],
-) -> (core::Core, Env<core::Limits>) {
+) -> (core::engine::Engine, Env<core::Limits>) {
     let env = Env { now: Time::from_nanos(world.wall_time().as_nanos()), wall: world.wall_time(), limits: limits.core };
-    let core = with_effects(configuration, &env.limits, effects);
-    let core = super::start_links::recovered_with_core(world, core, &env);
+    let mut core = with_effects(configuration, &env.limits, effects);
+    super::start_links::reopen(core.core_mut(), world, &env);
     (core, env)
 }
 
@@ -45,20 +48,23 @@ fn description() -> core::effects::connector::EffectDescription {
     }
 }
 
-fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOrigin) -> (Token, authority::Judge) {
-    let owner = core.effect_owner();
-    let _requests = core::step(core, env, core::Event::EffectStart { owner, connector: 1, origin });
-    let mut requests = core::step(
+fn begin(
+    core: &mut core::engine::Engine,
+    env: &Env<core::Limits>,
+    origin: core::EffectOrigin,
+) -> (Token, authority::Judge) {
+    let owner = core.core_mut().effect_owner();
+    let _requests = core::step(core.core_mut(), env, core::Event::EffectStart { owner, connector: 1, origin });
+    let mut requests = answer_connector(
         core,
         env,
-        core::Event::EffectConnector(core::effects::connector::Event::Described {
-            owner,
-            description: Box::new(description()),
-        }),
+        1,
+        Up::Effects(effects::Up::Described { owner, description: Box::new(description()) }),
     );
     for _ in 0..requests.len() {
         if let core::Request::Ask {
-            ask: core::Ask::Effect(core::effects::connector::Ask::Judge { judge, .. }), ..
+            ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Judge { judge, .. })),
+            ..
         } = requests.pop().expect("request count")
         {
             return (owner, judge);
@@ -67,11 +73,16 @@ fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOri
     panic!("the described effect asks its external judge");
 }
 
-fn verdict(core: &mut core::Core, env: &Env<core::Limits>, judge: (Token, authority::Judge)) -> Vec<core::Request> {
-    let mut requests = core::step(
+fn verdict(
+    core: &mut core::engine::Engine,
+    env: &Env<core::Limits>,
+    judge: (Token, authority::Judge),
+) -> Vec<core::Request> {
+    let mut requests = answer_connector(
         core,
         env,
-        core::Event::EffectConnector(core::effects::connector::Event::Verdict {
+        judge.1.connector,
+        Up::Effects(effects::Up::Verdict {
             owner: judge.0,
             judge: judge.1,
             verdict: authority::Verdict::Met,
@@ -97,7 +108,7 @@ fn a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_canc
         core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9901)), key, deadline: env.wall },
     );
     let _requests = core::step(
-        &mut core,
+        core.core_mut(),
         &env,
         core::Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(9902)),
@@ -110,20 +121,20 @@ fn a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_canc
             },
         }),
     );
-    let before = core.tasks.task(key.task).expect("closing task").numbers;
+    let before = core.core().tasks.task(key.task).expect("closing task").numbers;
     let outputs = verdict(&mut core, &env, judge);
     assert!(outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Drop { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop { .. })), .. }
     )));
     assert!(!outputs.iter().any(|request| matches!(
         request,
         core::Request::Write(_)
             | core::Request::Held(_)
-            | core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
+            | core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
-    assert_eq!(core.tasks.task(key.task).expect("closing task").numbers, before);
-    assert!(!core.call_pending(key));
+    assert_eq!(core.core().tasks.task(key.task).expect("closing task").numbers, before);
+    assert!(!core.core().call_pending(key));
 }
 
 fn a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes() {
@@ -135,20 +146,20 @@ fn a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes()
         &env,
         core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9910)), key, deadline: env.wall },
     );
-    let mut policy = core.authority.policy(1).expect("policy").clone();
+    let mut policy = core.core().authority.policy(1).expect("policy").clone();
     policy.requirements[0].must_be_guarded = true;
     policy.requirements[0].guard = authority::Guard::Guarded;
     let mut facts = Queue::uncapped();
-    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
+    authority::step(&mut core.core_mut().authority, authority::Event::Policy { project: 1, policy }, &mut facts);
     assert_eq!(facts.pop(), Some(authority::PolicyFact::Changed { project: 1 }));
-    let before = core.tasks.task(key.task).expect("live task").numbers;
+    let before = core.core().tasks.task(key.task).expect("live task").numbers;
     let outputs = verdict(&mut core, &env, judge);
     assert!(outputs.iter().any(|request| matches!(request, core::Request::Write(core::Write::Save(core::Record::Core(core::CoreRecord::Call(row)))) if matches!(row.part, core::CallPart::EffectDenied { answer: authority::Answer::Refuse, .. }))));
     assert!(!outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
-    assert_eq!(core.tasks.task(key.task).expect("live task").numbers, before);
+    assert_eq!(core.core().tasks.task(key.task).expect("live task").numbers, before);
 }
 
 fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
@@ -157,11 +168,11 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
     let task = world.procedure.expect("procedure");
     let parent = world.assignments[0].0;
     let (mut core, env) = recovered(&world, 132, true);
-    let _requests = core::step(&mut core, &env, core::Event::Tasks(tasks::Event::WakeProcedure { task }));
-    let step = core.tasks.task(task).expect("procedure").attempt + 1;
+    let _requests = core::step(core.core_mut(), &env, core::Event::Tasks(tasks::Event::WakeProcedure { task }));
+    let step = core.core().tasks.task(task).expect("procedure").attempt + 1;
     let judge = begin(&mut core, &env, core::EffectOrigin::Procedure { task, step, entry: None });
     let _requests = core::step(
-        &mut core,
+        core.core_mut(),
         &env,
         core::Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(9930)),
@@ -174,15 +185,15 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
             },
         }),
     );
-    let before = core.tasks.task(task).expect("closing procedure").numbers;
+    let before = core.core().tasks.task(task).expect("closing procedure").numbers;
     let outputs = verdict(&mut core, &env, judge);
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask {
-            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
+            ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop {
                 why: core::effects::connector::EffectRefusal::Obsolete,
                 ..
-            }),
+            })),
             ..
         }
     )));
@@ -190,17 +201,25 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
         request,
         core::Request::Write(_)
             | core::Request::Held(_)
-            | core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
+            | core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
-    assert_eq!(core.tasks.task(task).expect("closing procedure").numbers, before);
+    assert_eq!(core.core().tasks.task(task).expect("closing procedure").numbers, before);
 }
 
 fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_missing_acknowledgement() {
-    let world = World::new(Setup { seed: 133, ..Setup::default() });
+    const SEED: u64 = 133;
+    let world = World::new(Setup { seed: SEED, ..Setup::default() });
     let key = world.call_key(1);
-    let (mut core, env) = recovered(&world, 133, false);
+    let (configuration, limits) = fixture(SEED, false);
+    let mut declarations = configuration.declarations();
+    let second = declarations.iter_mut().find(|declaration| declaration.connector == jig::Connector(2));
+    second.expect("second connector").effects = Box::new([effect_kind(5, false)]);
+    let env = Env { now: Time::from_nanos(world.wall_time().as_nanos()), wall: world.wall_time(), limits: limits.core };
+    let mut core = core::engine::Engine::new(configuration.core, &declarations, &env.limits)
+        .expect("both connectors declare effects");
+    super::start_links::reopen(core.core_mut(), &world, &env);
     let _requests = core::step(
-        &mut core,
+        core.core_mut(),
         &env,
         core::Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(9940)),
@@ -213,8 +232,8 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
             },
         }),
     );
-    let _requests = core::step(
-        &mut core,
+    let mut requests = core::step(
+        core.core_mut(),
         &env,
         core::Event::AnswerPayload {
             read: None,
@@ -230,31 +249,42 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
             untooled: false,
         },
     );
+    let mut closing = Vec::new();
+    while let Some(request) = requests.pop() {
+        if let core::Request::Ask {
+            connector,
+            ask: core::Ask::Connector(jig::Ask::Effects(effects::Ask::Close { task, .. })),
+        } = request
+        {
+            assert_eq!(task, key.task);
+            closing.push(connector);
+        }
+    }
+    assert_eq!(closing, [1, 2], "both effect connectors must settle before either releases");
     for connector in [1, 1, 99] {
-        let mut requests = core::step(
-            &mut core,
-            &env,
-            core::Event::EffectConnector(core::effects::connector::Event::Closed { task: key.task, connector }),
-        );
+        let mut requests =
+            answer_connector(&mut core, &env, connector, Up::Effects(effects::Up::Closed { task: key.task }));
         for _ in 0..requests.len() {
             assert!(!matches!(
                 requests.pop().expect("request count"),
-                core::Request::Ask { ask: core::Ask::Release { .. }, .. }
+                core::Request::Ask {
+                    ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Release { .. })),
+                    ..
+                }
             ));
         }
         assert!(matches!(
-            core.tasks.task(key.task).expect("still closing").phase,
+            core.core().tasks.task(key.task).expect("still closing").phase,
             tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Effects, .. })
         ));
     }
-    let mut requests = core::step(
-        &mut core,
-        &env,
-        core::Event::EffectConnector(core::effects::connector::Event::Closed { task: key.task, connector: 2 }),
-    );
+    let mut requests = answer_connector(&mut core, &env, 2, Up::Effects(effects::Up::Closed { task: key.task }));
     let mut releases = 0;
     for _ in 0..requests.len() {
-        if matches!(requests.pop().expect("request count"), core::Request::Ask { ask: core::Ask::Release { .. }, .. }) {
+        if matches!(
+            requests.pop().expect("request count"),
+            core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Release { .. })), .. }
+        ) {
             releases += 1;
         }
     }
@@ -267,7 +297,7 @@ fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
     world.park_for_message(0);
     let (mut core, env) = recovered(&world, 131, false);
     let mut outputs = core::step(
-        &mut core,
+        core.core_mut(),
         &env,
         core::Event::AnswerPayload {
             read: None,
@@ -294,12 +324,12 @@ fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
         }
     }
     assert_eq!(
-        core.proofs.get(&key.task).expect("retained proof").terminal.as_ref().expect("canonical terminal").end,
+        core.core().proofs.get(&key.task).expect("retained proof").terminal.as_ref().expect("canonical terminal").end,
         tasks::End::Parked
     );
-    core.remember_unpriced_terminal(Token::new(key.task), Token::new(key.attempt), tasks::End::Refused);
+    core.core_mut().remember_unpriced_terminal(Token::new(key.task), Token::new(key.attempt), tasks::End::Refused);
     let mut requests = core::step(
-        &mut core,
+        core.core_mut(),
         &env,
         core::Event::RefusedPayload {
             request: Token::new(9921),
@@ -316,7 +346,7 @@ fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
         assert!(!matches!(requests.pop().expect("request count"), core::Request::Write(_)));
     }
     assert_eq!(
-        core.proofs.get(&key.task).expect("retained proof").terminal.as_ref().expect("canonical terminal").end,
+        core.core().proofs.get(&key.task).expect("retained proof").terminal.as_ref().expect("canonical terminal").end,
         tasks::End::Parked
     );
 }
@@ -326,9 +356,9 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
     let key = world.call_key(1);
     for busy in [true, false] {
         let (mut core, env) = recovered(&world, 135, true);
-        let owner = core.effect_owner();
+        let owner = core.core_mut().effect_owner();
         let _requests = core::step(
-            &mut core,
+            core.core_mut(),
             &env,
             core::Event::EffectStart {
                 owner,
@@ -337,7 +367,7 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
             },
         );
         let _requests = core::step(
-            &mut core,
+            core.core_mut(),
             &env,
             core::Event::Tasks(tasks::Event::Cancel {
                 reply_to: ReplyTo::new(Token::new(9952)),
@@ -350,19 +380,15 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
                 },
             }),
         );
-        let event = if busy {
-            core::effects::connector::Event::DescribeBusy { owner }
-        } else {
-            core::effects::connector::Event::DescribeRefused { owner }
-        };
-        let mut requests = core::step(&mut core, &env, core::Event::EffectConnector(event));
+        let event = if busy { effects::Up::Busy { owner } } else { effects::Up::Refused { owner } };
+        let mut requests = answer_connector(&mut core, &env, 1, Up::Effects(event));
         for _ in 0..requests.len() {
             assert!(!matches!(
                 requests.pop().expect("request count"),
                 core::Request::Write(_) | core::Request::Held(_) | core::Request::Now(_)
             ));
         }
-        assert!(!core.call_pending(key));
+        assert!(!core.core().call_pending(key));
     }
 }
 
@@ -415,26 +441,24 @@ fn dependency_edit(parent: (u64, u64), target: u64, dependency: u64) -> core::Ev
     }
 }
 
-fn plan_core(world: &World, seed: u64, waits_for_dependencies: bool) -> (core::Core, Env<core::Limits>) {
+fn plan_core(world: &World, seed: u64, waits_for_dependencies: bool) -> (core::engine::Engine, Env<core::Limits>) {
     let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
     recovered_with(world, configuration.core, &limits, &[effect_kind(5, waits_for_dependencies)])
 }
 
 fn describe_effect(
-    core: &mut core::Core,
+    core: &mut core::engine::Engine,
     env: &Env<core::Limits>,
     origin: core::EffectOrigin,
     description: core::effects::connector::EffectDescription,
 ) -> Vec<core::Request> {
-    let owner = core.effect_owner();
-    let _requests = core::step(core, env, core::Event::EffectStart { owner, connector: 1, origin });
-    let mut requests = core::step(
+    let owner = core.core_mut().effect_owner();
+    let _requests = core::step(core.core_mut(), env, core::Event::EffectStart { owner, connector: 1, origin });
+    let mut requests = answer_connector(
         core,
         env,
-        core::Event::EffectConnector(core::effects::connector::Event::Described {
-            owner,
-            description: Box::new(description),
-        }),
+        1,
+        Up::Effects(effects::Up::Described { owner, description: Box::new(description) }),
     );
     let mut outputs = Vec::new();
     while let Some(request) = requests.pop() {
@@ -443,14 +467,14 @@ fn describe_effect(
     outputs
 }
 
-fn procedure_origin(core: &core::Core, task: u64) -> core::EffectOrigin {
-    let (_, _, step) = core.tasks.procedure_due(task).expect("procedure due");
+fn procedure_origin(core: &core::engine::Engine, task: u64) -> core::EffectOrigin {
+    let (_, _, step) = core.core().tasks.procedure_due(task).expect("procedure due");
     core::EffectOrigin::Procedure { task, step, entry: None }
 }
 
 #[test]
 fn an_undeclared_kind_is_refused_before_a_run_or_procedure_asks_its_judge() {
-    use core::effects::connector::{Ask, EffectRefusal};
+    use core::effects::connector::EffectRefusal;
     const SEED: u64 = 886;
     let (mut configuration, limits) = fixture(SEED, true);
     configuration.core.defaults.rules.ceiling.grants[0].kind = 2;
@@ -483,24 +507,29 @@ fn an_undeclared_kind_is_refused_before_a_run_or_procedure_asks_its_judge() {
         };
         let (mut core, env, origin) = restore();
         let asking = if procedure { task } else { key.task };
-        let before = core.tasks.task(asking).expect("live requester").numbers;
+        let before = core.core().tasks.task(asking).expect("live requester").numbers;
         let mut unknown = description();
         unknown.effect.kind = 3;
-        assert_eq!(core.connector_needed_judges(1, &unknown.effect).expect("checkable effect").len(), 1);
+        assert_eq!(core.core().connector_needed_judges(1, &unknown.effect).expect("checkable effect").len(), 1);
         let outputs = describe_effect(&mut core, &env, origin, unknown);
         assert!(outputs.iter().any(|request| matches!(request,
-            core::Request::Ask { connector: 1, ask: core::Ask::Effect(Ask::Drop {
+            core::Request::Ask { connector: 1, ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop {
                 answer: authority::Answer::Refuse, why: EffectRefusal::Description, findings, ..
-            }) } if findings.is_empty()
+            })) } if findings.is_empty()
         )));
         assert!(!outputs.iter().any(|request| matches!(
             request,
-            core::Request::Ask { ask: core::Ask::Effect(Ask::Judge { .. } | Ask::Keep { .. }), .. }
+            core::Request::Ask {
+                ask: core::Ask::Connector(jig::Ask::Effects(
+                    jig::effects::Ask::Judge { .. } | jig::effects::Ask::Keep { .. }
+                )),
+                ..
+            }
         )));
-        assert_eq!(core.tasks.task(asking).expect("live requester").numbers, before);
+        assert_eq!(core.core().tasks.task(asking).expect("live requester").numbers, before);
         if !procedure {
             assert_eq!(
-                core.call_parts.get(&key),
+                core.core().call_parts.get(&key),
                 Some(&core::CallPart::EffectDenied { answer: authority::Answer::Refuse, findings: Box::new([]) })
             );
         }
@@ -511,7 +540,10 @@ fn an_undeclared_kind_is_refused_before_a_run_or_procedure_asks_its_judge() {
         assert!(
             outputs.iter().any(|request| matches!(
                 request,
-                core::Request::Ask { connector: 1, ask: core::Ask::Effect(Ask::Keep { .. }) }
+                core::Request::Ask {
+                    connector: 1,
+                    ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. }))
+                }
             )),
             "declared kind is kept (procedure={procedure}): {outputs:?}"
         );
@@ -524,26 +556,26 @@ fn a_kept_procedures_waiting_effect_is_refused_naming_its_pending_dependency() {
     let (mut world, task, dependency) = dependency_world(SEED, tasks::Executor::Procedure { connector: 1, code: 1 });
     add_dependency(&mut world, task, dependency);
     let (mut core, env) = plan_core(&world, SEED, true);
-    let before = core.tasks.task(task).expect("live procedure").clone();
+    let before = core.core().tasks.task(task).expect("live procedure").clone();
     let origin = procedure_origin(&core, task);
     let outputs = describe_effect(&mut core, &env, origin, description());
     let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Kept, &[dependency]);
     assert!(outputs.iter().any(|request| matches!(request,
-        core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: number, why: core::StepRefusal::Refused(why), .. } }
+        core::Request::Ask { connector: 1, ask: core::Ask::Connector(jig::Ask::Procedures(jig::procedures::Ask::StepRefused { task: number, why: core::StepRefusal::Refused(why), .. })) }
             if *number == task && *why == problem
     )));
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask {
-            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
+            ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop {
                 answer: authority::Answer::Refuse,
                 why: core::effects::connector::EffectRefusal::Dependencies,
                 ..
-            }),
+            })),
             ..
         }
     )));
-    assert_eq!(core.tasks.task(task), Some(&before));
+    assert_eq!(core.core().tasks.task(task), Some(&before));
 }
 
 #[test]
@@ -565,31 +597,31 @@ fn a_configured_kept_start_starts_its_procedure_and_refuses_its_waiting_effect()
         world.procedure_inputs.iter().any(|(_, connector, code, context)| {
             *connector == 1 && *code == 1 && context.task == task && context.pending.as_ref() == [dependency]
         }),
-        "Ask::StartProcedure reaches the connector with its pending dependency"
+        "procedures::Ask::Start reaches the connector with its pending dependency"
     );
     let (mut configuration, _) = jig_core_world::faults::plan_fixture(SEED);
     configuration.core.kept_starts = Box::new([tasks::KeptStart { connector: 1, code: 1 }]);
     let (mut core, env) = recovered_with(&world, configuration.core, &limits, &[effect_kind(5, true)]);
-    let before = core.tasks.task(task).expect("live procedure").clone();
+    let before = core.core().tasks.task(task).expect("live procedure").clone();
     let origin = procedure_origin(&core, task);
     let outputs = describe_effect(&mut core, &env, origin, description());
     let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Kept, &[dependency]);
     assert!(outputs.iter().any(|request| matches!(request,
-        core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: number, why: core::StepRefusal::Refused(why), .. } }
+        core::Request::Ask { connector: 1, ask: core::Ask::Connector(jig::Ask::Procedures(jig::procedures::Ask::StepRefused { task: number, why: core::StepRefusal::Refused(why), .. })) }
             if *number == task && *why == problem
     )));
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask {
-            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
+            ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop {
                 answer: authority::Answer::Refuse,
                 why: core::effects::connector::EffectRefusal::Dependencies,
                 ..
-            }),
+            })),
             ..
         }
     )));
-    assert_eq!(core.tasks.task(task), Some(&before));
+    assert_eq!(core.core().tasks.task(task), Some(&before));
 }
 
 #[test]
@@ -602,9 +634,9 @@ fn a_kept_procedures_non_waiting_effect_is_admitted() {
     let outputs = describe_effect(&mut core, &env, origin, description());
     assert!(outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
-    assert_eq!(core.tasks.task(task).expect("live procedure").waiting_on.as_ref(), &[dependency]);
+    assert_eq!(core.core().tasks.task(task).expect("live procedure").waiting_on.as_ref(), &[dependency]);
 }
 
 #[test]
@@ -631,9 +663,9 @@ fn a_procedures_waiting_effect_is_admitted_after_its_dependencys_met() {
     let outputs = describe_effect(&mut core, &env, origin, description());
     assert!(outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
-    assert!(core.tasks.task(task).expect("live procedure").waiting_on.is_empty());
+    assert!(core.core().tasks.task(task).expect("live procedure").waiting_on.is_empty());
     assert!(
         jig_core_world::fixtures::live_row(&world, task)
             .inbox
@@ -656,7 +688,7 @@ fn a_kept_agent_effect_call_is_answered_with_its_pending_dependency() {
     assert!(outputs.iter().any(|request| matches!(request,
         core::Request::Held(held) if matches!(held.as_ref(), core::Held::CallAnswer { key: named, part: core::CallPart::EffectRefused(why), .. } if *named == key && *why == problem)
     )));
-    assert_eq!(core.call_parts.get(&key), Some(&core::CallPart::EffectRefused(problem)));
+    assert_eq!(core.core().call_parts.get(&key), Some(&core::CallPart::EffectRefused(problem)));
 }
 
 #[test]
@@ -674,16 +706,16 @@ fn a_kept_tasks_refused_effect_is_denied_rather_than_kept() {
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask {
-            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
+            ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Drop {
                 answer: authority::Answer::Refuse,
                 why: core::effects::connector::EffectRefusal::Authority,
                 ..
-            }),
+            })),
             ..
         }
     )));
     assert!(matches!(
-        core.call_parts.get(&key),
+        core.core().call_parts.get(&key),
         Some(core::CallPart::EffectDenied { answer: authority::Answer::Refuse, .. })
     ));
 }
@@ -698,7 +730,7 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
     let (configuration, _) = fixture(SEED, true);
     let policy = configuration.core.seed_projects[0].policy.policy.clone();
     let mut facts = Queue::uncapped();
-    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
+    authority::step(&mut core.core_mut().authority, authority::Event::Policy { project: 1, policy }, &mut facts);
     let key = core::CallKey { task, attempt, completion: 1, position: 0 };
     let origin = core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9952)), key, deadline: env.wall };
     let outputs = describe_effect(&mut core, &env, origin, description());
@@ -706,7 +738,7 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
         .into_iter()
         .find_map(|request| match request {
             core::Request::Ask {
-                ask: core::Ask::Effect(core::effects::connector::Ask::Judge { owner, judge, .. }),
+                ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Judge { owner, judge, .. })),
                 ..
             } => Some((owner, judge)),
             core::Request::Write(_)
@@ -716,7 +748,7 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
             | core::Request::ProjectMade { .. } => None,
         })
         .expect("judge outstanding");
-    let _requests = core::step(&mut core, &env, dependency_edit(parent, task, dependency));
+    let _requests = core::step(core.core_mut(), &env, dependency_edit(parent, task, dependency));
     let outputs = verdict(&mut core, &env, judge);
     let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Kept, &[dependency]);
     assert!(outputs.iter().any(|request| matches!(request,
@@ -724,6 +756,6 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
     )));
     assert!(!outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Connector(jig::Ask::Effects(jig::effects::Ask::Keep { .. })), .. }
     )));
 }

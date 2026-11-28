@@ -185,7 +185,7 @@ fn prepare(core: &mut Core, limits: &Limits) -> (Box<RunCharter>, Box<[Grant]>) 
     send_task(core, limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: TASK });
     core.contexts.insert(TASK, core.tasks.run_context(TASK).unwrap()).unwrap();
     core.begin_transcript(TASK, 0, None);
-    watch_outputs(core, limits, Event::BriefAssembled { task: TASK, failure: None });
+    super::briefs::plan_fixture(core, limits, TASK);
     let attempt = core.workspace_flight(TASK).unwrap().1;
     let out = watch_outputs(
         core,

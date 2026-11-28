@@ -300,7 +300,7 @@ fn test_client_domain_links_only_its_child_owner_vocabulary_and_foundation() {
 fn test_connector_vocabulary_and_client_value_kit_keep_their_exact_roles() {
     let all = manifests();
     for (name, expected) in [
-        ("jig-test-connector", vec!["skein-lib"]),
+        ("jig-test-connector", vec!["jig-domain-contract", "skein-lib"]),
         (
             "jig-client-test-kit",
             vec!["jig-client", "jig-client-test-domain", "jig-test-connector", "skein-lib", "skein-ui"],

@@ -5,6 +5,7 @@
 //! (temper/docs/design/domain/forge/change/drift.md, 1).
 mod taking;
 use alloc::boxed::Box;
+use jig_domain_contract as jig;
 use skein_lib::{Duration, Env, List, Map, Queue, Set, Token};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_issues as issues;
@@ -39,6 +40,7 @@ mod limit_refusals;
 pub(crate) mod make;
 #[path = "outage.rs"]
 pub(crate) mod outage;
+mod port;
 pub(crate) mod read_line;
 pub(crate) mod read_session;
 mod rebase;
@@ -1280,8 +1282,9 @@ impl Domain {
             client_out: Queue::uncapped(),
             read_line: read_line::Line::new(l),
             brief_fetches: Map::with_capacity(l.brief_sections),
-            brief_planned: Map::with_capacity(l.brief_sections),
-            brief_documents: Map::with_capacity(l.brief_sections),
+            // Offers follow live preparations, before the engine claims a gathering slot.
+            brief_planned: Map::uncapped(),
+            brief_documents: Map::uncapped(),
             document_fetches: Map::with_capacity(l.brief_sections),
             brief_pending: Map::with_capacity(l.brief_sections),
             brief_held: Map::with_capacity(l.brief_sections),
@@ -2015,7 +2018,12 @@ impl Domain {
 
 /// Decide one parent event and collect its durable records and outputs.
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    if let Event::WaitsRefused { task, why } = event {
+    if let Event::WaitsRefused { task, why }
+    | Event::Ask(jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::WaitsRefused {
+        task,
+        why,
+    })) = event
+    {
         crate::waits::refused(d, task, why);
         return;
     }
@@ -2034,6 +2042,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         return;
     }
     match event {
+        Event::Ask(ask) => port::ask(d, env, ask, out),
+        Event::Released(released) => port::released(d, env, released, out),
         Event::LimitsRaised => d.raise(&env.limits),
         Event::ReadHistory { read, query } => crate::history::read::begin(d, read, query, out),
         Event::HistoryLoaded { load, rows, next } => crate::history::read::loaded(d, env, load, rows, next, out),
@@ -2440,7 +2450,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             held::drop_section(d, section);
             brief::drop_section(d, section);
         }
-        Event::ReleaseProject { project, request } => adoption::release(d, env, project, request, out),
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
         Event::TakeAdoption { repository, request } => {
             crate::temper_revision::adopted(d, env, repository, request);
@@ -3167,7 +3176,13 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     wake_once(out, task);
                 }
                 if projection {
-                    emit(out, Request::ProjectionOutcome { entry, outcome });
+                    emit(
+                        out,
+                        Request::Up(jig::Up::Projections(jig::projections::Up::Outbox {
+                            entry,
+                            outcome: crate::routing::outbox_outcome(entry, outcome),
+                        })),
+                    );
                 } else {
                     emit(out, Request::Outcome { entry, task, outcome, account });
                 }
@@ -3266,7 +3281,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 pub(crate) fn restart_outbox_done(d: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>) {
     if !d.stopping {
         d.restart_settling = false;
-        emit(out, Request::RestartDone { stage: RestartStage::Settled });
+        emit(out, Request::Up(jig::Up::Lifecycle(jig::lifecycle::Up::Done { stage: RestartStage::Settled })));
     }
 }
 
@@ -8670,7 +8685,7 @@ fn settle_effects(
     crate::landing::closing(d, env, task, ending, out);
     crate::tiers::closing(d, env, task, ending, out);
     if settled {
-        emit(out, Request::EffectsSettled { task });
+        emit(out, Request::Up(jig::Up::Effects(jig::effects::Up::Closed { task })));
         return;
     }
     leave_room_change(d, task, out);
@@ -8740,7 +8755,7 @@ fn settle_prior_effects(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut 
         row.effects_settled = true;
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
     }
-    emit(out, Request::EffectsSettled { task });
+    emit(out, Request::Up(jig::Up::Effects(jig::effects::Up::Closed { task })));
 }
 
 #[expect(clippy::too_many_arguments, reason = "cleanup receives the closing task and its bounded cancel reason")]
@@ -9025,7 +9040,7 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
         crate::waits::report(d, env, task, out);
         crate::waits::forget(d, task);
         emit(out, Request::Erase { key: Key::Release(task) });
-        emit(out, Request::Released { task });
+        emit(out, Request::Up(jig::Up::Effects(jig::effects::Up::Released { task })));
         return;
     }
     unreachable!("every release pass removes a hold or completes");
@@ -9673,7 +9688,7 @@ fn fail_projection(
     }
     emit(out, Request::ProjectionFailed { goal });
     if closing {
-        emit(out, Request::ProjectionSettled { goal });
+        emit(out, Request::Up(jig::Up::Projections(jig::projections::Up::Settled { goal })));
     } else if d.issues.contains_key(&goal) {
         let when = skein_lib::Wall::from_nanos(
             env.wall.as_nanos().saturating_add(env.limits.issue_policy.interval.as_nanos()),
@@ -9934,7 +9949,7 @@ fn not_made(d: &mut Domain, env: &Env<Limits>, task: u64, number: u64, out: &mut
     crate::landing::not_made(d, env, task, number, out);
     emit(out, Request::Erase { key: Key::Entry(number) });
     erase_flight(d, task, number, out);
-    emit(out, Request::NotMade { entry: number, task });
+    emit(out, port::not_made(number, task));
 }
 
 /// A closing task's held entries are settled not made, as many as the
@@ -11475,7 +11490,7 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     {
         d.restart_fresh = None;
         writes::readback::restart(d, out);
-        emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
+        emit(out, Request::Up(jig::Up::Lifecycle(jig::lifecycle::Up::Done { stage: RestartStage::ReadAfresh })));
         read_session::fresh(d, env);
         crate::temper_revision::restart(d, env);
     }
@@ -11626,7 +11641,7 @@ fn settled_projection(d: &Domain, goal: u64, out: &mut Queue<Request>) {
         None => false,
     };
     if settled {
-        emit(out, Request::ProjectionSettled { goal });
+        emit(out, Request::Up(jig::Up::Projections(jig::projections::Up::Settled { goal })));
     }
 }
 

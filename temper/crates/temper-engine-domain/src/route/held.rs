@@ -63,10 +63,6 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
                 crate::link::delivery(domain, jig_domain_hub_link::Event::Inbound { channel, run, attempt, message });
             emit(decision, &env.limits, delivery);
         }
-        core::Held::MakeEffect { connector, entry } => {
-            assert!(connector == domain.config.forge_connector, "numbered forge make");
-            emit(decision, &env.limits, Delivery::ForgeCommitted { entry });
-        }
         core::Held::Relay { task, attempt, previous, word } => {
             emit(decision, &env.limits, Delivery::Relay { task, attempt, previous, word });
         }
@@ -180,6 +176,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::NotesWritten { .. } | core::Held::NotesDeleted { .. } => {
             unreachable!("the current application has no note caller")
         }
+        core::Held::Connector(_, _) => unreachable!("connector releases use the engine port"),
         core::Held::Acted { to, outcome } => {
             let token = to.into_token();
             if domain.playground_replies.contains_key(&token) {

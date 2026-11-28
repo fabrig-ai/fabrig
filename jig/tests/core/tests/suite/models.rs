@@ -488,7 +488,8 @@ fn a_change_asks_the_root_to_tell_the_catalogue_before_its_commit() {
     );
     let mut told = 0;
     let mut committed = false;
-    while let Some(Out::Core(request)) = out.pop() {
+    while let Some(next) = out.pop() {
+        let Out::Core(request) = next else { continue };
         match request {
             core::Request::Ask { ask: core::Ask::Catalogue { models }, .. } => {
                 assert!(!committed, "catalogue precedes the revision's commit writes");

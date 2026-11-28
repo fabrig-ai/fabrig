@@ -492,7 +492,15 @@ fn person_flights_route_core_and_forge_answers_with_names_and_refusals() {
             let mut requests = Queue::uncapped();
             requests.push(jig_domain_core::Request::Ask {
                 connector,
-                ask: jig_domain_core::Ask::Read { reply: ReplyTo::new(Token::new(90)), scope, read, party: 1, window },
+                ask: jig_domain_core::Ask::Connector(jig_domain_contract::Ask::Parts(
+                    jig_domain_contract::parts::Ask::Read {
+                        reply: ReplyTo::new(Token::new(90)),
+                        scope,
+                        read,
+                        party: 1,
+                        window,
+                    },
+                )),
             });
             crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
             if line == "change 99" {

@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-26. Where jig's code lags or departs from [README.md](README.md).
+2026-11-28. Where jig's code lags or departs from [README.md](README.md).
 
 
 `executors.md`, section 5's failed-job cause accompanies its retry class through the hub
@@ -214,7 +214,7 @@ a due expiry marks and delivers the changed offer.
 `settings-application.md`, section 1 has no known gap in a default its connector no longer
 gives: `jig-domain-core/src/settings/application.rs`, `prepare_start`,
 erases, with a removal in the release's revision, only a default-following
-state its connector names in `SettingsDefaults`' `dropped`, and a reset
+state its connector names in `settings::Up::Defaults`' `dropped`, and a reset
 to a default no connector reports or names keeps its state, size and
 slot (`jig-domain-core/src/tests/settings/application_start.rs`). temper's two restore
 stories that met it run (`temper/docs/design/protocol/configuration/README.status.md`).

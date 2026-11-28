@@ -188,6 +188,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         core::Held::WatchEnded { watcher, why } => Event::WatchEnded { watcher, why },
         core::Held::CarriedUnused { number } => Event::Application(clients::FromApplication::Unused { number }),
         core::Held::Acted { .. }
+        | core::Held::Connector(_, _)
         | core::Held::Drained
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }
@@ -196,7 +197,6 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::PublicRead { .. }
         | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }
-        | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
         | core::Held::Assign { .. }
         | core::Held::Grant { .. }
@@ -256,8 +256,6 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::NoteBusy { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::CompleteBrief { .. }
-        | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }

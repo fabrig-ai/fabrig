@@ -20,8 +20,10 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
     let mut core_limits = jig_test_profile::limits().core;
     core_limits.fleet.engine_slots = 1;
     core_limits.tasks.hold_kinds = 3;
+    let policy = crate::Policy::reference();
+    core_limits.brief.gather = policy.brief_timeout;
     let limits = Limits {
-        policy: crate::Policy::reference(),
+        policy,
         core: core_limits,
         infrastructure: fixtures::infrastructure_limits(),
         observability: fixtures::limits(),
@@ -938,18 +940,10 @@ fn a_retained_turn_retry_fires_at_the_watermark() {
 }
 
 #[test]
-fn requirements_take_the_deployments_identifiers_and_thresholds() {
-    let mut policy = crate::Policy::reference();
+fn reference_policy_sets_the_requirement_thresholds() {
+    let policy = crate::Policy::reference();
     assert_eq!(policy.verdict_freshness_seconds, 60);
     assert_eq!(policy.scale_down_load_seconds, 1800);
-    policy.low_load_requirement = 9;
-    policy.scale_down_load_percent = 12;
-    policy.scale_down_load_seconds = 600;
-    assert_eq!(crate::translate::requirement(2, &policy), None);
-    assert_eq!(
-        crate::translate::requirement(9, &policy),
-        Some(observability::Requirement::LoadBelow { percent: 12, for_seconds: 600 })
-    );
 }
 
 #[test]
@@ -974,13 +968,13 @@ fn declarations_follow_the_connectors_vocabulary_and_backend() {
         (infrastructure::Backend::NoOperationIds, Recovery::Unrecoverable),
     ] {
         let [observability, infrastructure] = crate::translate::declarations(backend, &env.limits);
-        assert_eq!(observability.connector, 1);
+        assert_eq!(observability.connector, jig_domain_contract::Connector(1));
         assert!(observability.resources.is_empty());
         assert_eq!(
             observability.effects.as_ref(),
             &[EffectKind { kind: 46, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false },]
         );
-        assert_eq!(infrastructure.connector, 2);
+        assert_eq!(infrastructure.connector, jig_domain_contract::Connector(2));
         assert_eq!(
             infrastructure.resources.as_ref(),
             &[

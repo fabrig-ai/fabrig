@@ -1,5 +1,5 @@
 //! Whole repository retirement and link-preserving pages (domain/forge/adoption-connection.md, 1).
-use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit, take_entry};
+use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Topic, child, emit, take_entry};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
 use skein_lib::Set;
@@ -10,7 +10,7 @@ pub(crate) const PAGE: u32 = 512;
 pub(crate) struct State {
     repositories: Map<Repository, Pending>,
     projects: Map<u32, Queue<Key>>,
-    replies: Queue<(u32, Token)>,
+    replies: Queue<u32>,
     forges: Set<u16>,
     started: bool,
     watch_dirty: bool,
@@ -67,13 +67,7 @@ pub(crate) fn forge(d: &mut Domain, forge: u16) {
     d.releasing.forges.insert(forge).expect("bounded removed forges");
     d.releasing.started = true;
 }
-pub(crate) fn project(
-    d: &mut Domain,
-    project: u32,
-    request: Token,
-    mut writes: Queue<Request>,
-    out: &mut Queue<Request>,
-) {
+pub(crate) fn project(d: &mut Domain, project: u32, mut writes: Queue<Request>, out: &mut Queue<Request>) {
     let mut erasures = d.releasing.projects.remove(&project).unwrap_or(Queue::uncapped());
     let mut groups = Queue::uncapped();
     let saves = outputs(&mut writes, &mut groups, out, true);
@@ -86,7 +80,7 @@ pub(crate) fn project(
     if !erasures.is_empty() {
         d.releasing.projects.insert(project, erasures).expect("internal project releases");
     }
-    d.releasing.replies.push((project, request));
+    d.releasing.replies.push(project);
     d.releasing.started = true;
 }
 
@@ -156,15 +150,20 @@ pub(crate) fn page(d: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>)
         crate::forges::erase(d, forge, out);
     }
     for _ in 0..d.releasing.replies.len() {
-        let (project, request) = d.releasing.replies.pop().expect("counted release replies");
+        let project = d.releasing.replies.pop().expect("counted release replies");
         let mut waiting = d.releasing.projects.contains_key(&project);
         for (_, pending) in &d.releasing.repositories {
             waiting |= pending.project == project;
         }
         if waiting {
-            d.releasing.replies.push((project, request));
+            d.releasing.replies.push(project);
         } else {
-            emit(out, Request::ProjectReleased { request });
+            emit(
+                out,
+                Request::Up(jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Released {
+                    project,
+                })),
+            );
             crate::history::sweep::remove(d, project, out);
         }
     }
@@ -248,14 +247,13 @@ fn entries(
         d.releasing.withdrawing = Some(number);
         child(d, env, skein_forge_client::Event::Withdraw { entry: number }, out);
         d.releasing.withdrawing = None;
-        emit(out, Request::NotMade { entry: number, task });
+        emit(out, super::port::not_made(number, task));
     }
 }
 fn erasures(writes: &mut Queue<Request>, groups: &mut Queue<Box<[Key]>>, out: &mut Queue<Request>) {
     outputs(writes, groups, out, false);
 }
 
-#[expect(clippy::too_many_lines, reason = "all connector outputs are classified in one place")]
 fn outputs(
     writes: &mut Queue<Request>,
     groups: &mut Queue<Box<[Key]>>,
@@ -287,7 +285,7 @@ fn outputs(
             | Request::ReturnFinding(_)
             | Request::FailRepair { .. }
             | Request::TierDecision { .. }
-            | Request::ProjectReleased { .. }
+            | Request::Up(_)
             | Request::ForgeKept(_)
             | Request::ForgeGone { .. }
             | Request::ChoosePlace { .. }
@@ -336,17 +334,12 @@ fn outputs(
             | Request::MakeFailed { .. }
             | Request::LostReadFailed { .. }
             | Request::Outcome { .. }
-            | Request::ProjectionOutcome { .. }
-            | Request::NotMade { .. }
             | Request::ContinueRelease { .. }
             | Request::ContinueGoalBranch { .. }
-            | Request::EffectsSettled { .. }
-            | Request::Released { .. }
             | Request::Retained { .. }
             | Request::ReleaseFailed { .. }
             | Request::ProjectionEffect { .. }
             | Request::ProjectAfter { .. }
-            | Request::ProjectionSettled { .. }
             | Request::ProjectionFailed { .. }
             | Request::Reviewed { .. }
             | Request::ReplayJudgement { .. }

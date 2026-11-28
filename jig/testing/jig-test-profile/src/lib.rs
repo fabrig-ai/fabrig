@@ -199,7 +199,13 @@ fn profile() -> root::Limits {
             authority: authority_limits(),
             people,
             fleet,
-            brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
+            brief: jig_domain_brief::Limits {
+                briefs: 2,
+                sections: 3,
+                read_bytes: 256,
+                brief_bytes: 384,
+                gather: Duration::from_secs(30),
+            },
             brief_parts: 2,
             brief_core_budgets: core::CoreBriefBudgets {
                 tail: 128,
@@ -489,8 +495,13 @@ pub use funding::edit_role;
 /// # Errors
 /// Configured membership or declarations do not hold.
 pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_contract::StartProblem> {
-    let declarations: Box<[_]> =
-        config.connectors.iter().copied().map(jig_domain_contract::Declaration::empty).collect();
+    let declarations: Box<[_]> = config
+        .connectors
+        .iter()
+        .copied()
+        .map(jig_domain_contract::Connector)
+        .map(jig_domain_contract::Declaration::empty)
+        .collect();
     core::Core::new(config, &declarations, limits)
 }
 

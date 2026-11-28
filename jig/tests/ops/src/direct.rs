@@ -190,7 +190,7 @@ impl Driver {
                         | root::Released::Infrastructure(_)
                         | root::Released::Observability(_)
                         | root::Released::Host(_)
-                        | root::Released::Procedure { .. }
+                        | root::Released::Connector(..)
                         | root::Released::Start(_) => {}
                     }
                     self.events.push_back(root::Event::Released(child));

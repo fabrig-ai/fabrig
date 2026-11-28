@@ -114,3 +114,52 @@ fn a_refused_call_reports_its_words_and_drains_serve() {
     assert_eq!(sitting.left, 1, "sign-out did not start");
     assert_eq!(sitting.exit, Exit::Code(0), "serve drained after the refusal: {}", sitting.ending);
 }
+
+/// The forge's settings judgement and the root's kept value share the apply's decision.
+#[test]
+fn a_forge_setting_removal_survives_a_real_loop_restart() {
+    let scratch = deployment("remove-forge-setting");
+    let directory = scratch.path();
+    let installed = configuration::install(directory).expect("install with an agents setting");
+    assert_eq!(installed.exit, Exit::Code(0));
+    assert_eq!(installed.failure, None);
+    let against = (ctl::newest(&installed.calls[1]) + 1).to_string();
+    let file = directory.join("remove-agents.json");
+    fs::write(&file, br#"{"items":[{"setting":{"kind":"agents"},"edit":"removed"}]}"#).expect("agents removal fixture");
+    let changed = sit(
+        directory,
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&[
+                "settings",
+                "apply",
+                file.to_str().expect("settings path"),
+                "--against",
+                &against,
+                "--key",
+                "remove-agents",
+            ])),
+            Step::Run(Call::new(&["sign-out"])),
+        ],
+    );
+    assert_eq!(changed.failure, None);
+    assert_eq!(changed.calls[1].exit, Some(Exit::Code(0)));
+    assert_eq!(changed.left, 0);
+
+    let reopened = sit(
+        directory,
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["settings", "show", "--json"])),
+            Step::Then(Box::new(|calls| {
+                Call::new(&["revision", "show", &ctl::newest(&calls[1]).to_string(), "--json"])
+            })),
+            Step::Run(Call::new(&["sign-out"])),
+        ],
+    );
+    assert_eq!(reopened.failure, None);
+    assert_eq!(reopened.left, 0);
+    let revision = ctl::json(&reopened.calls[2]);
+    let items = revision["items"].as_array().expect("revision items");
+    assert!(items.iter().any(|item| item["setting"]["kind"] == "agents" && item["edit"] == "removed"));
+}

@@ -1,6 +1,6 @@
 //! Root translations preserve the party's core refusal facts (domain/connectors-facts.md, 1.5).
-use jig_domain_people as people;
-use jig_test_connector::application_core as application;
+use crate::application_core as application;
+use jig_domain_contract::ops::party as people;
 
 pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
     match value {

@@ -12,7 +12,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_hub_link as hub;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{Queue, Token};
 use temper_engine_domain_forge as forge;
 impl Domain {
     /// The unique resource pushed under this fenced answer's authentic writer claim.
@@ -423,59 +423,6 @@ fn decorate_answer(domain: &mut Domain, event: &mut core::Event) {
     *invalid_out = invalid_saved;
 }
 
-/// Keep generic section ordering in the link and forge text in temper.
-pub(crate) fn keep_sections(domain: &mut Domain, task: u64, sections: Box<[crate::BriefSection]>) {
-    use crate::{BriefBody, BriefKind};
-    use jig_domain_brief::GatherPlaced;
-    let mut brief = List::with_capacity(u32::try_from(sections.len()).expect("bounded brief sections"));
-    for section in sections {
-        let placed = match section {
-            crate::BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Text(text) } => {
-                GatherPlaced::Core { kind, text }
-            }
-            crate::BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Missing(why) } => {
-                GatherPlaced::CoreMissing { kind, why }
-            }
-            section @ crate::BriefSection { kind: BriefKind::Forge(_), .. } => {
-                let token = domain.hub_link.fresh();
-                let size = u32::try_from(crate::budget::section_bytes(::core::slice::from_ref(&section)))
-                    .expect("bounded forge section");
-                domain.forge_briefs.insert(token, section).expect("one forge section per token");
-                GatherPlaced::Connector { connector: domain.config.forge_connector, kind: 0, token, size }
-            }
-        };
-        brief.push(placed).expect("one placed section per input");
-    }
-    domain.hub_link.keep_brief(task, brief.into_boxed());
-}
-
-fn sections(domain: &mut Domain, brief: Box<[jig_domain_brief::GatherPlaced]>) -> Box<[crate::BriefSection]> {
-    use crate::{BriefBody, BriefKind, BriefSection};
-    use jig_domain_brief::GatherPlaced;
-    let mut sections = List::with_capacity(u32::try_from(brief.len()).expect("bounded brief sections"));
-    for placed in brief {
-        let section = match placed {
-            GatherPlaced::Core { kind, text } => {
-                BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Text(text) }
-            }
-            GatherPlaced::CoreMissing { kind, why } => {
-                BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Missing(why) }
-            }
-            GatherPlaced::Connector { token, .. } => {
-                domain.forge_briefs.remove(&token).expect("retained forge section")
-            }
-            GatherPlaced::Missing { .. } => unreachable!("forge missing sections are translated at completion"),
-        };
-        sections.push(section).expect("one section per placed input");
-    }
-    sections.into_boxed()
-}
-
-pub(crate) fn take_sections(domain: &mut Domain, task: u64) -> Option<Box<[crate::BriefSection]>> {
-    let brief = domain.hub_link.take_brief(task)?;
-    Some(sections(domain, brief))
-}
-
 pub(crate) fn assignment(domain: &mut Domain, assignment: hub::Assignment) -> crate::Assignment {
     let parts = domain.assignment_parts.remove(&assignment.task).expect("prepared temper assignment parts");
     crate::Assignment {
@@ -490,7 +437,7 @@ pub(crate) fn assignment(domain: &mut Domain, assignment: hub::Assignment) -> cr
         },
         charter: assignment.charter,
         run: assignment.run,
-        sections: sections(domain, assignment.brief),
+        sections: parts.sections,
         messages: assignment.messages,
         saved: parts.saved,
         workstream: parts.workstream,

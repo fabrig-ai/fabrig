@@ -456,8 +456,16 @@ impl Record {
 }
 
 /// Root-to-connector events.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// An engine ask routed by connector number.
+    Ask(jig_domain_contract::Ask),
+    /// An engine output released after its commit.
+    Released(jig_domain_contract::Released),
+    /// Keep a typed call payload under the owner reserved at call ingress.
+    StageEffect { owner: Token, effect: Effect },
+    /// Answer the connector's request for a procedure effect owner.
+    EffectOwner { task: u64, owner: Token },
     /// Authority's answer for the procedure's staged effect.
     ProcedureAdmission { task: u64, answer: Admission },
     /// A connector reports that this resource changed.
@@ -583,6 +591,29 @@ pub enum SystemEvent {
 }
 
 /// Requests to the root and its journal.
+#[derive(Debug)]
+pub enum Out {
+    /// What this connector says to the engine in this decision.
+    Up(jig_domain_contract::Up),
+    /// Feed an internal continuation back after its commit.
+    AfterCommit(Box<Event>),
+    /// Feed an internal continuation back in this decision.
+    Continue(Box<Event>),
+    /// An admitted client read's own held answer.
+    ClientRead { reply: skein_lib::ReplyTo, answer: Result<crate::ClientDocument, crate::DocumentMissing> },
+    /// Save a connector-owned record.
+    Save { record: Record },
+    /// Erase a connector-owned record.
+    Erase { key: RecordKey },
+    /// A call to the system below the connector.
+    System(SystemRequest),
+    /// Reserve a core effect owner for a procedure effect.
+    EffectOwner { task: u64 },
+    /// Tell this connector's procedures that an owned resource changed.
+    Changed { resource: Resource },
+}
+
+/// System-side outcomes before translation at the connector's port.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Ask for the deployment's close under this retained key.

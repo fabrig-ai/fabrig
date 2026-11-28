@@ -1,5 +1,6 @@
 //! Releases and run preparation read before judging restored facts (forge/catching-up.md, 4).
 use super::*;
+use jig_domain_contract as contract;
 
 #[path = "catching_up_releases/conversion.rs"]
 mod conversion;
@@ -108,8 +109,6 @@ fn no_release_decision(out: &[Request]) {
             !matches!(
                 request,
                 Request::ReleaseFailed { .. }
-                    | Request::Released { .. }
-                    | Request::EffectsSettled { .. }
                     | Request::Erase { .. }
                     | Request::Save { record: Stored::Entry { .. }, .. }
             ),
@@ -145,7 +144,10 @@ fn release_waits_for_the_fresh_goal_head_before_deleting() {
     let done = finish_reads(&mut d, Some(fixtures::BASE));
     assert!(done.contains(&Request::ContinueRelease { task: GOAL }), "{done:?}");
     let released = outputs(&mut d, Event::ContinueRelease { task: GOAL, entry: ENTRY });
-    assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+    assert!(
+        released.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))),
+        "{released:?}"
+    );
     assert!(d.entries.is_empty(), "the freshly unlanded goal branch is not deleted");
 }
 
@@ -515,7 +517,7 @@ fn release_effect_settlement_waits_for_fresh_reads() {
     assert!(done.contains(&Request::ContinueRelease { task: GOAL }));
     assert!(
         outputs(&mut d, Event::ContinueRelease { task: GOAL, entry: ENTRY })
-            .contains(&Request::EffectsSettled { task: GOAL })
+            .contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: GOAL })))
     );
 }
 
@@ -641,7 +643,9 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
     begin(&mut d);
     assert_eq!(landing::judge(&d, &row, Criterion::Ci, fixtures::HEAD, &evidence, &[]), Some(JudgeVerdict::Wait));
     let done = finish_reads(&mut d, Some(fixtures::HEAD));
-    assert!(done.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(done.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
     assert_eq!(landing::judge(&d, &row, Criterion::Ci, fixtures::HEAD, &evidence, &[]), Some(JudgeVerdict::Met));
 }
 

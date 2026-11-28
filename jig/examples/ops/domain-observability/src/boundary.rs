@@ -307,8 +307,16 @@ impl Record {
 }
 
 /// An event routed to the observability connector.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// An engine ask routed by connector number.
+    Ask(jig_domain_contract::Ask),
+    /// An engine output released after its commit.
+    Released(jig_domain_contract::Released),
+    /// Keep a typed effect under its reserved owner until the engine asks for it.
+    StageEffect { owner: Token, effect: Effect },
+    /// A procedure wake whose producing commit has been released.
+    WakeReleased { task: u64 },
     /// Retain this root-minted name in the application's own vocabulary.
     DocumentPrepare { token: Token, subject: crate::ClientSubject },
     /// The paced watch ended; forget its owner binding.
@@ -395,6 +403,35 @@ pub enum SystemRequest {
 }
 
 /// What the connector asks its root to route or commit.
+#[derive(Debug)]
+pub enum Out {
+    /// What this connector says to the engine in this decision.
+    Up(jig_domain_contract::Up),
+    /// Feed an internal continuation back after its commit.
+    AfterCommit(Box<Event>),
+    /// Feed an internal continuation back in this decision.
+    Continue(Box<Event>),
+    /// An admitted client read's own held answer.
+    ClientRead { reply: skein_lib::ReplyTo, answer: Result<crate::ClientDocument, crate::DocumentMissing> },
+    /// Save a connector-owned record.
+    Save { record: Record },
+    /// Erase a connector-owned record.
+    Erase { key: RecordKey },
+    /// A call to the system below the connector.
+    System(SystemRequest),
+    /// A watch's task-scoped topic interest, chosen by its procedure owner.
+    WatchInterest { task: u64, subscription: u64, topic: u64 },
+    /// Report a refused agent read under its owner.
+    ReadRefused { token: Token },
+    /// A read answer for a tool, bounded by the requested size.
+    Answer { token: Token, bytes: Box<[u8]> },
+    /// A conflicting or malformed owner association was refused.
+    AssociationRefused { task: u64, step: u64, reason: crate::AssociationRefusal },
+    /// Tell the connector's neighbour that a service changed.
+    Changed { service: Service },
+}
+
+/// System-side outcomes before translation at the connector's port.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Complete a due delivery from this owner's current state.

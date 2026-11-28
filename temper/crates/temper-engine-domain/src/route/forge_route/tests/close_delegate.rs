@@ -2,7 +2,7 @@
 use super::super::{Work, forge, forge_change as change, tasks};
 use super::{SHA1, SHA256, change_start_fixture, restore_forge, task_change_row, turn_project};
 use alloc::boxed::Box;
-use jig_domain_core::{Ask, Event};
+use jig_domain_core::Event;
 use jig_domain_link::{JobBound, JobKind};
 use skein_lib::{Duration, Queue};
 
@@ -48,7 +48,12 @@ fn the_root_keeps_the_close_tips_through_admission() {
         &env,
         &mut journal,
         connector,
-        Ask::StepMade { task: parent, step, first: Some(CHILD), revisions: Box::new([]) },
+        jig_domain_contract::Ask::Procedures(jig_domain_contract::procedures::Ask::StepMade {
+            task: parent,
+            step,
+            first: Some(CHILD),
+            revisions: Box::new([]),
+        }),
     );
     let stored = domain.forge.change(task).expect("admitted change");
     let checkout = domain

@@ -30,6 +30,9 @@ fn forge_input(domain: &mut Domain, env: &Env<crate::Limits>, event: forge::Even
     // Restore's report is the completed Link work supplied by at_phase.
     for request in &out {
         let (forge::Request::RestartDone { .. }
+        | forge::Request::Up(jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done {
+            ..
+        }))
         | forge::Request::Save { .. }
         | forge::Request::MarkedForges
         | forge::Request::Marked { .. }) = request

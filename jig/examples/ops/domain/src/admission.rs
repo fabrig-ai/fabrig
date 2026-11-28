@@ -67,7 +67,11 @@ fn observability_class(event: &observability::Event) -> Class {
         | O::MakeEntry { .. }
         | O::Restore { .. }
         | O::ReadAfresh
-        | O::Restart => Class::Admitted,
+        | O::Restart
+        | O::Ask(_)
+        | O::Released(_)
+        | O::StageEffect { .. }
+        | O::WakeReleased { .. } => Class::Admitted,
     }
 }
 
@@ -115,7 +119,11 @@ fn infrastructure_class(event: &infrastructure::Event) -> Class {
         | I::ResolveEntry { .. }
         | I::Restore { .. }
         | I::ReadAfresh
-        | I::Restart => Class::Admitted,
+        | I::Restart
+        | I::Ask(_)
+        | I::Released(_)
+        | I::StageEffect { .. }
+        | I::EffectOwner { .. } => Class::Admitted,
     }
 }
 

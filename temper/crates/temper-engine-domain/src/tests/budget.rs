@@ -47,11 +47,9 @@ fn keep_assignment(domain: &mut Domain, assignment: crate::Assignment) {
         settled,
         grants,
     } = assignment;
-    crate::link::keep_sections(domain, task, sections);
-    let brief = domain.hub_link.take_brief(task).unwrap();
     domain
         .assignment_parts
-        .insert(task, crate::boundary::AssignmentParts { saved, workstream, workspace, answered })
+        .insert(task, crate::boundary::AssignmentParts { sections, saved, workstream, workspace, answered })
         .unwrap();
     domain.hub_link.keep_assignment(jig_domain_hub_link::Assignment {
         parts,
@@ -61,7 +59,7 @@ fn keep_assignment(domain: &mut Domain, assignment: crate::Assignment) {
         live: core::LiveAsk { text: live.text, reasoning: live.reasoning, input: live.input },
         charter,
         run,
-        brief,
+        brief: Box::new([]),
         messages,
         transcript,
         answered: settled,
@@ -92,23 +90,56 @@ fn dropped_and_refused_turn_payloads_release_their_bodies() {
 }
 
 #[test]
-fn completed_sections_are_counted_until_a_failed_preparation_drops_them() {
+fn prepared_sections_are_counted_until_the_assignment_is_dropped() {
+    use crate::boundary::{PreparedWorkspace, WorkspacePreparation};
+    use crate::route::forge_route::RunWorkspace;
     let (mut domain, env) = resume_fixture::root();
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    let fixture = held_assignment();
+    let task = fixture.task;
+    domain
+        .run_workspaces
+        .insert(
+            task,
+            WorkspacePreparation::Ready(PreparedWorkspace {
+                workspace: RunWorkspace {
+                    workspace: fixture.workspace,
+                    workstream: fixture.workstream,
+                    writes: Box::new([]),
+                    names: Box::new([]),
+                    designs: Box::new([]),
+                    own_holds: Box::new([]),
+                },
+                claim_names: Box::new([]),
+            }),
+        )
+        .unwrap();
+    assert_eq!(domain.held_bytes(), 0);
     now(
         &mut domain,
         &env,
         &mut decision,
-        core::Now::CompleteBrief {
-            brief: Token::new(1),
-            order: Box::new([jig_domain_brief::GatherPlaced::Core {
+        core::Now::RunPrepared {
+            task,
+            attempt: fixture.attempt,
+            conversation: fixture.conversation,
+            live: core::LiveAsk { text: false, reasoning: false, input: false },
+            charter: fixture.charter,
+            run: fixture.run,
+            messages: Box::new([]),
+            saved: Box::new([]),
+            transcript: Box::new([]),
+            parts: Box::new([]),
+            answered: Box::new([]),
+            grants: Box::new([]),
+            brief: Box::new([jig_domain_brief::GatherPlaced::Core {
                 kind: jig_domain_brief::Core::Task,
                 text: b"completed section".as_slice().into(),
             }]),
         },
     );
     assert_eq!(domain.held_bytes(), 17);
-    now(&mut domain, &env, &mut decision, core::Now::RunPreparationFailed { task: 1 });
+    now(&mut domain, &env, &mut decision, core::Now::DropAssignment { task });
     assert_eq!(domain.held_bytes(), 0);
 }
 

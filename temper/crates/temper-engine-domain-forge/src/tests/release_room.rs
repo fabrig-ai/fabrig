@@ -1,5 +1,6 @@
 //! Cleanup shares the outbox line, without keeping an uncommitted number (forge/room.md, 3–4).
 use super::*;
+use jig_domain_contract as contract;
 use skein_forge::api::{Answer, Write};
 use temper_engine_domain_forge_change as change;
 
@@ -75,7 +76,7 @@ fn a_cleanup_entry_keeps_the_end_learned_at_settlement() {
     let mut d = refusals::adopted_domain();
     pull(&mut d);
     let closed = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
-    assert!(closed.contains(&Request::EffectsSettled { task: TASK }));
+    assert!(closed.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: TASK }))));
     let later = outbox_room::later(&env(), Duration::from_secs(5));
     step(
         &mut d,
@@ -124,7 +125,7 @@ fn a_waiting_release_keeps_its_room_bound_without_reporting_it() {
     let mut d = outbox_room::full();
     pull(&mut d);
     let settling = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
-    assert!(settling.contains(&Request::EffectsSettled { task: TASK }));
+    assert!(settling.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: TASK }))));
     assert_eq!(wait_report(&settling, TASK), Some([].as_slice()), "settling clears the change's wait");
     let waiting = cancel(&mut d, None, DISCARDED);
     waited(&d, &waiting, 1);
@@ -369,7 +370,9 @@ fn an_asked_release_with_no_write_returns_room_to_the_next_waiter() {
         if facts_pending {
             assert_eq!(d.releases.get(&TASK).unwrap().room, None);
         } else {
-            assert!(passed.contains(&Request::Released { task: TASK }));
+            assert!(
+                passed.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK })))
+            );
         }
     }
 }
@@ -418,7 +421,9 @@ fn removing_a_forge_takes_waiting_cleanup_out_of_the_line() {
         assert_eq!(room::reserved(&d), 0);
         let continued = outputs(&mut d, Event::ContinueRelease { task: TASK, entry: FRESH });
         assert_eq!(entries(&continued).len(), 0);
-        assert!(continued.contains(&Request::Released { task: TASK }));
+        assert!(
+            continued.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: TASK })))
+        );
     }
 }
 

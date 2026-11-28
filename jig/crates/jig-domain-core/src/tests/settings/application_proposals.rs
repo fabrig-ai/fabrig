@@ -7,6 +7,7 @@
 use crate::settings::{self as s, Kind, KindScope};
 use crate::tests::new_core;
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 // A proposal, its extent, and an acceptance's revision and application state.
 const SNAPSHOT_ROWS: u32 = 4;
@@ -49,20 +50,29 @@ fn set(kind: u32, number: u32) -> s::Item {
 /// The scripted root answers every judge within the same decision.
 fn send(core: &mut Core, limits: &Limits, event: Event, answers: Box<[Box<[connector::Judged]>]>) -> Box<[Request]> {
     let mut events = Queue::uncapped();
-    events.push(event);
     let mut script = answers.into_iter();
     let mut output = List::with_capacity(512);
-    while let Some(event) = events.pop() {
-        let mut out = step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
+    let mut out = step(core, &env, event);
+    loop {
         while let Some(request) = out.pop() {
-            if let Request::Ask { ask: Ask::Effect(connector::Ask::JudgeSettings { owner, .. }), .. } = &request {
-                events.push(Event::EffectConnector(connector::Event::SettingsJudged {
-                    owner: *owner,
-                    judged: script.next().expect("scripted judge answer"),
-                }));
+            if let Request::Ask {
+                connector,
+                ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Judge { owner, .. })),
+            } = &request
+            {
+                events.push((
+                    *connector,
+                    contract::Up::Settings(contract::settings::Up::Judged {
+                        owner: *owner,
+                        judged: script.next().expect("scripted judge answer"),
+                    }),
+                ));
             }
             output.push(request).unwrap();
         }
+        let Some((connector, up)) = events.pop() else { break };
+        out = connector_step(core, &env, connector, up);
     }
     assert!(script.next().is_none(), "every scripted answer was used");
     core.reclaim();
@@ -127,7 +137,10 @@ fn decision(proposal: u32, decision: people::ProposalDecision) -> people::Ask {
 fn drops(output: &[Request]) -> Box<[(u16, u64)]> {
     let mut drops = List::with_capacity(8);
     for request in output {
-        if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::DropProposalSettings { proposal }) } = request
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::DropProposal { proposal })),
+        } = request
         {
             drops.push((*connector, *proposal)).unwrap();
         }
@@ -170,7 +183,8 @@ fn application_only_proposal_keeps_its_sized_set() {
     for request in &output {
         if let Request::Ask {
             connector,
-            ask: Ask::Effect(connector::Ask::KeepProposalSettings { proposal: number, items }),
+            ask:
+                Ask::Connector(contract::Ask::Settings(contract::settings::Ask::KeepProposal { proposal: number, items })),
         } = request
         {
             assert_eq!(*number, key);
@@ -317,7 +331,13 @@ fn application_proposal_accepted_judges_and_keeps_the_connectors_values() {
         match request {
             Request::Ask {
                 connector: 2,
-                ask: Ask::Effect(connector::Ask::JudgeSettings { revision, proposal: number, items, .. }),
+                ask:
+                    Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Judge {
+                        revision,
+                        proposal: number,
+                        items,
+                        ..
+                    })),
             } => {
                 judges += 1;
                 assert_eq!((*revision, *number), (2, Some(key)));
@@ -326,7 +346,12 @@ fn application_proposal_accepted_judges_and_keeps_the_connectors_values() {
             }
             Request::Ask {
                 connector: 2,
-                ask: Ask::Effect(connector::Ask::KeepSettings { revision, proposal: number, items }),
+                ask:
+                    Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Keep {
+                        revision,
+                        proposal: number,
+                        items,
+                    })),
             } => {
                 keeps += 1;
                 assert_eq!((*revision, *number), (2, Some(key)));
@@ -376,7 +401,10 @@ fn application_proposal_refused_acceptance_stays_pending_without_a_drop_or_keep(
         assert!(drops(&output).is_empty());
         for request in &output {
             assert!(match request {
-                Request::Ask { ask: Ask::Effect(connector::Ask::KeepSettings { .. }), .. } => false,
+                Request::Ask {
+                    ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Keep { .. })),
+                    ..
+                } => false,
                 _ => true,
             });
         }
@@ -428,7 +456,7 @@ fn empty_or_malformed_application_proposals_keep_nothing() {
         for request in &output {
             assert!(
                 match request {
-                    Request::Ask { ask: Ask::Effect(_), .. } => false,
+                    Request::Ask { ask: Ask::Connector(contract::Ask::Settings(_)), .. } => false,
                     _ => true,
                 },
                 "no connector handoff for invalid set"
@@ -458,7 +486,7 @@ fn accepted_proposal_finishes_connectors_whose_items_are_all_unchanged() {
     for request in &output {
         if let Request::Ask {
             connector,
-            ask: Ask::Effect(connector::Ask::KeepSettings { proposal: number, items, .. }),
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Keep { proposal: number, items, .. })),
         } = request
         {
             assert_eq!(*number, Some(key));
@@ -540,8 +568,10 @@ fn offer(core: &mut Core, proposer: Proposer, number: u32) -> Box<[Request]> {
 fn keeps(output: &[Request]) -> Box<[(u16, u64)]> {
     let mut keys = List::with_capacity(u32::try_from(output.len()).unwrap());
     for request in output {
-        if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::KeepProposalSettings { proposal, .. }) } =
-            request
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::KeepProposal { proposal, .. })),
+        } = request
         {
             keys.push((*connector, *proposal)).unwrap();
         }
@@ -657,7 +687,7 @@ fn jig_only_proposals_draw_no_key_and_send_no_connector_ask() {
         assert_eq!(core.current.keys, keys);
         for request in output {
             assert!(match request {
-                Request::Ask { ask: Ask::Effect(_), .. } => false,
+                Request::Ask { ask: Ask::Connector(contract::Ask::Settings(_)), .. } => false,
                 _ => true,
             });
         }
@@ -716,11 +746,11 @@ fn restart_refuses_a_proposal_key_at_or_past_the_counter() {
         for _ in 0_u32..64 {
             action = match action {
                 Action::Step(Phase::RestoreConnector { connector }) => {
-                    let _out = step(
+                    let _out = connector_step(
                         &mut restarted,
                         &env,
-                        Event::EffectConnector(connector::Event::SettingsDefaults {
-                            connector,
+                        connector,
+                        contract::Up::Settings(contract::settings::Up::Defaults {
                             defaults: Box::default(),
                             dropped: Box::default(),
                         }),

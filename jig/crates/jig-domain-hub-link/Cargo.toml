@@ -13,7 +13,6 @@ jig-domain-core-vocabulary.workspace = true
 jig-domain-host.workspace = true
 jig-domain-link.workspace = true
 jig-domain-authority.workspace = true
-jig-domain-brief.workspace = true
 jig-domain-fleet.workspace = true
 jig-domain-tasks.workspace = true
 

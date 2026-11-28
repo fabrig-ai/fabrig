@@ -2,6 +2,8 @@
 use jig_core_world::fixtures::phase;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
+use jig_domain_contract as jig;
+use jig_domain_core::engine::{self, Engine, In, Out};
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -17,7 +19,7 @@ const SEED: u64 = 714;
 const ENTRY: u64 = 1;
 
 struct Harness {
-    core: core::Core,
+    engine: Engine,
     env: Env<core::Limits>,
     connector: connector::Domain,
     connector_env: Env<connector::Limits>,
@@ -25,7 +27,7 @@ struct Harness {
     records: BTreeMap<connector::RecordKey, connector::Record>,
     task: u64,
     resource: tasks::Name,
-    outcome: Option<core::effects::connector::OutboxOutcome>,
+    outcome: Option<jig::effects::OutboxOutcome>,
     arrivals: Vec<(u64, u32, u64, u32)>,
     complete: bool,
     catch_up: Vec<u16>,
@@ -59,8 +61,8 @@ impl Harness {
             hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
         }]);
         let declarations = configuration.declarations();
-        let mut core =
-            core::Core::new(configuration.core, &declarations, &limits.core).expect("configured direct core");
+        let mut engine = Engine::new(configuration.core, &declarations, &limits.core).expect("configured engine");
+        let core = engine.core_mut();
         {
             phase(&core.start_begin(false, env.wall), Phase::LoadCore);
         }
@@ -179,7 +181,7 @@ impl Harness {
         .map(|record| (record.key(), record))
         .collect();
         Self {
-            core,
+            engine,
             env,
             connector: connector::Domain::new(configuration.first, &limits.connector),
             connector_env,
@@ -195,37 +197,44 @@ impl Harness {
         }
     }
 
-    fn route_core(&mut self, event: core::Event) {
-        let mut out = core::step(&mut self.core, &self.env, event);
-        self.outputs(&mut out);
+    fn connector_up(&mut self, up: jig::Up) {
+        let mut out = Queue::uncapped();
+        engine::step(&mut self.engine, &self.env, In::Connector(jig::Connector(1), up), &mut out);
+        self.engine_outputs(&mut out);
     }
 
-    fn outputs(&mut self, out: &mut Queue<core::Request>) {
-        for _ in 0..out.len() {
-            match out.pop().expect("core output") {
-                core::Request::Write(_)
-                | core::Request::Ask {
-                    ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),
-                    ..
-                } => {}
-                core::Request::Now(now) => {
+    fn outputs(&mut self, requests: &mut Queue<core::Request>) {
+        let mut out = Queue::uncapped();
+        engine::append(std::mem::replace(requests, Queue::uncapped()), &mut out);
+        self.engine_outputs(&mut out);
+    }
+
+    fn engine_outputs(&mut self, out: &mut Queue<Out>) {
+        while let Some(output) = out.pop() {
+            match output {
+                Out::Core(
+                    core::Request::Write(_)
+                    | core::Request::Ask {
+                        ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),
+                        ..
+                    },
+                ) => {}
+                Out::Core(core::Request::Now(now)) => {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));
                 }
-                core::Request::Held(held) => {
+                Out::Core(core::Request::Held(held)) => {
                     let core::Held::NeedArrived { party, project, task, needs } = *held else {
                         panic!("idle restored task needs no other external delivery")
                     };
                     assert!(self.wires, "a recovery decision follows durable Wires");
                     self.arrivals.push((party, project, task, needs));
                 }
-                core::Request::Ask { connector, ask: core::Ask::Effect(core::effects::connector::Ask::CatchUp) } => {
-                    assert!(self.core.start_opened() && self.core.ready());
+                Out::Ask(jig::Connector(connector), jig::Ask::Lifecycle(jig::lifecycle::Ask::CatchUp)) => {
+                    assert!(self.engine.core().start_opened() && self.engine.core().ready());
                     self.catch_up.push(connector);
                 }
-                core::Request::Ask { .. } | core::Request::ProjectMade { .. } => {
-                    panic!("idle restored task needs no connector ask or external delivery")
-                }
+                other => panic!("unexpected engine output during start: {other:?}"),
             }
         }
     }
@@ -236,64 +245,40 @@ impl Harness {
             let Some(event) = pending.pop_front() else { break };
             let mut out = Queue::uncapped();
             connector::step(&mut self.connector, &self.connector_env, event, &mut out);
-            for _ in 0..out.len() {
-                match out.pop().expect("connector output") {
-                    connector::Request::Resource { project, resource } => {
-                        let role = match resource.role {
-                            connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
-                            connector::ResourceRole::Participating => {
-                                core::effects::connector::ResourceRole::Participant
-                            }
-                            connector::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
-                            connector::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
-                        };
-                        let hold = match resource.hold {
-                            connector::Hold::None => core::effects::connector::HoldKind::Shared,
-                            connector::Hold::Exclusive { mode } => core::effects::connector::HoldKind::Exclusive {
-                                wait: mode == connector::HoldMode::Wait,
-                            },
-                            connector::Hold::Pooled { mode } => core::effects::connector::HoldKind::Pooled {
-                                slots: self.connector.slots(&resource.path).expect("configured pool"),
-                                wait: mode == connector::HoldMode::Wait,
-                            },
-                        };
-                        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
+            while let Some(output) = out.pop() {
+                match output {
+                    connector::Out::RestoreResource { project, name, role, hold } => {
+                        // Exercise the engine's resource report during connector restoration.
+                        self.connector_up(jig::Up::Resources(jig::resources::Up::Resource {
                             project,
-                            name: task_name(&resource.path),
+                            name,
                             role,
                             hold,
                         }));
                     }
-                    connector::Request::Save { record } => {
+                    connector::Out::Save(record) => {
                         self.records.insert(record.key(), record);
                     }
-                    connector::Request::Erase { key } => {
+                    connector::Out::Erase(key) => {
                         self.records.remove(&key);
                     }
-                    connector::Request::System(request) => {
+                    connector::Out::System(call) => {
                         assert!(self.wires, "connectors reach their systems only after Wires resumes");
-                        pending.push_back(connector::Event::System(self.system.answer(request, Fault::None)));
+                        pending.push_back(connector::Event::System(self.system.answer(call, Fault::None)));
                     }
-                    connector::Request::Outcome { entry, outcome } => {
-                        let outcome = match outcome {
-                            connector::Outcome::Made { .. } => core::effects::connector::OutboxOutcome::Made,
-                            connector::Outcome::Held => core::effects::connector::OutboxOutcome::Held { entry },
-                            connector::Outcome::Failed => core::effects::connector::OutboxOutcome::Failed,
-                            connector::Outcome::Uncertain => core::effects::connector::OutboxOutcome::Uncertain,
-                            connector::Outcome::Withdrawn => core::effects::connector::OutboxOutcome::Withdrawn,
-                            connector::Outcome::Skipped => core::effects::connector::OutboxOutcome::NotMade,
-                        };
-                        self.outcome = Some(outcome);
-                        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::Outbox {
-                            connector: 1,
-                            entry,
-                            task: self.task,
-                            outcome,
-                        }));
+                    connector::Out::Up(up) => {
+                        if let jig::Up::Effects(jig::effects::Up::Outbox { outcome, .. }) = &up {
+                            self.outcome = Some(*outcome);
+                        }
+                        if let jig::Up::Lifecycle(jig::lifecycle::Up::Done {
+                            stage: jig::lifecycle::RestartStage::Settled,
+                        }) = &up
+                        {
+                            self.complete = true;
+                        }
+                        self.connector_up(up);
                     }
-                    connector::Request::RestartDone => self.complete = true,
-                    connector::Request::Changed { .. } => {}
-                    _ => panic!("unexpected connector restart output"),
+                    other => panic!("unexpected connector restart output: {other:?}"),
                 }
             }
         }
@@ -305,22 +290,22 @@ impl Harness {
             self.connector_event(connector::Event::Restore { record });
         }
         assert_eq!(self.system.calls(), 1, "restoration made no system call");
-        assert_eq!(self.core.tasks.holder(&self.resource), Some(self.task));
+        assert_eq!(self.engine.core().tasks.holder(&self.resource), Some(self.task));
         assert_eq!(
-            self.core.tasks.writer(&self.resource).expect("restored writer").writer,
+            self.engine.core().tasks.writer(&self.resource).expect("restored writer").writer,
             tasks::Writer::Effect { entry: ENTRY }
         );
     }
 
     fn read_afresh(&mut self) {
-        assert!(self.wires && self.core.start_opened());
+        assert!(self.wires && self.engine.core().start_opened());
         self.connector_event(connector::Event::Restart(connector::RestartStep::FreshRead {
             resource: jig_test_connector_kit::path(1, 1),
         }));
-        self.route_core(core::Event::Tasks(tasks::Event::ReadAfresh { resource: self.resource.clone() }));
+        self.connector_up(jig::Up::Resources(jig::resources::Up::ReadAfresh { resource: self.resource.clone() }));
         assert_eq!(self.system.reads().len(), 1);
         assert!(
-            self.core.tasks.writer(&self.resource).is_some(),
+            self.engine.core().tasks.writer(&self.resource).is_some(),
             "fresh reads keep effect writers until their outcome"
         );
     }
@@ -328,61 +313,68 @@ impl Harness {
     fn settle(&mut self) {
         self.connector_event(connector::Event::Restart(connector::RestartStep::SettleOutbox));
         assert!(self.complete, "the root advances only after the connector reports settled");
-        self.core.catch_up_done(1, core::effects::connector::RestartStage::Settled);
     }
 
     fn started(&mut self) {
         let mut out = Queue::uncapped();
-        phase(&self.core.start_done(&self.env, Phase::LoadCore, &mut out), Phase::LoadInbox);
-        phase(&self.core.start_done(&self.env, Phase::LoadInbox, &mut out), Phase::RestoreConnector { connector: 1 });
+        phase(&self.engine.core_mut().start_done(&self.env, Phase::LoadCore, &mut out), Phase::LoadInbox);
+        phase(
+            &self.engine.core_mut().start_done(&self.env, Phase::LoadInbox, &mut out),
+            Phase::RestoreConnector { connector: 1 },
+        );
         self.restore_connector();
         phase(
-            &self.core.start_done(&self.env, Phase::RestoreConnector { connector: 1 }, &mut out),
+            &self.engine.core_mut().start_done(&self.env, Phase::RestoreConnector { connector: 1 }, &mut out),
             Phase::RestoreConnector { connector: 2 },
         );
-        phase(&self.core.start_done(&self.env, Phase::RestoreConnector { connector: 2 }, &mut out), Phase::Link);
-        let action = self.core.start_done(&self.env, Phase::Link, &mut out);
+        phase(
+            &self.engine.core_mut().start_done(&self.env, Phase::RestoreConnector { connector: 2 }, &mut out),
+            Phase::Link,
+        );
+        let action = self.engine.core_mut().start_done(&self.env, Phase::Link, &mut out);
         match action {
             Action::Commit(token) => {
                 self.outputs(&mut out);
-                phase(&self.core.start_resume(&self.env, token, &mut out), Phase::Sweep);
+                phase(&self.engine.core_mut().start_resume(&self.env, token, &mut out), Phase::Sweep);
             }
             action @ (Action::Step(_) | Action::Idle | Action::Refused(_)) => phase(&action, Phase::Sweep),
         }
         self.outputs(&mut out);
-        phase(&self.core.start_sweep(&self.env, SweepInput::Finished, &mut out), Phase::Switch);
-        phase(&self.core.start_done(&self.env, Phase::Switch, &mut out), Phase::Wires);
-        let Action::Commit(wires) = self.core.start_done(&self.env, Phase::Wires, &mut out) else {
+        phase(&self.engine.core_mut().start_sweep(&self.env, SweepInput::Finished, &mut out), Phase::Switch);
+        phase(&self.engine.core_mut().start_done(&self.env, Phase::Switch, &mut out), Phase::Wires);
+        let Action::Commit(wires) = self.engine.core_mut().start_done(&self.env, Phase::Wires, &mut out) else {
             panic!("Wires commits")
         };
         self.outputs(&mut out);
         assert_eq!(self.system.calls(), 1);
         self.wires = true;
-        phase(&self.core.start_resume(&self.env, wires, &mut out), Phase::AdoptRuns);
+        phase(&self.engine.core_mut().start_resume(&self.env, wires, &mut out), Phase::AdoptRuns);
         self.outputs(&mut out);
-        phase(&self.core.start_done(&self.env, Phase::AdoptRuns, &mut out), Phase::Open);
-        assert!(matches!(self.core.start_done(&self.env, Phase::Open, &mut out), Action::Idle));
+        phase(&self.engine.core_mut().start_done(&self.env, Phase::AdoptRuns, &mut out), Phase::Open);
+        assert!(matches!(self.engine.core_mut().start_done(&self.env, Phase::Open, &mut out), Action::Idle));
         self.outputs(&mut out);
         assert_eq!(self.catch_up, [1, 2]);
-        assert_eq!(self.core.start_phase(), None);
-        assert!(self.core.ready() && self.core.start_opened());
-        assert!(!self.core.caught_up(1));
+        assert_eq!(self.engine.core().start_phase(), None);
+        assert!(self.engine.core().ready() && self.engine.core().start_opened());
+        assert!(!self.engine.core().caught_up(1));
         self.read_afresh();
-        self.core.catch_up_done(1, core::effects::connector::RestartStage::ReadAfresh);
-        assert!(!self.core.caught_up(1));
+        self.connector_up(jig::Up::Lifecycle(jig::lifecycle::Up::Done {
+            stage: jig::lifecycle::RestartStage::ReadAfresh,
+        }));
+        assert!(!self.engine.core().caught_up(1));
         self.settle();
-        assert!(self.core.caught_up(1));
-        assert_eq!(self.core.start_failure(), None);
+        assert!(self.engine.core().caught_up(1));
+        assert_eq!(self.engine.core().start_failure(), None);
     }
 }
 
 fn recovered(recovery: u16, applications: usize, calls: u64) {
     let mut started = Harness::new(recovery);
     started.started();
-    assert_eq!(started.outcome, Some(core::effects::connector::OutboxOutcome::Made));
+    assert_eq!(started.outcome, Some(jig::effects::OutboxOutcome::Made));
     assert!(started.records.values().any(|row| matches!(row, connector::Record::Made { state: 11, .. })));
     assert!(!started.records.values().any(|row| matches!(row, connector::Record::Outbox(_))));
-    assert_eq!(started.core.tasks.writer(&started.resource), None);
+    assert_eq!(started.engine.core().tasks.writer(&started.resource), None);
     assert_eq!(started.system.observed().iter().filter(|row| row.applied).count(), applications);
     assert_eq!(started.system.calls(), calls);
 }
@@ -406,13 +398,13 @@ fn uncertain_idempotent_effect_repeats_after_its_saved_deadline() {
 fn unrecoverable_effect_holds_its_task_and_writer() {
     let mut started = Harness::new(4);
     started.started();
-    assert_eq!(started.outcome, Some(core::effects::connector::OutboxOutcome::Held { entry: ENTRY }));
+    assert_eq!(started.outcome, Some(jig::effects::OutboxOutcome::Held { entry: ENTRY }));
     assert!(started.records.values().any(|row| matches!(
         row,
         connector::Record::Outbox(connector::OutboxEntry { phase: connector::EffectPhase::Held, .. })
     )));
-    assert!(started.core.tasks.writer(&started.resource).is_some());
-    let row = started.core.tasks.task(started.task).expect("held task");
+    assert!(started.engine.core().tasks.writer(&started.resource).is_some());
+    let row = started.engine.core().tasks.task(started.task).expect("held task");
     assert!(
         matches!(&row.phase, tasks::Phase::Held { why: tasks::Hold::Uncertain { entry: ENTRY }, source: Some(source), .. } if **source == tasks::HoldSource::Effect { connector: 1, entry: ENTRY })
     );
@@ -434,13 +426,13 @@ fn restored_access_controls_workspace_writers_during_start() {
             {
                 h.started();
             }
-            assert_eq!(h.core.tasks.holder(&h.resource), Some(h.task));
+            assert_eq!(h.engine.core().tasks.holder(&h.resource), Some(h.task));
             assert_eq!(
-                h.core.tasks.resource_hold(&h.resource),
+                h.engine.core().tasks.resource_hold(&h.resource),
                 Some(tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits })
             );
-            assert_eq!(h.core.tasks.writer(&h.resource), None);
-            let row = h.core.tasks.task(h.task).expect("idle holder");
+            assert_eq!(h.engine.core().tasks.writer(&h.resource), None);
+            let row = h.engine.core().tasks.task(h.task).expect("idle holder");
             let attempt = row.attempt.checked_add(1).expect("next fixture attempt");
             let word = tasks::Word {
                 number: row.last_message.checked_add(1).expect("next fixture word"),
@@ -453,7 +445,7 @@ fn restored_access_controls_workspace_writers_during_start() {
             };
             let env = h.env.with(h.env.limits.tasks);
             tasks::step(
-                &mut h.core.tasks,
+                &mut h.engine.core_mut().tasks,
                 &env,
                 tasks::Event::Message {
                     reply_to: ReplyTo::new(Token::new(1)),
@@ -463,22 +455,22 @@ fn restored_access_controls_workspace_writers_during_start() {
                 &mut Queue::uncapped(),
             );
             assert_eq!(
-                h.core.tasks.task(h.task).expect("woken holder").phase,
+                h.engine.core().tasks.task(h.task).expect("woken holder").phase,
                 tasks::Phase::Active(tasks::Active::Due)
             );
             tasks::step(
-                &mut h.core.tasks,
+                &mut h.engine.core_mut().tasks,
                 &env,
                 tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(2)), task: h.task },
                 &mut Queue::uncapped(),
             );
             assert_eq!(
-                h.core.tasks.task(h.task).expect("prepared holder").phase,
+                h.engine.core().tasks.task(h.task).expect("prepared holder").phase,
                 tasks::Phase::Active(tasks::Active::Preparing)
             );
             let mut out = Queue::uncapped();
             tasks::step(
-                &mut h.core.tasks,
+                &mut h.engine.core_mut().tasks,
                 &env,
                 tasks::Event::Claim {
                     fresh: None,
@@ -498,7 +490,7 @@ fn restored_access_controls_workspace_writers_during_start() {
             match role {
                 connector::ResourceRole::Owned => {
                     assert_eq!(
-                        h.core.tasks.writer(&h.resource).expect("owned workspace writer").writer,
+                        h.engine.core().tasks.writer(&h.resource).expect("owned workspace writer").writer,
                         tasks::Writer::Run { task: h.task, attempt }
                     );
                 }
@@ -508,7 +500,7 @@ fn restored_access_controls_workspace_writers_during_start() {
                     };
                     assert_eq!(problem.why, tasks::Refusal::Holds);
                     assert!(out.is_empty());
-                    assert_eq!(h.core.tasks.writer(&h.resource), None);
+                    assert_eq!(h.engine.core().tasks.writer(&h.resource), None);
                 }
                 connector::ResourceRole::Participating | connector::ResourceRole::Unavailable => {
                     unreachable!("fixture roles")
@@ -527,8 +519,11 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
         }
         let pool = task_name(&jig_test_connector_kit::path(1, 2));
         assert_eq!(h.connector.slots(&jig_test_connector_kit::path(1, 2)), Some(2));
-        assert_eq!(h.core.tasks.resource_hold(&pool), Some(tasks::HoldKind::Pooled { taken: tasks::Taken::Waits }));
-        let holder = h.core.tasks.task(h.task).expect("sampled task");
+        assert_eq!(
+            h.engine.core().tasks.resource_hold(&pool),
+            Some(tasks::HoldKind::Pooled { taken: tasks::Taken::Waits })
+        );
+        let holder = h.engine.core().tasks.task(h.task).expect("sampled task");
         let mut authority = holder.authority.clone();
         authority.budget.spend = 1;
         let row = tasks::New {
@@ -553,7 +548,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
         let env = h.env.with(h.env.limits.tasks);
         let mut out = Queue::uncapped();
         tasks::step(
-            &mut h.core.tasks,
+            &mut h.engine.core_mut().tasks,
             &env,
             tasks::Event::Make {
                 reads_project: false,
@@ -565,7 +560,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
             },
             &mut out,
         );
-        let row = h.core.tasks.task(2).expect("admitted pool waiter");
+        let row = h.engine.core().tasks.task(2).expect("admitted pool waiter");
         assert_eq!(row.phase, tasks::Phase::Waiting);
         assert!(!row.holds_taken, "the restored zero-slot capacity survives the loading report of two slots");
     }

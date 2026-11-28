@@ -1,6 +1,7 @@
 //! The core names own watch subjects from live and restored sign-ins (protocol/client/README.md, 5).
 use crate::tests::new_core;
 use crate::tests::*;
+use jig_domain_contract as contract;
 use jig_domain_link::{Hello, Hosting, Phase};
 
 fn identity(party: u8) -> people::Identity {
@@ -405,7 +406,11 @@ fn an_application_wait_permits_idle_while_its_effect_is_unanswered() {
     );
     let mut application = None;
     for row in &mut out {
-        if let Request::Ask { ask: Ask::Application { request, token, .. }, .. } = row {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Requests(contract::requests::Ask::Decide { request, token, .. })),
+            ..
+        } = row
+        {
             application = Some((*request, *token));
         }
     }
@@ -416,7 +421,12 @@ fn an_application_wait_permits_idle_while_its_effect_is_unanswered() {
     assert!(!core.quiescent(true), "active application work still prevents idle");
     drop(core.land_kind(effect, flight::Kind::EffectStaging));
     assert!(core.quiescent(true));
-    drop(watch_outputs(&mut core, &limits, Event::ApplicationFinished { request, outcome: Ok(token) }));
+    drop(watch_connector_outputs(
+        &mut core,
+        &limits,
+        1,
+        contract::Up::Requests(contract::requests::Up::Decided { request, outcome: Ok(token) }),
+    ));
     let _committed = core.counters.next_commit();
     assert!(core.flights.is_empty());
     assert!(core.quiescent(true));

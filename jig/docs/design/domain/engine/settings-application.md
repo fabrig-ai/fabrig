@@ -48,7 +48,7 @@ judges and keeps it within the change's decision.
   or answers that an item leaves its setting as it is, which the core
   counts toward *empty* (2). A set commits only when every connector
   it names accepts.
-  During `JudgeSettings`, the root may read the templates the active
+  During `settings::Ask::Judge`, the root may read the templates the active
   decision would offer a project through the core's
   `settings_project_templates` query, named by the judge's owner token.
   This applies the same set, removal and reset selection as 1's check,

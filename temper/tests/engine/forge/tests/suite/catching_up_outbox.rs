@@ -1,4 +1,5 @@
 //! An uncertain entry's find fences its lane, not other repositories or fresh reads.
+use jig_domain_contract as contract;
 use skein_forge::api::{Error, Op, Read, Write};
 use skein_forge_client::{Condition, Effect, Entry};
 use temper_engine_domain_forge as top;
@@ -28,7 +29,9 @@ fn branch_entry(world: &World, number: u64, branch: &[u8]) -> Entry {
 
 fn no_settle(world: &World) {
     assert!(
-        !world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Settled }),
+        !world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: top::RestartStage::Settled
+        }))),
         "a find that keeps failing owes its first look"
     );
     assert!(!world.has_branch(BEHIND), "the later write on the uncertain entry's lane waits");
@@ -60,7 +63,9 @@ fn a_restored_failing_find_holds_its_lane_but_not_a_change_on_another_repository
     world.take_calls();
     world.restart();
     world.run_for(2);
-    assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
+    assert!(world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::ReadAfresh
+    }))));
     no_settle(&world);
     world.event(top::Event::Enqueue { entry: branch_entry(&world, 2, BEHIND) });
     world.event(top::Event::Committed { entry: 2 });

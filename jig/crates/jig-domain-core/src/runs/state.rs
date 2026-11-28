@@ -443,8 +443,8 @@ pub enum RoutedCall {
     MarkRead(CallKey),
     RecordNote { key: CallKey, name: u64, revision: u32, change: jig_domain_notes::LineChange },
     Introduce(CallKey),
-    Subscribe { key: CallKey, subscription: u64 },
-    Unsubscribe(CallKey),
+    Subscribe { key: CallKey, subscription: u64, topic: Option<(u16, u64)> },
+    Unsubscribe { key: CallKey, subscription: u64, topic: Option<(u16, u64)> },
     Control { key: CallKey, target: u64, revised: bool },
 }
 

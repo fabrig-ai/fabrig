@@ -1,6 +1,8 @@
 //! Whole procedure-step admission and the connector's same-decision outcome.
-use crate::{Ask, Core, Limits, ProcedureStep, Request, StepEnd, StepRefusal};
+use crate::vocabulary::connector_ask;
+use crate::{Core, Limits, ProcedureStep, Request, StepEnd, StepRefusal};
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue};
 
@@ -19,7 +21,10 @@ pub(crate) fn refused(core: &Core, task: u64, step: u64, why: StepRefusal) -> Qu
     if let Some(row) = core.tasks.task(task)
         && let tasks::Executor::Procedure { connector, .. } = row.executor
     {
-        out.push(Request::Ask { connector, ask: Ask::StepRefused { task, step, why } });
+        out.push(connector_ask(
+            connector,
+            contract::Ask::Procedures(contract::procedures::Ask::StepRefused { task, step, why }),
+        ));
     }
     out
 }
@@ -148,10 +153,15 @@ pub(crate) fn apply(
     if let Some(row) = core.tasks.task(task)
         && let tasks::Executor::Procedure { connector, .. } = row.executor
     {
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: Ask::StepMade { task, step, first, revisions: revisions.into_boxed() },
-        });
+            contract::Ask::Procedures(contract::procedures::Ask::StepMade {
+                task,
+                step,
+                first,
+                revisions: revisions.into_boxed(),
+            }),
+        ));
     }
     // The connector records the admitted batch before a retained wake can
     // activate its next step against that connector's state.

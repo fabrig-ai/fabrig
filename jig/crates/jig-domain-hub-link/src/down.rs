@@ -56,6 +56,7 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
             return Err(core::Held::Refuse { channel, hello });
         }
         other @ (core::Held::Acted { .. }
+        | core::Held::Connector(_, _)
         | core::Held::Drained
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }
@@ -68,7 +69,6 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::CarriedUnused { .. }
         | core::Held::Delivery { .. }
         | core::Held::WatchEnded { .. }
-        | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
         | core::Held::Assign { .. }
         | core::Held::SourceSignedOut { .. }

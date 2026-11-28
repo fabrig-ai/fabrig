@@ -18,6 +18,7 @@ mod ended_groups;
 pub mod engine;
 mod funding;
 mod inbox;
+mod judgements;
 mod limits;
 mod loads;
 use jig_domain_core_vocabulary::numbers;
@@ -73,8 +74,8 @@ pub use crate::{
     },
     funding::pools::CreateStart,
     limits::{
-        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY,
-        brief_holds_documents, charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
+        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY, brief_holds_documents,
+        charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
     },
     numbers::{Counters, Deployment, Family, fresh},
     public::{
@@ -120,8 +121,8 @@ pub use crate::{
     },
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
-        NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
-        StepRefusal, Timer, ToolKind, WatchRefusal, Write,
+        NamedAction, Now, PayloadRefusal, ProposalChoice, PublicIndexLimits, Request, RetentionLimits, StepRefusal,
+        Timer, ToolKind, WatchRefusal, Write,
     },
 };
 
@@ -148,6 +149,7 @@ pub struct Core {
     pub(crate) start: start::Script,
     person_answers: bool,
     routes: u32,
+    judgements: judgements::Pending,
     run_inbox: u32,
     /// Configured task depth and tree size used by proposal-holder inspection.
     proposal_bounds: (u32, u32),
@@ -187,6 +189,7 @@ pub struct Core {
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
     declarations: Box<[Declaration]>,
+    connector_recipients: declarations::Recipients,
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     /// Subjects owned by the parent; the child echoes each watch token.
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
@@ -249,6 +252,8 @@ pub struct Core {
     pub counters: Counters,
     /// Live task preparation contexts.
     pub(crate) contexts: Map<u64, Box<tasks::RunContext>>,
+    /// Plans awaited and completed briefs, one per live preparation.
+    pub(crate) brief_sections: Map<u64, routing::run::briefs::Sections>,
     pub(crate) workspace_credentials: Map<u64, Box<[u32]>>,
     pub(crate) job_workspaces: Map<u64, Box<[u8]>>,
     /// Recent transcript windows for runs being prepared.
@@ -418,6 +423,7 @@ impl Core {
             erasures: erase::Erasures::new(),
             deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
+            judgements: judgements::Pending::new(limits.routes),
             run_inbox: limits.tasks.run_inbox,
             proposal_bounds: (limits.tasks.depth, limits.tasks.tree_tasks),
             wait_limits: *limits,
@@ -484,6 +490,7 @@ impl Core {
             public_reads: skein_lib::Slab::with_capacity(limits.load_slots),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
+            connector_recipients: declarations::recipients(&config.connectors, connectors),
             connectors: config.connectors,
             declarations: Box::from(connectors),
             jobs: config.jobs,
@@ -502,6 +509,7 @@ impl Core {
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),
+            brief_sections: Map::with_capacity(limits.tasks.tasks),
             workspace_credentials: Map::with_capacity(limits.tasks.tasks),
             job_workspaces: Map::with_capacity(limits.tasks.tasks),
             transcripts: Map::with_capacity(limits.tasks.tasks),

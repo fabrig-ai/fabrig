@@ -2,6 +2,7 @@
 use jig_core_world::fixtures::{ask, live_row};
 use jig_core_world::world::{Setup, World};
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -223,13 +224,18 @@ fn procedure(world: &mut World, person: u64) -> Option<Refusal> {
         env.wall,
     );
     let (step, connector, code, _) = world.procedure_inputs.last().expect("procedure received its context");
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: DELEGATE,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep { batch: Box::new([member]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: DELEGATE,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep {
+                batch: Box::new([member]),
+                ..core::ProcedureStep::new(core::StepEnd::Wait)
+            },
+        }),
+    ));
     answer.err().map(Refusal::Step)
 }
 
@@ -333,7 +339,7 @@ fn party_proposed_amend(world: &mut World, person: u64) -> Option<Refusal> {
 fn procedure_person_world() -> World {
     let mut world = procedure_world();
     let _answer = procedure(&mut world, PERSON);
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task: DELEGATE })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task: DELEGATE })));
     world
 }
 
@@ -348,20 +354,22 @@ fn procedure_amend(world: &mut World, person: u64) -> Option<Refusal> {
         &limits.tasks,
     );
     let (step, connector, code, _) = world.procedure_inputs.last().expect("next procedure context");
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: DELEGATE,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep {
-            amendments: Box::new([core::StepAmendment {
-                task: PROCEDURE_DELEGATE,
-                revision: live_row(world, PROCEDURE_DELEGATE).revisions.spec,
-                amendment,
-            }]),
-            ..core::ProcedureStep::new(core::StepEnd::Wait)
-        },
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: DELEGATE,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep {
+                amendments: Box::new([core::StepAmendment {
+                    task: PROCEDURE_DELEGATE,
+                    revision: live_row(world, PROCEDURE_DELEGATE).revisions.spec,
+                    amendment,
+                }]),
+                ..core::ProcedureStep::new(core::StepEnd::Wait)
+            },
+        }),
+    ));
     match answer {
         Ok(_) => None,
         Err(core::TaskAmendDenied::Refused { task, why }) => {

@@ -643,6 +643,7 @@ fn reply(rows: &[Request]) -> Reply {
             | Request::ServiceMade { .. }
             | Request::Act { .. }
             | Request::Acted { .. }
+            | Request::ConnectorActed { .. }
             | Request::NeedArrived { .. }
             | Request::RestoreRefused { .. } => None,
         })
@@ -662,6 +663,7 @@ fn route(rows: &[Request]) -> Token {
             | Request::ServiceMade { .. }
             | Request::Act { .. }
             | Request::Acted { .. }
+            | Request::ConnectorActed { .. }
             | Request::NeedArrived { .. }
             | Request::RestoreRefused { .. } => None,
         })
@@ -694,6 +696,7 @@ fn saved_answer(rows: &[Request]) -> Stored {
             | Request::ServiceMade { .. }
             | Request::Act { .. }
             | Request::Acted { .. }
+            | Request::ConnectorActed { .. }
             | Request::NeedArrived { .. }
             | Request::RestoreRefused { .. } => None,
         })
@@ -1278,6 +1281,7 @@ fn is_reply(request: &Request) -> bool {
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::ConnectorActed { .. }
         | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }
@@ -1308,6 +1312,7 @@ fn is_answer(request: &Request) -> bool {
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::ConnectorActed { .. }
         | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }
@@ -1338,6 +1343,7 @@ fn is_roles(request: &Request) -> bool {
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::ConnectorActed { .. }
         | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }
@@ -1487,6 +1493,7 @@ fn authenticated_escalation_decisions_route_without_membership_and_io_pressure_i
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::ConnectorActed { .. }
         | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }));
@@ -1631,6 +1638,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
                 | Request::RolesRefused { .. }
                 | Request::Act { .. }
                 | Request::Acted { .. }
+                | Request::ConnectorActed { .. }
                 | Request::NeedArrived { .. }
                 | Request::RestoreRefused { .. } => false,
             })

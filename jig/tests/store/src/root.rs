@@ -169,7 +169,13 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
     authority: core_authority_limits(),
     people: PEOPLE_LIMITS,
     fleet: core_fleet_limits(),
-    brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
+    brief: jig_domain_brief::Limits {
+        briefs: 2,
+        sections: 3,
+        read_bytes: 256,
+        brief_bytes: 384,
+        gather: Duration::from_secs(30),
+    },
     brief_parts: 2,
     brief_core_budgets: core::CoreBriefBudgets {
         tail: 128,

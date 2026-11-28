@@ -3,6 +3,7 @@ use jig_core_world::{
     fixtures::{configure_resources, delegate, member, resource_member},
     world::{Setup, World},
 };
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine;
 use jig_domain_tasks as tasks;
@@ -635,34 +636,28 @@ fn a_parked_batch_waits_for_the_missing_connectors_report() {
     });
     configure_resources(&mut world);
     for number in [10_u8, 11] {
-        world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
-            project: 1,
-            name: tasks::Name { connector: 1, path: Box::new([Box::new([number])]) },
-            role: core::effects::connector::ResourceRole::Owned,
-            hold: core::effects::connector::HoldKind::Exclusive { wait: true },
-        })));
+        world.send(root::Event::connector_up(
+            1,
+            jig::Up::Resources(jig::resources::Up::Resource {
+                project: 1,
+                name: tasks::Name { connector: 1, path: Box::new([Box::new([number])]) },
+                role: core::effects::connector::ResourceRole::Owned,
+                hold: core::effects::connector::HoldKind::Exclusive { wait: true },
+            }),
+        ));
     }
-    world.domain.script_holdings();
+    world.domain.delay_holding_reports(1, Box::new([true]));
     let parent = world.assignments[0];
     let child = resource_member(&world, 1, b"missing report");
+    let (parked, wall) = world.clocks();
+    world.set_clock(parked, wall);
     world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9940)),
         key: key(parent, 1),
         batch: Box::new([child]),
     }));
-    let mut reports = Vec::new();
-    let mut replies = Vec::new();
-    while let Some(event) = world.domain.pop_holdings() {
-        if matches!(event, core::Event::EffectConnector(core::effects::connector::Event::Resource { .. })) {
-            reports.push(event);
-        } else {
-            replies.push(root::Event::Core(event));
-        }
-    }
-    assert_eq!(reports.len(), 1);
-    let (parked, wall) = world.clocks();
-    world.set_clock(parked, wall);
-    world.send_all(replies);
+    assert!(world.domain.take_holding_report(1).is_some(), "connector withheld one report");
+    assert!(world.domain.take_holding_report(1).is_none(), "exactly one report was withheld");
     assert_eq!(world.domain.core().awaiting_resources_flights(), 1);
     let inspection = inspect(&world, 11734);
     let flights = runs::table(&inspection, "flights");

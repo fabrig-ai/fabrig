@@ -8,8 +8,10 @@ fn connector(token: u64, required: bool, priority: u16) -> Planned {
     named_connector(token, b"section", required, priority)
 }
 
+const BRIEF_START_DEADLINE: Time = Time::ZERO.saturating_add(Duration::from_secs(10));
+
 fn begin(world: &mut World, sections: Box<[Planned]>, budget: u32) -> Vec<GatherRequest> {
-    world.step(planned(sections, budget, Time::ZERO.saturating_add(Duration::from_secs(10))))
+    world.step(planned(sections, budget, BRIEF_START_DEADLINE))
 }
 
 #[test]
@@ -199,13 +201,16 @@ fn failure(fate: GatherFate, section: &'static [u8], words: &'static [u8]) -> Ga
 fn named_connector(token: u64, name: &'static [u8], required: bool, priority: u16) -> Planned {
     Planned::Connector {
         connector: 3,
-        kind: 7,
-        name,
-        token: Token::new(token),
-        size: 0,
-        limit: LIMITS.read_bytes,
-        priority,
-        required,
+        section: jig_domain_contract::parts::Section {
+            kind: 7,
+            name,
+            token: Token::new(token),
+            size: 0,
+            limit: LIMITS.read_bytes,
+            priority,
+            required,
+            document: None,
+        },
     }
 }
 
@@ -243,16 +248,18 @@ fn a_full_table_or_a_busy_brief_refuses_for_capacity() {
 fn malformed_plans_say_why_they_are_refused_permanently() {
     let deadline = Time::ZERO.saturating_add(Duration::from_secs(10));
     let too_many = (0..=LIMITS.sections).map(|n| connector(u64::from(n), false, 0)).collect();
-    for (event, section, words) in [
+    for (event, dropped, section, words) in [
         (
             planned(too_many, LIMITS.brief_bytes, deadline),
+            (0..=LIMITS.sections).map(u64::from).collect::<Vec<_>>(),
             b"brief".as_slice(),
             b"it has more sections than a brief may hold".as_slice(),
         ),
-        (planned(Box::new([]), LIMITS.brief_bytes + 1, deadline), b"brief", b"its budget is past the limit"),
-        (planned(Box::new([]), LIMITS.brief_bytes, Time::ZERO), b"brief", b"its deadline has passed"),
+        (planned(Box::new([]), LIMITS.brief_bytes + 1, deadline), vec![], b"brief", b"its budget is past the limit"),
+        (planned(Box::new([]), LIMITS.brief_bytes, Time::ZERO), vec![], b"brief", b"its deadline has passed"),
         (
             planned(Box::new([connector(2, false, 0), connector(2, false, 1)]), LIMITS.brief_bytes, deadline),
+            vec![2, 2],
             b"brief",
             b"a section is planned twice",
         ),
@@ -268,15 +275,19 @@ fn malformed_plans_say_why_they_are_refused_permanently() {
                 LIMITS.brief_bytes,
                 deadline,
             ),
+            vec![],
             b"transcript",
             b"its text is past the brief's limit",
         ),
     ] {
         let mut world = World::new(LIMITS);
-        assert_eq!(
-            world.step(event),
-            [GatherRequest::Refused { brief: Token::new(1), failure: failure(GatherFate::Permanent, section, words) }]
-        );
+        let brief = Token::new(1);
+        let mut expected: Vec<_> = dropped
+            .into_iter()
+            .map(|token| GatherRequest::Drop { connector: 3, brief, section: Token::new(token) })
+            .collect();
+        expected.push(GatherRequest::Refused { brief, failure: failure(GatherFate::Permanent, section, words) });
+        assert_eq!(world.step(event), expected);
         assert!(world.domain.is_idle());
     }
 }
@@ -311,7 +322,12 @@ fn a_required_connectors_failure_passes_through_unchanged() {
         let mut world = World::new(LIMITS);
         begin(&mut world, Box::new([connector(2, true, 0)]), LIMITS.brief_bytes);
         let why = failure(fate, b"pull", b"words");
-        let asked = world.step(GatherEvent::Missing { brief: Token::new(1), section: Token::new(2), why: why.clone() });
+        let asked = world.step(GatherEvent::Missing {
+            brief: Token::new(1),
+            connector: 3,
+            section: Token::new(2),
+            why: why.clone(),
+        });
         let done = world.settle(asked);
         assert_eq!(done, [GatherRequest::Failed { brief: Token::new(1), why: GatherMissing::Failed, failure: why }]);
         assert!(world.closed(Token::new(2)));
@@ -333,13 +349,29 @@ fn a_required_connectors_failure_frees_its_slot_and_drops_the_other_gather() {
         assert_eq!(
             asked,
             [
-                GatherRequest::Gather { connector: 3, section: Token::new(2), budget: LIMITS.read_bytes },
-                GatherRequest::Gather { connector: 3, section: paused, budget: LIMITS.read_bytes },
+                GatherRequest::Gather {
+                    connector: 3,
+                    brief: Token::new(1),
+                    section: Token::new(2),
+                    budget: LIMITS.read_bytes,
+                    deadline: BRIEF_START_DEADLINE
+                },
+                GatherRequest::Gather {
+                    connector: 3,
+                    brief: Token::new(1),
+                    section: paused,
+                    budget: LIMITS.read_bytes,
+                    deadline: BRIEF_START_DEADLINE
+                },
             ]
         );
         let why = failure(fate, b"pull", b"the change's head moved");
-        let failed =
-            world.step(GatherEvent::Missing { brief: Token::new(1), section: Token::new(2), why: why.clone() });
+        let failed = world.step(GatherEvent::Missing {
+            brief: Token::new(1),
+            connector: 3,
+            section: Token::new(2),
+            why: why.clone(),
+        });
         let done = world.settle(failed);
         assert_eq!(done, [GatherRequest::Failed { brief: Token::new(1), why: GatherMissing::Failed, failure: why }]);
         assert!(world.closed(paused));
@@ -357,7 +389,13 @@ fn a_required_connectors_failure_frees_its_slot_and_drops_the_other_gather() {
         });
         assert_eq!(
             admitted,
-            [GatherRequest::Gather { connector: 3, section: Token::new(4), budget: LIMITS.read_bytes }]
+            [GatherRequest::Gather {
+                connector: 3,
+                brief: Token::new(2),
+                section: Token::new(4),
+                budget: LIMITS.read_bytes,
+                deadline: BRIEF_START_DEADLINE
+            }]
         );
         assert_eq!(
             world.settle(admitted),
@@ -406,7 +444,16 @@ fn a_required_sections_deadline_frees_its_slot_and_drops_the_other_gather() {
         deadline: now.saturating_add(Duration::from_secs(10)),
         sections: Box::new([connector(4, true, 0)]),
     });
-    assert_eq!(admitted, [GatherRequest::Gather { connector: 3, section: Token::new(4), budget: LIMITS.read_bytes }]);
+    assert_eq!(
+        admitted,
+        [GatherRequest::Gather {
+            connector: 3,
+            brief: Token::new(2),
+            section: Token::new(4),
+            budget: LIMITS.read_bytes,
+            deadline: now.saturating_add(Duration::from_secs(10))
+        }]
+    );
     assert_eq!(
         world.settle(admitted),
         [GatherRequest::Complete {
@@ -420,10 +467,18 @@ fn a_required_sections_deadline_frees_its_slot_and_drops_the_other_gather() {
 fn a_required_answer_past_its_read_or_cut_bound_fails_permanently() {
     const BUDGET: u32 = 40; // Below the connector's 128-byte read limit, so it must cut.
     for (preliminary, answer) in [
-        (Vec::new(), GatherEvent::Ready { brief: Token::new(1), section: Token::new(2), size: LIMITS.read_bytes + 1 }),
         (
-            vec![GatherEvent::Ready { brief: Token::new(1), section: Token::new(2), size: BUDGET + 1 }],
-            GatherEvent::Cut { brief: Token::new(1), section: Token::new(2), size: BUDGET + 1 },
+            Vec::new(),
+            GatherEvent::Sized {
+                brief: Token::new(1),
+                connector: 3,
+                section: Token::new(2),
+                size: LIMITS.read_bytes + 1,
+            },
+        ),
+        (
+            vec![GatherEvent::Sized { brief: Token::new(1), connector: 3, section: Token::new(2), size: BUDGET + 1 }],
+            GatherEvent::Sized { brief: Token::new(1), connector: 3, section: Token::new(2), size: BUDGET + 1 },
         ),
     ] {
         let mut world = World::new(LIMITS);
@@ -455,11 +510,19 @@ fn a_required_cut_cannot_outlive_the_deadline() {
             sections.push(connector(3, false, 1));
         }
         begin(&mut world, sections.into_boxed_slice(), BUDGET);
-        let asked = world.step(GatherEvent::Ready { brief: Token::new(1), section: Token::new(2), size: BUDGET + 1 });
+        let asked = world.step(GatherEvent::Sized {
+            brief: Token::new(1),
+            connector: 3,
+            section: Token::new(2),
+            size: BUDGET + 1,
+        });
         if optional {
             assert_eq!(asked.len(), 0);
         } else {
-            assert_eq!(asked, [GatherRequest::CutTo { connector: 3, section: Token::new(2), size: BUDGET }]);
+            assert_eq!(
+                asked,
+                [GatherRequest::CutTo { connector: 3, brief: Token::new(1), section: Token::new(2), size: BUDGET }]
+            );
         }
         if settle_first {
             let settled = world.fire(Time::from_nanos(8_750_000_000));
@@ -467,8 +530,13 @@ fn a_required_cut_cannot_outlive_the_deadline() {
                 assert_eq!(
                     settled,
                     [
-                        GatherRequest::Drop { connector: 3, section: Token::new(3) },
-                        GatherRequest::CutTo { connector: 3, section: Token::new(2), size: BUDGET },
+                        GatherRequest::Drop { connector: 3, brief: Token::new(1), section: Token::new(3) },
+                        GatherRequest::CutTo {
+                            connector: 3,
+                            brief: Token::new(1),
+                            section: Token::new(2),
+                            size: BUDGET
+                        },
                     ]
                 );
                 // Keep the cut unanswered while serving the drop.
@@ -503,7 +571,7 @@ fn a_partial_required_section_gets_time_to_cut_after_optional_gathering_settles(
     let asked = begin(&mut world, Box::new([named_connector(2, b"pull", true, 0), connector(3, false, 1)]), 40);
     assert_eq!(world.settle(asked).len(), 0);
     assert_eq!(world.fire(Time::from_nanos(5_000_000_000)).len(), 0);
-    assert_eq!(world.step(GatherEvent::Ready { brief: Token::new(1), section: pull, size: 41 }).len(), 0);
+    assert_eq!(world.step(GatherEvent::Sized { brief: Token::new(1), connector: 3, section: pull, size: 41 }).len(), 0);
     let settle_at = Time::from_nanos(8_750_000_000);
     assert_eq!(world.domain.next_deadline(), Some(settle_at));
     assert_eq!(world.fire(Time::from_nanos(8_749_999_999)).len(), 0);
@@ -511,8 +579,8 @@ fn a_partial_required_section_gets_time_to_cut_after_optional_gathering_settles(
     assert_eq!(
         settled,
         [
-            GatherRequest::Drop { connector: 3, section: optional },
-            GatherRequest::CutTo { connector: 3, section: pull, size: 40 },
+            GatherRequest::Drop { connector: 3, brief: Token::new(1), section: optional },
+            GatherRequest::CutTo { connector: 3, brief: Token::new(1), section: pull, size: 40 },
         ]
     );
     assert_eq!(world.domain.next_deadline(), Some(Time::from_nanos(10_000_000_000)));
@@ -548,14 +616,17 @@ fn required_gathering_is_waited_for_past_settling_and_ready_optional_sections_ar
         if optional {
             world.env.now = Time::from_nanos(8_749_999_999);
             assert_eq!(
-                world.step(GatherEvent::Ready { brief: Token::new(1), section: Token::new(3), size: 8 }).len(),
+                world
+                    .step(GatherEvent::Sized { brief: Token::new(1), connector: 3, section: Token::new(3), size: 8 })
+                    .len(),
                 0
             );
         }
         assert_eq!(world.fire(Time::from_nanos(8_750_000_000)).len(), 0);
         assert_eq!(world.domain.next_deadline(), Some(Time::from_nanos(10_000_000_000)));
         world.env.now = Time::from_nanos(9_000_000_000);
-        let done = world.step(GatherEvent::Ready { brief: Token::new(1), section: Token::new(2), size: 4 });
+        let done =
+            world.step(GatherEvent::Sized { brief: Token::new(1), connector: 3, section: Token::new(2), size: 4 });
         let mut order = vec![GatherPlaced::Connector { connector: 3, kind: 7, token: Token::new(2), size: 4 }];
         if optional {
             order.push(GatherPlaced::Connector { connector: 3, kind: 7, token: Token::new(3), size: 8 });
@@ -577,7 +648,10 @@ fn a_clock_jump_expires_once_whether_or_not_the_settle_point_fired() {
             begin(&mut world, Box::new([named_connector(2, b"pull", true, 0), connector(3, false, 1)]), 40);
             if settle_first {
                 let settled = world.fire(Time::from_nanos(8_750_000_000));
-                assert_eq!(settled, [GatherRequest::Drop { connector: 3, section: Token::new(3) }]);
+                assert_eq!(
+                    settled,
+                    [GatherRequest::Drop { connector: 3, brief: Token::new(1), section: Token::new(3) }]
+                );
                 assert_eq!(world.settle(settled).len(), 0);
             }
             let expired = world.fire(Time::from_nanos(now));

@@ -2,6 +2,7 @@ use jig_core_world::fixtures::finish_chat;
 use jig_core_world::world::Setup;
 use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -329,9 +330,9 @@ fn settle_tree(world: &mut World, goal: (u64, u64), child: (u64, u64), restart_c
     assert_eq!(world.answers.len(), answers, "a projection does not answer calls");
     assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(goal.0)))));
     assert_eq!(world.systems[0].observed().iter().filter(|effect| effect.applied).count(), 1);
-    world.send(root::Event::Core(core::Event::ProjectionSettled { goal: goal.0, connector: 1 }));
+    world.send(root::Event::connector_up(1, jig::Up::Projections(jig::projections::Up::Settled { goal: goal.0 })));
     assert_eq!(projection_rows(world, goal.0), 8, "other connector still owns its last feed");
-    world.send(root::Event::Core(core::Event::ProjectionSettled { goal: goal.0, connector: 2 }));
+    world.send(root::Event::connector_up(2, jig::Up::Projections(jig::projections::Up::Settled { goal: goal.0 })));
     assert_eq!(projection_rows(world, goal.0), 0, "last settlement releases projection state");
 }
 
@@ -443,9 +444,9 @@ fn an_untracked_goals_projection_is_forgotten_once_its_write_settles() {
         "failed projection never holds its goal"
     );
     assert_eq!(world.procedure_inputs.len(), procedures);
-    world.send(root::Event::Core(core::Event::ProjectionSettled { goal, connector: 1 }));
+    world.send(root::Event::connector_up(1, jig::Up::Projections(jig::projections::Up::Settled { goal })));
     assert_eq!(projection_rows(&world, goal), 4, "second connector still owns its feed");
-    world.send(root::Event::Core(core::Event::ProjectionSettled { goal, connector: 2 }));
+    world.send(root::Event::connector_up(2, jig::Up::Projections(jig::projections::Up::Settled { goal })));
     assert_eq!(projection_rows(&world, goal), 0);
     assert_eq!(jig_core_world::fixtures::live_row(&world, goal).tracked, None, "the task stays live");
 }

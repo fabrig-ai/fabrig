@@ -2,6 +2,7 @@
 use crate::settings::{Kind, KindScope};
 use crate::tests::new_core;
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 #[test]
 #[expect(
@@ -27,14 +28,14 @@ fn declared_kinds_with_defaults_preserve_start_outputs_and_save_each_connector()
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let action = declared.start_begin(false, env.wall);
         assert!(
-            step(
+            connector_step(
                 &mut declared,
                 &env,
-                Event::EffectConnector(connector::Event::SettingsDefaults {
-                    connector: 2,
+                2,
+                contract::Up::Settings(contract::settings::Up::Defaults {
                     defaults: Box::default(),
                     dropped: Box::new([])
-                })
+                }),
             )
             .is_empty()
         );
@@ -42,8 +43,10 @@ fn declared_kinds_with_defaults_preserve_start_outputs_and_save_each_connector()
         let mut without_save = Queue::uncapped();
         let mut saves = 0_u32;
         while let Some(request) = declared_outputs.pop() {
-            if let Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::SaveSettingsDefaults { revision }) } =
-                request
+            if let Request::Ask {
+                connector: 2,
+                ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::SaveDefaults { revision })),
+            } = request
             {
                 assert_eq!(revision, Some(1));
                 saves += 1;
@@ -126,33 +129,45 @@ fn change_key(
 ) -> Box<[Request]> {
     let previous = core.current.newest();
     let mut events = Queue::uncapped();
-    events.push(Event::ChangeSettings {
+    let event = Event::ChangeSettings {
         reply_to: ReplyTo::new(Token::new(91)),
         sign_in: 10,
         key,
         digest: [u8::try_from(previous).unwrap(); 32],
         change: Box::new(s::Change { against: previous, items, running: s::Running::Stays }),
-    });
+    };
     let mut script = answers.into_iter();
     let mut output = List::with_capacity(256);
-    while let Some(event) = events.pop() {
-        let mut out = step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
+    let mut out = step(core, &env, event);
+    loop {
         while let Some(request) = out.pop() {
             if let Request::Ask {
-                ask: Ask::Effect(connector::Ask::JudgeSettings { owner, revision, proposal, .. }),
-                ..
+                ask:
+                    Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Judge {
+                        owner,
+                        revision,
+                        proposal,
+                        ..
+                    })),
+                connector,
             } = &request
             {
                 assert_eq!(core.current.newest(), previous, "no change before all judges answer");
                 assert_eq!(*revision, u64::from(previous.checked_add(1).unwrap()));
                 assert_eq!(*proposal, None);
-                events.push(Event::EffectConnector(connector::Event::SettingsJudged {
-                    owner: *owner,
-                    judged: script.next().expect("scripted judge answer"),
-                }));
+                events.push((
+                    *connector,
+                    contract::Up::Settings(contract::settings::Up::Judged {
+                        owner: *owner,
+                        judged: script.next().expect("scripted judge answer"),
+                    }),
+                ));
             }
             output.push(request).unwrap();
         }
+        let Some((connector, up)) = events.pop() else { break };
+        out = connector_step(core, &env, connector, up);
     }
     assert!(script.next().is_none(), "every scripted judge was asked: {output:?}");
     core.reclaim();
@@ -174,7 +189,8 @@ fn kept(output: &[Request]) -> Box<[app::Item]> {
     let mut items = List::with_capacity(16);
     for request in output {
         if let Request::Ask {
-            ask: Ask::Effect(connector::Ask::KeepSettings { revision, proposal, items: group }),
+            ask:
+                Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Keep { revision, proposal, items: group })),
             ..
         } = request
         {
@@ -247,6 +263,8 @@ fn application_set_is_judged_kept_and_recorded_without_its_bytes() {
             replaced: app::Replaced::NotOffered
         }]
     );
+    assert!(core.judgements.outstanding().is_none(), "keeps do not need an answer");
+    drop(finish_decision(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }));
 }
 #[test]
 fn application_refusal_keeps_its_words_and_commits_nothing() {
