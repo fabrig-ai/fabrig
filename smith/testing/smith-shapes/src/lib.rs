@@ -1,4 +1,4 @@
-//! The `smith/2` completion vocabulary and its per-case reach (smith/docs/design/shapes.md,
+//! The `smith/3` completion vocabulary and its per-case reach (smith/docs/design/shapes.md,
 //! 2–5). A shape retains only allowlisted words, not provider or workspace data.
 
 pub mod workspace;
@@ -11,19 +11,20 @@ use smith_domain_session::{llm, record};
 use smith_domain_tools::{Call as WorkspaceCall, Exit, JobEnd, Mismatch, Outcome};
 
 /// The version of the words and completion text the worlds write.
-pub const VOCABULARY: &str = "smith/2";
+pub const VOCABULARY: &str = "smith/3";
 
 macro_rules! words {
-    ($(#[$meta:meta])* $name:ident, $all:ident; $($(#[$variant_meta:meta])* $variant:ident => $word:literal),+ $(,)?) => {
+    ($(#[$meta:meta])* $name:ident; $($(#[$variant_meta:meta])* $variant:ident => $word:literal),+ $(,)?) => {
         $(#[$meta])*
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         pub enum $name {
             $($(#[$variant_meta])* $variant),+
         }
 
-        const $all: &[$name] = &[$($name::$variant),+];
-
         impl $name {
+            /// All variants in vocabulary order.
+            pub const ALL: &'static [Self] = &[$(Self::$variant),+];
+
             /// This variant's word in the vocabulary.
             #[must_use]
             pub const fn word(self) -> &'static str {
@@ -35,7 +36,7 @@ macro_rules! words {
 
 words! {
     /// Which tool the model named, without the call's input.
-    Tool, TOOLS;
+    Tool;
     /// Read a file.
     Read => "read",
     /// List paths.
@@ -68,7 +69,7 @@ words! {
 
 words! {
     /// The answer to a call, without its data.
-    Answer, ANSWERS;
+    Answer;
     /// A file tool or search succeeded.
     Ok => "ok",
     /// A search returned hits at its deadline.
@@ -177,7 +178,7 @@ words! {
 
 words! {
     /// The kind of reference a call carries.
-    Reference, REFERENCES;
+    Reference;
     /// A workspace path.
     Path => "path",
     /// A read offset.
@@ -194,7 +195,7 @@ words! {
 
 words! {
     /// What the world knows of a reference when the model names it.
-    Class, CLASSES;
+    Class;
     /// A live job, a present path, or an extant line.
     Live => "live",
     /// A path that the workspace once held.
@@ -300,15 +301,15 @@ pub struct Call {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Reached {
     shapes: Vec<String>,
-    answers: [bool; ANSWERS.len()],
-    classes: [[bool; CLASSES.len()]; REFERENCES.len()],
+    answers: [bool; Answer::ALL.len()],
+    classes: [[bool; Class::ALL.len()]; Reference::ALL.len()],
 }
 
 impl Reached {
     /// An empty case.
     #[must_use]
     pub fn new() -> Reached {
-        Reached { shapes: Vec::new(), answers: [false; ANSWERS.len()], classes: Default::default() }
+        Reached { shapes: Vec::new(), answers: [false; Answer::ALL.len()], classes: Default::default() }
     }
 
     /// Adds one completion, with its calls in order, or none for text alone.
@@ -406,7 +407,7 @@ impl Reached {
                 let call = turn.messages[index].content[position].tool_call().expect("the recorded call's position");
                 recorded_result(&turn.messages[index + 1..], &call.id)
             });
-            let references = REFERENCES
+            let references = Reference::ALL
                 .iter()
                 .copied()
                 .zip(references(position))
@@ -433,7 +434,7 @@ pub fn completion_tools(blocks: &[llm::Block]) -> impl Iterator<Item = (usize, T
             llm::Decoded::Owned { .. }
             | llm::Decoded::Invalid { .. }
             | llm::Decoded::Builtin { .. }
-            | llm::Decoded::Historical => TOOLS
+            | llm::Decoded::Historical => Tool::ALL
                 .iter()
                 .copied()
                 .find(|tool| {
@@ -485,7 +486,7 @@ fn unknown_references(call: &llm::ToolCall, tool: Tool) -> impl Iterator<Item = 
             }
         }
     };
-    REFERENCES
+    Reference::ALL
         .iter()
         .copied()
         .zip(known)
@@ -505,18 +506,18 @@ pub fn recorded_result<'a>(messages: &'a [llm::Message], id: &[u8]) -> Option<&'
 pub struct Sample {
     sweep: &'static str,
     shapes: Shapes,
-    answers: [u64; ANSWERS.len()],
-    classes: [[u64; CLASSES.len()]; REFERENCES.len()],
+    answers: [u64; Answer::ALL.len()],
+    classes: [[u64; Class::ALL.len()]; Reference::ALL.len()],
 }
 
 impl Sample {
-    /// An empty sweep sample in `smith/2`.
+    /// An empty sweep sample in the current vocabulary.
     #[must_use]
     pub fn new(sweep: &'static str) -> Sample {
         Sample {
             sweep,
             shapes: Shapes::new(sweep, VOCABULARY),
-            answers: [0; ANSWERS.len()],
+            answers: [0; Answer::ALL.len()],
             classes: Default::default(),
         }
     }
@@ -528,11 +529,11 @@ impl Sample {
     pub fn ran(&mut self, case: &Reached) -> Result<(), String> {
         let shapes: Vec<_> = case.shapes.iter().map(String::as_str).collect();
         self.shapes.ran(&shapes)?;
-        for &answer in ANSWERS {
+        for &answer in Answer::ALL {
             self.answers[answer as usize] += u64::from(case.answered(answer));
         }
-        for &reference in REFERENCES {
-            for &class in CLASSES {
+        for &reference in Reference::ALL {
+            for &class in Class::ALL {
                 self.classes[reference as usize][class as usize] += u64::from(case.classed(reference, class));
             }
         }
@@ -562,11 +563,11 @@ impl Sample {
         self.shapes.write();
         let sweep = self.sweep;
         let mut stderr = std::io::stderr().lock();
-        for &answer in ANSWERS {
+        for &answer in Answer::ALL {
             let _written = writeln!(stderr, "shapes answer {sweep} {} {}", answer.word(), self.answered(answer));
         }
-        for &reference in REFERENCES {
-            for &class in CLASSES {
+        for &reference in Reference::ALL {
+            for &class in Class::ALL {
                 let _written = writeln!(
                     stderr,
                     "shapes class {sweep} {} {} {}",

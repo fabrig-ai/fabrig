@@ -2312,6 +2312,9 @@ dependencies = [
  "jig-client-domain",
  "skein-codegen",
  "skein-lib",
+ "smith-domain-session",
+ "smith-protocol-translate",
+ "smith-shapes",
  "smith-transcript",
 ]
 

@@ -58,6 +58,11 @@ pub(super) fn encode_call(value: &jig_client::contract::Call, out: &mut Encoder,
     }
     out.key(b"failed");
     out.boolean(value.failed);
+    out.key(b"answer");
+    match value.answer {
+        Some(word) => out.string(word),
+        None => out.null(),
+    }
     out.key(b"objects");
     out.array_start();
     for item_2 in &value.objects {

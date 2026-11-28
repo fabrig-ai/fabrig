@@ -998,6 +998,7 @@ fn referee_turn() -> jig_client::contract::TurnRead {
                 input: text(b"request"),
                 outcome: outcome.map(text),
                 failed,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))

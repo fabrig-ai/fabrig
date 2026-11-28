@@ -37,6 +37,7 @@ pub fn structured_messages() -> List<c::Message> {
                 input: c::Text::new(Box::from([]), TEXT).expect("input"),
                 outcome: None,
                 failed: false,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))

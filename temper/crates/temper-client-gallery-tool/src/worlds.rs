@@ -2097,6 +2097,7 @@ fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) 
                     input: text(""),
                     outcome: None,
                     failed: false,
+                    answer: None,
                     objects,
                     parts: List::with_capacity(0),
                 }))
@@ -2394,6 +2395,7 @@ fn asking_activity() -> c::ActivityPage {
             input: text(""),
             outcome: Some(text("Note 1 revision 2 written · +1 −1 · line 23")),
             failed: false,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         }))
@@ -5436,6 +5438,7 @@ fn settings_activity(name: &str) -> c::ActivityPage {
             input: text(""),
             outcome: None,
             failed: false,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         });
@@ -5707,6 +5710,7 @@ fn chat_activity() -> c::ActivityPage {
                 input: text(""),
                 outcome: Some(text(outcome)),
                 failed: false,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))

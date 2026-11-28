@@ -1,6 +1,6 @@
 # results: status
 
-2026-11-26. Where the tree's code lags or departs from [results.md](results.md).
+2026-11-28. Where the tree's code lags or departs from [results.md](results.md).
 
 
 - **Not yet:** 1: ctl's amount: text prints spend raw but in `task show`, and argv's AMOUNT takes spend units; 2: a `--call`'s AMOUNT and `help --json`'s type `amount` [in flight: change 7671].

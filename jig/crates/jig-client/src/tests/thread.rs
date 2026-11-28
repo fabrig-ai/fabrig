@@ -311,6 +311,7 @@ fn a_line_weighs_its_bytes_and_its_room() {
             input: text(b"file"),
             outcome: Some(text(b"done")),
             failed: false,
+            answer: None,
             objects,
             parts,
         }))
