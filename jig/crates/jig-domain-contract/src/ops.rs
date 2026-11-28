@@ -1009,10 +1009,7 @@ pub struct LlmLater {
 
 /// A task action waiting for a holder's authority and funding.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")
-)]
+#[expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")]
 pub enum ProposalAction {
     /// Settings values stay in the core (domain/engine/settings-proposals.md, 1).
     Settings { against: u32, items: Box<[SettingHead]>, projects: Box<[u32]> },
