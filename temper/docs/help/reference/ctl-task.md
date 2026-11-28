@@ -357,3 +357,17 @@ Reads the task's own note scope, as a chat's document pane does.
 Bodies print whole, including those longer than a turn's part.
 An unknown task or an empty scope answers `no notes`.
 ```
+
+## task runs
+
+```
+task runs TASK [--after CURSOR]
+  TASK (task): a number; required. The task's number
+  --after CURSOR: a cursor, as a read prints it; optional. The cursor a page printed, to read on
+Read a task's attempts and what their runs were told from
+Prints: Each attempt, oldest first: when claimed, started and ended and how, its build, settings revision, project charter set and source or none, and guides or `guides: unreported`; then `read on with: task runs TASK --after CURSOR` or `no more`
+--json: the record runs.
+Key: none.
+Each guide names its repository, commit, path, bytes, whether whole and its SHA-256.
+Pages follow task history; a page can have no attempts and still have a cursor.
+```

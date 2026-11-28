@@ -488,6 +488,7 @@ fn restored_access_controls_workspace_writers_during_start() {
                 &mut h.engine.core_mut().tasks,
                 &env,
                 tasks::Event::Claim {
+                    sources: None,
                     fresh: None,
                     session_end: None,
                     offered: jig_domain_tasks::Reasons::ALL,

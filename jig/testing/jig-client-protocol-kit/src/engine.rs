@@ -464,6 +464,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::RunCall { .. }
         | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
+        | core::Event::RunGuides { .. }
         | core::Event::Tasks(_)
         | core::Event::StartRecurring { .. }
         | core::Event::WorkspacePrepared { .. }

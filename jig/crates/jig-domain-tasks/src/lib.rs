@@ -178,8 +178,9 @@ pub use boundary::{
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
-    AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Fail, Held,
-    History, HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
+    AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, BUILD_BYTES, Cancel, Change, ClaimSources,
+    DependencyPlace, Fail, GUIDE_TEXT_BYTES, GUIDES, Guide, Held, History, HoldRow, OpenAttempt, Release, RunSources,
+    Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, deadline, fire, step, view_phase};
 pub use escalation::{

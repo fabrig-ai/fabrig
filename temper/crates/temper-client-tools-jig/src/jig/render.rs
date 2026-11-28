@@ -9,6 +9,7 @@ mod notes;
 pub mod outcome;
 pub mod pending;
 pub(crate) mod roles;
+mod runs;
 pub mod task_source;
 mod turn;
 pub(super) mod visibility;
@@ -543,6 +544,12 @@ pub(crate) fn reads(
         };
         return notes::print(page, &reading.called.call, reading.called.json, limits);
     }
+    if reading.called.call.tool == crate::jig::rows::TASK_RUNS_AT {
+        let Some(Readout::Jig(ReadResult::Value(ReadValue::History(page)))) = reading.pages.get(&1) else {
+            unreachable!("validated history page")
+        };
+        return runs::print(page, &reading.called.call, reading.called.json, limits);
+    }
     document::print(document::Document::ReadSet(reading, party, wall), reading.called.json, limits, vocabulary)
 }
 
@@ -563,6 +570,7 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
         | (crate::jig::rows::WAITS_AT, 1, ReadValue::Waits(_))
         | (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
         | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
+        | (crate::jig::rows::TASK_RUNS_AT, 1, ReadValue::History(_))
         | (crate::jig::rows::DEPLOYMENT_CENSUS_AT | crate::jig::rows::WORKER_LIST_AT, 1, ReadValue::Deployment(_))
         | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))

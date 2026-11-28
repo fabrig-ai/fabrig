@@ -212,6 +212,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::PROPOSAL_AT
         | rows::TASK_TEXT_AT
         | rows::TASK_NOTES_AT
+        | rows::TASK_RUNS_AT
         | rows::MILESTONE_LIST_AT
         | rows::MILESTONE_SHOW_AT
         | rows::ROLE_LIST_AT

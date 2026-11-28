@@ -18,6 +18,7 @@ fn origin(phase: &Phase) -> Option<&HoldSource> {
 fn claim(h: &mut Harness, number: u64) {
     h.send(Event::Prepare { reply_to: to(), task: number });
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,

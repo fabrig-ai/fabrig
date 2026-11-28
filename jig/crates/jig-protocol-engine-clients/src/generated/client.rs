@@ -2299,9 +2299,47 @@ pub fn history_line_to_record(value: &jig_domain_core_vocabulary::documents::His
 }
 
 #[must_use]
-pub fn attempt_line_to_record(value: &jig_domain_core_vocabulary::documents::AttemptLine) -> jig_client_protocol_wire::v44::AttemptLine {
-    let jig_domain_core_vocabulary::documents::AttemptLine { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006 } = value;
-    jig_client_protocol_wire::v44::AttemptLine {
+pub fn guide_to_record(value: &jig_domain_tasks::Guide) -> jig_client_protocol_wire::v44::Guide {
+    let jig_domain_tasks::Guide { repository: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = value;
+    jig_client_protocol_wire::v44::Guide {
+        repository: skein_codec::convert::text_to_record(field_000000),
+        commit: skein_codec::convert::text_to_record(field_000001),
+        path: skein_codec::convert::text_to_record(field_000002),
+        digest: *field_000003,
+        bytes: *field_000004,
+        whole: *field_000005
+    }
+}
+
+pub fn run_sources_to_record(value: &jig_domain_tasks::RunSources) -> Result<jig_client_protocol_wire::v44::RunSources, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_tasks::RunSources { build: field_000000, settings: field_000001, charters: field_000002, source: field_000003, guides: field_000004 } = value;
+    Ok(jig_client_protocol_wire::v44::RunSources {
+        build: skein_codec::convert::text_to_record(field_000000),
+        settings: *field_000001,
+        charters: *field_000002,
+        source: field_000003.clone(),
+        guides: match field_000004 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::RUN_SOURCES_GUIDES.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = guide_to_record(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn attempt_line_to_record(value: &jig_domain_core_vocabulary::documents::AttemptLine) -> Result<jig_client_protocol_wire::v44::AttemptLine, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::documents::AttemptLine { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006, sources: field_000007 } = value;
+    Ok(jig_client_protocol_wire::v44::AttemptLine {
         task: *field_000000,
         attempt: *field_000001,
         claimed: match field_000002 {
@@ -2338,8 +2376,15 @@ pub fn attempt_line_to_record(value: &jig_domain_core_vocabulary::documents::Att
                 Some(converted)
             }
             None => None,
+        },
+        sources: match field_000007 {
+            Some(item) => {
+                let converted = run_sources_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
 pub fn hold_line_to_record(value: &jig_domain_core_vocabulary::documents::HoldLine, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::HoldLine, jig_client_protocol_wire::v44::Problem> {

@@ -25,6 +25,8 @@ pub mod translate;
 pub mod vocabulary;
 pub mod waits;
 
+pub use jig_domain_tasks::{Guide, RunSources};
+
 pub use crate::{
     admission::{
         amendments::TaskAmendDenied,
@@ -112,6 +114,8 @@ pub struct SeedProject {
 /// (`domain/engine/restart.md`; `protocol/configuration-engine.md`, 1).
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// The application build name (domain/tasks/lifecycle.md, 12.1).
+    pub build: Box<str>,
     /// Identity committed with the first decision.
     pub deployment: [u8; 16],
     /// Deterministic task scheduling seed.

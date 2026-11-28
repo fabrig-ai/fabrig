@@ -1012,6 +1012,7 @@ mod tests {
         for event in [
             tasks::Event::Prepare { reply_to: to(), task },
             tasks::Event::Claim {
+                sources: None,
                 fresh: None,
                 session_end: None,
                 offered: jig_domain_tasks::Reasons::ALL,

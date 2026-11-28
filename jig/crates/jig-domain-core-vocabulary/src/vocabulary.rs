@@ -790,6 +790,8 @@ pub enum Event {
         text: Box<[u8]>,
         call: Option<views::Call>,
     },
+    /// Once per open attempt, the guides its host reports it read.
+    RunGuides { task: u64, attempt: u64, guides: Box<[crate::Guide]> },
     /// Task lifecycle or hub work.
     Tasks(tasks::Event),
     /// An application asks for one admitted recurring core procedure.
@@ -803,6 +805,8 @@ pub enum Event {
         /// (jig/docs/design/domain/engine/executors.md, 1, step 3); empty for an agent.
         holds: Box<[tasks::Name]>,
         credentials: Box<[u32]>,
+        /// The prepared workspace's number of directories eligible to supply a guide.
+        guide_limit: u32,
         /// A job's application-encoded workspace items, within `Limits::run_bytes`.
         workspace: Option<Box<[u8]>>,
     },
@@ -1139,6 +1143,7 @@ impl Event {
             | Self::RunCall { .. }
             | Self::RunInput { .. }
             | Self::RunText { .. }
+            | Self::RunGuides { .. }
             | Self::WorkspacePrepared { .. }
             | Self::ClaimPrepared { .. }
             | Self::ClaimRefused { .. }
@@ -1233,6 +1238,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::EffectInFlight { .. }
         | tasks::Event::EffectSettled { .. }
         | tasks::Event::Started { .. }
+        | tasks::Event::RunGuides { .. }
         | tasks::Event::Activation { .. }
         | tasks::Event::PreparationWaiting { .. }
         | tasks::Event::PreparationPaused { .. }

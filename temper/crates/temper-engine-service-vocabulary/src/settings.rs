@@ -100,6 +100,8 @@ pub struct Setup {
 /// temper's members (protocol/configuration/README.md, section 2 and protocol/configuration/engine.md).
 #[derive(Debug)]
 pub struct Engine {
+    /// The composing binary's build name, not read from the deployment document.
+    pub build: &'static str,
     pub landing_held: bool,
     /// Checked receiving agent reply allowance; none when no local agent is configured.
     pub host_reply_bytes: Option<u32>,

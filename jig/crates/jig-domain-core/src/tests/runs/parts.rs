@@ -113,6 +113,7 @@ fn preparation_offers_person_words_and_keeps_an_uncovered_question() {
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),
@@ -180,6 +181,7 @@ fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             reply_to: ReplyTo::new(Token::new(2)),
@@ -421,6 +423,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
                 &mut core,
                 &limits,
                 Event::WorkspacePrepared {
+                    guide_limit: 0,
                     task: 1,
                     attempt,
                     holds: Box::new([]),
@@ -519,6 +522,7 @@ fn overlay_run_preparation_selects_default_then_overlay_parts() {
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),

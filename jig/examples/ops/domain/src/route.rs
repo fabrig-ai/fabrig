@@ -601,6 +601,7 @@ fn core_now(
         }
         core::Now::WorkspaceRequest { task, attempt, .. } => {
             work.push(Work::Core(core::Event::WorkspacePrepared {
+                guide_limit: 0,
                 task,
                 attempt,
                 holds: Box::new([]),

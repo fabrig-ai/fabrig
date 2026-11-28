@@ -5,6 +5,7 @@ use s = skein_codec::convert
 use h = crate::codec::tasks
 by hand crate::codec::tasks
 context crate::codec::tasks::Context
+refuses s::text_to_domain
 refuses crate::codec::convert::speed_name_to_domain
 refuses h::authority_to_domain
 refuses h::authority_to_record
@@ -244,6 +245,8 @@ enum SuspendWhy = d::SuspendWhy
 record SuspendedEnd
 enum EndKind = d::EndKind
 record Suspension = d::Suspension { since via s::wall, until via s::wall }
+record Guide = d::Guide { repository via s::text, commit via s::text, path via s::text }
+record RunSources = d::RunSources { build via s::text, guides slice }
 record AttemptRow = d::AttemptRow { claimed via s::wall, started via s::wall, ended via s::wall }
 record OpenAttempt = d::OpenAttempt { claimed via s::wall, started via s::wall }
 record ActivityWords

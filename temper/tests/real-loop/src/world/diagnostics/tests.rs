@@ -177,6 +177,7 @@ fn finish_review(tree: &mut tasks_domain::Domain, env: &Env<tasks_domain::Limits
     for event in [
         Event::Prepare { reply_to: reply_to(), task },
         Event::Claim {
+            sources: None,
             fresh: None,
             reply_to: reply_to(),
             task,

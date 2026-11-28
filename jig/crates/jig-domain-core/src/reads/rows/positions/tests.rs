@@ -74,6 +74,7 @@ fn subtree_rows(owner: &tasks::TaskRecord) -> Box<[Row]> {
     row.ancestors = Box::new([1]);
     let attempt = stored_row(
         Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            sources: None,
             task: 1,
             attempt: 3,
             claimed: Some(Wall::from_nanos(5)),

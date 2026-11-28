@@ -666,6 +666,7 @@ impl World {
             | Event::Prepare { .. }
             | Event::Claim { .. }
             | Event::Started { .. }
+            | Event::RunGuides { .. }
             | Event::NowWritten { .. }
             | Event::RecordWords { .. }
             | Event::Refusals { .. }
@@ -787,6 +788,7 @@ impl World {
             | Event::Prepare { .. }
             | Event::Claim { .. }
             | Event::Started { .. }
+            | Event::RunGuides { .. }
             | Event::NowWritten { .. }
             | Event::RecordWords { .. }
             | Event::Refusals { .. }
@@ -1378,6 +1380,17 @@ impl World {
     }
 
     pub fn claim_budget_writing(&mut self, task: u64, attempt: u64, budget: u64, writes: Box<[tasks::Name]>) -> Reply {
+        self.claim_prepared(task, attempt, budget, writes, None)
+    }
+
+    pub fn claim_prepared(
+        &mut self,
+        task: u64,
+        attempt: u64,
+        budget: u64,
+        writes: Box<[tasks::Name]>,
+        sources: Option<tasks::ClaimSources>,
+    ) -> Reply {
         assert!(self.activations.remove(&task), "activated before preparation");
         let context = &self.contexts[&task];
         let record = self.record(task);
@@ -1389,6 +1402,7 @@ impl World {
         let reply_to = self.to();
         let call = self.call;
         self.send(Event::Claim {
+            sources,
             fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,

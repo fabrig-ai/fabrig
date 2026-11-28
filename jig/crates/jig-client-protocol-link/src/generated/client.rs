@@ -3343,10 +3343,47 @@ pub fn proposal_history_to_domain(record: jig_client_protocol_wire::v44::Proposa
     })
 }
 
-#[must_use]
-pub fn attempt_line_to_domain(record: jig_client_protocol_wire::v44::AttemptLine) -> jig_client_domain::contract::AttemptLine {
-    let jig_client_protocol_wire::v44::AttemptLine { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006 } = record;
-    jig_client_domain::contract::AttemptLine {
+pub fn guide_to_domain(record: jig_client_protocol_wire::v44::Guide) -> Result<jig_client_domain::contract::Guide, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::Guide { repository: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = record;
+    Ok(jig_client_domain::contract::Guide {
+        repository: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::GUIDE_REPOSITORY.problem(reason)) },
+        commit: match skein_codec::convert::text_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::GUIDE_COMMIT.problem(reason)) },
+        path: match skein_codec::convert::text_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::GUIDE_PATH.problem(reason)) },
+        digest: field_000003,
+        bytes: field_000004,
+        whole: field_000005
+    })
+}
+
+pub fn run_sources_to_domain(record: jig_client_protocol_wire::v44::RunSources) -> Result<jig_client_domain::contract::RunSources, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::RunSources { build: field_000000, settings: field_000001, charters: field_000002, source: field_000003, guides: field_000004 } = record;
+    Ok(jig_client_domain::contract::RunSources {
+        build: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::RUN_SOURCES_BUILD.problem(reason)) },
+        settings: field_000001,
+        charters: field_000002,
+        source: field_000003,
+        guides: match field_000004 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = guide_to_domain(item)?;
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                };
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn attempt_line_to_domain(record: jig_client_protocol_wire::v44::AttemptLine) -> Result<jig_client_domain::contract::AttemptLine, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::AttemptLine { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006, sources: field_000007 } = record;
+    Ok(jig_client_domain::contract::AttemptLine {
         task: field_000000,
         attempt: field_000001,
         claimed: match field_000002 {
@@ -3383,8 +3420,15 @@ pub fn attempt_line_to_domain(record: jig_client_protocol_wire::v44::AttemptLine
                 Some(converted)
             }
             None => None,
+        },
+        sources: match field_000007 {
+            Some(item) => {
+                let converted = run_sources_to_domain(item)?;
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
 pub fn hold_line_to_domain(record: jig_client_protocol_wire::v44::HoldLine, context: &crate::Limits) -> Result<jig_client_domain::contract::HoldLine, jig_client_protocol_wire::v44::Problem> {
@@ -3420,7 +3464,7 @@ pub fn history_row_to_domain(record: jig_client_protocol_wire::v44::HistoryRow, 
         })),
         jig_client_protocol_wire::v44::HistoryRow::Attempt(held) => jig_client_domain::contract::HistoryRow::Attempt(Box::new({
             let jig_client_protocol_wire::v44::HistoryRowAttempt { value: held } = held;
-            attempt_line_to_domain(held)
+            attempt_line_to_domain(held)?
         })),
         jig_client_protocol_wire::v44::HistoryRow::Hold(held) => jig_client_domain::contract::HistoryRow::Hold(Box::new({
             let jig_client_protocol_wire::v44::HistoryRowHold { value: held } = held;

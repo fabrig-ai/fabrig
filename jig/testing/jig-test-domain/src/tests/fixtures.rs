@@ -129,6 +129,7 @@ pub fn configuration() -> Config {
 
             deployment: [1; 16],
             seed: 1,
+            build: "test-build".into(),
             workers_in_process: false,
             hub_turns: 2,
             grants: Box::new([]),

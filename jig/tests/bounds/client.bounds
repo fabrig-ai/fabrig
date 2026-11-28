@@ -144,7 +144,7 @@ AskSignIn: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 AskSignOut: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 AtBound: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 AttemptFailure: ceilings encoded=65557 decoded=65536; at_most(3) encoded=24 decoded=3
-AttemptLine: ceilings encoded=55 decoded=0; at_most(3) encoded=55 decoded=0
+AttemptLine: ceilings encoded=52689 decoded=55104; at_most(3) encoded=261 decoded=297
 AttemptState: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Authority: ceilings encoded=33817044 decoded=33817856; at_most(3) encoded=94 decoded=87
 AuthorityDocument: ceilings encoded=33817045 decoded=33817856; at_most(3) encoded=95 decoded=87
@@ -326,6 +326,7 @@ GoalHoldingSlot: ceilings encoded=2097288 decoded=2097664; at_most(3) encoded=29
 GoalHoldingWrite: ceilings encoded=2097288 decoded=2097664; at_most(3) encoded=29 decoded=57
 Gone: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 Grant: ceilings encoded=2162829 decoded=2163200; at_most(3) encoded=37 decoded=60
+Guide: ceilings encoded=817 decoded=768; at_most(3) encoded=58 decoded=9
 HandBack: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 HeldRevision: ceilings encoded=48 decoded=0; at_most(3) encoded=48 decoded=0
 HeldRole: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
@@ -351,7 +352,7 @@ HistoryHolderTask: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 HistoryLine: ceilings encoded=108400816 decoded=108405464; at_most(3) encoded=963 decoded=1222
 HistoryPage: ceilings encoded=16779343 decoded=16779328; at_most(3) encoded=24 decoded=9
 HistoryRow: ceilings encoded=108400817 decoded=108406712; at_most(3) encoded=964 decoded=2470
-HistoryRowAttempt: ceilings encoded=55 decoded=0; at_most(3) encoded=55 decoded=0
+HistoryRowAttempt: ceilings encoded=52689 decoded=55104; at_most(3) encoded=261 decoded=297
 HistoryRowChange: ceilings encoded=108400816 decoded=108405464; at_most(3) encoded=963 decoded=1222
 HistoryRowHold: ceilings encoded=18874554 decoded=18874880; at_most(3) encoded=82 decoded=60
 Hold: ceilings encoded=33620848 decoded=33620992; at_most(3) encoded=164 decoded=105
@@ -876,6 +877,7 @@ RunLocation: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
 RunLocationAdrift: ceilings encoded=27 decoded=0; at_most(3) encoded=27 decoded=0
 RunLocationConnected: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 RunObservation: ceilings encoded=131130 decoded=131072; at_most(3) encoded=64 decoded=6
+RunSources: ceilings encoded=52633 decoded=55104; at_most(3) encoded=205 decoded=297
 RunStage: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 RunStageBackingOff: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 RunStageClaimed: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0

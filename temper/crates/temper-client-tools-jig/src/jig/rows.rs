@@ -276,6 +276,20 @@ pub const ACTIVITY: Tool = Tool {
     area: 1,
     notes: b"A turn's conversation prints whole; read its supplied system text with task turn TASK TURN.\nEach part is cut at 64 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
 };
+pub const TASK_RUNS_AT: u8 = 125;
+pub const TASK_RUNS: Tool = Tool {
+    name: b"task runs",
+    line: b"Read a task's attempts and what their runs were told from",
+    prints: b"Each attempt, oldest first: when claimed, started and ended and how, its build, settings revision, project charter set and source or none, and guides or `guides: unreported`; then `read on with: task runs TASK --after CURSOR` or `no more`",
+    result: b"runs",
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on"),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Each guide names its repository, commit, path, bytes, whether whole and its SHA-256.\nPages follow task history; a page can have no attempts and still have a cursor.\n",
+};
 pub const TURN: Tool = Tool {
     name: b"task turn",
     line: b"Read one turn of a task's run, part by part",

@@ -249,6 +249,10 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);
         }
+        rows::TASK_RUNS_AT => {
+            let after = cursor(&reading.called.call, 1);
+            read(runner, &mut reading, 1, c::Read::History { task, subtree: false, after }, out);
+        }
         rows::TASK_NOTES_AT => {
             let Some(me) = super::acts::me(runner, client) else { return };
             let call = &reading.called.call;

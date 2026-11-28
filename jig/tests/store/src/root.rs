@@ -528,6 +528,7 @@ pub fn history_commit(number: u64) -> Box<[Write]> {
     let mut writes = vec![Write::Save(header(number))];
     for task in [LIVE, LIVE + 1, LIVE + 2] {
         writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            sources: None,
             task,
             attempt: 1,
             claimed: Some(Wall::from_nanos(number)),

@@ -10,6 +10,27 @@ pub(in crate::codec) fn wire_attempt_line(value: &c::AttemptLine) -> w::AttemptL
         ended: value.ended.map(skein_lib::Wall::as_nanos),
         end: value.end.as_ref().map(wire_run_end),
         phases: value.phases,
+        sources: value.sources.as_ref().map(|source| w::RunSources {
+            build: source.build.as_bytes().into(),
+            settings: source.settings,
+            charters: source.charters,
+            source: source.source.clone(),
+            guides: source.guides.as_ref().map(|guides| {
+                skein_lib::List::from_boxed(
+                    guides
+                        .iter()
+                        .map(|guide| w::Guide {
+                            repository: guide.repository.as_bytes().into(),
+                            commit: guide.commit.as_bytes().into(),
+                            path: guide.path.as_bytes().into(),
+                            digest: guide.digest,
+                            bytes: guide.bytes,
+                            whole: guide.whole,
+                        })
+                        .collect(),
+                )
+            }),
+        }),
     }
 }
 pub(in crate::codec) fn wire_hold_line(value: &c::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::Problem> {

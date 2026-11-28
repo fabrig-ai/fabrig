@@ -289,6 +289,12 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     } else {
         Box::new([])
     };
+    let guide_limit = match domain.run_workspaces.get(&task) {
+        Some(prepared) => {
+            u32::try_from(prepared.prepared().workspace.workspace.repositories.len()).expect("bounded workspace")
+        }
+        None => 0,
+    };
     domain.work.push(Work::Core(core::Event::WorkspacePrepared {
         task,
         attempt,
@@ -296,6 +302,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
         writes,
         credentials,
         workspace: job_workspace,
+        guide_limit,
     }));
 }
 

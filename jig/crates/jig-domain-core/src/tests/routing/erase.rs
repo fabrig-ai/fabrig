@@ -208,6 +208,7 @@ fn an_ended_task_is_erased_whole_and_its_record_last() {
             amendment: None,
         })),
         Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            sources: None,
             task: 9,
             attempt: 1,
             claimed: None,

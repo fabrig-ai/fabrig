@@ -140,6 +140,7 @@ pub struct AttemptRow {
     pub ended: Option<skein_lib::Wall>,
     pub end: Option<crate::EndKind>,
     pub phases: Option<u32>,
+    pub sources: Option<RunSources>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -149,6 +150,42 @@ pub struct OpenAttempt {
     pub started: Option<skein_lib::Wall>,
     pub from: u64,
     pub end: Option<crate::EndKind>,
+    pub sources: Option<RunSources>,
+    pub guide_limit: u32,
+}
+
+pub const BUILD_BYTES: usize = 64;
+pub const GUIDE_TEXT_BYTES: usize = 256;
+pub const GUIDES: u32 = 64;
+
+/// A guide read from a run's workspace (domain/tasks/lifecycle.md, 12.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Guide {
+    pub repository: Box<str>,
+    pub commit: Box<str>,
+    pub path: Box<str>,
+    pub digest: [u8; 32],
+    pub bytes: u32,
+    pub whole: bool,
+}
+
+/// What a run was told from (domain/tasks/lifecycle.md, 12.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RunSources {
+    pub build: Box<str>,
+    pub settings: u32,
+    pub charters: u64,
+    pub source: Box<[u8]>,
+    pub guides: Option<Box<[Guide]>>,
+}
+
+/// Sources of the prepared run and its workspace's guide count bound.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ClaimSources {
+    pub build: Box<str>,
+    pub settings: u32,
+    pub source: Box<[u8]>,
+    pub guide_limit: u32,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

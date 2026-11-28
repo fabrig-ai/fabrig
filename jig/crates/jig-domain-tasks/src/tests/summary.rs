@@ -21,6 +21,7 @@ fn declared_failure(executor: Executor, reason: &[u8], bound: u32) -> Harness {
         Executor::Agent { .. } | Executor::Job { .. } => {
             h.send(Event::Prepare { reply_to: to(), task: 12 });
             h.send(Event::Claim {
+                sources: None,
                 fresh: None,
                 reply_to: to(),
                 task: 12,

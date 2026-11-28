@@ -145,10 +145,20 @@ pub(crate) fn prepared(
     }
     drop(core.contexts.remove(&task));
     assert!(
-        core.claiming.insert(task, (attempt, tasks::Reasons::ALL, None, None)) == Ok(None),
+        core.claiming.insert(
+            task,
+            crate::PendingClaim {
+                attempt,
+                offered: tasks::Reasons::ALL,
+                session_end: None,
+                fresh: None,
+                sources: None,
+            }
+        ) == Ok(None),
         "one pending claim per task"
     );
     work.push(Work::Event(Event::Tasks(tasks::Event::Claim {
+        sources: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,

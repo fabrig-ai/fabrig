@@ -5,10 +5,14 @@ use crate::{Active, AttemptRow, Cause, End, EndKind, Event, Key, Phase, Request,
 use skein_lib::Wall;
 
 fn claim(h: &mut Harness, attempt: u64, at: u64) -> Vec<Request> {
+    claim_with_sources(h, attempt, at, None)
+}
+fn claim_with_sources(h: &mut Harness, attempt: u64, at: u64, sources: Option<crate::ClaimSources>) -> Vec<Request> {
     h.env.wall = Wall::from_nanos(at.checked_sub(1).unwrap());
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.env.wall = Wall::from_nanos(at);
     h.send(Event::Claim {
+        sources,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -94,6 +98,7 @@ fn phases_keep_two_attempts_not_milestones_and_restart_keeps_the_open_attempt() 
         assert_eq!(
             row(&h, 1),
             &AttemptRow {
+                sources: None,
                 task: 1,
                 attempt: 1,
                 claimed: Some(Wall::from_nanos(10)),
@@ -117,6 +122,7 @@ fn phases_keep_two_attempts_not_milestones_and_restart_keeps_the_open_attempt() 
         assert_eq!(
             row(&h, 1),
             &AttemptRow {
+                sources: None,
                 task: 1,
                 attempt: 1,
                 claimed: Some(Wall::from_nanos(10)),
@@ -144,6 +150,7 @@ fn phases_keep_two_attempts_not_milestones_and_restart_keeps_the_open_attempt() 
         assert_eq!(
             row(&h, 2),
             &AttemptRow {
+                sources: None,
                 task: 1,
                 attempt: 2,
                 claimed: Some(Wall::from_nanos(20)),
@@ -211,12 +218,21 @@ fn a_restored_attempt_without_its_open_record_closes_with_unknown_start_and_phas
     h.restart();
     assert_eq!(
         h.domain.task(1).unwrap().open_attempt,
-        Some(crate::OpenAttempt { attempt: 1, claimed: None, started: None, from: 0, end: None })
+        Some(crate::OpenAttempt {
+            sources: None,
+            guide_limit: 0,
+            attempt: 1,
+            claimed: None,
+            started: None,
+            from: 0,
+            end: None
+        })
     );
     end(&mut h, 1, 12, End::Parked);
     assert_eq!(
         row(&h, 1),
         &AttemptRow {
+            sources: None,
             task: 1,
             attempt: 1,
             claimed: None,
@@ -225,5 +241,36 @@ fn a_restored_attempt_without_its_open_record_closes_with_unknown_start_and_phas
             end: Some(EndKind::Parked),
             phases: None
         }
+    );
+}
+
+#[test]
+fn opening_an_attempt_saves_its_prepared_sources() {
+    const TASK: u64 = 1;
+    const ATTEMPT: u64 = 7;
+    const CHARTERS: u64 = 4;
+    let mut h = Harness::new();
+    h.domain.set_project_charters(1, CHARTERS);
+    h.make([task(TASK, &[])].into());
+    claim_with_sources(
+        &mut h,
+        ATTEMPT,
+        10,
+        Some(crate::ClaimSources {
+            build: "test-build".into(),
+            settings: 12,
+            source: b"shop at abc".as_slice().into(),
+            guide_limit: 2,
+        }),
+    );
+    assert_eq!(
+        row(&h, ATTEMPT).sources,
+        Some(crate::RunSources {
+            build: "test-build".into(),
+            settings: 12,
+            charters: CHARTERS,
+            source: b"shop at abc".as_slice().into(),
+            guides: None,
+        })
     );
 }

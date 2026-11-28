@@ -131,7 +131,8 @@ pub(super) fn to() -> ReplyTo {
 impl Harness {
     pub(super) fn new() -> Self {
         let mut test = Self {
-            domain: Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0])),
+            domain: Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]))
+                .with_project_charter_capacity(1),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS },
             stored: BTreeMap::new(),
         };
@@ -506,6 +507,7 @@ fn activity_keeps_whole_words_after_a_committed_turn_takes_them() {
     write(&mut test, 1, 1);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -690,6 +692,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     test.make(vec![task(1, &[])]);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -748,6 +751,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     assert_eq!(test.domain.task(1).unwrap().due_reason, crate::Why::Released);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -1004,6 +1008,7 @@ fn lifecycle_wall_times_keep_the_first_start_through_duplicate_reports_holds_and
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.env.wall = Wall::from_nanos(7);
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -1047,6 +1052,7 @@ fn retry_observations_distinguish_attempt_failures_from_preparation_refusals_and
     h.make(vec![task(1, &[]), task(2, &[])]);
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -1126,6 +1132,7 @@ fn settings_charters(test: &mut Harness, newest: u32, rows: &[(u32, u32, Option<
 
 fn settings_claim(test: &mut Harness, number: u64) -> Vec<Request> {
     test.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,

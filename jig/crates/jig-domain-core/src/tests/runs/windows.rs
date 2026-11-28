@@ -282,6 +282,7 @@ fn assert_prepares(
         &mut core,
         limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),
@@ -302,7 +303,7 @@ fn assert_prepares(
         }
     }
     assert!(prepared, "window prepares a run");
-    assert_eq!(core.claiming.get(&1).unwrap().3, fresh, "preparation keeps why before the proof is replaced");
+    assert_eq!(core.claiming.get(&1).unwrap().fresh, fresh, "preparation keeps why before the proof is replaced");
     assert_eq!(core.proofs.get(&1).unwrap().window.is_some(), resume);
     assert_eq!(core.proofs.get(&1).unwrap().endpoint, Some(1));
     assert_eq!(core.tasks.task(1).unwrap().tries, tries);

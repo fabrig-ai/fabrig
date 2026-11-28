@@ -695,6 +695,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
                 view::routes::Written { run, turn: views::TurnName { attempt: attempt.raw(), turn, retry }, offset };
             view::routes::run_text(core, env, written, text, call)
         }
+        Event::RunGuides { task, attempt, guides } => {
+            route_tasks(core, env, work, tasks::Event::RunGuides { task, attempt, guides })
+        }
         Event::Tasks(event) => {
             let mut out = route_tasks(core, env, work, event);
             crate::admission::deletion::advance(core, env, &mut out);
@@ -703,14 +706,16 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
-        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => workspace_prepared(
-            core,
-            env,
-            work,
-            task,
-            attempt,
-            run::preparation::Prepared { writes, holds, credentials, workspace },
-        ),
+        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, guide_limit, workspace } => {
+            workspace_prepared(
+                core,
+                env,
+                work,
+                task,
+                attempt,
+                run::preparation::Prepared { writes, holds, credentials, guide_limit, workspace },
+            )
+        }
         Event::ClaimPrepared { task, attempt, budget, writes } => {
             route_claim_prepared(core, env, work, task, attempt, budget, writes)
         }

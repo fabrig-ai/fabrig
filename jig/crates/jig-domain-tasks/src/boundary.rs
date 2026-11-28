@@ -1113,8 +1113,16 @@ pub enum Event {
         budget: u64,
         /// Checked main account; success keeps it in this same claim decision.
         account: Option<u32>,
+        /// Sources of the prepared agent run; none for a job.
+        sources: Option<crate::ClaimSources>,
         /// Complete set of held resources this run will write, in one atomic claim.
         writes: Box<[Name]>,
+    },
+    /// The host's guide report for the indicated attempt.
+    RunGuides {
+        task: u64,
+        attempt: u64,
+        guides: Box<[crate::Guide]>,
     },
     /// A connector has read a lost run's resource afresh; its slot may now be freed.
     ReadAfresh {

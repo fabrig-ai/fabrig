@@ -505,5 +505,5 @@ fn end_milestone(ended: &mut crate::TaskRecord, at: skein_lib::Wall, out: &mut Q
     ended.milestone = ended.milestone.checked_add(1).expect("task history position fits");
     let position = ended.milestone;
     crate::activity::append(ended, at, crate::Line::Milestone { position }, out);
-    crate::attempts::changed(ended, at, out);
+    crate::attempts::changed(ended, at, None, out);
 }

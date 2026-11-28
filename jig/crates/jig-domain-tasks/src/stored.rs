@@ -47,9 +47,15 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         Stored::Live(mut task) => {
             if task.open_attempt.is_none() {
                 task.open_attempt = match crate::attempts::names(&task.phase) {
-                    Some(attempt) => {
-                        Some(crate::OpenAttempt { attempt, claimed: None, started: None, from: 0, end: None })
-                    }
+                    Some(attempt) => Some(crate::OpenAttempt {
+                        attempt,
+                        claimed: None,
+                        started: None,
+                        from: 0,
+                        end: None,
+                        sources: None,
+                        guide_limit: 0,
+                    }),
                     None => None,
                 };
             }

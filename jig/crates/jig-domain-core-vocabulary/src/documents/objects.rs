@@ -232,6 +232,8 @@ pub struct AmendmentChange {
     pub reason: Text,
     pub cut: bool,
 }
+use tasks::RunSources;
+
 /// Attempts and held phases (domain/tasks/lifecycle.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AttemptLine {
@@ -242,6 +244,7 @@ pub struct AttemptLine {
     pub ended: Option<Wall>,
     pub end: Option<tasks::EndKind>,
     pub phases: Option<u32>,
+    pub sources: Option<RunSources>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct HoldLine {

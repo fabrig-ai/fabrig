@@ -137,6 +137,7 @@ fn task_writes(task: &tasks::TaskRecord, writes: &mut Vec<Write>) {
         if ended { tasks::Stored::Ended(Box::new(task.clone())) } else { tasks::Stored::Live(Box::new(task.clone())) };
     writes.push(Write::Save(core::Record::Tasks(stored)));
     writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+        sources: None,
         task: task.number,
         attempt: 1,
         claimed: Some(Wall::EPOCH),

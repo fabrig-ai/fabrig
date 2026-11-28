@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0x43, 0x3a, 0xec, 0x7c, 0xd1, 0xe9, 0xdf, 0x5b, 0x8c, 0xd4, 0x7b, 0xa4, 0x51, 0x7b, 0x59, 0xa7, 0x78, 0x1d, 0x85,
-    0x96, 0x56, 0x2d, 0x62, 0xd6, 0x96, 0xab, 0xa1, 0xaa, 0xba, 0xd7, 0x7f, 0xfa,
+    0x70, 0xc3, 0x5f, 0xcb, 0xe5, 0x7a, 0x04, 0xac, 0xed, 0x77, 0xb6, 0x06, 0x4a, 0x17, 0x62, 0xbd, 0xfd, 0x74, 0x05,
+    0x88, 0xd0, 0xb2, 0x46, 0xfa, 0x16, 0x6a, 0x4a, 0x3e, 0xfa, 0x50, 0x1e, 0xe5,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -77,6 +77,12 @@ pub struct Limits {
     pub approval_message_state: u32,
     pub verdict_message_fields: u32,
     pub word_words: u32,
+    pub guide_repository: u32,
+    pub guide_commit: u32,
+    pub guide_path: u32,
+    pub run_sources_build: u32,
+    pub run_sources_source: u32,
+    pub run_sources_guides_some: u32,
     pub activity_words_words: u32,
     pub kept_line_pending: u32,
     pub now_written_line_line: u32,
@@ -185,6 +191,12 @@ pub const CEILINGS: Limits = Limits {
     approval_message_state: 524_288,
     verdict_message_fields: 1_048_576,
     word_words: 524_288,
+    guide_repository: 256,
+    guide_commit: 256,
+    guide_path: 256,
+    run_sources_build: 64,
+    run_sources_source: 256,
+    run_sources_guides_some: 64,
     activity_words_words: 524_288,
     kept_line_pending: 64,
     now_written_line_line: 512,
@@ -293,6 +305,12 @@ pub const LIMIT_NAMES: &[&str] = &[
     "approval_message_state",
     "verdict_message_fields",
     "word_words",
+    "guide_repository",
+    "guide_commit",
+    "guide_path",
+    "run_sources_build",
+    "run_sources_source",
+    "run_sources_guides_some",
     "activity_words_words",
     "kept_line_pending",
     "now_written_line_line",
@@ -405,6 +423,12 @@ impl Limits {
             self.approval_message_state,
             self.verdict_message_fields,
             self.word_words,
+            self.guide_repository,
+            self.guide_commit,
+            self.guide_path,
+            self.run_sources_build,
+            self.run_sources_source,
+            self.run_sources_guides_some,
             self.activity_words_words,
             self.kept_line_pending,
             self.now_written_line_line,
@@ -518,6 +542,12 @@ impl Limits {
             approval_message_state: self.approval_message_state.min(most),
             verdict_message_fields: self.verdict_message_fields.min(most),
             word_words: self.word_words.min(most),
+            guide_repository: self.guide_repository.min(most),
+            guide_commit: self.guide_commit.min(most),
+            guide_path: self.guide_path.min(most),
+            run_sources_build: self.run_sources_build.min(most),
+            run_sources_source: self.run_sources_source.min(most),
+            run_sources_guides_some: self.run_sources_guides_some.min(most),
             activity_words_words: self.activity_words_words.min(most),
             kept_line_pending: self.kept_line_pending.min(most),
             now_written_line_line: self.now_written_line_line.min(most),
@@ -628,6 +658,12 @@ const LIMIT_PATHS: &[Path] = &[
     paths::APPROVAL_MESSAGE_STATE,
     paths::VERDICT_MESSAGE_FIELDS,
     paths::WORD_WORDS,
+    paths::GUIDE_REPOSITORY,
+    paths::GUIDE_COMMIT,
+    paths::GUIDE_PATH,
+    paths::RUN_SOURCES_BUILD,
+    paths::RUN_SOURCES_SOURCE,
+    paths::RUN_SOURCES_GUIDES,
     paths::ACTIVITY_WORDS_WORDS,
     paths::KEPT_LINE_PENDING,
     paths::NOW_WRITTEN_LINE_LINE,
@@ -1224,6 +1260,19 @@ pub mod paths {
     pub const SUSPENSION_SINCE: Path = Path::new("Suspension.since");
     pub const SUSPENSION_UNTIL: Path = Path::new("Suspension.until");
     pub const SUSPENSION_TAIL: Path = Path::new("Suspension (tail)");
+    pub const GUIDE_REPOSITORY: Path = Path::new("Guide.repository");
+    pub const GUIDE_COMMIT: Path = Path::new("Guide.commit");
+    pub const GUIDE_PATH: Path = Path::new("Guide.path");
+    pub const GUIDE_DIGEST: Path = Path::new("Guide.digest");
+    pub const GUIDE_BYTES: Path = Path::new("Guide.bytes");
+    pub const GUIDE_WHOLE: Path = Path::new("Guide.whole");
+    pub const GUIDE_TAIL: Path = Path::new("Guide (tail)");
+    pub const RUN_SOURCES_BUILD: Path = Path::new("RunSources.build");
+    pub const RUN_SOURCES_SETTINGS: Path = Path::new("RunSources.settings");
+    pub const RUN_SOURCES_CHARTERS: Path = Path::new("RunSources.charters");
+    pub const RUN_SOURCES_SOURCE: Path = Path::new("RunSources.source");
+    pub const RUN_SOURCES_GUIDES: Path = Path::new("RunSources.guides");
+    pub const RUN_SOURCES_TAIL: Path = Path::new("RunSources (tail)");
     pub const ATTEMPT_ROW_TASK: Path = Path::new("AttemptRow.task");
     pub const ATTEMPT_ROW_ATTEMPT: Path = Path::new("AttemptRow.attempt");
     pub const ATTEMPT_ROW_CLAIMED: Path = Path::new("AttemptRow.claimed");
@@ -1231,12 +1280,15 @@ pub mod paths {
     pub const ATTEMPT_ROW_ENDED: Path = Path::new("AttemptRow.ended");
     pub const ATTEMPT_ROW_END: Path = Path::new("AttemptRow.end");
     pub const ATTEMPT_ROW_PHASES: Path = Path::new("AttemptRow.phases");
+    pub const ATTEMPT_ROW_SOURCES: Path = Path::new("AttemptRow.sources");
     pub const ATTEMPT_ROW_TAIL: Path = Path::new("AttemptRow (tail)");
     pub const OPEN_ATTEMPT_ATTEMPT: Path = Path::new("OpenAttempt.attempt");
     pub const OPEN_ATTEMPT_CLAIMED: Path = Path::new("OpenAttempt.claimed");
     pub const OPEN_ATTEMPT_STARTED: Path = Path::new("OpenAttempt.started");
     pub const OPEN_ATTEMPT_FROM: Path = Path::new("OpenAttempt.from");
     pub const OPEN_ATTEMPT_END: Path = Path::new("OpenAttempt.end");
+    pub const OPEN_ATTEMPT_SOURCES: Path = Path::new("OpenAttempt.sources");
+    pub const OPEN_ATTEMPT_GUIDE_LIMIT: Path = Path::new("OpenAttempt.guide_limit");
     pub const OPEN_ATTEMPT_TAIL: Path = Path::new("OpenAttempt (tail)");
     pub const ACTIVITY_WORDS_MESSAGE: Path = Path::new("ActivityWords.message");
     pub const ACTIVITY_WORDS_BY: Path = Path::new("ActivityWords.by");
@@ -12968,6 +13020,144 @@ impl Record for Suspension {
     }
 }
 
+// Type: Guide.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Guide {
+    pub repository: Box<[u8]>,
+    pub commit: Box<[u8]>,
+    pub path: Box<[u8]>,
+    pub digest: [u8; 32],
+    pub bytes: u32,
+    pub whole: bool,
+}
+
+// Record: Guide.
+impl Guide {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_repository) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_commit) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_path) },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 49;
+}
+
+impl Record for Guide {
+    type Limits = Limits;
+    const TAIL: Path = paths::GUIDE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Guide")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.guide_repository.min(CEILINGS.guide_repository) }, &self.repository, limits, out, paths::GUIDE_REPOSITORY)?;
+        field::write(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, &self.commit, limits, out, paths::GUIDE_COMMIT)?;
+        field::write(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, &self.path, limits, out, paths::GUIDE_PATH)?;
+        field::write(field::Fixed::<32>, &self.digest, limits, out, paths::GUIDE_DIGEST)?;
+        field::write(field::U32, &self.bytes, limits, out, paths::GUIDE_BYTES)?;
+        field::write(field::Boolean, &self.whole, limits, out, paths::GUIDE_WHOLE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            repository: field::read(field::Text { limit: limits.guide_repository.min(CEILINGS.guide_repository) }, limits, reader, paths::GUIDE_REPOSITORY)?,
+            commit: field::read(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, limits, reader, paths::GUIDE_COMMIT)?,
+            path: field::read(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, limits, reader, paths::GUIDE_PATH)?,
+            digest: field::read(field::Fixed::<32>, limits, reader, paths::GUIDE_DIGEST)?,
+            bytes: field::read(field::U32, limits, reader, paths::GUIDE_BYTES)?,
+            whole: field::read(field::Boolean, limits, reader, paths::GUIDE_WHOLE)?,
+        })
+    }
+}
+
+// Type: RunSources.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RunSources {
+    pub build: Box<[u8]>,
+    pub settings: u32,
+    pub charters: u64,
+    pub source: Box<[u8]>,
+    pub guides: Option<List<Guide>>,
+}
+
+// Record: RunSources.
+impl RunSources {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, run_sources_build) },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, run_sources_source) },
+        skein_codec::bounds::Node::Named("Guide"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, run_sources_guides_some), item: 4, size: size_of::<Guide>() },
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 6] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
+impl Record for RunSources {
+    type Limits = Limits;
+    const TAIL: Path = paths::RUN_SOURCES_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunSources")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunSources")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.run_sources_build.min(CEILINGS.run_sources_build) }, &self.build, limits, out, paths::RUN_SOURCES_BUILD)?;
+        field::write(field::U32, &self.settings, limits, out, paths::RUN_SOURCES_SETTINGS)?;
+        field::write(field::U64, &self.charters, limits, out, paths::RUN_SOURCES_CHARTERS)?;
+        field::write(field::Bytes { limit: limits.run_sources_source.min(CEILINGS.run_sources_source) }, &self.source, limits, out, paths::RUN_SOURCES_SOURCE)?;
+        field::write(field::Optional { item: field::Sequence { limit: limits.run_sources_guides_some.min(CEILINGS.run_sources_guides_some), minimum: 49, item: field::Nested } }, &self.guides, limits, out, paths::RUN_SOURCES_GUIDES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            build: field::read(field::Text { limit: limits.run_sources_build.min(CEILINGS.run_sources_build) }, limits, reader, paths::RUN_SOURCES_BUILD)?,
+            settings: field::read(field::U32, limits, reader, paths::RUN_SOURCES_SETTINGS)?,
+            charters: field::read(field::U64, limits, reader, paths::RUN_SOURCES_CHARTERS)?,
+            source: field::read(field::Bytes { limit: limits.run_sources_source.min(CEILINGS.run_sources_source) }, limits, reader, paths::RUN_SOURCES_SOURCE)?,
+            guides: field::read(field::Optional { item: field::Sequence { limit: limits.run_sources_guides_some.min(CEILINGS.run_sources_guides_some), minimum: 49, item: field::Nested } }, limits, reader, paths::RUN_SOURCES_GUIDES)?,
+        })
+    }
+}
+
 // Type: AttemptRow.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AttemptRow {
@@ -12978,6 +13168,7 @@ pub struct AttemptRow {
     pub ended: Option<u64>,
     pub end: Option<EndKind>,
     pub phases: Option<u32>,
+    pub sources: Option<RunSources>,
 }
 
 // Record: AttemptRow.
@@ -12995,11 +13186,13 @@ impl AttemptRow {
         skein_codec::bounds::Node::Option { item: 8 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Option { item: 10 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11] },
+        skein_codec::bounds::Node::Named("RunSources"),
+        skein_codec::bounds::Node::Option { item: 12 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11, 13] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 55;
+    pub const ENCODED_AT_ZERO: u64 = 81;
 }
 
 impl Record for AttemptRow {
@@ -13031,6 +13224,7 @@ impl Record for AttemptRow {
         field::write(field::Optional { item: field::U64 }, &self.ended, limits, out, paths::ATTEMPT_ROW_ENDED)?;
         field::write(field::Optional { item: field::Nested }, &self.end, limits, out, paths::ATTEMPT_ROW_END)?;
         field::write(field::Optional { item: field::U32 }, &self.phases, limits, out, paths::ATTEMPT_ROW_PHASES)?;
+        field::write(field::Optional { item: field::Nested }, &self.sources, limits, out, paths::ATTEMPT_ROW_SOURCES)?;
         Ok(())
     }
 
@@ -13043,6 +13237,7 @@ impl Record for AttemptRow {
             ended: field::read(field::Optional { item: field::U64 }, limits, reader, paths::ATTEMPT_ROW_ENDED)?,
             end: field::read(field::Optional { item: field::Nested }, limits, reader, paths::ATTEMPT_ROW_END)?,
             phases: field::read(field::Optional { item: field::U32 }, limits, reader, paths::ATTEMPT_ROW_PHASES)?,
+            sources: field::read(field::Optional { item: field::Nested }, limits, reader, paths::ATTEMPT_ROW_SOURCES)?,
         })
     }
 }
@@ -13055,6 +13250,8 @@ pub struct OpenAttempt {
     pub started: Option<u64>,
     pub from: u64,
     pub end: Option<EndKind>,
+    pub sources: Option<RunSources>,
+    pub guide_limit: u32,
 }
 
 // Record: OpenAttempt.
@@ -13068,11 +13265,14 @@ impl OpenAttempt {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("EndKind"),
         skein_codec::bounds::Node::Option { item: 6 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 7] },
+        skein_codec::bounds::Node::Named("RunSources"),
+        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 7, 9, 10] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 41;
+    pub const ENCODED_AT_ZERO: u64 = 71;
 }
 
 impl Record for OpenAttempt {
@@ -13102,6 +13302,8 @@ impl Record for OpenAttempt {
         field::write(field::Optional { item: field::U64 }, &self.started, limits, out, paths::OPEN_ATTEMPT_STARTED)?;
         field::write(field::U64, &self.from, limits, out, paths::OPEN_ATTEMPT_FROM)?;
         field::write(field::Optional { item: field::Nested }, &self.end, limits, out, paths::OPEN_ATTEMPT_END)?;
+        field::write(field::Optional { item: field::Nested }, &self.sources, limits, out, paths::OPEN_ATTEMPT_SOURCES)?;
+        field::write(field::U32, &self.guide_limit, limits, out, paths::OPEN_ATTEMPT_GUIDE_LIMIT)?;
         Ok(())
     }
 
@@ -13112,6 +13314,8 @@ impl Record for OpenAttempt {
             started: field::read(field::Optional { item: field::U64 }, limits, reader, paths::OPEN_ATTEMPT_STARTED)?,
             from: field::read(field::U64, limits, reader, paths::OPEN_ATTEMPT_FROM)?,
             end: field::read(field::Optional { item: field::Nested }, limits, reader, paths::OPEN_ATTEMPT_END)?,
+            sources: field::read(field::Optional { item: field::Nested }, limits, reader, paths::OPEN_ATTEMPT_SOURCES)?,
+            guide_limit: field::read(field::U32, limits, reader, paths::OPEN_ATTEMPT_GUIDE_LIMIT)?,
         })
     }
 }
@@ -16876,7 +17080,7 @@ impl TaskRun {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 485;
+    pub const ENCODED_AT_ZERO: u64 = 515;
 }
 
 impl Record for TaskRun {
@@ -17723,7 +17927,7 @@ impl BeforeTalk {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1364;
+    pub const ENCODED_AT_ZERO: u64 = 1394;
 }
 
 impl Record for BeforeTalk {
@@ -17855,7 +18059,7 @@ impl TaskRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1406;
+    pub const ENCODED_AT_ZERO: u64 = 1436;
 }
 
 impl Record for TaskRecord {
@@ -18198,7 +18402,7 @@ impl LiveHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1325;
+    pub const ENCODED_AT_ZERO: u64 = 1355;
 }
 
 impl Record for LiveHot {
@@ -19507,7 +19711,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1407;
+    pub const ENCODED_AT_ZERO: u64 = 1437;
 }
 
 impl Record for Value {
@@ -19659,7 +19863,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1413;
+    pub const ENCODED_AT_ZERO: u64 = 1443;
 }
 
 impl Record for Row {
@@ -23267,6 +23471,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "FundingRecord", nodes: FundingRecord::SHAPE },
     skein_codec::bounds::Declaration { name: "Grace", nodes: Grace::SHAPE },
     skein_codec::bounds::Declaration { name: "Grant", nodes: Grant::SHAPE },
+    skein_codec::bounds::Declaration { name: "Guide", nodes: Guide::SHAPE },
     skein_codec::bounds::Declaration { name: "HeardMessage", nodes: HeardMessage::SHAPE },
     skein_codec::bounds::Declaration { name: "Held", nodes: Held::SHAPE },
     skein_codec::bounds::Declaration { name: "History", nodes: History::SHAPE },
@@ -23414,6 +23619,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "RoutingEscalation", nodes: RoutingEscalation::SHAPE },
     skein_codec::bounds::Declaration { name: "Row", nodes: Row::SHAPE },
     skein_codec::bounds::Declaration { name: "Run", nodes: Run::SHAPE },
+    skein_codec::bounds::Declaration { name: "RunSources", nodes: RunSources::SHAPE },
     skein_codec::bounds::Declaration { name: "SavedResource", nodes: SavedResource::SHAPE },
     skein_codec::bounds::Declaration { name: "Scopes", nodes: Scopes::SHAPE },
     skein_codec::bounds::Declaration { name: "Segment", nodes: Segment::SHAPE },
@@ -23558,6 +23764,12 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.approval_message_state,
     CEILINGS.verdict_message_fields,
     CEILINGS.word_words,
+    CEILINGS.guide_repository,
+    CEILINGS.guide_commit,
+    CEILINGS.guide_path,
+    CEILINGS.run_sources_build,
+    CEILINGS.run_sources_source,
+    CEILINGS.run_sources_guides_some,
     CEILINGS.activity_words_words,
     CEILINGS.kept_line_pending,
     CEILINGS.now_written_line_line,

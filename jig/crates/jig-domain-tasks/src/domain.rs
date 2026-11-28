@@ -869,6 +869,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             reasons,
             offered,
             session_end,
+            sources,
         } => {
             crate::run::claim(
                 domain,
@@ -885,10 +886,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                     reasons,
                     offered,
                     session_end,
+                    sources,
                 },
                 out,
             );
         }
+        Event::RunGuides { task, attempt, guides } => crate::attempts::report(domain, env, task, attempt, guides, out),
         Event::ReadAfresh { resource } => crate::writers::read_afresh(domain, env, &resource, out),
         Event::ChargeEffect { funder, maximum } => crate::funders::charge_effect(domain, env, funder, maximum, out),
         Event::EffectInFlight { reply_to, task, resource, entry } => {
@@ -1309,7 +1312,13 @@ impl Domain {
     }
 }
 
-fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+fn milestone(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    sources: Option<crate::ClaimSources>,
+    out: &mut Queue<Request>,
+) {
     let starts_kept = domain.starts_kept(record(domain, number).expect("milestone task live").executor);
     let task = task_mut(domain, number).expect("milestone task is live");
     if task.observed_phase.as_ref() == Some(&task.record.phase) {
@@ -1379,10 +1388,20 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
             }),
         });
     }
-    crate::attempts::changed(&mut task.record, env.wall, out);
+    crate::attempts::changed(&mut task.record, env.wall, sources, out);
 }
 
 pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+    publish_claim(domain, env, number, None, out);
+}
+
+pub(crate) fn publish_claim(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    sources: Option<crate::ClaimSources>,
+    out: &mut Queue<Request>,
+) {
     crate::questions::published(domain, number);
     crate::placed::enforce(&mut task_mut(domain, number).expect("published task live").record);
     crate::room::refresh(domain, number);
@@ -1398,7 +1417,7 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         },
         Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => false,
     };
-    milestone(domain, env, number, out);
+    milestone(domain, env, number, sources, out);
     let task = task_mut(domain, number).expect("published task is live");
     crate::person::waiting(&mut task.record, env);
     let held = match task.record.phase {
@@ -1476,7 +1495,7 @@ pub(crate) fn schedule_alarm(domain: &mut Domain, env: &Env<Limits>, number: u64
     }
 }
 
-fn save_live(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+pub(crate) fn save_live(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     // Compare the waiting holder before replacing the published snapshot.
     crate::escalation::refresh_holder(domain, env, number);
     crate::questions::index(domain, number);

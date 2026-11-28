@@ -232,6 +232,7 @@ pub(super) mod tests {
 
     pub(in crate::referee::durable) fn attempt() -> core::Record {
         core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            sources: None,
             task: 1,
             attempt: 2,
             claimed: None,
