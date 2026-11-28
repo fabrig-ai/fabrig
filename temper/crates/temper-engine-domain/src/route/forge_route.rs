@@ -2052,6 +2052,7 @@ pub(super) fn start_recovered_change(
                 questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
+                temper_dir_fault: None,
                 runner_ci: None,
                 close_at: None,
                 report: Box::new([]),
@@ -5168,7 +5169,16 @@ pub(crate) fn outputs(
                     landing_decision(domain, env, task, choice, &head_trailers);
                 }
             }
-            forge::Request::Reviewed { task, evidence } => {
+            forge::Request::Reviewed { task, evidence, temper_dir: Some(owner) } => {
+                let reviews = if let Some(row) = domain.forge.change(task) {
+                    landing_reviewers(domain, env, row, &evidence)
+                } else {
+                    None
+                };
+                let reviewers = if let Some(reviews) = &reviews { reviews.reviewers.as_ref() } else { &[] };
+                domain.forge.temper_dir_reviewed(&super::environment_forge(env), owner, reviewers, out);
+            }
+            forge::Request::Reviewed { task, evidence, temper_dir: None } => {
                 retain_review_wait(domain, env, task, &evidence);
                 if let Some(head) = refused_review_request(domain, env, task, &evidence) {
                     domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));

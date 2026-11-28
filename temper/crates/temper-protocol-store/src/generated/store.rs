@@ -2010,6 +2010,9 @@ pub fn repair_to_record(value: &temper_engine_domain_forge_change::Repair) -> cr
                 None => None,
             }
         }),
+        temper_engine_domain_forge_change::Repair::TemperDir { head: field_000000 } => crate::v25::Repair::TemperDir(crate::v25::Commit {
+            commit: *field_000000
+        }),
     }
 }
 
@@ -2046,6 +2049,12 @@ pub fn repair_to_domain(record: crate::v25::Repair) -> temper_engine_domain_forg
                     }
                     None => None,
                 }
+            }
+        },
+        crate::v25::Repair::TemperDir(held) => {
+            let crate::v25::Commit { commit: field_000000 } = held;
+            temper_engine_domain_forge_change::Repair::TemperDir {
+                head: field_000000
             }
         },
     }

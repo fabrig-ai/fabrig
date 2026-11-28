@@ -109,7 +109,9 @@ fn gate(
     if waiting || !met { Verdict::Wait } else { Verdict::Met }
 }
 
-fn approval(
+/// Judge one role’s approval over the exact or clean heads in its evidence.
+#[must_use]
+pub fn approval(
     role: u32,
     people: u32,
     freshness: Freshness,

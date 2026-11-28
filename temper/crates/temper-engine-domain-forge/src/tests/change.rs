@@ -65,7 +65,7 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
             Answer::Commits { commits: Box::new([]), more: false },
             Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
         ] {
-            fixtures::answer_next(&mut d, Ok(answer));
+            fixtures::answer_next_ordinary(&mut d, Ok(answer));
         }
         let row = d.change(fixtures::CHANGE).expect("ready change");
         assert_eq!(row.change.way, way);
@@ -265,11 +265,11 @@ fn a_head_contained_in_its_base_ends_without_rereading_the_pair() {
                 fixtures::checks(skein_forge::api::Check::Passed),
             ] {
                 let (call, _) = fixtures::next_at(&mut d, &env);
-                fixtures::answer_at(&mut d, &env, call, Ok(answer));
+                fixtures::answer_ordinary_at(&mut d, &env, call, Ok(answer));
             }
             let (call, op) = fixtures::next_at(&mut d, &env);
             assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: tip, page: 1 }));
-            fixtures::answer_at(
+            fixtures::answer_ordinary_at(
                 &mut d,
                 &env,
                 call,
@@ -281,11 +281,11 @@ fn a_head_contained_in_its_base_ends_without_rereading_the_pair() {
             if read {
                 let (call, op) = fixtures::next_at(&mut d, &env);
                 assert_eq!(op, Op::Read(Read::Commits { before: tip, after: fixtures::HEAD, page: 1 }));
-                fixtures::answer_at(&mut d, &env, call, answer.clone());
+                fixtures::answer_ordinary_at(&mut d, &env, call, answer.clone());
             }
             let (call, op) = fixtures::next_at(&mut d, &env);
             assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }), "no second ancestry read");
-            fixtures::answer_at(
+            fixtures::answer_ordinary_at(
                 &mut d,
                 &env,
                 call,
@@ -375,11 +375,11 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
         fixtures::answer_next(&mut d, Ok(answer));
     }
     let (call, checks) = fixtures::next_at(&mut d, &env);
-    fixtures::answer_at(&mut d, &env, call, Err(Error::Unavailable));
+    fixtures::answer_ordinary_at(&mut d, &env, call, Err(Error::Unavailable));
     fixtures::advance(&mut d, &mut env, Duration::from_secs(100));
     let (again, op) = fixtures::next_at(&mut d, &env);
     assert_eq!(op, checks);
-    fixtures::answer_at(&mut d, &env, again, Ok(Answer::Pull(pull)));
+    fixtures::answer_ordinary_at(&mut d, &env, again, Ok(Answer::Pull(pull)));
     let since = d.change(fixtures::CHANGE).expect("checking").change.since;
     assert_eq!(
         env.wall.as_nanos() - since.as_nanos(),
@@ -395,7 +395,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
         Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
     ] {
         let (call, _) = fixtures::next_at(&mut d, &env);
-        out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+        out = fixtures::answer_ordinary_at(&mut d, &env, call, Ok(answer));
     }
     let until = Wall::from_nanos(env.wall.as_nanos() + env.limits.client.poll_max.as_nanos());
     let mut waiting = false;
@@ -489,11 +489,16 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
             pull.ci = Ci::Pending;
             for answer in [Answer::Commit(fixtures::HEAD), Answer::Commit(fixtures::BASE), Answer::Pull(pull)] {
                 let (call, _) = fixtures::next_at(&mut d, &env);
-                fixtures::answer_at(&mut d, &env, call, Ok(answer));
+                fixtures::answer_ordinary_at(&mut d, &env, call, Ok(answer));
             }
             if !titled {
                 let (call, _) = fixtures::next_at(&mut d, &env);
-                fixtures::answer_at(&mut d, &env, call, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+                fixtures::answer_ordinary_at(
+                    &mut d,
+                    &env,
+                    call,
+                    Ok(fixtures::checks(skein_forge::api::Check::Pending)),
+                );
             }
             for answer in [
                 fixtures::checks(skein_forge::api::Check::Passed),
@@ -501,12 +506,12 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
                 Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
             ] {
                 let (call, _) = fixtures::next_at(&mut d, &env);
-                out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+                out = fixtures::answer_ordinary_at(&mut d, &env, call, Ok(answer));
             }
             if !titled && decision == c::Decision::Hold(c::Cause::Stalled) {
                 let (call, read) = fixtures::next_at(&mut d, &env);
                 assert_eq!(read, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit: fixtures::HEAD }));
-                out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Checks(Box::new([]))));
+                out = fixtures::answer_ordinary_at(&mut d, &env, call, Ok(Answer::Checks(Box::new([]))));
             }
             let mut decided = false;
             for request in &out {
@@ -960,7 +965,7 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     start_opening(&mut d, fixtures::CHANGE, LATER_ENTRY);
     fixtures::finish_open(&mut d);
     assert!(
-        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+        fixtures::answer_next_ordinary(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
             .is_empty(),
         "the kept chain restarts"
     );
@@ -969,7 +974,7 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
     let finished =
-        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        fixtures::answer_next_ordinary(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert!(
         finished.contains(&Request::ChangeDecision {
             task: fixtures::CHANGE,
@@ -1045,7 +1050,7 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
     fixtures::answer(&mut d, pull, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
     let finished =
-        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        fixtures::answer_next_ordinary(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert_eq!(overtaken.as_ref(), &[]);
     assert_eq!(
         [branch_read, base_read, pull_read],
@@ -1168,8 +1173,10 @@ fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
         assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
         fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
         fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-        let finished =
-            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let finished = fixtures::answer_next_ordinary(
+            &mut d,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let mut proposed = None;
         for request in &finished {
             if let Request::ChangeDecision {
@@ -1219,8 +1226,10 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             d = first_change(Protection::Absent, Ci::Passed, true, false);
         }
         fixtures::finish_open(&mut d);
-        let finished =
-            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let finished = fixtures::answer_next_ordinary(
+            &mut d,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let expected = if restart {
             change::Decision::Effect(change::Effect::Merge { head: fixtures::HEAD, base: fixtures::BASE })
         } else {
@@ -1242,8 +1251,10 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
             fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
             fixtures::finish_open(&mut d);
-            let finished =
-                fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+            let finished = fixtures::answer_next_ordinary(
+                &mut d,
+                Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+            );
             let mut merging = false;
             for request in &finished {
                 if let Request::ChangeDecision {
@@ -1414,8 +1425,11 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
                 },
             );
         }
-        let finished =
-            fixtures::answer(&mut d, reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let finished = fixtures::answer_ordinary(
+            &mut d,
+            reviews,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let until = Wall::from_nanos(env().wall.as_nanos() + delay.as_nanos());
         assert!(
             finished.contains(&Request::ChangeDecision {
@@ -2829,8 +2843,11 @@ fn head_ci_contexts_are_read_once_per_gather() {
             Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }),
             "{name}: equality needs no ancestry read"
         );
-        let finished =
-            fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let finished = fixtures::answer_ordinary(
+            &mut d,
+            call,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let mut decided = false;
         for request in &finished {
             if let Request::ChangeDecision { decision: change::Decision::NoChange, .. } = request {
@@ -2969,6 +2986,9 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
                     more: false,
                 },
                 Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                Op::Read(Read::Compare { before, after }) => {
+                    Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) }
+                }
                 other @ (Op::Read(_) | Op::Write(_)) => panic!("{name}: unexpected {other:?}"),
             };
             let mut answered = Queue::uncapped();
@@ -3611,7 +3631,7 @@ fn a_capacity_refusal_retries_only_the_unanswered_read_and_keeps_the_gather() {
     let (pull, op) = fixtures::next_at(&mut d, &clock);
     assert_eq!(op, Op::Read(Read::Pull { number: 1, ci: true }), "retry the refused pull, not the branch");
     let mut decisions = skein_lib::List::uncapped();
-    let answered = fixtures::answer_at(&mut d, &clock, pull, Ok(Answer::Pull(fixtures::open_pull())));
+    let answered = fixtures::answer_ordinary_at(&mut d, &clock, pull, Ok(Answer::Pull(fixtures::open_pull())));
     for request in &answered {
         if let Request::ChangeDecision { decision, .. } = request {
             decisions.push(*decision).expect("uncapped decisions");
@@ -3626,9 +3646,12 @@ fn a_capacity_refusal_retries_only_the_unanswered_read_and_keeps_the_gather() {
             Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
             Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Compare { before, after }) => {
+                Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) }
+            }
             Op::Read(_) | Op::Write(_) => panic!("the gather keeps its first reads: {op:?}"),
         };
-        for request in &fixtures::answer_at(&mut d, &clock, call, Ok(answer)) {
+        for request in &fixtures::answer_ordinary_at(&mut d, &clock, call, Ok(answer)) {
             if let Request::ChangeDecision { decision, .. } = request {
                 decisions.push(*decision).expect("uncapped decisions");
             }

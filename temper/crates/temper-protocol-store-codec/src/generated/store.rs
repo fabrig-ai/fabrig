@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x13, 0x41, 0xd6, 0xa7, 0x21, 0x3b, 0x30, 0x34, 0x28, 0x57, 0x71, 0xe8, 0xb5, 0x90, 0xe8, 0x6a, 0x8b, 0x02, 0xcd,
-    0x9d, 0x48, 0xc1, 0xea, 0x3e, 0x65, 0x70, 0x29, 0xf4, 0x82, 0x63, 0xdb, 0xaa,
+    0xe3, 0x2d, 0xcb, 0x18, 0x7a, 0x8e, 0x7d, 0xb8, 0xbb, 0x23, 0xb7, 0x98, 0x8d, 0x24, 0xba, 0x8e, 0x00, 0x5b, 0x5a,
+    0xfc, 0xd3, 0x8f, 0xf5, 0x91, 0x5c, 0x4e, 0x4c, 0xc4, 0x28, 0xf8, 0x76, 0xd5,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -353,6 +353,7 @@ pub struct Limits {
     pub change_hot_producer_failure_some: u32,
     pub change_hot_merge_result_some: u32,
     pub change_hot_asks: u32,
+    pub change_hot_temper_dir_fault_some: u32,
     pub subscriber_goal_tasks_some: u32,
     pub subscriber_paths: u32,
     pub subscriber_paths_item: u32,
@@ -749,6 +750,7 @@ pub const CEILINGS: Limits = Limits {
     change_hot_producer_failure_some: 512,
     change_hot_merge_result_some: 512,
     change_hot_asks: 16,
+    change_hot_temper_dir_fault_some: 65_536,
     subscriber_goal_tasks_some: 65_536,
     subscriber_paths: 1_024,
     subscriber_paths_item: 4_096,
@@ -1145,6 +1147,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "change_hot_producer_failure_some",
     "change_hot_merge_result_some",
     "change_hot_asks",
+    "change_hot_temper_dir_fault_some",
     "subscriber_goal_tasks_some",
     "subscriber_paths",
     "subscriber_paths_item",
@@ -1545,6 +1548,7 @@ impl Limits {
             self.change_hot_producer_failure_some,
             self.change_hot_merge_result_some,
             self.change_hot_asks,
+            self.change_hot_temper_dir_fault_some,
             self.subscriber_goal_tasks_some,
             self.subscriber_paths,
             self.subscriber_paths_item,
@@ -1946,6 +1950,7 @@ impl Limits {
             change_hot_producer_failure_some: self.change_hot_producer_failure_some.min(most),
             change_hot_merge_result_some: self.change_hot_merge_result_some.min(most),
             change_hot_asks: self.change_hot_asks.min(most),
+            change_hot_temper_dir_fault_some: self.change_hot_temper_dir_fault_some.min(most),
             subscriber_goal_tasks_some: self.subscriber_goal_tasks_some.min(most),
             subscriber_paths: self.subscriber_paths.min(most),
             subscriber_paths_item: self.subscriber_paths_item.min(most),
@@ -2344,6 +2349,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHANGE_HOT_PRODUCER_FAILURE,
     paths::CHANGE_HOT_MERGE_RESULT,
     paths::CHANGE_HOT_ASKS,
+    paths::CHANGE_HOT_TEMPER_DIR_FAULT,
     paths::SUBSCRIBER_GOAL_TASKS,
     paths::SUBSCRIBER_PATHS,
     paths::SUBSCRIBER_PATHS,
@@ -4349,6 +4355,7 @@ pub mod paths {
     pub const CHANGE_HOT_ASKS: Path = Path::new("ChangeHot.asks");
     pub const CHANGE_HOT_HANDED: Path = Path::new("ChangeHot.handed");
     pub const CHANGE_HOT_CI_RECHECK: Path = Path::new("ChangeHot.ci_recheck");
+    pub const CHANGE_HOT_TEMPER_DIR_FAULT: Path = Path::new("ChangeHot.temper_dir_fault");
     pub const CHANGE_HOT_TAIL: Path = Path::new("ChangeHot (tail)");
     pub const SUBSCRIBER_TASK: Path = Path::new("Subscriber.task");
     pub const SUBSCRIBER_NUMBER: Path = Path::new("Subscriber.number");
@@ -13901,6 +13908,7 @@ pub enum Repair {
     Landing(LandingRepair),
     Review(Commit),
     LandingAt(LandingRepairAt),
+    TemperDir(Commit),
 }
 
 // Record: Repair.
@@ -13912,7 +13920,8 @@ impl Repair {
         skein_codec::bounds::Node::Named("LandingRepair"),
         skein_codec::bounds::Node::Named("Commit"),
         skein_codec::bounds::Node::Named("LandingRepairAt"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+        skein_codec::bounds::Node::Named("Commit"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -13948,6 +13957,7 @@ impl Record for Repair {
             Self::Landing(value) => { field::put(out, &[3], paths::REPAIR_TAG)?; value.write(limits, out) },
             Self::Review(value) => { field::put(out, &[4], paths::REPAIR_TAG)?; value.write(limits, out) },
             Self::LandingAt(value) => { field::put(out, &[5], paths::REPAIR_TAG)?; value.write(limits, out) },
+            Self::TemperDir(value) => { field::put(out, &[6], paths::REPAIR_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -13960,7 +13970,8 @@ impl Record for Repair {
             3 => Ok(Self::Landing(LandingRepair::read(limits, reader)?)),
             4 => Ok(Self::Review(Commit::read(limits, reader)?)),
             5 => Ok(Self::LandingAt(LandingRepairAt::read(limits, reader)?)),
-            6..=u8::MAX => Err(Problem { path: paths::REPAIR_TAG, reason: skein_codec::Reason::Tag }),
+            6 => Ok(Self::TemperDir(Commit::read(limits, reader)?)),
+            7..=u8::MAX => Err(Problem { path: paths::REPAIR_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -38197,6 +38208,7 @@ pub struct ChangeHot {
     pub asks: List<LandingHanded>,
     pub handed: u32,
     pub ci_recheck: Option<CiRecheck>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
 }
 
 // Record: ChangeHot.
@@ -38274,11 +38286,13 @@ impl ChangeHot {
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("CiRecheck"),
         skein_codec::bounds::Node::Option { item: 70 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 36, 38, 40, 41, 43, 44, 45, 46, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 68, 69, 71] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_temper_dir_fault_some) },
+        skein_codec::bounds::Node::Option { item: 72 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 36, 38, 40, 41, 43, 44, 45, 46, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 68, 69, 71, 73] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1758;
+    pub const ENCODED_AT_ZERO: u64 = 1763;
 }
 
 impl Record for ChangeHot {
@@ -38346,6 +38360,7 @@ impl Record for ChangeHot {
         field::write(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, &self.asks, limits, out, paths::CHANGE_HOT_ASKS)?;
         field::write(field::U32, &self.handed, limits, out, paths::CHANGE_HOT_HANDED)?;
         field::write(field::Optional { item: field::Nested }, &self.ci_recheck, limits, out, paths::CHANGE_HOT_CI_RECHECK)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.change_hot_temper_dir_fault_some.min(CEILINGS.change_hot_temper_dir_fault_some) } }, &self.temper_dir_fault, limits, out, paths::CHANGE_HOT_TEMPER_DIR_FAULT)?;
         Ok(())
     }
 
@@ -38394,6 +38409,7 @@ impl Record for ChangeHot {
             asks: field::read(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, limits, reader, paths::CHANGE_HOT_ASKS)?,
             handed: field::read(field::U32, limits, reader, paths::CHANGE_HOT_HANDED)?,
             ci_recheck: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_CI_RECHECK)?,
+            temper_dir_fault: field::read(field::Optional { item: field::Bytes { limit: limits.change_hot_temper_dir_fault_some.min(CEILINGS.change_hot_temper_dir_fault_some) } }, limits, reader, paths::CHANGE_HOT_TEMPER_DIR_FAULT)?,
         })
     }
 }
@@ -43693,7 +43709,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1759;
+    pub const ENCODED_AT_ZERO: u64 = 1764;
 }
 
 impl Record for Value {
@@ -43850,7 +43866,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1761;
+    pub const ENCODED_AT_ZERO: u64 = 1766;
 }
 
 impl Record for Row {
@@ -44853,6 +44869,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.change_hot_producer_failure_some,
     CEILINGS.change_hot_merge_result_some,
     CEILINGS.change_hot_asks,
+    CEILINGS.change_hot_temper_dir_fault_some,
     CEILINGS.subscriber_goal_tasks_some,
     CEILINGS.subscriber_paths,
     CEILINGS.subscriber_paths_item,

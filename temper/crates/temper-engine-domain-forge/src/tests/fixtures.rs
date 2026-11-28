@@ -228,6 +228,7 @@ pub fn opening_row() -> ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        temper_dir_fault: None,
         runner_ci: None,
         close_at: None,
         report: Box::new([]),
@@ -312,6 +313,59 @@ pub fn answer_at(
     );
     d.reclaim();
     out
+}
+
+/// Finish a change's path comparison in a fixture that changes no `.temper/` path.
+pub fn ordinary_paths(d: &mut Domain, clock: &Env<Limits>, mut out: Queue<Request>) -> Queue<Request> {
+    for (_, step) in &d.steps {
+        if step.comparing_paths() {
+            let (call, op) = next_at(d, clock);
+            let skein_forge::api::Op::Read(skein_forge::api::Read::Compare { before, after }) = op else {
+                panic!("expected the change's comparison, got {op:?}");
+            };
+            let paths = skein_forge::api::Answer::Compare {
+                before,
+                after,
+                ahead: 1,
+                behind: 0,
+                changed: 0,
+                files: Box::new([]),
+            };
+            let mut finished = answer_at(d, clock, call, Ok(paths));
+            while let Some(request) = finished.pop() {
+                out.push(request);
+            }
+            break;
+        }
+    }
+    out
+}
+
+pub fn answer_ordinary_at(
+    d: &mut Domain,
+    clock: &Env<Limits>,
+    call: Token,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Queue<Request> {
+    let reviewed = matches!(result, Ok(skein_forge::api::Answer::Reviews { .. }));
+    let out = answer_at(d, clock, call, result);
+    if reviewed { ordinary_paths(d, clock, out) } else { out }
+}
+
+pub fn answer_ordinary(
+    d: &mut Domain,
+    call: Token,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    collected(answer_ordinary_at(d, &env(), call, result))
+}
+
+pub fn answer_next_ordinary(
+    d: &mut Domain,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    let (call, _) = next_call(d);
+    answer_ordinary(d, call, result)
 }
 
 pub fn advance(d: &mut Domain, env: &mut Env<Limits>, by: Duration) -> Queue<Request> {

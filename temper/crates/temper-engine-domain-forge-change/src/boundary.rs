@@ -127,6 +127,8 @@ pub enum Repair {
     Landing { gate: u16 },
     /// A person's request for changes on the forge, at the head they reviewed (domain/forge/change/gates.md, 1).
     Review { head: Commit },
+    /// Temper’s own check found faults in `.temper/` at this head.
+    TemperDir { head: Commit },
     /// The failed prefix pins its receipt; a blamed unit also keeps the green context (domain/landing-search.md, 7).
     LandingAt { gate: u16, candidate: Commit, below: Option<Below> },
 }
@@ -137,7 +139,11 @@ impl Repair {
     pub fn ci(self) -> bool {
         match self {
             Self::Ci | Self::Semantic => true,
-            Self::Gate(_) | Self::Review { .. } | Self::Landing { .. } | Self::LandingAt { .. } => false,
+            Self::Gate(_)
+            | Self::Review { .. }
+            | Self::TemperDir { .. }
+            | Self::Landing { .. }
+            | Self::LandingAt { .. } => false,
         }
     }
 }
@@ -501,6 +507,18 @@ pub enum Recheck {
     Taken,
 }
 
+/// Temper’s check and, when enabled, its owner sign-off at the observed head and base.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TemperDir {
+    Uncovered,
+    Pending,
+    Update,
+    Passed,
+    Fault { head: Commit },
+    AwaitingOwner { until: Wall },
+    OwnerRequested { head: Commit },
+}
+
 /// Fresh forge and queue facts gathered by the top.
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -548,6 +566,7 @@ pub struct Facts {
     pub contains_base: Status,
     /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_head: Status,
+    pub temper_dir: TemperDir,
     /// Whether the declared merge kind is within the change's delegation authority.
     pub merge_job: bool,
     /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);

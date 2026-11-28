@@ -1138,6 +1138,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        temper_dir_fault: None,
         runner_ci: None,
         close_at: None,
         report: Box::new([]),
@@ -1351,7 +1352,11 @@ fn every_delegate_ends_with_the_current_spec_and_rulings_within_the_spec_bound()
                             Repair::Landing { .. } | Repair::LandingAt { .. } => before
                                 .strip_suffix(b"\nGate run: the landing no longer keeps its failure")
                                 .expect("a landing repair names its missing failure before the current request"),
-                            Repair::Ci | Repair::Semantic | Repair::Gate(_) | Repair::Review { .. } => before,
+                            Repair::Ci
+                            | Repair::Semantic
+                            | Repair::Gate(_)
+                            | Repair::Review { .. }
+                            | Repair::TemperDir { .. } => before,
                         };
                         assert!(preservation.ends_with(super::REPAIR_PRESERVATION));
                     }

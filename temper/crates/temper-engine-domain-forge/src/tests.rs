@@ -16,6 +16,8 @@ mod catching_up_releases;
 mod catching_up_repositories;
 mod catching_up_state;
 mod change;
+#[path = "tests/temper_dir.rs"]
+mod check_temper_dir;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod close_delegate;

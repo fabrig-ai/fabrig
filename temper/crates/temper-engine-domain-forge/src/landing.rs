@@ -6065,7 +6065,11 @@ impl Domain {
         let (gate, candidate) = match why {
             change::Repair::LandingAt { gate, candidate, .. } => (gate, Some(candidate)),
             change::Repair::Landing { gate } => (gate, None),
-            change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
+            change::Repair::Ci
+            | change::Repair::Semantic
+            | change::Repair::Gate(_)
+            | change::Repair::Review { .. }
+            | change::Repair::TemperDir { .. } => {
                 return None;
             }
         };

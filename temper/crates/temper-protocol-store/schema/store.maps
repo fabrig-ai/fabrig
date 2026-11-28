@@ -199,7 +199,7 @@ record LandingRepair
 record LandedBelow = c::Landed
 record LandingBelow by hand
 record LandingRepairAt
-enum Repair = c::Repair { gate tuple, review { commit = head } }
+enum Repair = c::Repair { gate tuple, review { commit = head }, temper_dir { commit = head } }
 record RepairValue stands for why
 record DelegateGate
 record MergeDelegate

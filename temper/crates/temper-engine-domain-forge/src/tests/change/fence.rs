@@ -106,7 +106,8 @@ fn a_late_watched_closed_pull_cannot_hold_a_released_change() {
         fixtures::answer(&mut d, call, Ok(answer));
     }
     fixtures::finish_open(&mut d);
-    let decided = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+    let decided =
+        fixtures::answer_next_ordinary(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let mut continued = false;
     for request in &decided {
         if let Request::ChangeDecision { task, decision, .. } = request {

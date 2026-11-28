@@ -1171,6 +1171,7 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
     pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
@@ -1289,6 +1290,7 @@ pub struct ChangeHot {
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
     pub producer_failure: Option<Box<[u8]>>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
     pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     pub questions: change::Questions,
@@ -1356,6 +1358,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             report,
@@ -1432,6 +1435,7 @@ impl ChangeRow {
                 queue_repairs,
                 effect_account,
                 producer_failure,
+                temper_dir_fault,
                 runner_ci,
                 close_at,
                 questions,
@@ -1508,6 +1512,7 @@ impl ChangeRow {
             queue_repairs,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             questions,
@@ -1571,6 +1576,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             report,
@@ -3508,6 +3514,8 @@ pub enum Request {
     Reviewed {
         task: u64,
         evidence: ChangeEvidence,
+        /// The pending step, when it needs the root’s mapped owner reviews.
+        temper_dir: Option<Token>,
     },
     /// A change policy step and its checked effect entry, when any.
     ChangeDecision {

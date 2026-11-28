@@ -11,7 +11,6 @@ impl Reading {
     #[must_use]
     pub fn judge(&self, home: Home) -> Verdict {
         let mut report = Report { faults: List::with_capacity(FAULTS), more: 0 };
-        let mut method = false;
         if self.root_cut {
             report.add(ROOT, 0, cut_words());
         }
@@ -40,14 +39,13 @@ impl Reading {
         }
         let away = home_words(home);
         for path in METHOD {
-            if self.entries.contains_key(path) {
-                method = true;
-                if let Some(why) = &away {
-                    report.add(path, 0, why.clone());
-                }
+            if self.entries.contains_key(path)
+                && let Some(why) = &away
+            {
+                report.add(path, 0, why.clone());
             }
         }
-        Verdict { method, faults: report.faults.into_boxed(), more: report.more }
+        Verdict { method: self.has_method(), faults: report.faults.into_boxed(), more: report.more }
     }
 }
 

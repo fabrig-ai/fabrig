@@ -4769,6 +4769,54 @@ fn a_ci_recheck_round_trips_before_and_after_its_measurement() {
 }
 
 #[test]
+fn a_temper_dir_repair_round_trips_but_cannot_be_kept_by_the_previous_layout() {
+    use skein_codec::{
+        layout::{Misconverted, Mode, Plan, Refused, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_change::{Repair, State};
+    let why = Repair::TemperDir { head: [7; 32] };
+    let mut row = fixtures::change_row(State::Repairing { requested: true, why });
+    row.temper_dir_fault =
+        Some(Box::from(b"temper's check of .temper/ at 0707:\n.temper/ways.toml:1: unknown key `x`".as_slice()));
+    let stored = fixtures::change_hot(row);
+    let bytes = records::encode(&stored);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+
+    let text = fixtures::layouts::BINARY;
+    let earlier = text.replace(", temper_dir: Commit", "").replace(" temper_dir_fault: option bytes 65536 = none", "");
+    let new = schema::parse(text.as_bytes()).expect("current schema");
+    let old = schema::parse(earlier.as_bytes()).expect("schema without check repairs");
+    let new_hot = new.root(b"Row", Some(b"change_hot")).expect("current change hot");
+    let old_hot = old.root(b"Row", Some(b"change_hot")).expect("previous change hot");
+    let keep = Plan::between(Mode::Keep, &new, new_hot, &[], &old, old_hot, &[]).expect("Keep plan");
+    let mut work = Workspace::new();
+    assert!(work.fit(&keep));
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("test row length"));
+    let Err(Misconverted::Refused(at)) = keep.convert(&bytes, &mut out, &mut work) else {
+        panic!("the old layout cannot keep a new repair");
+    };
+    assert_eq!(keep.refusal(at), Some((Refused::Field, "ChangeHot", "temper_dir_fault")));
+    let reason = fixtures::change_hot(fixtures::change_row(State::Repairing { requested: true, why }));
+    let Err(Misconverted::Refused(at)) = keep.convert(&records::encode(&reason), &mut out, &mut work) else {
+        panic!("the previous layout cannot keep even the reason without its words");
+    };
+    assert_eq!(keep.refusal(at), Some((Refused::Variant, "Repair", "temper_dir")));
+
+    // A row without a check repair can go both ways. Reading the older row defaults the fault words to absent.
+    let ordinary = fixtures::change_hot(fixtures::change_row(State::Repairing { requested: true, why: Repair::Ci }));
+    let bytes = records::encode(&ordinary);
+    let mut back = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("test row length"));
+    keep.convert(&bytes, &mut back, &mut work).expect("ordinary repair can go back");
+    let forward = Plan::between(Mode::Keep, &old, old_hot, &[], &new, new_hot, &[]).expect("forward Keep plan");
+    assert!(work.fit(&forward));
+    let mut forward_bytes = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("test row length"));
+    forward.convert(back.as_slice(), &mut forward_bytes, &mut work).expect("default the fault words");
+    assert_eq!(records::decode(forward_bytes.as_slice(), &bounds), Ok(ordinary));
+}
+
+#[test]
 #[expect(
     clippy::disallowed_methods,
     clippy::disallowed_macros,

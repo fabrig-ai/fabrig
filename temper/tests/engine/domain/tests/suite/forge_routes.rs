@@ -50,6 +50,7 @@ fn cancel_task(world: &mut World, task: u64) {
 #[path = "forge_routes/approval_identity.rs"]
 pub(super) mod approval_identity;
 mod rules_by_path;
+mod temper_dir;
 
 #[path = "forge_routes/context_projects.rs"]
 mod context_projects;

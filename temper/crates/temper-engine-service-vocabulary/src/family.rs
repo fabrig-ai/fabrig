@@ -820,6 +820,7 @@ pub(crate) fn reason_to_record(value: &change::Repair) -> w::Reason {
     match value {
         change::Repair::Ci => w::Reason::Ci,
         change::Repair::Review { .. } => w::Reason::Review,
+        change::Repair::TemperDir { .. } => unreachable!("projected as gating"),
         change::Repair::Gate(gate) => w::Reason::Gate(w::GateReason { gate: *gate }),
         change::Repair::Semantic => w::Reason::Semantic,
         change::Repair::LandingAt { gate, .. } | change::Repair::Landing { gate } => {

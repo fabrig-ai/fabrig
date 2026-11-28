@@ -58,9 +58,11 @@ fn append(words: &mut List<u8>, part: &[u8]) {
 pub(super) fn landing(reason: change::Repair) -> bool {
     match reason {
         change::Repair::Landing { .. } | change::Repair::LandingAt { .. } => true,
-        change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
-            false
-        }
+        change::Repair::Ci
+        | change::Repair::Semantic
+        | change::Repair::Gate(_)
+        | change::Repair::Review { .. }
+        | change::Repair::TemperDir { .. } => false,
     }
 }
 

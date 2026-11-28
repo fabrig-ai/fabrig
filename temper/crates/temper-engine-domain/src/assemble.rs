@@ -514,7 +514,8 @@ pub(crate) fn finish_brief_plan(
             forge_change::Delegate::Repair(forge_change::Repair::Semantic) => {
                 (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), true)
             }
-            forge_change::Delegate::Resolve { .. }
+            forge_change::Delegate::Repair(forge_change::Repair::TemperDir { .. })
+            | forge_change::Delegate::Resolve { .. }
             | forge_change::Delegate::Merge { .. }
             | forge_change::Delegate::Produce
             | forge_change::Delegate::Close

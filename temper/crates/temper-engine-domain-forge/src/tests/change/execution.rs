@@ -70,6 +70,9 @@ fn checking_reads_execution_once_and_caps_its_next_poll() {
                 }
                 Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
                 Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                Op::Read(Read::Compare { before, after }) => {
+                    Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) }
+                }
                 other @ (Op::Read(_) | Op::Write(_)) => panic!("unexpected gather read: {other:?}"),
             };
             let mut decided = false;

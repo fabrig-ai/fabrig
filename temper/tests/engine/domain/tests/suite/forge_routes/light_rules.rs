@@ -40,7 +40,16 @@ fn pushed_change_with_resolutions(conflict: bool, resolutions: Option<u32>) -> (
     pushed_change_in(world, conflict, b"main")
 }
 
-pub(crate) fn pushed_change_in(mut world: World, conflict: bool, landing: &[u8]) -> (World, u64, u64, u64) {
+pub(crate) fn pushed_change_in(world: World, conflict: bool, landing: &[u8]) -> (World, u64, u64, u64) {
+    pushed_path_change_in(world, conflict, landing, &[(b"file", b"producer")])
+}
+
+pub(super) fn pushed_path_change_in(
+    mut world: World,
+    conflict: bool,
+    landing: &[u8],
+    edits: &[(&[u8], &[u8])],
+) -> (World, u64, u64, u64) {
     world.adopt();
     let start = world.fake.branch(b"org/repo", b"main").expect("initial main");
     if landing != b"main" {
@@ -72,8 +81,11 @@ pub(crate) fn pushed_change_in(mut world: World, conflict: bool, landing: &[u8])
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: start })),
         raw::Answer::Branch(raw::Created::Created)
     );
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"producer", 2)
-        .expect("producer pushed");
+    let mut head = start;
+    for (path, content) in edits {
+        head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, path, content, 2)
+            .expect("producer pushed");
+    }
     let path: &[u8] = if conflict { b"file" } else { b"other" };
     let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, path, b"base moved", 1)
         .expect("main advanced after the producer pushed");

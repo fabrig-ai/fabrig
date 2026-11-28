@@ -25,7 +25,7 @@ impl Domain {
     }
 
     pub(crate) fn approval_short(&self, row: &crate::ChangeRow) -> bool {
-        !self.short_approvals(row).is_empty()
+        self.temper_dir_owner_short(row) || !self.short_approvals(row).is_empty()
     }
 
     /// Every live change in state `Queued`, `First` or `Landing`, with a pull request, whose review facts

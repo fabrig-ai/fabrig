@@ -6,7 +6,7 @@ use fixtures::{CHANGE, HEAD, opening_row};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as policy;
 
-fn rule() -> LandingRule {
+pub(super) fn rule() -> LandingRule {
     let repository = adopted();
     LandingRule {
         sets: Box::new([]),
@@ -28,7 +28,7 @@ fn rule() -> LandingRule {
     }
 }
 
-fn keep(d: &mut Domain, scope: u32, number: u32, rule: LandingRule) {
+pub(super) fn keep(d: &mut Domain, scope: u32, number: u32, rule: LandingRule) {
     d.keep_settings(
         &env(),
         2,
@@ -860,7 +860,11 @@ fn a_busy_paths_read_finishes_the_gather_without_paths() {
     assert_eq!(domain::read_session::client_refusals(&mut d), 0);
     let requests =
         fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
-    assert_eq!(domain::read_session::client_refusals(&mut d), 1, "paths refused at admission");
+    assert_eq!(
+        domain::read_session::client_refusals(&mut d),
+        2,
+        "paths and the method probe were refused at admission"
+    );
     assert!(d.steps.is_empty(), "paths are optional: {requests:?}");
     assert_eq!(d.change_touched(CHANGE), Touched::UNKNOWN);
     let mut decided = false;
@@ -968,12 +972,14 @@ fn a_queued_step_hands_the_root_only_reviews_an_enforcing_approval_covers() {
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
         fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
         fixtures::finish_open(&mut d);
-        let finished =
-            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let finished = fixtures::answer_next_ordinary(
+            &mut d,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let mut reviewed = 0_usize;
         let mut waited = false;
         for request in &finished {
-            if let Request::Reviewed { task, evidence } = request {
+            if let Request::Reviewed { task, evidence, .. } = request {
                 reviewed = reviewed.saturating_add(1);
                 assert_eq!(*task, CHANGE);
                 assert_eq!(evidence.head, Some(HEAD));
@@ -1040,7 +1046,7 @@ fn a_first_yields_on_kept_short_reviews_and_a_restart_wait_yields_again() {
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
     let finished =
-        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        fixtures::answer_next_ordinary(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let mut proposed = None;
     for request in &finished {
         if let Request::ChangeDecision {
@@ -1104,8 +1110,10 @@ fn approval_waits_keep_only_the_size_read_at_the_reviewed_head() {
             assert!(waiting, "a stale pull cannot supply evidence: {read:?}");
         }
         fixtures::finish_open(&mut d);
-        let requests =
-            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let requests = fixtures::answer_next_ordinary(
+            &mut d,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let mut evidence = None;
         for request in &requests {
             if let Request::ChangeDecision {

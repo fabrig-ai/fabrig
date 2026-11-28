@@ -190,6 +190,28 @@ impl Reading {
         Ok(())
     }
 
+    /// Whether the root listing names the method, without reading its files.
+    /// An unread or cut listing may not establish absence.
+    #[must_use]
+    pub fn method_present(&self) -> Option<bool> {
+        if self.has_method() {
+            Some(true)
+        } else if self.root_read && !self.root_cut {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn has_method(&self) -> bool {
+        for path in crate::METHOD {
+            if self.entries.contains_key(path) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// The complete method files read, in byte order of path. Cut files and
     /// the hook config are not part of the revision's method files.
     #[must_use]

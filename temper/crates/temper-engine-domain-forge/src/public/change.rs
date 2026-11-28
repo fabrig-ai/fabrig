@@ -107,10 +107,12 @@ impl Domain {
             c::State::Preparing { .. } => w::PublicStep::Preparing,
             c::State::Updating { .. } => w::PublicStep::Updating,
             c::State::Resolving { .. } => w::PublicStep::Resolving,
+            c::State::Repairing { why: c::Repair::TemperDir { .. }, .. } => w::PublicStep::Gating,
             c::State::Repairing { why, .. } => {
                 repair = Some(match why {
                     c::Repair::Ci => w::PublicRepair::Ci,
                     c::Repair::Review { .. } => w::PublicRepair::Review,
+                    c::Repair::TemperDir { .. } => unreachable!("projected as gating"),
                     c::Repair::Semantic => w::PublicRepair::Semantic,
                     c::Repair::Gate(gate) => w::PublicRepair::Gate(w::PublicGateNumber { gate: *gate }),
                     c::Repair::LandingAt { gate, .. } | c::Repair::Landing { gate } => {

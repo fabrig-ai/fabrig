@@ -125,7 +125,10 @@ pub(crate) fn asked(kind: change::Delegate) -> Option<(history::Ask, Option<u16>
             let gate = match why {
                 change::Repair::Gate(gate) => u16::try_from(gate).ok(),
                 change::Repair::Landing { gate } | change::Repair::LandingAt { gate, .. } => Some(gate),
-                change::Repair::Ci | change::Repair::Semantic | change::Repair::Review { .. } => None,
+                change::Repair::Ci
+                | change::Repair::Semantic
+                | change::Repair::Review { .. }
+                | change::Repair::TemperDir { .. } => None,
             };
             Some((history::Ask::Repair, gate))
         }

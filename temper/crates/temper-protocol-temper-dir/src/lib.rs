@@ -65,7 +65,7 @@ impl Fault {
 }
 
 /// What the comparison shows of `.temper/`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Touch {
     Method,
     Temper,

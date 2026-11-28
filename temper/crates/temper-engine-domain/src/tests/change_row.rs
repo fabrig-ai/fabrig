@@ -84,6 +84,7 @@ pub(crate) fn change_row(pull: Option<u64>) -> temper_engine_domain_forge::Chang
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        temper_dir_fault: None,
         runner_ci: None,
         close_at: None,
         report: Box::new([]),

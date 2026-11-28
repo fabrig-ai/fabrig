@@ -52,6 +52,7 @@ mod restart_wait;
 #[path = "restore.rs"]
 mod restore;
 mod room;
+pub(crate) mod temper_dir;
 pub use restore::{RestoreFit, RestoreSet, StartLink};
 #[path = "design.rs"]
 mod design;
@@ -115,6 +116,7 @@ enum StepStage {
     Reviews(u32),
     FollowCheck(crate::follow_check::ReadKind),
     Paths,
+    TemperDir,
 }
 
 /// One sequence of fresh reads before a level-triggered change step.
@@ -152,11 +154,19 @@ pub(crate) struct PendingStep {
     reviews_complete: bool,
     paths: Box<[Box<[u8]>]>,
     paths_whole: bool,
+    temper_dir: temper_dir::Check,
     woken: bool,
     retry_at: Option<skein_lib::Time>,
     read: Option<(skein_forge::api::Repository, skein_forge::api::Read)>,
     progress: List<(change::Change, change::Change)>,
 }
+#[cfg(test)]
+impl PendingStep {
+    pub(crate) fn comparing_paths(&self) -> bool {
+        self.stage == StepStage::Paths
+    }
+}
+
 /// Comparison at its head and the first time the last judged reviews were kept.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct ReviewHead {
@@ -319,6 +329,7 @@ pub struct Domain {
     pull_mergeable: Map<Name, bool>,
     /// Last judged reviews per live change, unsaved: a restart reads them afresh.
     pub(crate) review_facts: Map<u64, crate::ReviewFacts>,
+    temper_dir_passes: Map<u64, temper_dir::Pass>,
     /// Comparison and review time per live change, unsaved and bounded like review facts.
     pub(crate) review_heads: Map<u64, ReviewHead>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
@@ -1154,6 +1165,7 @@ impl Domain {
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
             review_facts: Map::with_capacity(l.changes),
+            temper_dir_passes: Map::with_capacity(l.changes),
             review_heads: Map::with_capacity(l.changes),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
@@ -5276,6 +5288,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
         retry_at: None,
         read: None,
@@ -5413,6 +5426,7 @@ fn step_verified(
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
         retry_at: None,
         read: None,
@@ -5509,6 +5523,10 @@ fn step_read(
         }
         return;
     }
+    if pending.stage == StepStage::TemperDir {
+        temper_dir::answered(d, env, owner, pending, &result, out);
+        return;
+    }
     if pending.stage == StepStage::Taking {
         taking::answered(d, env, pending, result, out);
         return;
@@ -5592,7 +5610,11 @@ fn step_read(
         pull_ci = required.is_empty();
     }
     let next = match pending.stage {
-        StepStage::Taking | StepStage::StallChecks | StepStage::StallJobs | StepStage::FollowCheck(_) => {
+        StepStage::Taking
+        | StepStage::StallChecks
+        | StepStage::StallJobs
+        | StepStage::FollowCheck(_)
+        | StepStage::TemperDir => {
             unreachable!("special reads handled above")
         }
         StepStage::Branch => {
@@ -5934,9 +5956,12 @@ fn step_read(
                 pending.paths_whole = Some(before) == pending.base_tip
                     && Some(after) == pending.branch
                     && skein_lib::len_u64(files.len()) == changed;
+                if Some(before) == pending.base_tip && Some(after) == pending.branch {
+                    pending.temper_dir.touch = temper_protocol_temper_dir::touched(&files, pending.paths_whole);
+                }
                 pending.paths = files;
             }
-            finish_step(d, env, pending, out);
+            temper_dir::after_paths(d, env, owner, pending, out);
             return;
         }
         StepStage::Reviews(page) => match result {
@@ -6046,18 +6071,24 @@ fn next_execution(pending: &mut PendingStep) -> Option<skein_forge::api::Read> {
 }
 
 fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingStep, out: &mut Queue<Request>) {
+    if pending.woken {
+        finish_step(d, env, pending, out);
+        return;
+    }
     let Some(row) = d.changes.get(&pending.task) else { return };
     if let (Some(before), Some(after), Some(repository)) =
         (pending.base_tip, pending.branch, d.repositories.get(&row.repository))
     {
+        let mut compare = temper_dir::should_compare(d, row, repository, &pending);
         for held in &d.landing_rules(repository.project) {
-            if !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &row.base) {
-                let repository = row.repository;
-                pending.stage = StepStage::Paths;
-                d.steps.insert(owner, pending).expect("replaces step");
-                gather_read(d, env, owner, repository, skein_forge::api::Read::Compare { before, after }, out);
-                return;
-            }
+            compare |= !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &row.base);
+        }
+        if compare {
+            pending.stage = StepStage::Paths;
+            let repository = row.repository;
+            d.steps.insert(owner, pending).expect("replaces step");
+            gather_read(d, env, owner, repository, skein_forge::api::Read::Compare { before, after }, out);
+            return;
         }
     }
     finish_step(d, env, pending, out);
@@ -6402,7 +6433,7 @@ fn hold_read_session(
             readback_owed: read_session::readback_owed(d, task),
             nearest_write: None,
             touched: crate::Touched::UNKNOWN,
-            temper_dir: crate::TemperDirEvidence::Uncovered,
+            temper_dir: temper_dir::unread(d, &row),
             prior,
             head: row.change.last_head,
             base_tip: [0; 32],
@@ -6674,7 +6705,11 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         if !reviewed && in_queue(&row.change.state) && !d.panel_approvals(&row).is_empty() {
             emit(
                 out,
-                Request::Reviewed { task: row.task, evidence: step_evidence(d, &row, &pending, row.change.clone()) },
+                Request::Reviewed {
+                    task: row.task,
+                    evidence: step_evidence(d, &row, &pending, row.change.clone()),
+                    temper_dir: None,
+                },
             );
             reviewed = true;
         }
@@ -6781,7 +6816,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 crate::recheck::hold_words(&row, measured)
             };
         }
-        if let change::Decision::Delegate(change::Delegate::Repair(_)) = stepped.decision {
+        if let change::Decision::Delegate(change::Delegate::Repair(why)) = stepped.decision {
+            row.temper_dir_fault =
+                if let change::Repair::TemperDir { .. } = why { pending.temper_dir.fault.take() } else { None };
             row.regate = None;
             row.ci_recheck = None;
         }
@@ -6791,7 +6828,8 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         // If the landing tip changed, the update's containment cannot serve Checking.
         let reread_base = matches_updating(&effect_prior.state)
             && !matches_updating(&row.change.state)
-            && updating_base(&effect_prior.state) != Some(facts.base_tip)
+            && (updating_base(&effect_prior.state) != Some(facts.base_tip)
+                || facts.temper_dir == change::TemperDir::Pending)
             && decision == change::Decision::None;
         let decision = if reread_base { change::Decision::Wait { until: Some(env.wall) } } else { decision };
         match decision {
@@ -7355,6 +7393,8 @@ fn change_facts(
         Some(repository) => d.requires(repository, &row.base, step_touched(d, row, pending)),
         None => crate::Requires { ci: true, up_to_date: true },
     };
+    let temper_dir = temper_dir::fact(d, row, pending);
+    let updates = requires.up_to_date || temper_dir == change::TemperDir::Update;
     let window = crate::settle::window(d, row.task);
     change::Facts {
         release_blocked: d.task_holds.get(&row.task) == Some(&TaskHold::Blocked),
@@ -7399,9 +7439,10 @@ fn change_facts(
         },
         base_tip,
         base_read: pending.base_read.unwrap_or(base_tip),
-        contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
+        contains_base: if updates { pending.contains_base } else { change::Status::Passed },
         contains_head: pending.contains_head,
-        updates: requires.up_to_date,
+        updates,
+        temper_dir,
         merge_job: pending.merge_job && d.merge_kind.is_some(),
         delegate: match row.delegate {
             Some((_, kind)) => Some(kind),
@@ -7476,7 +7517,7 @@ fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: chan
             None => None,
         },
         touched: step_touched(d, row, pending),
-        temper_dir: crate::TemperDirEvidence::Uncovered,
+        temper_dir: temper_dir::evidence(d, row, pending),
         prior,
         head: pending.branch,
         // An unfinished gather supplies evidence only to name its read stall.
@@ -11497,6 +11538,7 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     }
     d.review_requests.remove(&row.task);
     d.review_facts.remove(&row.task);
+    d.temper_dir_passes.remove(&row.task);
     d.review_heads.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {
         Some(read) if Some(read.head) == row.change.last_head => Some(*read),
