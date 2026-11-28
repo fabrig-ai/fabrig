@@ -2,7 +2,6 @@
 from collections import defaultdict
 from contextlib import nullcontext
 import fnmatch
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -16,7 +15,6 @@ import sys
 import tempfile
 import time
 import tomllib
-import xml.etree.ElementTree as ET
 
 
 TIERS = Path(__file__).resolve().parents[1] / 'tiers'
@@ -181,23 +179,22 @@ def checked_git(args, root, env, data=None):
     return result.stdout
 
 
-# Delivery and child change selection starts from the worker's landing pin (section 1).
-BASES = {'delivery': ('refs/temper/landing', 'refs/remotes/origin/main'),
-         'child': ('refs/temper/landing', 'refs/remotes/origin/main')}
+# Delivery selection starts from the worker's landing pin (section 1).
+DELIVERY_REFS = ('refs/temper/landing', 'refs/remotes/origin/main')
 
 
 UNCHECKED_SAVE = 'Unchecked: work in progress, saved before a question'
 
 
-def change_base(root, env, scope):
-    """The merge base of HEAD, any pending MERGE_HEAD and the scope's first base reference present.
+def change_base(root, env):
+    """The merge base of HEAD, any pending MERGE_HEAD and the first usable delivery reference.
 
     The worker's unchecked saves are stepped past along first parents, so their edits are checked.
     """
     heads = ['HEAD']
     if git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD^{commit}'], root, env).returncode == 0:
         heads.append('MERGE_HEAD')
-    for name in BASES.get(scope, ()):
+    for name in DELIVERY_REFS:
         result = git(['merge-base', name, *heads], root, env)
         if result.returncode or not result.stdout.strip():
             continue
@@ -241,7 +238,7 @@ def main_goal_landing(root, env):
 
 
 def scope_base(root, env, scope, has_git, published=None):
-    """The base a delivery, child or close check compares with, or why there is none."""
+    """The base a delivery or close check compares with, or why there is none."""
     if not has_git:
         return None, None, 'no base: this is no git checkout, so nothing says what changed'
     if scope == 'close':
@@ -261,12 +258,12 @@ def scope_base(root, env, scope, has_git, published=None):
             base, name = published['base'], "main's newest published commit in HEAD"
     else:
         try:
-            base, name = change_base(root, env, scope)
+            base, name = change_base(root, env)
         except ValueError as error:
             return None, None, f'no base: {error_line(error)}'
     lacks = "; the worker's checkout lacks what pre-PR compares with"
     if base is None:
-        return None, None, f"no base: this checkout has no {' or '.join(BASES[scope])} sharing history with HEAD" + lacks
+        return None, None, f"no base: this checkout has no {' or '.join(DELIVERY_REFS)} sharing history with HEAD" + lacks
     if scope == 'close' and base == git(['rev-parse', 'HEAD'], root, env).stdout.decode().strip():
         # The goal's commits are already on main as this checkout has it, or there are none.
         return None, None, f'no base: the base found, {name}, is HEAD itself, so nothing says what the goal changed' + lacks
@@ -485,8 +482,7 @@ def code_inputs(paths, data, root, *, local_manifests=False):
         # alone must not turn a package README into a build.
         if source or registered or (not documentation(path) and (
                 '.cargo' in Path(path).parts[:-1] or path.startswith(('.config/', 'tools/'))
-                or path in ('.temper/hooks/deliver', '.temper/hooks/finish', '.temper/pre-pr',
-                            '.temper/goal-pre-pr', '.temper/goal-child-pre-pr')
+                or path in ('.temper/hooks/deliver', '.temper/hooks/finish', '.temper/pre-pr')
                 or (path.startswith('skein/scripts/') and path.endswith('.sh'))
                 or any(path.startswith(prefix) for prefix in prefixes)
                 or owner(root / path, directories) is not None
@@ -745,12 +741,6 @@ def budget_line(figure):
     return (head + text).encode()[:127].decode(errors='ignore')
 
 
-def merge_tests(root, env):
-    """Run check 9 for deliveries changing the merge job (tools/pre-pr/design.md, 4)."""
-    code, log = run(['python3', '-I', '-B', 'tools/merge/test_merge.py'], root, env, stdout=True)
-    return code, command_errors('merge', code, log)
-
-
 JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
 JOURNEY_ASSETS = {'skein-ui.css', 'journey.js', 'theme.css', 'tui-journey.js', 'looks.html'}
 
@@ -768,8 +758,6 @@ def written_journey_file(path):
 
 def journey_paths(root, source_env, work, env, tree_id, paths, base_id, head):
     """For check 8 only, leave out entries a merged tip holds as they stand in the snapshot."""
-    if base_id is None:
-        return changed_paths(root, source_env, head) if head else []
     if not paths or not head:
         return paths
 
@@ -904,8 +892,8 @@ def format_changes(root, paths, env):
                         'cargo fmt -- --check')
 
 
-def failure(name, log, key=None, package=None):
-    return {'name': name, 'log': tail(log), 'key': key, 'package': package, 'inherited': False}
+def failure(name, log, key=None):
+    return {'name': name, 'log': tail(log), 'key': key, 'inherited': False}
 
 
 def broken(what, error, log=None):
@@ -933,42 +921,6 @@ def command_errors(what, code, log, *, name=None, detail=None):
 
 def package_args(packages):
     return [arg for name in packages for arg in ('-p', name)]
-
-
-def clippy(packages, data, root, env):
-    """Key compiler errors by package, code, primary file and message (section 5)."""
-    errors = []
-    names = {p['id']: p['name'] for p in data['packages']}
-
-    def consume(line, log):
-        try:
-            event = json.loads(line)
-        except (ValueError, UnicodeDecodeError):
-            log.add(line)
-            sys.stdout.buffer.write(line)
-            sys.stdout.flush()
-            return
-        if event.get('reason') != 'compiler-message':
-            return
-        message = event['message']
-        rendered = message.get('rendered') or message['message'] + '\n'
-        print(rendered, end='', flush=True)
-        log.add(rendered.encode())
-        if message['level'] != 'error':
-            return
-        package = names.get(event['package_id'], event['package_id'])
-        code = (message.get('code') or {}).get('code', '')
-        file = next((s['file_name'] for s in message.get('spans', []) if s['is_primary']), '')
-        if Path(file).is_absolute() and Path(file).is_relative_to(root):
-            file = str(Path(file).relative_to(root))
-        key = (package, code, file, message['message'])
-        errors.append(failure(f'clippy {package} {code} {file}', rendered, key, package))
-
-    code, log = run(['cargo', 'clippy', '--all-targets', '--message-format=json'] +
-                    package_args(packages) + ['--', '-D', 'warnings'], root, env, consume)
-    if not errors or code < 0 or code == 127:
-        errors += command_errors('clippy', code, log, name='check clippy', detail=f'exit {code}\n{log}')
-    return code, errors
 
 
 def test_binaries(data, root):
@@ -1002,14 +954,6 @@ def test_binaries(data, root):
     return inventory
 
 
-def build_test_binaries(binaries, root, env):
-    for binary in binaries:
-        code, log = run(['cargo', 'build', '-p', binary['package'], '--bin', binary['bin']], root, env)
-        if code:
-            return code, command_errors('build', code, log, detail=f"{binary['package']}/{binary['bin']}: exit {code}\n{log}")
-    return 0, []
-
-
 def listing_failed_to_build(code, log):
     return code == 2 and log.rstrip('\r\n').rsplit('\n', 1)[-1] == 'one-process: nextest listing exited with 101'
 
@@ -1038,154 +982,18 @@ def close_test_errors(directory, what, code, log):
     return errors
 
 
-def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default'):
-    """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
-    check_name = 'tests' if profile == 'default' else 'fuzzy tests'
-    suffix = '' if profile == 'default' else ' fuzzy'
-    with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
-        directory = Path(directory) / ('tests' if profile == 'default' else 'fuzzy')
-        arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
-        arguments += [profile] + package_args(packages) + ['--no-tests=warn'] + planner()['workspace_filter'](packages)
-        test_env = dict(env, TIERS_PRE_PR_TARGETS='1')
-        code, log = run(arguments, root, test_env, stdout=True)
-        if listing_failed_to_build(code, log):
-            return code, [failure('build' + suffix, 'no tests ran\n' + log)], None
-        if code not in (0, 100):
-            return code, [command_break('one-process' + suffix, code, log)], None
-        starved = None
-        errors = []
-        source = 'run.json'
-        try:
-            state = json.loads((directory / source).read_text())
-            if not isinstance(state['starved'], bool):
-                raise ValueError('starved must be a boolean')
-            source = 'results.json'
-            results = json.loads((directory / source).read_text())
-            if not isinstance(results['tests'], list) or not isinstance(results['unobserved'], list):
-                raise ValueError('tests and unobserved must be lists')
-            observed = {}
-            count = 0
-            for test in results['tests']:
-                binary, name, outcome = test['binary_id'], test['test_name'], test['outcome']
-                if not all(isinstance(value, str) for value in (binary, name, outcome)):
-                    raise ValueError('binary_id, test_name and outcome must be strings')
-                if test.get('alone') not in (None, 'passed', 'failed'):
-                    raise ValueError('invalid alone result')
-                before = test.get('before', [])
-                if not isinstance(before, list) or not all(isinstance(name, str) for name in before):
-                    raise ValueError('before must be a list of names')
-                observed[binary, name] = test
-                count += outcome in ('starved', 'cancelled')
-            if state['starved'] or count:
-                starved = (f'pre-pr: {check_name} starved: {count} starved or cancelled, '
-                           f'{len(results["unobserved"])} unobserved, a warning '
-                           '(skein/docs/foundation/testing-strategy.md, 8.1)')
-                print(starved, flush=True)
-            if outcomes is not None:
-                outcomes.update(observed)
-            if code == 0:
-                return code, [], starved
-            source = 'junit.xml'
-            document = ET.parse(directory / source)
-            for suite in document.iter('testsuite'):
-                binary = suite.get('name', '')
-                for case in suite.findall('testcase'):
-                    faults = case.findall('failure') + case.findall('error')
-                    if not faults:
-                        continue
-                    name = case.get('name', '')
-                    test = observed.get((binary, name), {})
-                    if test.get('outcome') == 'cancelled':
-                        continue
-                    output = '\n'.join(''.join(node.itertext()) for node in faults +
-                                       case.findall('system-out') + case.findall('system-err'))
-                    if test.get('alone') == 'passed':
-                        output += '\nmay depend on an earlier test: ' + ', '.join(test.get('before', []))
-                    # Cargo's binary id starts with its owning package's name.
-                    package = binary.split('::', 1)[0]
-                    errors.append(failure(f'test {binary} {name}', output, (binary, name), package))
-        except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
-            errors.append(broken('one-process' + suffix, f'{source}: {error}'))
-            return code or 1, errors, starved
-        if not errors:
-            errors.append(broken('one-process' + suffix, 'exit 100 without JUnit failures'))
-        inherited(reds, errors)
-        tests_again(errors, observed, rerun, directory, root, env)
-        return code, errors, starved
-
-
-def tests_again(errors, observed, bound, directory, root, env):
-    """Replay unlisted failures serially while the first run still exists (section 4)."""
-    candidates = sorted((error for error in errors if error['name'].startswith('test ')
-                         and not error['inherited']
-                         and observed.get(error['key'], {}).get('outcome') in ('failed', 'crashed')),
-                        key=lambda error: error['key'])
-    if len(candidates) > bound:
-        print(f'pre-pr: tests again: none ({len(candidates)} failures, at most {bound} run again)', flush=True)
-        return
-    for number, error in enumerate(candidates, 1):
-        binary, name = error['key']
-        test = observed[binary, name]
-        names = test.get('before', []) + [name]
-        if 'before' not in test:
-            print(f'pre-pr: tests again: {binary} {name}: no before recorded; running the test alone', flush=True)
-        print(f'pre-pr: tests again: {binary} {name} ({len(names)} tests) …', flush=True)
-        start = time.monotonic()
-        again = directory.parent / f'again-{number}'
-        code, _ = run(['python3', '-I', '-B', 'tools/tiers/one-process', '--again', str(directory),
-                       '--out', str(again), binary] + names, root, env, stdout=True)
-        passed = False
-        if code in (0, 100):
-            try:
-                results = json.loads((again / 'results.json').read_text())
-                passed = any(test['binary_id'] == binary and test['test_name'] == name
-                             and test['outcome'] == 'passed' for test in results['tests'])
-                if code == 100 and any(test['binary_id'] == binary and test['test_name'] == name
-                                       and test['outcome'] in ('failed', 'crashed') for test in results['tests']):
-                    error['confirmed_at'] = time.monotonic()
-            except (OSError, ValueError, KeyError, TypeError):
-                pass
-        seconds = time.monotonic() - start
-        if passed:
-            error['flake'] = (len(names), seconds)
-        print(f'pre-pr: tests again: {binary} {name}: {"passed" if passed else "failed"}, '
-              f'{seconds:.3f} s', flush=True)
-
-
-def rerun_bound(root, env):
-    """Read temper's one-line process bound once before the cache (section 4)."""
-    path = root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/rerun'], root, env).stdout).strip()
-    try:
-        content = path.read_bytes()
-    except FileNotFoundError:
-        return 0
-    match = re.fullmatch(rb'temper-rerun 1 ([0-9]+)\n?', content)
-    if match:
-        digits = match[1].lstrip(b'0')
-        if len(digits) <= 2:
-            value = int(digits or b'0')
-            if value <= 16:
-                return value
-    print('pre-pr: rerun: ignored temper/rerun (malformed)', flush=True)
-    return 0
-
-
 def goal_reds(root, env):
     """Read optional reporting keys without waiting or changing the verdict."""
-    paths = [root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/' + name], root, env).stdout).strip()
-             for name in ('reds', 'reds-wait')]
-    path, marker = paths
-    requested = marker.is_file()
+    path = root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/reds'], root, env).stdout).strip()
     try:
         with path.open('rb') as source:
             size = os.fstat(source.fileno()).st_size
             if size > 2097152:
                 print(f'pre-pr: reds: none (temper/reds oversized: {size} bytes)', flush=True)
-                return set(), None, requested
+                return set()
             content = source.read()
     except FileNotFoundError:
-        return set(), None, requested
-    digest = hashlib.sha256(content).hexdigest()
+        return set()
     lines = content.split(b'\n')
     if lines[-1] == b'':
         lines.pop()
@@ -1206,71 +1014,41 @@ def goal_reds(root, env):
             entries.add(('test', *test.groups()) if test else ('lint', *lint.groups()))
     if malformed is not None:
         print(f'pre-pr: reds: none (temper/reds malformed at line {malformed})', flush=True)
-        return set(), digest, requested
+        return set()
     print(f'pre-pr: reds: {len(entries)} entries (temper/reds)', flush=True)
-    return entries, digest, requested
+    return entries
 
 
-def inherited(reds, errors):
-    """Only the goal's tests and coded lints inherit, without their messages (section 5)."""
-    for error in errors:
-        key = error['key']
-        if key is None:
-            continue
-        if error['name'].startswith('test '):
-            entry = ('test', *key)
-        elif error['name'].startswith('clippy ') and key[1]:
-            entry = ('lint', *key[:3])
-        else:
-            continue
-        if entry in reds:
-            error['inherited'] = True
-
-
-def check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, env):
-    """Report observed goal reds and flakes atomically (section 6; forge/reds.md, 5.5)."""
+def check_results(tree_id, base_id, verdict, reds, outcomes, errors, root, env):
+    """Report observed goal reds atomically (section 6; forge/reds.md, 5.5)."""
     lines = ['temper-check 1', f'check {tree_id} {base_id or "-"} {verdict}']
-    failed_tests = {e['key'] for e in errors if e['name'].startswith('test ') and 'flake' not in e}
-    lint_errors = [e for e in errors if e['name'].startswith('clippy ')]
-    clippy_valid = not any(e['name'] == 'check clippy' for e in errors)
+    failed_tests = {e['key'] for e in errors if e['name'].startswith('test ')}
     for entry in sorted(reds):
-        status = None
-        if entry[0] == 'test':
-            key = entry[1:]
-            outcome = outcomes.get(key, {}).get('outcome')
-            if outcome == 'passed':
-                status = 'passed'
-            elif outcome in ('failed', 'crashed') and key in failed_tests:
-                status = 'failed'
-        elif entry[1] in lints and clippy_valid:
-            if any(e['key'][:3] == entry[1:] for e in lint_errors):
-                status = 'failed'
-            elif not any(e['package'] == entry[1] and not e['key'][1] for e in lint_errors):
-                status = 'passed'
-        if status:
-            lines.append(status + ' ' + ' '.join(entry))
-    for error in sorted((e for e in errors if 'flake' in e), key=lambda e: e['key']):
-        lines.append('flake test ' + ' '.join(error['key']))
-        lines.extend('| ' + line if line else '|' for line in error['log'].splitlines())
+        if entry[0] != 'test':
+            continue
+        key = entry[1:]
+        outcome = outcomes.get(key, {}).get('outcome')
+        if outcome == 'passed':
+            lines.append('passed ' + ' '.join(entry))
+        elif outcome in ('failed', 'crashed') and key in failed_tests:
+            lines.append('failed ' + ' '.join(entry))
     path = git_path(root, env, 'temper/check-results')
     replace_file(path, ('\n'.join(lines) + '\n').encode('utf-8'))
 
 
 def settled(error):
-    return error['inherited'] or 'flake' in error
+    return error['inherited']
 
 
 def failure_class(error):
-    return ('broke' if 'broke' in error else 'inherited' if error['inherited'] else
-            'flake' if 'flake' in error else 'new')
+    return 'broke' if 'broke' in error else 'inherited' if error['inherited'] else 'new'
 
 
 def failure_groups(errors):
-    """The summary's class order; inherited takes precedence over a flake."""
+    """The summary's class order; the receipts retain an empty flake class."""
     groups = {kind: [] for kind in ('new', 'flake', 'inherited', 'broke')}
     for error in errors:
         groups[failure_class(error)].append(error)
-    groups['flake'].sort(key=lambda e: e['key'])
     return groups
 
 
@@ -1299,21 +1077,19 @@ def replace_file(path, data):
 
 def failure_file(tree_id, base_id, verdict, cached, groups, root, scope, commits, head, *, errors):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
-    relative = {'child': 'target/temper/goal-child-pre-pr.json',
-                'close': 'target/temper/goal-close-pre-pr.json',
-                'delivery': 'target/temper/pre-pr-light-failures.json'}.get(scope, 'target/temper/pre-pr-failures.json')
+    close = scope == 'close'
+    relative = ('target/temper/goal-close-pre-pr.json' if close else
+                'target/temper/pre-pr-light-failures.json')
     path = root / relative
     try:
         entries = []
-        ordered = ((failure_class(error), error) for error in errors) if scope == 'close' else (
+        ordered = ((failure_class(error), error) for error in errors) if close else (
             (kind, error) for kind, group in groups.items() for error in group)
         for kind, error in ordered:
             key = error['key']
             structured = None
             if key and error['name'].startswith('test '):
                 structured = dict(zip(('kind', 'binary', 'test'), ('test', *key)))
-            elif key and error['name'].startswith('clippy '):
-                structured = dict(zip(('kind', 'package', 'code', 'file', 'message'), ('lint', *key)))
             elif key and len(key) == 4 and error['name'].startswith('old-forms '):
                 structured = dict(zip(('kind', 'tree', 'form', 'count', 'baseline'), ('old-forms', *key)))
             entry = {'class': kind, 'name': error['name'], 'key': structured}
@@ -1324,19 +1100,16 @@ def failure_file(tree_id, base_id, verdict, cached, groups, root, scope, commits
             if error.get('figures'):
                 entry['figures'] = error['figures']
             entries.append(entry)
-        header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
+        header = {'form': 'goal-close-pre-pr 1' if close else 'pre-pr-light-failures 1',
+                  'tree': tree_id, 'base': base_id,
                   'cached': cached, 'verdict': verdict,
                   'counts': counts_by_class(groups)}
         header['comparison'] = 'tree-only' if base_id is None else 'changes'
-        if scope == 'delivery':
-            header.update(form='pre-pr-light-failures 1', scope='light')
-        elif scope == 'child':
-            header.update(form='goal-child-pre-pr 1', scope=scope,
-                          delivery_head=head, destination=None, requested_destination=commits[0] if commits else None)
-        elif scope in ('goal', 'close'):
-            header.update(scope=scope, goal_head=head, destination=None, requested_destination=commits[-1] if commits else None)
-            if scope == 'close':
-                header['form'] = 'goal-close-pre-pr 1'
+        if close:
+            header.update(scope='close', goal_head=head, destination=None,
+                          requested_destination=commits[0] if commits else None)
+        else:
+            header['scope'] = 'light'
         text = json.dumps(header, ensure_ascii=False)[:-1] + ', "failures": [\n'
         text += ',\n'.join(json.dumps(entry, ensure_ascii=False) for entry in entries) + '\n]}\n'
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1366,7 +1139,7 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, groups, verdict, failures_tail, starved, scope, base_name):
+def summary(base_id, tests, groups, verdict, failures_tail, scope, base_name):
     """Keep the first failure whole and count what the host's tail cannot hold."""
     # The whole base id: a red's base is read from this line (forge/reds.md).
     compared = 'current tree' if base_id is None else f'base {base_id}, {base_name}'
@@ -1374,18 +1147,14 @@ def summary(base_id, lints, tests, groups, verdict, failures_tail, starved, scop
     counts = counts_by_class(groups)
     header += (f'failures: {counts["new"]} new, {counts["flake"]} flakes, '
                f'{counts["inherited"]} inherited, {counts["broke"]} broke; {failures_tail}\n')
-    sets = f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
-    sets += ''.join(line + '\n' for line in starved)
-    new, flakes, inherited_errors, broke = groups.values()
+    sets = f'lints: \ntests: {" ".join(tests)}\n'
+    new, _, inherited_errors, broke = groups.values()
     entries = [e['name'] + '\n' + e['log'] for e in new]
-    entries += [f'flake: {e["name"]} (failed under load; passed when its process ran again: '
-                f'{e["flake"][0]} tests, {e["flake"][1]:.3f} s)\n' + e['log']
-                for e in flakes]
     entries += ['inherited: ' + e['name'] +
-                (' (red, temper/reds)' if e['name'].startswith(('test ', 'clippy ')) else '') + '\n'
+                (' (red, temper/reds)' if e['name'].startswith('test ') else '') + '\n'
                 for e in inherited_errors]
     entries += ['broke: ' + e['name'] + '\n' + e['log'] for e in broke]
-    # Keep the verdict and file pointer whole, cutting only the sets and warnings.
+    # Keep the verdict and file pointer whole, cutting only the sets.
     room = max(0, 4096 - len(header.encode()) - 1)
     header += sets.encode()[:room].decode('utf-8', errors='ignore') + '\n'
     diagnostic = next((e['diagnostic'] for e in new if e.get('diagnostic')), '') if scope == 'close' else ''
@@ -1409,30 +1178,6 @@ def summary(base_id, lints, tests, groups, verdict, failures_tail, starved, scop
         telling = [text for text in texts if text.startswith(('FAIL', 'error', 'thread ')) or 'panicked' in text]
         line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0]
         print(stderr_line(line), end='', file=sys.stderr, flush=True)
-
-
-def goal_checks(root, paths, env, errors, rerun):
-    """Run the explicit full diagnostic against the current workspace packages."""
-    data = metadata(root, env)
-    active = members(data)
-    lints = tests = sorted(active)
-    errors += timed('clippy', lambda: clippy(lints, data, root, env))[1]
-    inventory = test_binaries(data, root)
-    helpers = [entry for name in tests for entry in inventory.get(name, [])]
-    build_code, found = build_test_binaries(helpers, root, env)
-    errors += found
-    warnings = []
-    if tests and not build_code:
-        for profile in ('default', 'fuzzy'):
-            _, found, warning = timed(profile, lambda: one_process(tests, root, env, rerun=rerun, profile=profile))
-            errors += found
-            if warning:
-                warnings.append(warning)
-            if any(error['name'].startswith('build') for error in found):
-                break
-    if any(path in paths for path in ('.temper/hooks/merge', '.temper/merge')):
-        errors += timed('merge', lambda: merge_tests(root, env))[1]
-    return lints, tests, warnings
 
 
 def typed_close(scope, env):
@@ -1475,13 +1220,13 @@ def refusal_bytes(head, tree, base, counts, failures, bound):
     return encode()
 
 
-def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(), tests=(), warnings=(), base_name=None,
+def finish(tree_id, base_id, errors, root, env, scope, commits, heads, tests=(), base_name=None,
            *, counts_ref=None, outdated=None):
     groups = failure_groups(errors)
     verdict = outcome(groups)
     head = heads[0] if heads else None
     location = failure_file(tree_id, base_id, verdict, False, groups, root, scope, commits, head, errors=errors)
-    summary(base_id, lints, tests, groups, verdict, location, warnings, scope, base_name)
+    summary(base_id, tests, groups, verdict, location, scope, base_name)
     if verdict == 'passed':
         return 0
     finding = outdated if scope == 'close' and env.get('TEMPER_CLOSE_OUTDATED') == '3' and verdict == 'broke' else None
@@ -1560,18 +1305,13 @@ def close_test_profile(root, env, plan, packages, groups, omitted, args):
 
 
 def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False, counts_source=None,
-                     whole=True, base_id=None, published=UNSELECTED_COUNTS):
+                     base_id=None, published=UNSELECTED_COUNTS):
     start = time.monotonic()
-    if whole and any(p.endswith('.rs') for p in paths):
-        errors += format_workspace(root, env)
-    elif not whole:
-        errors += format_changes(root, paths, env)
+    errors += format_changes(root, paths, env)
     if errors and not completed_goal:
         return []
     plan = planner() if completed_goal else None
-    if completed_goal and whole:
-        package_paths = [p for p in paths if p.endswith('.rs') or plan['owns_package'](root, p)]
-    elif completed_goal:
+    if completed_goal:
         # Prose reaches tests only where the gate declares a reader of it.
         globs = test_input_globs(root)
         package_paths = [p for p in paths if not documentation(p)
@@ -1586,7 +1326,7 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
         with (root / 'tools/tiers/layers.toml').open('rb') as file:
             layers = tomllib.load(file)
         inputs, also = code_inputs(package_paths, data, root), ()
-        if not whole and inputs:
+        if inputs:
             wide = [p for p in inputs if workspace_wide(p)]
             if base_id and counts_source:
                 # Adding a crate edits the lock and the members; the crates that use it changed too.
@@ -1671,8 +1411,7 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
 
 
 HOOKS = {'.temper/hooks/deliver', '.temper/hooks/finish', '.temper/hooks/close',
-         '.temper/pre-pr', '.temper/close', '.temper/checked-close',
-         '.temper/goal-child-pre-pr', '.temper/goal-pre-pr'}
+         '.temper/pre-pr', '.temper/close', '.temper/checked-close'}
 
 
 def with_rust_tools(env):
@@ -1696,8 +1435,8 @@ def check(scope, commits):
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     env.setdefault('CARGO_TARGET_DIR', str(root / 'target'))
     env.pop('TIERS_LEDGER', None)
-    errors, outcomes, warnings, lints, tests = [], {}, [], [], []
-    tree_id = base_id = base_name = receipt_head = counts_ref = outdated = None
+    errors, outcomes, tests = [], {}, []
+    tree_id = base_id = base_name = head = counts_ref = outdated = None
     has_git = False
 
     def current_head():
@@ -1711,40 +1450,28 @@ def check(scope, commits):
             raise ValueError('expected full hexadecimal commit IDs')
         with_rust_tools(env)
         has_git = (root / '.git').exists()
-        head = receipt_head = current_head()
-        if scope == 'goal' and commits and head and head != commits[0]:
-            raise ValueError('checkout HEAD differs from the requested goal')
+        head = current_head()
         with tempfile.TemporaryDirectory(prefix='pre-pr-tree-') as directory:
             work = Path(directory) / 'current'
             fmt = checked_git(['rev-parse', '--show-object-format'], root, source_env).decode().strip() if has_git else 'sha1'
             checked_git(['init', '-q', '--object-format=' + fmt, str(work)], root, env)
             tree_id = snapshot(root, work, env, source_env, work / '.git/index')
             checked_git(['checkout-index', '-a'], work, env)
-            paths = [os.fsdecode(p) for p in checked_git(['ls-files', '-z'], work, env).split(b'\0') if p]
             published = None
             if scope == 'close' and has_git:
                 published, counts_ref = close_counts(root, source_env)
-            if scope in BASES or scope == 'close':
-                base_id, base_name, no_base = scope_base(root, source_env, scope, has_git, published)
-                if no_base:
-                    errors.append(broken('base', no_base))
-                    if published is not None:
-                        outdated = published.get('outdated')
-                else:
-                    paths = changed_paths(root, source_env, base_id)
-                    print(f'pre-pr: base {base_id}, {base_name}: {len(paths)} changed paths', flush=True)
-                    if scope == 'close' and published is None:
-                        print("pre-pr: WARNING: budgets not judged at close: main's counts (refs/temper/counts) "
-                              'are not in this checkout; the landing gate judges them', flush=True)
+            base_id, base_name, no_base = scope_base(root, source_env, scope, has_git, published)
+            if no_base:
+                errors.append(broken('base', no_base))
+                if published is not None:
+                    outdated = published.get('outdated')
+            else:
+                paths = changed_paths(root, source_env, base_id)
+                print(f'pre-pr: base {base_id}, {base_name}: {len(paths)} changed paths', flush=True)
+                if scope == 'close' and published is None:
+                    print("pre-pr: WARNING: budgets not judged at close: main's counts (refs/temper/counts) "
+                          'are not in this checkout; the landing gate judges them', flush=True)
 
-            if not errors:
-                if scope == 'goal' and head:
-                    # Only the current commit can bind this snapshot to a goal head.
-                    current = git(['rev-parse', '--verify', '--quiet', 'HEAD^{tree}'], root, source_env)
-                    if current.returncode or current.stdout.decode().strip() != tree_id:
-                        receipt_head = None
-                        if commits and current.returncode == 0:
-                            raise ValueError('working tree differs from the requested goal head')
                 # Close builds in the goal's checkout, warm with the worker's build cache.
                 close = scope == 'close' and has_git
                 checks_root = root if close else work
@@ -1753,10 +1480,7 @@ def check(scope, commits):
                 try:
                     tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes,
                                              completed_goal=scope == 'close', counts_source=(root, source_env),
-                                             whole=base_id is None, base_id=base_id, published=published)
-                    if scope == 'goal' and not errors:
-                        lints, tests, warnings = goal_checks(work, paths, env, errors,
-                                                            rerun_bound(root, source_env) if has_git else 0)
+                                             base_id=base_id, published=published)
                 except CheckFindings as found:
                     errors.extend(found.errors)
                 except Exception as error:
@@ -1764,7 +1488,7 @@ def check(scope, commits):
 
                 def check_journeys():
                     own = journey_paths(root, source_env, work, env, tree_id, paths, base_id, head)
-                    return journeys(checks_root, own, base_id or 'HEAD')
+                    return journeys(checks_root, own, base_id)
 
                 errors += timed('journeys', check_journeys)
                 if close and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
@@ -1779,7 +1503,7 @@ def check(scope, commits):
             # No snapshot to name in a receipt; leave the last completed check's file alone.
             print_broke(errors[0]['broke'])
             return 2 if typed_close(scope, env) else 1
-        return finish(tree_id, base_id, errors, root, env, scope, commits, [receipt_head], lints, tests, warnings,
+        return finish(tree_id, base_id, errors, root, env, scope, commits, [head], tests,
                       base_name, counts_ref=counts_ref, outdated=outdated)
 
     if has_git and scope == 'delivery':
@@ -1791,9 +1515,9 @@ def check(scope, commits):
                 if verdict == 'broke':
                     results.unlink(missing_ok=True)
                 else:
-                    reds, _, _ = goal_reds(root, source_env)
+                    reds = goal_reds(root, source_env)
                     status = report()
-                    check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, source_env)
+                    check_results(tree_id, base_id, verdict, reds, outcomes, errors, root, source_env)
                     return status
         except Exception as error:
             errors.append(broken('check-results', error))
@@ -1810,11 +1534,7 @@ def main(args):
         return check('delivery', ())
     if args[0] == '--close' and len(args) in (1, 2):
         return check('close', args[1:])
-    if args[0] == '--child' and len(args) in (1, 2):
-        return check('child', args[1:])
-    if args[0] == '--goal' and len(args) in (1, 3):
-        return check('goal', args[1:])
-    raise ValueError('expected no arguments, --goal [HEAD DESTINATION], --child [DESTINATION], or --close [DESTINATION]')
+    raise ValueError('expected no arguments or --close [DESTINATION]')
 
 
 if __name__ == '__main__':
