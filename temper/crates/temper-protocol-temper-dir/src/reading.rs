@@ -1,4 +1,4 @@
-//! The reads of one immutable tree (temper/docs/design/domain/forge/temper-dir-contracts.md, 1.1).
+//! The reads of one immutable tree (temper/docs/design/domain/forge/temper-dir.md, 2).
 use crate::{CHARTERS, DIRECTORIES, FILE_BYTES, FILES, HOOKS, ROOT, TOTAL_BYTES};
 use alloc::boxed::Box;
 use jig_domain_people::settings::is_name;
