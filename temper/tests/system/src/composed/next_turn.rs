@@ -75,7 +75,7 @@ impl World {
                     llm: Some(people::LlmChoice {
                         later: None,
                         account: None,
-                        main: people::ModelEffort { model, effort },
+                        main: people::ModelEffort { model, effort, speed: None },
                         subagents: Box::default(),
                     }),
                     reason: b"Change next run".as_slice().into(),

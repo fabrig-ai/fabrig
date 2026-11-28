@@ -1,13 +1,10 @@
-//! The event stream reader's machine world, swept (testing-strategy.md, 8;
-//! http.md, 6): many streams, generated and mutated, and the bodies of the
-//! transcripts that hold events, cut and mutated, under limits and
-//! neighbours drawn from each seed, each run checked against the reference
-//! reader. This stands in for the fuzz target, which waits for a nightly
-//! toolchain.
-//!
-//! A sweep asserts that what it injects fell (testing-strategy.md, 3): each
-//! way a stream can fail, each way it can end or fail below, a close in
-//! each state, a CR's LF delivered alone, and a line read in pieces.
+//! The event stream reader's machine world, swept (`skein/docs/design/net/http/testing.md`, 6).
+//! Each generated or transcript stream is checked against the reference
+//! reader; each delivery split is checked against single-byte deliveries.
+//! The gate checks outcome and neighbour reach across its seeds
+//! (`skein/docs/design/testing/sweeps.md`, 4).
+
+use std::convert::Infallible;
 
 use skein_http::sse::{self, Error, Event, Limits, Reader, Request, Waiting};
 use skein_http_world::reference::Ending;
@@ -17,8 +14,13 @@ use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
 use skein_lib::{Env, Queue, Rng, Time, Wall, usize_of};
 use skein_protocol_kit::random::draw;
 use skein_protocol_kit::seen::Seen;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
 
 const ROUNDS: u64 = 12_000;
+const SPLIT_BASE: u64 = 0x0082_0000;
+const SPLIT_CASES: u64 = 128;
+const SHORT_SPLIT_CASES: u64 = 32;
 
 fn record(tally: &mut Seen, run: &Run, settings: &Settings) {
     match run.outcome {
@@ -87,18 +89,26 @@ const EVERY: [&str; 26] = [
 fn generated_and_mutated_streams_read_as_the_reference_reads_them_whatever_the_neighbours() {
     let mut tally = Seen::default();
     let mut mutations = generate::MutationBatch::default();
-    for round in 0..ROUNDS {
-        let seed = 0x0080_0000 + round;
+    let at_gate = gate();
+    let base = 0x0080_0000;
+    let test = this_test!("generated_and_mutated_streams_read_as_the_reference_reads_them_whatever_the_neighbours");
+    cases::<_, Infallible, _>(test, base..base + ROUNDS, |seed| {
         let mut rng = Rng::new(seed);
         let stream = generate::events(&mut rng);
         let stream = if rng.chance(500) { generate::mutate(&mut rng, &stream) } else { stream.into() };
         let limits = sse_world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, stream.input().len());
         let run = mutations.judge(stream, |stream| sse_world::check(&stream, &settings, seed));
-        record(&mut tally, &run, &settings);
-    }
+        if at_gate {
+            record(&mut tally, &run, &settings);
+        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
-    tally.assert_fell(&EVERY);
+    if at_gate {
+        tally.assert_fell(&EVERY);
+    }
 }
 
 #[test]
@@ -116,8 +126,10 @@ fn the_transcripts_events_cut_mutated_and_failed_read_as_the_reference_reads_the
     assert!(bodies.len() >= 4, "the transcripts hold event streams");
     let mut tally = Seen::default();
     let mut mutations = generate::MutationBatch::default();
-    for round in 0..ROUNDS / 6 {
-        let seed = 0x0081_0000 + round;
+    let at_gate = gate();
+    let base = 0x0081_0000;
+    let test = this_test!("the_transcripts_events_cut_mutated_and_failed_read_as_the_reference_reads_them");
+    cases::<_, Infallible, _>(test, base..base + ROUNDS / 6, |seed| {
         let mut rng = Rng::new(seed);
         let (body, limits) = &bodies[usize::try_from(rng.below(bodies.len() as u64)).unwrap()];
         let stream = body.clone();
@@ -126,10 +138,16 @@ fn the_transcripts_events_cut_mutated_and_failed_read_as_the_reference_reads_the
         limits.chunk = u32::try_from(rng.between(1, 128)).unwrap();
         let settings = Settings::chaotic(&mut rng, limits, stream.input().len());
         let run = mutations.judge(stream, |stream| sse_world::check(&stream, &settings, seed));
-        record(&mut tally, &run, &settings);
-    }
+        if at_gate {
+            record(&mut tally, &run, &settings);
+        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
-    tally.assert_fell(&["Ended", "failed Stream", "closed before the outcome", "a stream ended early"]);
+    if at_gate {
+        tally.assert_fell(&["Ended", "failed Stream", "closed before the outcome", "a stream ended early"]);
+    }
 }
 
 /// Cuts in the bytes already delivered to the reader, independent of the
@@ -153,6 +171,7 @@ impl Pieces {
 }
 
 struct SplitCase {
+    short: bool,
     input: Vec<u8>,
     limits: Limits,
     read: Read,
@@ -167,7 +186,7 @@ struct Trace {
 }
 
 fn split_trace(case: &SplitCase, pieces: Pieces) -> Trace {
-    let SplitCase { input, limits, read, fault } = case;
+    let SplitCase { input, limits, read, fault, .. } = case;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut reader = Reader::new(limits);
     let mut above = Queue::uncapped();
@@ -215,8 +234,10 @@ fn split_trace(case: &SplitCase, pieces: Pieces) -> Trace {
     panic!("a finite stream settles under {pieces:?}");
 }
 
-fn split_case(seed: u64, short: bool) -> SplitCase {
+fn split_case(seed: u64) -> SplitCase {
     const VALUE: &[u8] = b"aba :\0\xff";
+    // The first 32 gate seeds draw short inputs for exhaustive masks.
+    let short = seed.wrapping_sub(SPLIT_BASE) % SPLIT_CASES < SHORT_SPLIT_CASES;
     let mut rng = Rng::new(seed);
     let mut input = b"data:".to_vec();
     if rng.chance(500) {
@@ -267,26 +288,34 @@ fn split_case(seed: u64, short: bool) -> SplitCase {
     } else {
         None
     };
-    SplitCase { input, limits, read, fault }
+    SplitCase { short, input, limits, read, fault }
+}
+
+#[test]
+fn split_draw_keeps_the_gate_boundary_and_accepts_full_width_seeds() {
+    assert!(split_case(0x0082_0000 + 31).short);
+    assert!(!split_case(0x0082_0000 + 32).short);
+    assert!(split_case(0).short);
+    assert!(!split_case(u64::MAX).short);
 }
 
 #[test]
 fn every_split_of_generated_deliveries_matches_single_byte_deliveries() {
-    const BASE: u64 = 0x0082_0000;
-    const SHORT: u64 = 32;
-    const CASES: u64 = 128;
     let mut outcomes = Seen::default();
-    for round in 0..CASES {
-        let seed = BASE + round;
-        let short = round < SHORT;
-        let case = split_case(seed, short);
+    let at_gate = gate();
+    let test = this_test!("every_split_of_generated_deliveries_matches_single_byte_deliveries");
+    cases::<_, Infallible, _>(test, SPLIT_BASE..SPLIT_BASE + SPLIT_CASES, |seed| {
+        let case = split_case(seed);
         // Single-byte deliveries cannot use the run path.
         let bytewise = split_trace(&case, Pieces::Bytes);
-        outcomes.note(format!("{:?}", bytewise.events[bytewise.events.len() - 2]));
+        let outcome = &bytewise.events[bytewise.events.len() - 2];
+        if at_gate {
+            outcomes.note(format!("{outcome:?}"));
+        }
         let check = |pieces| {
             assert_eq!(split_trace(&case, pieces), bytewise, "seed {seed:#x}, {pieces:?}, read {:?}", case.read);
         };
-        if short {
+        if case.short {
             // Enumerate every subset of optional cuts. Ends of lines and
             // the end of the delivery are always cut, so their bits add no case.
             let optional = case.input[..case.input.len().saturating_sub(1)]
@@ -307,12 +336,16 @@ fn every_split_of_generated_deliveries_matches_single_byte_deliveries() {
                 check(Pieces::Split(at));
             }
         }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        outcomes.assert_fell(&[
+            "Ended",
+            "Failed(LineTooLong)",
+            "Failed(EventTooLong)",
+            "Failed(FieldTooLong)",
+            "Failed(Stream(Reset))",
+        ]);
     }
-    outcomes.assert_fell(&[
-        "Ended",
-        "Failed(LineTooLong)",
-        "Failed(EventTooLong)",
-        "Failed(FieldTooLong)",
-        "Failed(Stream(Reset))",
-    ]);
 }

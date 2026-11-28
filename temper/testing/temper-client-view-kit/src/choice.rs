@@ -113,7 +113,7 @@ pub fn provider_byline_root(
                 choice: c::LlmChoice {
                     later: None,
                     account: None,
-                    main: c::ModelEffort { model: model_text(preview), effort: None },
+                    main: c::ModelEffort { model: model_text(preview), effort: None, speed: None },
                     subagents: List::with_capacity(0),
                 },
             })
@@ -202,6 +202,7 @@ pub fn line_fixture(
         main: c::ModelEffort {
             model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(),
             effort: effort.map(|name| c::Text::new(Box::from(name), 32).unwrap()),
+            speed: None,
         },
         subagents: List::with_capacity(0),
     });
@@ -380,6 +381,8 @@ pub fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
         picker: true,
         description: None,
         prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
+        speeds: List::with_capacity(0),
+        speed: None,
     }
 }
 
@@ -415,7 +418,11 @@ pub fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Toke
         choice: c::LlmChoice {
             later: None,
             account: None,
-            main: c::ModelEffort { model: model_text(b"claude-opus-5-5"), effort: Some(model_text(b"high")) },
+            main: c::ModelEffort {
+                model: model_text(b"claude-opus-5-5"),
+                effort: Some(model_text(b"high")),
+                speed: None,
+            },
             subagents: List::with_capacity(0),
         },
     }]));

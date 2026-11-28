@@ -1967,10 +1967,7 @@ fn lasting_task_read_ends_say_why() {
             b"This task is too large to read.".as_slice(),
         ),
         (Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed)), b"This task could not be read.".as_slice()),
-        (
-            Readout::NotServed { family: None, served: None },
-            b"This version of temper cannot read this task.".as_slice(),
-        ),
+        (Readout::NotServed { family: None }, b"This version of temper cannot read this task.".as_slice()),
     ] {
         let (mut root, watch) = unread_task();
         end_task_read(&mut root, watch, result);

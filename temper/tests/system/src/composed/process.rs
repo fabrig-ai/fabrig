@@ -52,8 +52,11 @@ pub(crate) struct Process {
     pub(super) history_messages: Option<u32>,
     pub(super) tool_payload: Option<u32>,
     pub(super) configure_settings: Option<fn(&mut Settings)>,
+    /// The first activation of the composed park cell mounts one long-running command.
+    pub(super) park_cell_job: bool,
     mounts: Vec<(Vec<u8>, Vec<u8>)>,
     agent: Option<Agent>,
+    attempt: Option<(u64, u64)>,
     up: VecDeque<agent::Up>,
     reading: Option<Token>,
     waiting: Option<Token>,
@@ -186,8 +189,10 @@ impl Process {
             history_messages: None,
             tool_payload: None,
             configure_settings: None,
+            park_cell_job: false,
             mounts: Vec::new(),
             agent: None,
+            attempt: None,
             up: VecDeque::new(),
             reading: None,
             waiting: None,
@@ -304,6 +309,16 @@ impl Process {
             return None;
         }
         Some(start.saturating_add(Duration::from_nanos(agent.now().as_nanos())))
+    }
+
+    /// The world of the activation started in this process, with its fleet numbers.
+    pub(super) fn activation(&self) -> Option<(&Agent, u64, u64)> {
+        let (task, attempt) = self.attempt?;
+        Some((self.agent.as_ref()?, task, attempt))
+    }
+
+    pub(super) fn channel_up(&self) -> &VecDeque<agent::Up> {
+        &self.up
     }
 
     /// The live or last activation's smith world.
@@ -467,7 +482,7 @@ impl Process {
         }
         self.plan_stretches(assignment.task, restored, around);
         let mut mounted = Disk::new();
-        let workspace = mount(&start.directories, around.disk, &mut mounted);
+        let workspace = mount(&start.directories, around.disk, &mut mounted, self.park_cell_job);
         self.mounts = mount_paths(&start.directories);
         let charter = start.charter.into_value();
         if matches!(assignment.run.contract, jig_domain_tasks::Contract::Verdict { .. }) {
@@ -528,6 +543,7 @@ impl Process {
         }
         agent.enable_parent_host_calls();
         agent.enable_parent_deliveries();
+        self.attempt = Some((assignment.task, assignment.attempt));
         self.agent = Some(agent);
     }
 
@@ -785,7 +801,23 @@ fn durable(store: &Store, name: &run::CallName, body: &[u8]) -> bool {
 
 /// Mount each prepared directory into smith's disk, under its name, at the
 /// absolute path the process would see it.
-fn mount(directories: &[agent::Directory], disk: &Checkout, mounted: &mut Disk) -> Option<run::Workspace> {
+fn mount(
+    directories: &[agent::Directory],
+    disk: &Checkout,
+    mounted: &mut Disk,
+    park_cell_job: bool,
+) -> Option<run::Workspace> {
+    if park_cell_job {
+        mounted.program(
+            b"park-cell-job",
+            skein_fake_checkout::Program {
+                duration: std::time::Duration::from_secs(60),
+                output: Vec::new(),
+                exit: skein_fake_checkout::Exit::Code(0),
+                changes: Vec::new(),
+            },
+        );
+    }
     if directories.is_empty() {
         return None;
     }
@@ -800,6 +832,7 @@ fn mount(directories: &[agent::Directory], disk: &Checkout, mounted: &mut Disk) 
         }
         mounts.push(run::Directory {
             results: None,
+            hooks: None,
             name: directory.name.clone(),
             host: [b"/".as_slice(), directory.name.as_ref()].concat().into_boxed_slice(),
             root: Token::new(mounted.root(&directory.name)),

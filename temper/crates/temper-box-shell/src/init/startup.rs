@@ -1,7 +1,8 @@
 use super::{DeploymentIo, ProviderKey, StartupIo, Written, write_deployment_with};
 use crate::{Directories, EnvironmentEntry, path, testing::init_fixtures::directories};
 use skein_fake_machine::{Facts, How, Is, Item, Machine, Opened, Refusal};
-use skein_io::kernel::{Done, Error, Family, Fd, Op};
+use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op};
+use skein_lib::Token;
 use std::{
     collections::VecDeque,
     io,
@@ -9,9 +10,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub(super) struct ListenerScript(VecDeque<(Op, Result<Done, Error>)>);
+pub(super) struct KernelScript(VecDeque<(Op, Result<Done, Error>)>);
 
-impl ListenerScript {
+impl KernelScript {
+    pub(super) fn operations(steps: impl IntoIterator<Item = (Op, Result<Done, Error>)>) -> Self {
+        Self(steps.into_iter().collect())
+    }
+
     /// Each row gives the bind request and the port returned. A different
     /// answer to a nonzero request means that port was already taken.
     pub(super) fn ports(bindings: [(u16, u16); 2]) -> Self {
@@ -38,11 +43,11 @@ impl ListenerScript {
     }
 }
 
-impl StartupIo for ListenerScript {
-    fn perform(&mut self, kind: Op) -> Result<Done, Error> {
+impl StartupIo for KernelScript {
+    fn complete(&mut self, kind: Op) -> Complete {
         let (expected, result) = self.0.pop_front().expect("scripted startup operation");
         assert_eq!(kind, expected);
-        result
+        Complete { op: Token::new(1), kind, result }
     }
 }
 
@@ -56,17 +61,17 @@ pub(super) enum Effect {
 pub(crate) struct Startup {
     files: Machine,
     root: Opened,
-    listeners: Option<ListenerScript>,
+    listeners: Option<KernelScript>,
     lookups: Vec<(Box<[u8]>, Option<PathBuf>)>,
     pub(super) effects: Vec<Effect>,
 }
 
 impl Startup {
     pub(crate) fn new(items: &[Item], accepts: bool) -> Self {
-        Self::with_listeners(items, accepts.then(|| ListenerScript::ports([(0, 7100), (7101, 7101)])))
+        Self::with_listeners(items, accepts.then(|| KernelScript::ports([(0, 7100), (7101, 7101)])))
     }
 
-    pub(super) fn with_listeners(items: &[Item], listeners: Option<ListenerScript>) -> Self {
+    pub(super) fn with_listeners(items: &[Item], listeners: Option<KernelScript>) -> Self {
         let mut files = Machine::new();
         let root = files.lay(items);
         Self { files, root, listeners, lookups: Vec::new(), effects: Vec::new() }
@@ -188,7 +193,7 @@ fn relative(name: &Path) -> &[u8] {
 }
 
 impl DeploymentIo for Startup {
-    type ListenerIo = ListenerScript;
+    type ListenerIo = KernelScript;
 
     fn symlink_metadata(&mut self, name: &Path) -> io::Result<()> {
         // The snapshot includes handle allocation. Probe on a copy so stat leaves it alone.
@@ -218,7 +223,7 @@ impl DeploymentIo for Startup {
         found
     }
 
-    fn open(&mut self) -> Result<ListenerScript, String> {
+    fn open(&mut self) -> Result<KernelScript, String> {
         Ok(self.listeners.take().expect("init passed all destination checks"))
     }
 
@@ -259,7 +264,7 @@ impl DeploymentIo for Startup {
         true
     }
 
-    fn write(&mut self, io: &mut ListenerScript, name: &Path, bytes: Box<[u8]>, mode: u32) -> Result<(), String> {
+    fn write(&mut self, io: &mut KernelScript, name: &Path, bytes: Box<[u8]>, mode: u32) -> Result<(), String> {
         io.finish();
         self.effects.push(Effect::Write(name.to_owned(), mode));
         let opened = self.files.open(self.root, relative(name), How::Create { mode }).expect("init creates its file");

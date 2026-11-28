@@ -355,6 +355,7 @@ fn entering_checking_arms_the_first_execution_reading() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             };
     }
     assert!(scheduled, "first reading within poll_max: {out:?}");
@@ -529,6 +530,23 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
         }
     }
     decide_step(d, &env(), p, &mut out);
+    if matches!(how, Leave::Conflict(true)) {
+        // The merge job finds its hook in its checkout, without a forge read.
+        assert!(step_owner(d, OWNER).is_none(), "no pending merge hooks read");
+        let mut requested = false;
+        for request in &out {
+            requested |= *request
+                == Request::ChangeDecision {
+                    task: OWNER,
+                    decision: change::Decision::Delegate(change::Delegate::Merge { base: BASE, from: Some(HEAD) }),
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                    close_refusal: None,
+                };
+        }
+        assert!(requested, "the conflict requests a merge job in the same step: {out:?}");
+    }
     out
 }
 

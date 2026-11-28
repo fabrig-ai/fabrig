@@ -54,6 +54,7 @@ mod design_delivery;
 #[cfg(test)]
 mod goals;
 mod inspection;
+mod job_io;
 #[cfg(test)]
 mod latched;
 mod link;
@@ -199,6 +200,7 @@ pub struct World {
     restart_config: engine::Config,
     seed: u64,
     checks: Checks,
+    inspections: inspection::Scratch,
     pub ends: Ends,
     iteration: u64,
     finding: Option<String>,
@@ -616,6 +618,7 @@ impl World {
             restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             seed,
             checks: Checks::new(seed),
+            inspections: inspection::Scratch::default(),
             ends,
             iteration: 0,
             finding: None,
@@ -1043,6 +1046,8 @@ impl World {
             tasks::EndedBy::Requester => people::EndedBy::Requester,
             tasks::EndedBy::Standing => people::EndedBy::Standing,
             tasks::EndedBy::Closer(closer) => {
+                batch[0].flags.conversation = false;
+                batch[0].label = 2;
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }
         };
@@ -1420,6 +1425,15 @@ impl World {
     }
 
     fn forge(&mut self, call: Token, repository: skein_forge::api::Repository, op: &skein_forge::api::Op) {
+        use skein_forge::api::{Op, Read};
+        if (self.merge_job.is_some() || self.close_job.is_some())
+            && let Op::Read(Read::File { path, .. }) = op
+        {
+            assert!(
+                path.as_ref() != b".temper/hooks" && !path.starts_with(b".temper/hooks/"),
+                "the worker finds hooks in its checkout, not through the forge"
+            );
+        }
         if self.hold_workload_close(call, repository, op) {
             return;
         }
@@ -1913,7 +1927,7 @@ impl World {
             | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
-            worker::Request::Job { owner, op } => self.story_job_operation(owner, op),
+            worker::Request::Job { owner, op } => self.job_operation(owner, op),
             worker::Request::Hello(hello) => {
                 if self.absence.enabled {
                     self.absence.hello_pending = true;
@@ -2298,6 +2312,7 @@ fn forge_operation(mut op: worker::checkout::git::Op, git_base: &[u8]) -> worker
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. }

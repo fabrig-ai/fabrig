@@ -902,6 +902,7 @@ fn a_headless_start_reading_its_repository_head() -> (Domain, Env<Limits>, Queue
     config.workspace = Some(run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             root: Token::new(1),
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),

@@ -2018,7 +2018,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
             crate::closer::check(d, env, task, step, repository, branch, base, out);
-            crate::waits::changed(d, task);
         }
         Event::ChangeEnding { task, ending } => {
             crate::room::owner_ended(d, task, env.wall);
@@ -4595,7 +4594,7 @@ fn delegate_result(
             }
         }
         change::Delegate::Close => {
-            crate::close::clear_refusal(row);
+            crate::close::clear_findings(row);
             if row.delegate_status == change::Status::Passed {
                 // Keep the raw result until a branch read sent after this end can judge it.
                 let bound = match d.close_kind {
@@ -4675,6 +4674,7 @@ fn delegate_result(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
     }
@@ -4723,6 +4723,7 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 },
             );
         }
@@ -5122,7 +5123,17 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     }
     if let Some(decision) = change_terminal(row) {
-        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
+        emit(
+            out,
+            Request::ChangeDecision {
+                task,
+                decision,
+                entry: None,
+                evidence: None,
+                close_at: None,
+                close_refusal: None,
+            },
+        );
         return;
     }
     if let Some(merge) = landed_commit(&row.change.state) {
@@ -5144,6 +5155,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -5163,6 +5175,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -5422,7 +5435,14 @@ fn step_verified(
     save_change(d, out, row);
     emit(
         out,
-        Request::ChangeDecision { task, decision: stepped.decision, entry: None, evidence: None, close_at: None },
+        Request::ChangeDecision {
+            task,
+            decision: stepped.decision,
+            entry: None,
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
+        },
     );
 }
 
@@ -5476,7 +5496,14 @@ fn step_read(
         if let Some(decision) = change_terminal(row) {
             emit(
                 out,
-                Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None, close_at: None },
+                Request::ChangeDecision {
+                    task: pending.task,
+                    decision,
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                    close_refusal: None,
+                },
             );
         } else if let Some(merge) = landed_commit(&row.change.state) {
             step_verified(d, env, pending.task, merge, pending.heard, out);
@@ -5509,6 +5536,10 @@ fn step_read(
     if let StepStage::FollowCheck(kind) = pending.stage {
         let mut row = row.clone();
         let action = crate::follow_check::answered(d, env, &mut row, kind, result, &mut pending.follow_tree, out);
+        if let Some(crate::follow_check::Action::Done) = action {
+            // An obsolete check ends this step even if a hint arrived during its read.
+            pending.woken = false;
+        }
         if pending.woken {
             // A hint during the workflow read asks for fresh branch and CI facts before another dispatch.
             d.changes.insert(row.task, row.clone()).expect("known change");
@@ -6302,6 +6333,7 @@ fn wait_for_forge(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -6340,6 +6372,7 @@ fn wait_for_forge(
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -6394,6 +6427,7 @@ fn hold_read_session(
             entry: None,
             evidence: Some(evidence),
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -6435,6 +6469,7 @@ pub(super) fn hold_room_change(
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -6468,6 +6503,7 @@ fn titled_change(
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 },
             );
             return None;
@@ -6495,7 +6531,17 @@ fn titled_change(
         } else {
             change::Decision::Wait { until: Some(until) }
         };
-        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
+        emit(
+            out,
+            Request::ChangeDecision {
+                task,
+                decision,
+                entry: None,
+                evidence: None,
+                close_at: None,
+                close_refusal: None,
+            },
+        );
         return None;
     }
     Some(row)
@@ -6590,7 +6636,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     if crate::follow_check::asked(&row).is_some() {
         row.change.since = env.wall;
     }
-    crate::close::judged(&mut row, pending.branch.is_some());
+    let close_refusal = crate::close::judged(&mut row, pending.branch.is_some());
     if let Some(recheck) = &mut row.ci_recheck {
         if pending.branch.is_some() && pending.branch != Some(recheck.job.head) {
             row.ci_recheck = None;
@@ -6633,7 +6679,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             reviewed = true;
         }
         let effect_prior = row.change.clone();
-        let mut stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        let mut stepped = step_with_merge_bound(d, env, &row, &mut facts, &heard);
+        if stepped.decision == change::Decision::Hold(change::Cause::Failed)
+            && row.catch_up.is_some()
+            && effect_prior.state == (change::State::Producing { requested: false })
+        {
+            row.producer_failure = Some(catch_up_job_failure(d, pending.merge_job));
+        }
         d.merge_withheld.remove(&row.task);
         if d.landing.held
             && let change::Decision::Effect(change::Effect::Merge { .. }) = stepped.decision
@@ -6681,7 +6733,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         {
             forget_released_step(&mut row, &effect_prior.state);
             if cause == change::Cause::CloseRefused && facts.measure {
-                crate::close::clear_refusal(&mut row);
+                crate::close::clear_findings(&mut row);
                 facts.close_at = row.close_at;
             }
             if cause == change::Cause::Runner
@@ -6848,7 +6900,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 } else {
                     None
                 };
-                let choice = if close_at.is_some() {
+                let close_refusal =
+                    if decision == change::Decision::Hold(change::Cause::CloseRefused) { close_refusal } else { None };
+                let choice = if close_at.is_some() || close_refusal.is_some() {
                     decision
                 } else {
                     repair_poll(
@@ -6865,18 +6919,25 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                         ),
                     )
                 };
+                let needs_evidence =
+                    if let change::Decision::Delegate(change::Delegate::Merge { from: None, .. }) = choice {
+                        true
+                    } else {
+                        decision == change::Decision::Hold(change::Cause::BranchMoved)
+                    };
                 emit(
                     out,
                     Request::ChangeDecision {
                         task: row.task,
                         decision: choice,
                         entry: None,
-                        evidence: if decision == change::Decision::Hold(change::Cause::BranchMoved) {
+                        evidence: if needs_evidence {
                             Some(step_evidence(d, &row, &pending, effect_prior))
                         } else {
                             None
                         },
                         close_at,
+                        close_refusal,
                     },
                 );
                 return;
@@ -6955,7 +7016,17 @@ fn drive_check(
             crate::readiness::reconcile(d, env, &mut row, None, out);
             d.changes.insert(task, row.clone()).expect("known change");
             save_change(d, out, row);
-            emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
+            emit(
+                out,
+                Request::ChangeDecision {
+                    task,
+                    decision,
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                    close_refusal: None,
+                },
+            );
             if let Action::Done = action {
                 emit(out, Request::WakeProcedure { task });
             }
@@ -7331,7 +7402,7 @@ fn change_facts(
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
         contains_head: pending.contains_head,
         updates: requires.up_to_date,
-        merge_job: merge_available(d, row, pending, base_tip),
+        merge_job: pending.merge_job && d.merge_kind.is_some(),
         delegate: match row.delegate {
             Some((_, kind)) => Some(kind),
             None => None,
@@ -7342,7 +7413,7 @@ fn change_facts(
         close_tips: if let Some(branch) = pending.base_read
             && let Some(landing) = pending.close_landing
         {
-            Some(change::CloseAt { branch, landing, asked: true, refused: None })
+            Some(change::CloseAt { branch, landing, asked: true, refused: None, outdated: None })
         } else {
             None
         },
@@ -7497,6 +7568,7 @@ fn emit_change_effect(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -7545,6 +7617,7 @@ fn emit_change_effect(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -7571,6 +7644,7 @@ fn emit_change_effect(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -7663,6 +7737,7 @@ fn emit_change_effect(
             entry: Some(pending.entry),
             evidence: Some(step_evidence(d, row, pending, prior)),
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -7904,7 +7979,14 @@ pub(crate) fn change_outcome(
     }
     emit(
         out,
-        Request::ChangeDecision { task, decision: change::Decision::None, entry: None, evidence: None, close_at: None },
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::None,
+            entry: None,
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
+        },
     );
 }
 
@@ -8478,6 +8560,12 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
                 skein_forge_client::Outcome::Withdrawn,
             );
             writes::outbox::outcome(d, task, number, skein_forge_client::Outcome::Withdrawn, out);
+            // This withdrawal has no client outcome to clear an obsolete check's flight.
+            if let Some(change) = d.changes.get(&task)
+                && crate::follow_check::obsolete(d, change)
+            {
+                crate::follow_check::outcome(d, number, skein_forge_client::Outcome::Withdrawn, out);
+            }
             crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, None, out);
             take_entry(d, number, task);
             emit(out, Request::Erase { key: Key::Entry(number) });
@@ -11138,6 +11226,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 },
             );
         }
@@ -11885,31 +11974,44 @@ fn bind(d: &mut Domain, request: Token, mut address: Box<[u8]>, subject: Box<[u8
     out.push(Request::Bound { request, answer });
 }
 
-// The worker wire uses two four-byte lengths; the request is C2's compact JSON.
-// temper/docs/design/domain/worker/jobs.md; temper/docs/design/domain/forge/change/repairs.md.
-fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip: [u8; 32]) -> bool {
-    if !pending.merge_job {
-        return false;
+// Check the proposed job against the kind's bound at the exact pair it would merge.
+// A conflict that cannot use the job falls through to its resolution in the same gather.
+fn step_with_merge_bound(
+    d: &Domain,
+    env: &Env<Limits>,
+    row: &ChangeRow,
+    facts: &mut change::Facts,
+    heard: &change::Heard,
+) -> change::Stepped {
+    let step = change::step(&row.change, facts, heard, env.wall, &env.limits.change_policy);
+    let change::Decision::Delegate(change::Delegate::Merge { base, from }) = step.decision else { return step };
+    if let Some((bound, _)) = d.merge_kind
+        && let Some(repository) = d.repositories.get(&row.repository)
+        && crate::jobs::merge_fits(
+            &repository.name,
+            d.merge_job(repository.project),
+            &from.unwrap_or(facts.base_tip),
+            &base,
+            bound,
+        )
+    {
+        return step;
     }
-    let Some((bound, _)) = d.merge_kind else { return false };
-    let Some(repository) = d.repositories.get(&row.repository) else { return false };
-    let Some(command) = d.merge_job(repository.project) else { return false };
-    let head = pending.branch.unwrap_or(base_tip);
-    let base = row.catch_up.unwrap_or(base_tip);
-    let mut length = 0_usize;
-    for part in [
-        repository.name.len(),
-        1,
-        command.len(),
-        8,
-        b"{\"version\":1,\"head\":\"\",\"base\":\"\"}".len(),
-        crate::commit_text(&head).len(),
-        crate::commit_text(&base).len(),
-    ] {
-        let Some(sum) = length.checked_add(part) else { return false };
-        length = sum;
-    }
-    length <= skein_lib::usize_of(bound)
+    facts.merge_job = false;
+    let step = change::step(&row.change, facts, heard, env.wall, &env.limits.change_policy);
+    facts.merge_job = true;
+    step
+}
+
+fn catch_up_job_failure(d: &Domain, authorized: bool) -> Box<[u8]> {
+    let words: &[u8] = if d.merge_kind.is_none() {
+        b"change's merge: job kind 3 is not declared."
+    } else if !authorized {
+        b"change's merge: its authority does not delegate to the merge job."
+    } else {
+        b"change's merge: the job cannot be described within its spec bound."
+    };
+    Box::from(words)
 }
 
 fn empty_rules(limits: &Limits) -> crate::settings::HeldRules {

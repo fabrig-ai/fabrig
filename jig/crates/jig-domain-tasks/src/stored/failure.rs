@@ -20,12 +20,13 @@ pub enum RestoreCause {
     LlmChoice { chosen: ModelEffort, why: RestoreLlmWhy },
 }
 
-/// Why configuration no longer offers a retained model and effort.
+/// Why configuration no longer offers a retained model, effort or speed.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreLlmWhy {
     Unconfigured,
     Charter,
     Effort,
+    Speed,
 }
 
 /// The existing configured or retained envelope exceeded by a stored row.

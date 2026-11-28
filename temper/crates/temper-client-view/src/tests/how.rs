@@ -82,14 +82,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
     templates.push(goal).unwrap();
     offered.projects.get_mut(0).unwrap().templates = templates;
     f::deliver_me(&mut root, me, offered);
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     if let Some(populated) = case.roles {
         let read = out
@@ -1120,14 +1113,7 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
         false,
         false,
     );
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     let wanted = pages::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
     let watch = out

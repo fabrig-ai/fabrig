@@ -148,40 +148,6 @@ pub fn repository_to_domain(record: temper_protocol_worker_wire::v1::Repository)
 }
 
 #[must_use]
-pub fn items_to_domain(record: temper_protocol_worker_wire::v1::Items) -> temper_worker_domain::wire::Workspace {
-    let temper_protocol_worker_wire::v1::Items { repositories: field_000000, rerun: field_000001 } = record;
-    temper_worker_domain::wire::Workspace {
-        repositories: {
-            let source = field_000000;
-            let count = source.len();
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.into_boxed() {
-                let converted = repository_to_domain(item);
-                assert!(translated.push(converted).is_ok(), "one output per source item");
-            }
-            Box::from(translated)
-        },
-        rerun: match field_000001 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        }
-    }
-}
-
-#[must_use]
-pub fn job_spec_to_domain(record: temper_protocol_worker_wire::v1::JobSpec) -> temper_worker_domain::wire::JobSpec {
-    let temper_protocol_worker_wire::v1::JobSpec { command: field_000000, request: field_000001, refusal: field_000002 } = record;
-    temper_worker_domain::wire::JobSpec {
-        command: field_000000,
-        request: field_000001,
-        refusal: field_000002
-    }
-}
-
-#[must_use]
 pub fn landed_to_record(value: &temper_worker_domain::wire::Landed) -> temper_protocol_worker_wire::v1::Landed {
     let temper_worker_domain::wire::Landed { tag: field_000000, commit: field_000001, checked: field_000002 } = value;
     temper_protocol_worker_wire::v1::Landed {

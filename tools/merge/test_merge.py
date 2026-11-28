@@ -24,7 +24,7 @@ JOURNEYS = 'temper/docs/design/client/web/journeys/'
 
 def counts(first, second, comment='# Head baseline\n'):
     return (f'{comment}max_out {first}\nJournalRoom {second}\ntakes 0\n'
-            'worst_case 0\ncomment:actual 0\ncomment:genuine 0\n')
+            'worst_case 0\nchild_state 0\nchild_event 0\ncomment:actual 0\ncomment:genuine 0\n')
 
 
 class Merge(unittest.TestCase):
@@ -40,7 +40,7 @@ class Merge(unittest.TestCase):
         self.git('config', 'user.name', 'Merge test')
         self.git('config', 'user.email', 'merge@example.test')
         self.git('config', 'commit.gpgsign', 'false')
-        for name in ('.temper/merge', 'tools/merge/merge.py',
+        for name in ('.temper/merge', '.temper/hooks/merge', 'tools/merge/merge.py',
                      'tools/old_forms/old_forms.py', 'temper/scripts/old_forms.py'):
             target = self.repository / name
             target.parent.mkdir(parents=True, exist_ok=True)

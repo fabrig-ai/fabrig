@@ -222,6 +222,7 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
             workspace: Some(run::Workspace {
                 directories: Box::new([run::Directory {
                     results: None,
+                    hooks: None,
                     name: Box::from(b"work".as_slice()),
                     host: Box::from(b"/work".as_slice()),
                     root: Token::new(900),

@@ -4,6 +4,11 @@ use skein_lib::{
     Reader, Rng,
     length::{len_u64, usize_of},
 };
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::convert::Infallible;
 
 fn check(bytes: &[u8]) {
     if let Ok(held) = Held::decode(&CEILINGS, &mut Reader::new(bytes)) {
@@ -45,38 +50,49 @@ fn fixed_values() -> Vec<Vec<u8>> {
     values
 }
 #[test]
-fn arbitrary_cursor_bytes_never_panic_and_round_trip_when_they_decode() {
-    for bytes in fixed_values() {
-        check(&bytes);
-    }
-    let mut rng = Rng::new(0xc075_0001);
-    let bound = jig_client_protocol_wire::CEILINGS.cursor_value;
-    let mut buffer = vec![0_u8; usize_of(bound)];
-    for _ in 0..10_000 {
-        let length = usize::try_from(rng.below(u64::from(bound) + 1)).expect("bounded length");
-        let bytes = buffer.get_mut(..length).expect("within buffer");
-        for byte in bytes.iter_mut() {
-            *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
-        }
-        check(bytes);
-    }
-}
-#[test]
-fn mutated_cursor_fixed_values_never_panic_and_round_trip_when_they_decode() {
-    let mut rng = Rng::new(0xc075_0002);
-    for fixed_value in fixed_values() {
-        check(&fixed_value);
-        for cut in 0..fixed_value.len() {
-            check(fixed_value.get(..cut).expect("within fixed-rule value"));
-        }
-        let mut trailing = fixed_value.clone();
-        trailing.push(0);
-        assert!(Held::decode(&CEILINGS, &mut Reader::new(&trailing)).is_err());
-        for _ in 0..100 {
-            let mut bytes = fixed_value.clone();
-            let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index");
-            *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+fn arbitrary_cursor_bytes_never_panic_and_round_trip_when_they_decode() -> Result<(), Case<Infallible>> {
+    cases(this_test!("arbitrary_cursor_bytes_never_panic_and_round_trip_when_they_decode"), [0xc075_0001], |seed| {
+        for bytes in fixed_values() {
             check(&bytes);
         }
-    }
+        let mut rng = Rng::new(seed);
+        let bound = jig_client_protocol_wire::CEILINGS.cursor_value;
+        let mut buffer = vec![0_u8; usize_of(bound)];
+        for _ in 0..10_000 {
+            let length = usize::try_from(rng.below(u64::from(bound) + 1)).expect("bounded length");
+            let bytes = buffer.get_mut(..length).expect("within buffer");
+            for byte in bytes.iter_mut() {
+                *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+            }
+            check(bytes);
+        }
+        Ok(())
+    })
+}
+#[test]
+fn mutated_cursor_fixed_values_never_panic_and_round_trip_when_they_decode() -> Result<(), Case<Infallible>> {
+    cases(
+        this_test!("mutated_cursor_fixed_values_never_panic_and_round_trip_when_they_decode"),
+        [0xc075_0002],
+        |seed| {
+            let mut rng = Rng::new(seed);
+            for fixed_value in fixed_values() {
+                check(&fixed_value);
+                for cut in 0..fixed_value.len() {
+                    check(fixed_value.get(..cut).expect("within fixed-rule value"));
+                }
+                let mut trailing = fixed_value.clone();
+                trailing.push(0);
+                assert!(Held::decode(&CEILINGS, &mut Reader::new(&trailing)).is_err());
+                for _ in 0..100 {
+                    let mut bytes = fixed_value.clone();
+                    let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index");
+                    *bytes.get_mut(index).expect("chosen byte") =
+                        u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+                    check(&bytes);
+                }
+            }
+            Ok(())
+        },
+    )
 }

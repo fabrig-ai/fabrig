@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0xae, 0x55, 0xf2, 0x48, 0x83, 0xf9, 0x90, 0x8a, 0xdb, 0xd5, 0x55, 0x75, 0x9c, 0x0c, 0x28, 0x0b, 0x84, 0x35, 0xee,
-    0x62, 0xab, 0xba, 0xe7, 0x48, 0x1c, 0xd8, 0x62, 0xc4, 0x14, 0x1a, 0x8a, 0x8d,
+    0xda, 0x4d, 0x4c, 0xc0, 0xef, 0xcb, 0xfa, 0x16, 0xb0, 0xe5, 0x5f, 0xa4, 0x54, 0xed, 0x0b, 0x2c, 0xf9, 0x0c, 0x13,
+    0x59, 0xc0, 0xd7, 0xe1, 0x31, 0xb5, 0x42, 0xa0, 0x62, 0x0d, 0x29, 0x01, 0x6d,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -280,6 +280,7 @@ pub struct Limits {
     pub landing_rule_sets: u32,
     pub named_model_model: u32,
     pub named_model_effort_some: u32,
+    pub named_model_speed_some: u32,
     pub named_later_subagents: u32,
     pub named_llm_subagents: u32,
     pub project_landing_merge_job_some: u32,
@@ -606,6 +607,7 @@ pub const CEILINGS: Limits = Limits {
     landing_rule_sets: 6,
     named_model_model: 4_096,
     named_model_effort_some: 32,
+    named_model_speed_some: 32,
     named_later_subagents: 64,
     named_llm_subagents: 64,
     project_landing_merge_job_some: 4_096,
@@ -932,6 +934,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_rule_sets",
     "named_model_model",
     "named_model_effort_some",
+    "named_model_speed_some",
     "named_later_subagents",
     "named_llm_subagents",
     "project_landing_merge_job_some",
@@ -1262,6 +1265,7 @@ impl Limits {
             self.landing_rule_sets,
             self.named_model_model,
             self.named_model_effort_some,
+            self.named_model_speed_some,
             self.named_later_subagents,
             self.named_llm_subagents,
             self.project_landing_merge_job_some,
@@ -1593,6 +1597,7 @@ impl Limits {
             landing_rule_sets: self.landing_rule_sets.min(most),
             named_model_model: self.named_model_model.min(most),
             named_model_effort_some: self.named_model_effort_some.min(most),
+            named_model_speed_some: self.named_model_speed_some.min(most),
             named_later_subagents: self.named_later_subagents.min(most),
             named_llm_subagents: self.named_llm_subagents.min(most),
             project_landing_merge_job_some: self.project_landing_merge_job_some.min(most),
@@ -1921,6 +1926,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_RULE_SETS,
     paths::NAMED_MODEL_MODEL,
     paths::NAMED_MODEL_EFFORT,
+    paths::NAMED_MODEL_SPEED,
     paths::NAMED_LATER_SUBAGENTS,
     paths::NAMED_LLM_SUBAGENTS,
     paths::PROJECT_LANDING_MERGE_JOB,
@@ -3406,6 +3412,7 @@ pub mod paths {
     pub const SETTINGS_COMBINE_TAG: Path = Path::new("SettingsCombine (tag)");
     pub const NAMED_MODEL_MODEL: Path = Path::new("NamedModel.model");
     pub const NAMED_MODEL_EFFORT: Path = Path::new("NamedModel.effort");
+    pub const NAMED_MODEL_SPEED: Path = Path::new("NamedModel.speed");
     pub const NAMED_MODEL_TAIL: Path = Path::new("NamedModel (tail)");
     pub const NAMED_LATER_MAIN: Path = Path::new("NamedLater.main");
     pub const NAMED_LATER_SUBAGENTS: Path = Path::new("NamedLater.subagents");
@@ -3440,6 +3447,7 @@ pub mod paths {
     pub const PROJECT_LANDING_WAIT: Path = Path::new("ProjectLanding.wait");
     pub const PROJECT_LANDING_REPAIRS: Path = Path::new("ProjectLanding.repairs");
     pub const PROJECT_LANDING_FLAKES: Path = Path::new("ProjectLanding.flakes");
+    pub const PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS: Path = Path::new("ProjectLanding.hook_timeout_max_seconds");
     pub const PROJECT_LANDING_TAIL: Path = Path::new("ProjectLanding (tail)");
     pub const SETTINGS_REPORT_FORMAT_TAG: Path = Path::new("SettingsReportFormat (tag)");
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
@@ -31451,6 +31459,7 @@ impl Record for SettingsCombine {
 pub struct NamedModel {
     pub model: Box<[u8]>,
     pub effort: Option<Box<[u8]>>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: NamedModel.
@@ -31459,11 +31468,13 @@ impl NamedModel {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_model) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_effort_some) },
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 9;
+    pub const ENCODED_AT_ZERO: u64 = 14;
 }
 
 impl Record for NamedModel {
@@ -31490,6 +31501,7 @@ impl Record for NamedModel {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.named_model_model.min(CEILINGS.named_model_model) }, &self.model, limits, out, paths::NAMED_MODEL_MODEL)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.named_model_effort_some.min(CEILINGS.named_model_effort_some) } }, &self.effort, limits, out, paths::NAMED_MODEL_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.named_model_speed_some.min(CEILINGS.named_model_speed_some) } }, &self.speed, limits, out, paths::NAMED_MODEL_SPEED)?;
         Ok(())
     }
 
@@ -31497,6 +31509,7 @@ impl Record for NamedModel {
         Ok(Self {
             model: field::read(field::Bytes { limit: limits.named_model_model.min(CEILINGS.named_model_model) }, limits, reader, paths::NAMED_MODEL_MODEL)?,
             effort: field::read(field::Optional { item: field::Bytes { limit: limits.named_model_effort_some.min(CEILINGS.named_model_effort_some) } }, limits, reader, paths::NAMED_MODEL_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.named_model_speed_some.min(CEILINGS.named_model_speed_some) } }, limits, reader, paths::NAMED_MODEL_SPEED)?,
         })
     }
 }
@@ -31518,7 +31531,7 @@ impl NamedLater {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 13;
+    pub const ENCODED_AT_ZERO: u64 = 18;
 }
 
 impl Record for NamedLater {
@@ -31544,14 +31557,14 @@ impl Record for NamedLater {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::NAMED_LATER_MAIN)?;
-        field::write(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 5, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LATER_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 6, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LATER_SUBAGENTS)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::NAMED_LATER_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 5, item: field::Nested }, limits, reader, paths::NAMED_LATER_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 6, item: field::Nested }, limits, reader, paths::NAMED_LATER_SUBAGENTS)?,
         })
     }
 }
@@ -31579,7 +31592,7 @@ impl NamedLlm {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 32;
+    pub const ENCODED_AT_ZERO: u64 = 42;
 }
 
 impl Record for NamedLlm {
@@ -31606,7 +31619,7 @@ impl Record for NamedLlm {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::NAMED_LLM_ACCOUNT)?;
         field::write(field::Nested, &self.main, limits, out, paths::NAMED_LLM_MAIN)?;
-        field::write(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 5, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LLM_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 6, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LLM_SUBAGENTS)?;
         field::write(field::Optional { item: field::Nested }, &self.later, limits, out, paths::NAMED_LLM_LATER)?;
         Ok(())
     }
@@ -31615,7 +31628,7 @@ impl Record for NamedLlm {
         Ok(Self {
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::NAMED_LLM_ACCOUNT)?,
             main: field::read(field::Nested, limits, reader, paths::NAMED_LLM_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 5, item: field::Nested }, limits, reader, paths::NAMED_LLM_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 6, item: field::Nested }, limits, reader, paths::NAMED_LLM_SUBAGENTS)?,
             later: field::read(field::Optional { item: field::Nested }, limits, reader, paths::NAMED_LLM_LATER)?,
         })
     }
@@ -31642,7 +31655,7 @@ impl RepairGoalSettings {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 49;
+    pub const ENCODED_AT_ZERO: u64 = 59;
 }
 
 impl Record for RepairGoalSettings {
@@ -31704,7 +31717,7 @@ impl RepairSettings {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 59;
+    pub const ENCODED_AT_ZERO: u64 = 69;
 }
 
 impl Record for RepairSettings {
@@ -31764,6 +31777,7 @@ pub struct ProjectLanding {
     pub wait: SettingsLandingWait,
     pub repairs: Option<RepairSettings>,
     pub flakes: Option<SettingsFlakes>,
+    pub hook_timeout_max_seconds: u32,
 }
 
 // Record: ProjectLanding.
@@ -31789,11 +31803,12 @@ impl ProjectLanding {
         skein_codec::bounds::Node::Option { item: 16 },
         skein_codec::bounds::Node::Named("SettingsFlakes"),
         skein_codec::bounds::Node::Option { item: 18 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 110;
+    pub const ENCODED_AT_ZERO: u64 = 124;
 }
 
 impl Record for ProjectLanding {
@@ -31833,6 +31848,7 @@ impl Record for ProjectLanding {
         field::write(field::Nested, &self.wait, limits, out, paths::PROJECT_LANDING_WAIT)?;
         field::write(field::Optional { item: field::Nested }, &self.repairs, limits, out, paths::PROJECT_LANDING_REPAIRS)?;
         field::write(field::Optional { item: field::Nested }, &self.flakes, limits, out, paths::PROJECT_LANDING_FLAKES)?;
+        field::write(field::U32, &self.hook_timeout_max_seconds, limits, out, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?;
         Ok(())
     }
 
@@ -31853,6 +31869,7 @@ impl Record for ProjectLanding {
             wait: field::read(field::Nested, limits, reader, paths::PROJECT_LANDING_WAIT)?,
             repairs: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_REPAIRS)?,
             flakes: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_FLAKES)?,
+            hook_timeout_max_seconds: field::read(field::U32, limits, reader, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?,
         })
     }
 }
@@ -35728,6 +35745,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_rule_sets,
     CEILINGS.named_model_model,
     CEILINGS.named_model_effort_some,
+    CEILINGS.named_model_speed_some,
     CEILINGS.named_later_subagents,
     CEILINGS.named_llm_subagents,
     CEILINGS.project_landing_merge_job_some,

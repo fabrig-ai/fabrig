@@ -1089,7 +1089,31 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
     assert_eq!(core.tasks.task(1).unwrap().requester, tasks::Party::Person(1));
 }
 
+// Inline names grow ModelEffort from 3 to 37 bytes and grow the complete
+// choice carrier by 64 bytes (first and later main, including alignment).
+const MODEL_EFFORT_BYTES: u64 = 37;
+const MODEL_EFFORT_GROWTH: u64 = MODEL_EFFORT_BYTES - 3;
+const CHOICE_CARRIER_GROWTH: u64 = 64;
+
 fn settings_document_bytes(limits: &Limits) -> u64 {
+    const VALUE_SETS: u64 = 2;
+    // Both the catalogue row and the charter's inline model carry a 16-byte
+    // speeds slice and a 16-byte optional box for the default speed name.
+    const MODEL_SPEED_FIELDS: u64 = 2 * 16;
+    // A speed has a 72-byte carrier (including its prices), a 32-byte name,
+    // and up to two aliases, each a 16-byte box owning up to 32 bytes.
+    const SPEED_NAME_BYTES: u64 = 32;
+    const SPEED_BYTES: u64 = 72 + SPEED_NAME_BYTES + 2 * (16 + SPEED_NAME_BYTES);
+    // The largest route is direct: four speeds and a separately owned default
+    // speed name, with no program bytes (domain/engine/settings-catalogue.md 1).
+    const DIRECT_ROUTE_BYTES: u64 = 4 * SPEED_BYTES + SPEED_NAME_BYTES;
+    // Each set holds 64 catalogue rows. In addition to the speed fields and
+    // route, each row prices 192 bytes of carrier, two names, a description,
+    // efforts and the default effort.
+    const CATALOGUE_ROWS: u64 = 64;
+    const CATALOGUE_ROW_BYTES: u64 =
+        192 + MODEL_SPEED_FIELDS + 2 * 4096 + 512 + 16 * (32 + 16) + 32 + DIRECT_ROUTE_BYTES;
+
     // A settings inventory document is priced beside every document (domain/engine/settings-store.md 1).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
@@ -1110,9 +1134,9 @@ fn settings_document_bytes(limits: &Limits) -> u64 {
     // 24-byte later choices in both its Template and New carriers.
     // Two limit override lists and their inventory lines occupy 2 * (256 * (40 + 64 + 120) + 88) bytes.
     // The closer adds 2 * 8 * (16 + 8) bytes to the Template and New carriers.
-    // Each also holds 64 catalogue rows: a 192-byte carrier, two names, a description,
-    // a program, efforts and the default effort. The inventory shares one model range.
-    const OTHER: u64 = 120_528
+    // The inventory shares one model range. The fixed subtotal leaves the
+    // charters' run bytes and their inline speed fields to the count below.
+    const OTHER: u64 = 119_504
         + 4 * 72
         + 16 * 8
         + 2 * 8 * 16
@@ -1129,11 +1153,18 @@ fn settings_document_bytes(limits: &Limits) -> u64 {
         + 16
         + 2 * (8192 + 208)
         + 2 * 8
-        + 2 * 64 * (192 + 2 * 4096 + 512 + 32 + 16 * (32 + 16) + 32)
-        + 64 * 88
+        + VALUE_SETS * CATALOGUE_ROWS * CATALOGUE_ROW_BYTES
+        + CATALOGUE_ROWS * 88
         + 2 * (16 + 8 * (24 + 24))
         + 2 * 8 * (16 + 8)
+        // Each Template and New grows inline; the New bound prices both
+        // sub-agent arrays, one larger than before and one newly counted.
+        + 2 * 8 * (2 * CHOICE_CARRIER_GROWTH + 64 * (MODEL_EFFORT_GROWTH + MODEL_EFFORT_BYTES))
         + 2 * (256 * (40 + 64 + 120) + 88);
+    // Each set's one charter reserves the fixture's run bytes and includes
+    // the speed fields in its inline model.
+    let charter = u64::from(limits.run_bytes).checked_add(MODEL_SPEED_FIELDS).unwrap();
+    let charters = VALUE_SETS.checked_mul(u64::from(limits.tasks.charters)).unwrap().checked_mul(charter).unwrap();
     let worker = u64::try_from(size_of::<SettingLine>())
         .unwrap()
         .checked_add(u64::try_from(size_of::<crate::settings::WorkerSetting>()).unwrap())
@@ -1145,6 +1176,8 @@ fn settings_document_bytes(limits: &Limits) -> u64 {
         .unwrap()
         .checked_mul(worker)
         .unwrap()
+        .checked_add(charters)
+        .unwrap()
         .checked_add(OTHER)
         .unwrap()
 }
@@ -1155,7 +1188,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // eight templates per line, and sixteen bytes per slice carrier. Each
     // template also carries its 24-byte optional later choice.
     // The closer adds sixteen bytes to each template carrier.
-    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * (16 + 24 + 16);
+    const TEMPLATE_ENVELOPES: u64 =
+        989_184 + 32 * 8 * (16 + 24 + 16 + CHOICE_CARRIER_GROWTH + 64 * MODEL_EFFORT_GROWTH);
 
     let (mut core, limits) = fixture();
     waiting(

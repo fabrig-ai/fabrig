@@ -64,5 +64,8 @@ pub use call::{
 };
 pub use domain::{Domain, step};
 pub use facts::{CallInfo, Fact, FactKind, Verdict};
+pub use flight::Flight as InspectionFlight;
+pub use jobs::{Job as InspectionJob, Jobs as InspectionJobs};
+pub use kit::Kit as InspectionKit;
 pub use limits::{Derivation, Field, Limits, batch_result_bound, derive, result_bound, valid};
 pub use path::{Name, Namespace, Part, Path, Place, Resolved};

@@ -1,10 +1,11 @@
 //! Stock template goals close without an agent's judgement after their work lands
 //! (temper/docs/design/protocol/configuration/stock.md;
 //! temper/docs/design/domain/forge/branches.md, 2; jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
-use super::close_change::{CLOSE_COUNTS, check_refusal, finish_with, refusal_with};
+use super::close_change::{CLOSE_COUNTS, CLOSE_FAILURE, finish_with, refusal_with};
 use super::goal_branch::{branch_tip, stock_defaults};
 use super::goal_closer::{
-    close_job, closer_row, finish_close as push_close, producer_for, result_words, wait_ended, wait_held, wait_landing,
+    assert_hold_words, close_job, closer_row, finish_close as push_close, producer_for, result_words, wait_ended,
+    wait_held, wait_landing,
 };
 use super::goal_landing::{ended, finish_run, mine, row, status};
 use super::*;
@@ -26,6 +27,7 @@ const WORKER_SLOTS: u32 = 4;
 const STEPS: u32 = 4000;
 const WORDS: &[u8] = b"Build the draft\n\nDraft: PATH";
 const SINGLE_ATTEMPT: u8 = 1; // The project's bound holds on the first unsuccessful attempt.
+const CLOSE_RETRIES: u32 = 1; // One retry distinguishes an untyped failure from a finished finding.
 
 fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box<[u8]>) {
     goal_world_with_attempts(template, branch, engine::LANDING_ATTEMPTS)
@@ -61,7 +63,7 @@ fn goal_world_on_landing(
         CHANNEL,
         WORKER_POSITION,
         defaults.rules.maximum_run_spend,
-        Box::new([close_bound()]),
+        Box::new([JobBound { result: 8192, ..close_bound() }]),
     );
     start_goal(world, template, branch, spend, room, landing)
 }
@@ -72,10 +74,23 @@ fn closer_world(
     defaults: &jig_domain_core::settings::Defaults,
     worker_settings: Option<Box<[jig_domain_core::settings::WorkerSetting]>>,
 ) -> World {
+    closer_world_with_merge(landing, attempts, defaults, worker_settings, false)
+}
+
+fn closer_world_with_merge(
+    landing: &[u8],
+    attempts: u8,
+    defaults: &jig_domain_core::settings::Defaults,
+    worker_settings: Option<Box<[jig_domain_core::settings::WorkerSetting]>>,
+    merge: bool,
+) -> World {
     let model = stock::box_model();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // One repair reaches the held landing without a long repair tree.
     limits.forge.change_policy.repairs = 1;
+    if merge {
+        limits.tasks.retries.run.retries = CLOSE_RETRIES;
+    }
     let landing_deployment = Box::new([engine::LandingRule {
         sets: Box::new([]),
         connector: 1,
@@ -104,12 +119,16 @@ fn closer_world(
         StoryLimits {
             worker_settings,
             close_job: Some((Some(b".temper/close".as_slice().into()), true)),
+            merge_kind: merge,
             goal_closer: true,
             landing_attempts: Some(attempts),
             landing_deployment: Some(landing_deployment),
             ..StoryLimits::default()
         },
     );
+    if merge {
+        world = world.with_merge_job(b".temper/merge");
+    }
     world.adopt_landing(landing);
     if landing != b"main" {
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, b"Prepare landing", b"landing", 1)
@@ -176,6 +195,8 @@ fn start_goal(
         description: None,
         shown: None,
         picker: true,
+        speeds: Box::default(),
+        speed: None,
     };
     let wire = jig_protocol_engine_clients::translate::owner::frame(
         &frame,
@@ -369,7 +390,9 @@ fn closer_of(world: &mut World, goal: u64) -> u64 {
 fn finish_close(world: &mut World, close: u64, branch: &[u8], job: &host::JobAssignment) {
     use temper_protocol_worker_wire::v1;
     let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
-    assert_eq!(spec.command.as_ref(), b"repo/.temper/close");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/close");
+    assert!(spec.find && spec.refusal);
+    assert_eq!(spec.fallback.as_ref(), b"repo/.temper/close");
     assert_eq!(Some(spec.request.as_ref()), row(world, close).close.as_deref());
     for _ in 0..STEPS {
         if world.pending.is_empty() {
@@ -435,6 +458,253 @@ fn assert_report(world: &World, goal: u64, closer: u64, landing: u64, changes: &
         )),
         "{output}"
     );
+}
+
+struct OutdatedStory {
+    world: World,
+    goal: u64,
+    branch: Box<[u8]>,
+    work: u64,
+    closer: u64,
+    close: u64,
+    main: u64,
+}
+
+fn outdated_close_world(attempts: u8) -> OutdatedStory {
+    let (mut world, goal, branch, work, closer, main) = awaiting_close_with_merge(attempts);
+    let (close, job) = next_close(&mut world, closer);
+    assert_eq!(finish_outdated(&mut world, close, &job).landing, translate::commit(main));
+    OutdatedStory { world, goal, branch, work, closer, close, main }
+}
+
+fn awaiting_close_with_merge(attempts: u8) -> (World, u64, Box<[u8]>, u64, u64, u64) {
+    let defaults = stock_defaults();
+    let mut world = closer_world_with_merge(b"main", attempts, &defaults, None, true);
+    hello_goal_worker(
+        &mut world,
+        CHANNEL,
+        WORKER_POSITION,
+        defaults.rules.maximum_run_spend,
+        Box::new([protocol::merge_bound(), close_bound()]),
+    );
+    let (mut world, run, branch, _) = start_goal(world, 4, true, None, None, b"main");
+    let (work, producer) = make_change(&mut world, &run, 93);
+    produce(&mut world, work, &branch, &producer, b"Parser");
+    let main = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"main", b"main work", 1)
+        .expect("main advanced after the goal branched");
+    park_goal(&mut world, &run);
+    let goal = run.task;
+    let closer = closer_of(&mut world, goal);
+    (world, goal, branch, work, closer, main)
+}
+
+fn next_close(world: &mut World, closer: u64) -> (u64, host::JobAssignment) {
+    let job = close_job(world);
+    assert_eq!(job.kind, close_bound().kind);
+    let tasks::Party::Task(task) = live_task(world, job.run.raw()).requester else { panic!("close task") };
+    assert_eq!(live_task(world, task).requester, tasks::Party::Task(closer));
+    (task, job)
+}
+
+fn finish_outdated(world: &mut World, task: u64, job: &host::JobAssignment) -> change::CloseAt {
+    let at = row(world, task).close_at.expect("close read both tips");
+    let head = forge_top::commit_text(&at.branch);
+    let head = core::str::from_utf8(&head).expect("head in hex");
+    let result = format!(r#"{{"outdated":{{"head":"{head}","why":"window"}}}}"#);
+    finish_with(world, job, result.as_bytes());
+    wait_ended(world, task);
+    let record = row(world, task);
+    assert!(matches!(record.change.state, change::State::NoChange { .. }));
+    let at = record.close_at.expect("retained close finding");
+    assert_eq!(at.outdated, Some(change::CloseOutdated::Window));
+    at
+}
+
+fn next_catch_up(world: &mut World, goal: u64, closer: u64, branch: &[u8], main: u64) -> (u64, host::JobAssignment) {
+    for _ in 0..STEPS {
+        if !world.jobs.is_empty() || ended(world, goal).is_some() {
+            break;
+        }
+        assert!(!matches!(live_task(world, closer).phase, tasks::Phase::Held { .. }));
+        world.tick();
+    }
+    assert!(!world.jobs.is_empty(), "the closer made no catch-up: {:?}", closer_row(world, closer));
+    let job = world.jobs.remove(0);
+    assert_eq!(job.kind, protocol::merge_bound().kind, "an outdated close must ask for a catch-up");
+    let tasks::Party::Task(task) = live_task(world, job.run.raw()).requester else { panic!("catch-up task") };
+    let record = live_task(world, task);
+    assert_eq!(record.requester, tasks::Party::Task(closer));
+    let short = short_hex(&translate::commit(main));
+    assert_eq!(record.spec.words.as_ref(), format!("Catch goal {goal} up from main at {short}.").as_bytes());
+    let head = branch_tip(world, branch);
+    super::catch_up::check_job(world, task, &job, branch, head, main);
+    (task, job)
+}
+
+fn finish_catch_up(world: &mut World, task: u64, job: &host::JobAssignment, branch: &[u8], main: u64) {
+    let head = branch_tip(world, branch);
+    super::catch_up::push_merge(world, super::merge_job::Writer::Job(CHANNEL, job), head, main);
+    let own = row(world, task).branch.clone();
+    let pushed = branch_tip(world, &own);
+    status(world, pushed, raw::Check::Passed);
+    super::catch_up::finish_job(world, job, br#"{"left":[]}"#);
+    wait_ended(world, task);
+    assert!(matches!(row(world, task).change.state, change::State::Landed { .. }));
+}
+
+/// temper/docs/design/domain/forge/branches.md, 2: the closer catches up once for the same request.
+#[test]
+fn an_outdated_close_catches_up_from_main_and_closes_again() {
+    let OutdatedStory { mut world, goal, branch, work, closer, close, main } = outdated_close_world(SINGLE_ATTEMPT);
+    let request = row(&world, close).close.clone();
+    let (catch_up, merge) = next_catch_up(&mut world, goal, closer, &branch, main);
+    finish_catch_up(&mut world, catch_up, &merge, &branch, main);
+    let (again, job) = next_close(&mut world, closer);
+    assert_ne!(again, close);
+    assert_eq!(row(&world, again).close, request);
+    finish_close(&mut world, again, &branch, &job);
+    let landing = wait_landing(&mut world, closer);
+    pass_landing(&mut world, goal, &branch);
+    assert_report(&world, goal, closer, landing, &[(work, b"Parser")]);
+    let report = core::str::from_utf8(result_words(&world, closer)).expect("closer report");
+    assert!(report.contains(&format!("- T{catch_up} ")), "{report}");
+    assert_eq!(goal_runs(&world, goal), 1, "no escalation");
+    assert!(world.jobs.is_empty(), "no extra job attempts");
+    let row = closer_row(&world, closer).expect("closer row");
+    assert_eq!(row.close_changes.as_ref(), &[close, again]);
+    assert_eq!(row.closer.caught_up.as_deref(), Some([work].as_slice()));
+    world.close();
+}
+
+const WINDOW_FINDING: &str = "it holds none of the commits main's published counts cover";
+const UPDATE_AND_RELEASE: &str =
+    "Catch the goal up from main with a change naming main's tip and release the closer, or release it to";
+
+fn short_hex(commit: &[u8; 32]) -> Box<str> {
+    let text = forge_top::commit_text(commit);
+    core::str::from_utf8(&text[..12]).expect("commit in hex").into()
+}
+
+fn assert_closer_hold(
+    world: &World,
+    closer: u64,
+    step: temper_engine_domain_forge_closer::Step,
+    child: u64,
+    words: &str,
+) {
+    use temper_engine_domain_forge_closer::Hold;
+    assert_eq!(
+        closer_row(world, closer).expect("held closer").closer.hold,
+        Some(Hold::ClosingStep { step, change: child })
+    );
+    assert_hold_words(world, closer, words);
+}
+
+/// temper/docs/design/domain/forge/branches.md, 2: close again, but never catch up the same request again.
+#[test]
+fn a_close_outdated_again_after_its_catch_up_holds_naming_both() {
+    use temper_engine_domain_forge_closer::Step;
+    let OutdatedStory { mut world, goal, branch, closer, main, .. } = outdated_close_world(SINGLE_ATTEMPT);
+    let (catch_up, merge) = next_catch_up(&mut world, goal, closer, &branch, main);
+    finish_catch_up(&mut world, catch_up, &merge, &branch, main);
+    let main = short_hex(&translate::commit(main));
+    let (again, job) = next_close(&mut world, closer);
+    let found = short_hex(&finish_outdated(&mut world, again, &job).branch);
+    wait_held(&mut world, closer, goal);
+    let words = |task| {
+        format!(
+            "the close step's change T{task} found the goal's branch at {found} outdated again, after its catch-up from main at {main}, change T{catch_up}, landed: {WINDOW_FINDING}. {UPDATE_AND_RELEASE} close again as it stands."
+        )
+    };
+    assert_closer_hold(&world, closer, Step::Close, again, &words(again));
+    let run = awakened(&mut world, goal);
+    world.advance_ticks(10);
+    assert_eq!(goal_runs(&world, goal), 2, "the hold escalates once");
+    release(&mut world, &run, closer, 94);
+    park_goal(&mut world, &run);
+    let (released, job) = next_close(&mut world, closer);
+    assert_ne!(released, again);
+    finish_outdated(&mut world, released, &job);
+    wait_held(&mut world, closer, goal);
+    assert_closer_hold(&world, closer, Step::Close, released, &words(released));
+    assert_eq!(closer_row(&world, closer).expect("closer row").catch_up_changes.as_ref(), &[catch_up]);
+    world.close();
+}
+
+/// temper/docs/design/domain/forge/branches.md, 2: a failed catch-up needs a release even below the attempt bound.
+#[test]
+fn a_catch_up_that_ends_without_landing_holds_the_closer_naming_both() {
+    use temper_engine_domain_forge_closer::Step;
+    let OutdatedStory { mut world, goal, branch, closer, close, main, .. } =
+        outdated_close_world(engine::LANDING_ATTEMPTS);
+    let (catch_up, merge) = next_catch_up(&mut world, goal, closer, &branch, main);
+    world.sign_in();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(95)),
+        sign_in: world.signed_in.expect("person"),
+        key: [95; 16],
+        ask: people::Ask::Cancel {
+            project: 1,
+            task: catch_up,
+            reason: b"Stop the catch-up".as_slice().into(),
+            grace: None,
+        },
+    }));
+    let event = world.protocol.answer_job(
+        CHANNEL,
+        merge.run.raw(),
+        merge.attempt.raw(),
+        host::JobEnding::Failed {
+            failure: host::JobFailure::Cancelled(host::Reason::Engine),
+            detail: Box::new([]),
+            work: host::Work { left: None, saved: None },
+        },
+    );
+    world.send(event);
+    wait_held(&mut world, closer, goal);
+    let found = short_hex(&row(&world, close).close_at.expect("outdated finding").branch);
+    let short_main = short_hex(&translate::commit(main));
+    assert_closer_hold(
+        &world,
+        closer,
+        Step::CatchUp,
+        catch_up,
+        &format!(
+            "the catch-up from main at {short_main}, change T{catch_up}, ended cancelled, after the close step's change T{close} found the goal's branch at {found} outdated: {WINDOW_FINDING}. {UPDATE_AND_RELEASE} catch up again."
+        ),
+    );
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"later", b"more work", 1)
+        .expect("main moved while the closer was held");
+    let run = awakened(&mut world, goal);
+    release(&mut world, &run, closer, 94);
+    park_goal(&mut world, &run);
+    let (released, _) = next_catch_up(&mut world, goal, closer, &branch, main);
+    assert_ne!(released, catch_up);
+    world.close();
+}
+
+/// temper/docs/design/domain/forge/change/repairs-releases.md, 1: untyped job failure is not an outdated finding.
+#[test]
+fn an_older_workers_broken_close_holds_as_today() {
+    const BROKE: &[u8] =
+        b"exit 2: the goal is older than main's last twenty landings; update from main and close again";
+    let (mut world, goal, _, _, closer, _) = awaiting_close_with_merge(SINGLE_ATTEMPT);
+    assert_eq!(world.env.limits.tasks.retries.run.retries, CLOSE_RETRIES);
+    let close = fail_close_with(&mut world, BROKE);
+    wait_held(&mut world, close, goal);
+    world.advance_ticks(10);
+    assert_hold_words(
+        &world,
+        close,
+        "the close check broke and didn't judge the goal: exit 2: the goal is older than main's last twenty landings; update from main and close again; its release runs it again.",
+    );
+    let row = row(&world, close);
+    assert!(matches!(&row.change.state, change::State::Held { hold, .. } if hold.cause == change::Cause::Failed));
+    assert_eq!(row.close_at.and_then(|at| at.outdated), None);
+    assert_eq!(closer_row(&world, closer).expect("closer row").catch_up_changes.as_ref(), &[] as &[u64]);
+    assert_eq!(world.jobs, [] as [host::JobAssignment; 0]);
+    world.close();
 }
 
 const REPORT_DESCRIPTION: &[u8] = b"report: Two of three parts are in.";
@@ -762,18 +1032,23 @@ fn settle(world: &mut World, goal: u64) {
 }
 
 fn fail_close(world: &mut World) -> u64 {
+    fail_close_with(world, b"status command exited 1")
+}
+
+fn fail_close_with(world: &mut World, detail: &[u8]) -> u64 {
     let mut close = None;
-    for _ in 0..=world.env.limits.tasks.retries.permanent.retries {
+    for _ in 0..=world.env.limits.tasks.retries.run.retries {
         let job = close_job(world);
         let tasks::Party::Task(task) = live_task(world, job.run.raw()).requester else { panic!("close change") };
-        close = Some(task);
+        assert_eq!(job.kind, close_bound().kind);
+        assert_eq!(*close.get_or_insert(task), task, "retry within the same close change");
         let event = world.protocol.answer_job(
             CHANNEL,
             job.run.raw(),
             job.attempt.raw(),
             host::JobEnding::Failed {
                 failure: host::JobFailure::Failed,
-                detail: b"status command exited 1".as_slice().into(),
+                detail: detail.into(),
                 work: host::Work { left: None, saved: None },
             },
         );
@@ -875,9 +1150,7 @@ fn a_released_close_waits_until_its_repair_lands() {
     assert_eq!(live_task(&world, first).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert_eq!(row(&world, first).delegate, None);
 
-    park_goal(&mut world, &run);
-    produce(&mut world, work, &branch, &producer, b"Repair after close");
-    wait_ended(&mut world, first);
+    land_close_repair(&mut world, &run, &branch, work, &producer, first);
     let (second, job) = replacement_close(&mut world, run.task, closer, first, work);
     world.advance_ticks(100);
     assert!(world.jobs.is_empty(), "only the new settle change assigns a close job");
@@ -902,16 +1175,17 @@ fn goal_at_close() -> (World, u64, u64, u64, host::JobAssignment, change::CloseA
     let closer = closer_of(&mut world, goal.task);
     let job = close_job(&mut world);
     let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
-    let at = change::CloseAt { branch: head, landing: main, asked: true, refused: None };
+    let at = change::CloseAt { branch: head, landing: main, asked: true, refused: None, outdated: None };
     (world, goal.task, closer, close, job, at)
 }
 
-fn goal_with_refused_close() -> RefusedClose {
+fn goal_with_refused_close(failures: &[&str], more: usize, counts: Option<[u8; 32]>) -> RefusedClose {
     let (mut world, goal, closer, close, job, at) = goal_at_close();
-    finish_with(&mut world, &job, &check_refusal(at.branch, at.landing));
+    let result = refusal_with(at.branch, counts.map(|counts| (at.landing, counts)), failures, more);
+    finish_with(&mut world, &job, &result);
     wait_held(&mut world, close, goal);
     let run = awakened(&mut world, goal);
-    let at = change::CloseAt { refused: Some(change::CloseRefused { counts: Some(CLOSE_COUNTS) }), ..at };
+    let at = change::CloseAt { refused: Some(change::CloseRefused { counts }), ..at };
     RefusedClose { world, run, closer, close, job: job.run.raw(), at }
 }
 
@@ -920,26 +1194,30 @@ fn short(commit: [u8; 32]) -> String {
     core::str::from_utf8(&digits[..12]).expect("short commit").to_owned()
 }
 
-fn refusal_words(at: change::CloseAt) -> String {
+fn refusal_words(at: change::CloseAt, failures: &[&str], more: usize) -> String {
     let branch = short(at.branch);
-    let main = short(at.landing);
+    let (base, counts) = match at.refused.expect("refusal fixture").counts {
+        Some(counts) => (short(at.landing), short(counts)),
+        None => ("no base".to_owned(), "none".to_owned()),
+    };
+    let names = failures.join(", ");
+    let more = if more == 0 { String::new() } else { format!(" and {more} more") };
     format!(
-        "the close check refused the goal's branch at {branch}, against main at {main} with counts 333333333333: test A::rules rule_00; it checks again once the goal's branch or main moves."
+        "the close check refused the goal's branch at {branch}, against main at {base} with counts {counts}: {names}{more}; it checks again once the goal's branch or main moves."
     )
 }
 
 fn replay_words(at: change::CloseAt) -> String {
     let branch = short(at.branch);
     let main = short(at.landing);
-    let words = refusal_words(at);
+    let words = refusal_words(at, &[CLOSE_FAILURE], 0);
     format!(
         "not measured again: the goal's branch is at {branch} and main at {main}, as when its close check refused; it checks again once either moves.\n\n{words}"
     )
 }
 
-#[test]
-fn a_refused_close_holds_and_wakes_its_goal_once() {
-    let RefusedClose { mut world, run, close, job, at, .. } = goal_with_refused_close();
+fn assert_refused_close(refusal: RefusedClose, words: &str) {
+    let RefusedClose { mut world, run, close, job, at, .. } = refusal;
     world.advance_ticks(100);
     let ended = ended(&world, job).expect("one successful terminal at the first attempt");
     assert!(matches!(ended.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Job { .. }))));
@@ -949,8 +1227,119 @@ fn a_refused_close_holds_and_wakes_its_goal_once() {
     let change::State::Held { was, hold } = &row(&world, close).change.state else { panic!("close held at producing") };
     assert_eq!(**was, change::State::Producing { requested: true });
     assert_eq!(hold.cause, change::Cause::CloseRefused);
-    assert_eq!(hold.words.as_ref(), refusal_words(at).as_bytes());
-    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
+    assert_eq!(hold.words.as_ref(), words.as_bytes());
+    super::goal_closer::assert_hold_words(&world, close, words);
+    world.close();
+}
+
+#[test]
+fn a_refused_close_holds_and_wakes_its_goal_once() {
+    let refusal = goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
+    let words = refusal_words(refusal.at, &[CLOSE_FAILURE], 0);
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_refusal_holds_all_failures_in_check_order() {
+    let failures = [CLOSE_FAILURE, "test B::world rule_01", "test A::fuzzy rule_02"];
+    let refusal = goal_with_refused_close(&failures, 0, Some(CLOSE_COUNTS));
+    let words = refusal_words(refusal.at, &failures, 0);
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_refusal_counts_failures_that_do_not_fit() {
+    const ALREADY_OMITTED: usize = 3; // Omitted by the check, before the engine fits the hold.
+    const KEPT: usize = 1; // The first name fits; including the second would cross the hold bound.
+    const LONG_NAME_BYTES: usize = 323; // 513 minus 169 bytes of fixed text/separators and 21 for the second name.
+    let bound = usize::try_from(tasks::HOLD_ACCOUNT_BYTES).expect("hold bound");
+    let prefix = "test A::rules ";
+    let long_name = format!("{prefix}{}", "x".repeat(LONG_NAME_BYTES - prefix.len()));
+    let failures = [long_name.as_str(), "test B::world rule_01"];
+    // With no base or counts, the two names fit in the 512-byte JSON result, but not in the hold.
+    let refusal = goal_with_refused_close(&failures, ALREADY_OMITTED, None);
+    assert_eq!(refusal_words(refusal.at, &failures, ALREADY_OMITTED).len(), bound + 1);
+    let (kept, omitted) = failures.split_at(KEPT);
+    let words = refusal_words(refusal.at, kept, omitted.len() + ALREADY_OMITTED);
+    assert!(words.len() <= bound);
+    assert_refused_close(refusal, &words);
+}
+
+fn nine_failures() -> [String; 9] {
+    core::array::from_fn(|index| {
+        let package = if index % 2 == 0 { "temper-engine-domain-world" } else { "temper-worker-domain-world" };
+        format!("test {package}::suite forge_routes::goal_closes::rule_{index:02}")
+    })
+}
+
+fn assert_goal_failure_list(refusal: &RefusedClose, failures: &[&str], more: usize) {
+    let head = short(refusal.at.branch);
+    let names = failures.join(", ");
+    let tail = if more == 0 { String::new() } else { format!(" and {more} more") };
+    let prefix = "the close check refused the goal's branch at ";
+    let words = format!("{prefix}{head}; every failure its result names, in the check's order: {names}{tail}.");
+    let messages = &refusal.run.messages;
+    assert!(
+        messages
+            .iter()
+            .any(|word| matches!(word.kind, tasks::MessageKind::Escalation { task, .. } if task == refusal.close))
+    );
+    let lists: Vec<_> = messages
+        .iter()
+        .filter(|word| {
+            word.kind == tasks::MessageKind::Words
+                && word.words.starts_with(prefix.as_bytes())
+                && word.words.windows(b"; every failure".len()).any(|part| part == b"; every failure")
+        })
+        .map(|word| word.words.as_ref())
+        .collect();
+    assert_eq!(lists, [words.as_bytes()], "the escalation wake offers one complete failure list");
+}
+
+#[test]
+fn a_close_refusal_lists_nine_failures_at_the_goals_escalation_wake() {
+    let failures = nine_failures();
+    let failures = failures.each_ref().map(String::as_str);
+    let sample = refusal_with([1; 32], Some(([2; 32], CLOSE_COUNTS)), &failures, 0);
+    assert!((513..=8192).contains(&sample.len()));
+    let refusal = goal_with_refused_close(&failures, 0, Some(CLOSE_COUNTS));
+    assert_eq!(
+        ended(&refusal.world, refusal.job).expect("finished close job").contract,
+        tasks::Contract::Job { bytes: 8192 }
+    );
+    assert_goal_failure_list(&refusal, &failures, 0);
+    let words = refusal_words(refusal.at, &failures[..4], 5);
+    assert!(words.len() <= usize::try_from(tasks::HOLD_ACCOUNT_BYTES).expect("hold bound"));
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_refusal_lists_the_results_own_more_count_at_the_goal() {
+    let failures = [CLOSE_FAILURE];
+    let refusal = goal_with_refused_close(&failures, 3, Some(CLOSE_COUNTS));
+    assert_goal_failure_list(&refusal, &failures, 3);
+    let words = refusal_words(refusal.at, &failures, 3);
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_result_past_eight_kib_is_broke() {
+    let (mut world, goal, _, close, mut job, at) = goal_at_close();
+    let counts = Some((at.landing, CLOSE_COUNTS));
+    let framing = refusal_with(at.branch, counts, &["test "], 0).len();
+    let oversized = format!("test {}", "x".repeat(8193 - framing));
+    let result = refusal_with(at.branch, counts, &[&oversized], 0);
+    assert_eq!(result.len(), 8193);
+    finish_with(&mut world, &job, &result);
+    for _ in 0..world.env.limits.tasks.retries.invalid.retries {
+        job = close_job(&mut world);
+        finish_with(&mut world, &job, &result);
+    }
+    wait_held(&mut world, close, goal);
+    let change::State::Held { hold, .. } = &row(&world, close).change.state else { panic!("close holds") };
+    assert_eq!(hold.cause, change::Cause::Failed);
+    assert!(hold.words.starts_with(b"the close check broke and didn't judge the goal: "));
+    assert_eq!(row(&world, close).close_at, Some(at));
     world.close();
 }
 
@@ -958,7 +1347,7 @@ fn a_refused_close_holds_and_wakes_its_goal_once() {
 fn a_close_refusal_naming_no_failure_is_broke() {
     const RESULT_PREFIX: usize = 64; // tooling.md, 4.2 and repairs-releases.md, 1
     let (mut world, goal, _, close, job, at) = goal_at_close();
-    let result = refusal_with(at.branch, at.landing, "");
+    let result = refusal_with(at.branch, Some((at.landing, CLOSE_COUNTS)), &[], 0);
     finish_with(&mut world, &job, &result);
     wait_held(&mut world, close, goal);
     let prefix = core::str::from_utf8(&result[..RESULT_PREFIX]).expect("ASCII refusal");
@@ -976,18 +1365,20 @@ fn a_close_refusal_naming_no_failure_is_broke() {
 
 #[test]
 fn a_restart_keeps_a_refused_closes_hold_and_inputs() {
-    let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
+    let RefusedClose { mut world, run, close, at, .. } =
+        goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
     park_goal(&mut world, &run);
     restart_closing(&mut world);
     wait_held(&mut world, close, run.task);
     assert_eq!(row(&world, close).close_at, Some(at));
-    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
+    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at, &[CLOSE_FAILURE], 0));
     world.close();
 }
 
 #[test]
 fn a_released_close_does_not_measure_unchanged_tips_again() {
-    let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
+    let RefusedClose { mut world, run, close, at, .. } =
+        goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
     let words = replay_words(at);
     for call in [93, 94] {
         let revision = live_task(&world, close).revisions.hold;
@@ -1010,7 +1401,8 @@ fn a_released_close_does_not_measure_unchanged_tips_again() {
 
 #[test]
 fn a_released_close_wakes_when_its_repair_changes_nothing() {
-    let RefusedClose { mut world, run, closer, close, at, .. } = goal_with_refused_close();
+    let RefusedClose { mut world, run, closer, close, at, .. } =
+        goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
     let words = replay_words(at);
     let (work, producer) = make_change(&mut world, &run, 93);
     release(&mut world, &run, close, 94);
@@ -1033,10 +1425,34 @@ fn land_work_during_held_close(world: &mut World, goal: &engine::Assignment, bra
     wait_held(world, first, goal.task);
     let run = awakened(world, goal.task);
     let (work, producer) = make_change(world, &run, 93);
-    park_goal(world, &run);
-    produce(world, work, branch, &producer, b"Repair after close");
-    wait_ended(world, first);
+    land_close_repair(world, &run, branch, work, &producer, first);
     (closer, first, work)
+}
+
+fn land_close_repair(
+    world: &mut World,
+    goal: &engine::Assignment,
+    branch: &[u8],
+    work: u64,
+    producer: &engine::Assignment,
+    first: u64,
+) {
+    park_goal(world, goal);
+    let assigned = world.assigned.len();
+    produce(world, work, branch, producer, b"Repair after close");
+    // The successful change can wake the goal while the closer reads for its replacement.
+    // Return the goal run's lent funds without releasing the obsolete close.
+    for _ in 0..STEPS {
+        if ended(world, first).is_some() {
+            break;
+        }
+        if let Some(next) = world.assigned[assigned..].iter().find(|next| next.task == goal.task).cloned() {
+            park_goal(world, &next);
+            break;
+        }
+        world.tick();
+    }
+    wait_ended(world, first);
 }
 
 fn replacement_close(world: &mut World, goal: u64, closer: u64, first: u64, work: u64) -> (u64, host::JobAssignment) {

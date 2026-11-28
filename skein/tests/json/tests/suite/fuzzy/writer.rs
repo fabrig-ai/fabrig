@@ -1,7 +1,6 @@
-//! The writer against the tokenizer, swept (testing-strategy.md, 8; data/json.md,
-//! 6): many generated documents written and read back the same through the
-//! machine world, and text and numbers drawn at random refused by the writer
-//! exactly when the standard library and the grammar refuse them.
+//! The writer against the tokenizer (skein/docs/design/data/json.md, 6):
+//! cases round-trip documents or check text and number refusals against the
+//! standard library and the grammar (skein/docs/design/testing/sweeps.md, 4).
 
 use skein_json::Token;
 use skein_json::tokenizer::Limits;
@@ -10,30 +9,60 @@ use skein_json_world::generate::{self, Shape};
 use skein_json_world::world::{self, Settings};
 use skein_json_world::{Decoded, Outcome, reference, write};
 use skein_lib::Rng;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
+use std::convert::Infallible;
 
 const WRITER: writer::Limits = writer::Limits { depth: 64, length: 1 << 20 };
 const READER: Limits = Limits { depth: 64, string: 4096, number: 64, chunk: 32, length: 1 << 20 };
+const GENERATED_CHARACTERS: u32 = 24;
+
+fn draw_document(rng: &mut Rng) -> Vec<Token> {
+    let shape = Shape {
+        depth: u32::try_from(rng.between(1, 6)).expect("bounded depth"),
+        width: u32::try_from(rng.between(1, 8)).expect("bounded width"),
+        string: u32::try_from(rng.between(0, u64::from(GENERATED_CHARACTERS))).expect("bounded text"),
+    };
+    generate::tokens(rng, shape)
+}
+
+fn generated_document_length(tokens: usize) -> u32 {
+    // A generated token weighs at most six bytes per character, two quotes,
+    // a comma and a colon. Depth and width bound the token count.
+    const TOKEN_BYTES: u32 = 6 * GENERATED_CHARACTERS + 4;
+    let length = u32::try_from(tokens).expect("bounded shape") * TOKEN_BYTES;
+    WRITER.length.max(length)
+}
+
+#[test]
+fn generated_writer_limits_admit_full_width_draws() {
+    let tokens = draw_document(&mut Rng::new(u64::MAX));
+    assert_eq!(generated_document_length(tokens.len()), WRITER.length);
+    assert_eq!(generated_document_length(8_000), 1_184_000);
+}
 
 #[test]
 fn generated_documents_are_written_and_read_back_the_same_whatever_the_neighbours() {
-    for round in 0..5_000 {
-        let seed = 0x0057_0000 + round;
-        let mut rng = Rng::new(seed);
-        let shape = Shape {
-            depth: u32::try_from(rng.between(1, 6)).unwrap(),
-            width: u32::try_from(rng.between(1, 8)).unwrap(),
-            string: u32::try_from(rng.between(0, 24)).unwrap(),
-        };
-        let tokens = generate::tokens(&mut rng, shape);
-        let document = write(&tokens, &WRITER).expect("generated text is UTF-8, its numbers numbers");
-        let expected = Decoded { tokens, outcome: Outcome::Done };
-        assert_eq!(reference::parse(&document, &READER), expected, "seed {seed}: the reference reads it");
-        let mut limits = READER;
-        limits.chunk = u32::try_from(rng.between(1, 64)).unwrap();
-        let settings = Settings::calm(&mut rng, limits);
-        let run = world::check(&document, &settings, seed);
-        assert_eq!(run.decoded(), Some(expected), "seed {seed}");
-    }
+    cases(
+        this_test!("generated_documents_are_written_and_read_back_the_same_whatever_the_neighbours"),
+        0x0057_0000..0x0057_0000 + 5_000,
+        |seed| {
+            let mut rng = Rng::new(seed);
+            let tokens = draw_document(&mut rng);
+            let length = generated_document_length(tokens.len());
+            let document = write(&tokens, &writer::Limits { length, ..WRITER })
+                .expect("generated text is UTF-8, its numbers numbers");
+            let expected = Decoded { tokens, outcome: Outcome::Done };
+            let mut limits = Limits { length, ..READER };
+            assert_eq!(reference::parse(&document, &limits), expected, "seed {seed}: the reference reads it");
+            limits.chunk = u32::try_from(rng.between(1, 64)).unwrap();
+            let settings = Settings::calm(&mut rng, limits);
+            let run = world::check(&document, &settings, seed);
+            assert_eq!(run.decoded(), Some(expected), "seed {seed}");
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 /// Bytes drawn from a few that make text valid, invalid, or cut short.
@@ -41,55 +70,73 @@ const BYTES: &[u8] = b"a\"\\\n\x00\x1f\x7f\x80\xbf\xc2\xc3\xe0\xe2\xed\xf0\xf4\x
 
 #[test]
 fn text_is_written_exactly_when_it_is_utf8_and_reads_back_the_same() {
+    let at_gate = gate();
     let mut written = 0;
-    for round in 0..20_000 {
-        let mut rng = Rng::new(0x0058_0000 + round);
-        let mut text = Vec::new();
-        for _ in 0..rng.below(8) {
-            text.push(BYTES[usize::try_from(rng.below(BYTES.len() as u64)).unwrap()]);
-        }
-        let tokens = [Token::ArrayStart, Token::String(text.clone().into_boxed_slice()), Token::ArrayEnd];
-        match write(&tokens, &WRITER) {
-            Ok(document) => {
-                assert!(std::str::from_utf8(&text).is_ok(), "{} is UTF-8", text.escape_ascii());
-                let decoded = reference::parse(&document, &READER);
-                assert_eq!(decoded, Decoded { tokens: tokens.to_vec(), outcome: Outcome::Done });
-                written += 1;
+    cases(
+        this_test!("text_is_written_exactly_when_it_is_utf8_and_reads_back_the_same"),
+        0x0058_0000..0x0058_0000 + 20_000,
+        |seed| {
+            let mut rng = Rng::new(seed);
+            let mut text = Vec::new();
+            for _ in 0..rng.below(8) {
+                text.push(BYTES[usize::try_from(rng.below(BYTES.len() as u64)).unwrap()]);
             }
-            Err(refusal) => {
-                assert_eq!(refusal, Refusal::Text);
-                assert!(std::str::from_utf8(&text).is_err(), "{} is not UTF-8", text.escape_ascii());
+            let tokens = [Token::ArrayStart, Token::String(text.clone().into_boxed_slice()), Token::ArrayEnd];
+            match write(&tokens, &WRITER) {
+                Ok(document) => {
+                    assert!(std::str::from_utf8(&text).is_ok(), "{} is UTF-8", text.escape_ascii());
+                    let decoded = reference::parse(&document, &READER);
+                    assert_eq!(decoded, Decoded { tokens: tokens.to_vec(), outcome: Outcome::Done });
+                    written += u32::from(at_gate);
+                }
+                Err(refusal) => {
+                    assert_eq!(refusal, Refusal::Text);
+                    assert!(std::str::from_utf8(&text).is_err(), "{} is not UTF-8", text.escape_ascii());
+                }
             }
-        }
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        assert!(written > 2_000, "much of the text is UTF-8: {written}");
     }
-    assert!(written > 2_000, "much of the text is UTF-8: {written}");
 }
 
 #[test]
 fn a_number_is_written_exactly_when_the_grammar_reads_one() {
+    let at_gate = gate();
     let mut written = 0;
     let mut mutations = generate::MutationBatch::default();
-    for round in 0..20_000 {
-        let mut rng = Rng::new(0x0059_0000 + round);
-        let text = generate::number(&mut rng).into_vec();
-        let text = if rng.chance(500) { generate::mutate(&mut rng, &text) } else { text.into() };
-        mutations.judge(text, |text| {
-            let tokens = [Token::Number(text.clone().into_boxed_slice())];
-            match write(&tokens, &WRITER) {
-                Ok(document) => {
-                    assert!(reference::is_number(&text), "{} is a number", text.escape_ascii());
-                    assert_eq!(&*document, &text[..], "a number is written as it is");
-                    written += 1;
+    cases(
+        this_test!("a_number_is_written_exactly_when_the_grammar_reads_one"),
+        0x0059_0000..0x0059_0000 + 20_000,
+        |seed| {
+            let mut rng = Rng::new(seed);
+            let text = generate::number(&mut rng).into_vec();
+            let text = if rng.chance(500) { generate::mutate(&mut rng, &text) } else { text.into() };
+            mutations.judge(text, |text| {
+                let tokens = [Token::Number(text.clone().into_boxed_slice())];
+                match write(&tokens, &WRITER) {
+                    Ok(document) => {
+                        assert!(reference::is_number(&text), "{} is a number", text.escape_ascii());
+                        assert_eq!(&*document, &text[..], "a number is written as it is");
+                        written += u32::from(at_gate);
+                    }
+                    Err(refusal) => {
+                        assert_eq!(refusal, Refusal::Number);
+                        assert!(!reference::is_number(&text), "{} is not a number", text.escape_ascii());
+                    }
                 }
-                Err(refusal) => {
-                    assert_eq!(refusal, Refusal::Number);
-                    assert!(!reference::is_number(&text), "{} is not a number", text.escape_ascii());
-                }
-            }
-        });
-    }
+            });
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
-    assert!(written > 10_000, "most numbers are numbers: {written}");
+    if at_gate {
+        assert!(written > 10_000, "most numbers are numbers: {written}");
+    }
 }
 
 fn naive_spelling(text: &[u8]) -> Vec<u8> {
@@ -133,28 +180,32 @@ fn text_in_runs_is_written_as_a_naive_reading_has_it() {
     ];
     // data/json.md, 6: a small sweep with over 1,000 accepted and refused texts.
     const ROUNDS: u64 = 5_000;
+    let at_gate = gate();
     let mut written = 0;
     let mut refused = 0;
-    for round in 0..ROUNDS {
-        let seed = 0x005A_0000 + round;
+    cases(this_test!("text_in_runs_is_written_as_a_naive_reading_has_it"), 0x005a_0000..0x005a_0000 + ROUNDS, |seed| {
         let mut rng = Rng::new(seed);
         let pieces = u32::try_from(rng.below(6)).unwrap();
         let longest = u32::try_from(rng.below(48)).unwrap();
-        let text = generate::runs(&mut rng, if round % 2 == 0 { VALID } else { MIXED }, pieces, longest);
+        let text = generate::runs(&mut rng, if seed % 2 == 0 { VALID } else { MIXED }, pieces, longest);
         let tokens = [Token::String(text.clone().into_boxed_slice())];
         match write(&tokens, &WRITER) {
             Ok(document) => {
                 assert!(std::str::from_utf8(&text).is_ok(), "seed {seed}: {text:?}");
                 assert_eq!(document.as_ref(), naive_spelling(&text), "seed {seed}: {text:?}");
-                written += 1;
+                written += u32::from(at_gate);
             }
             Err(refusal) => {
                 assert_eq!(refusal, Refusal::Text, "seed {seed}");
                 assert!(std::str::from_utf8(&text).is_err(), "seed {seed}: {text:?}");
-                refused += 1;
+                refused += u32::from(at_gate);
             }
         }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        assert!(written > 1_000, "valid text fell: {written}");
+        assert!(refused > 1_000, "invalid text fell: {refused}");
     }
-    assert!(written > 1_000, "valid text fell: {written}");
-    assert!(refused > 1_000, "invalid text fell: {refused}");
 }

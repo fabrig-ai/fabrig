@@ -23,6 +23,19 @@ pub(super) fn world_with_sets(seed: u64, limits: &Limits, tasks: &[u64], sets: O
         ),
         (own(keys::Own::Wires), encoded),
     ];
+    for family in sets.sets.iter().flat_map(|set| set.families) {
+        let Some(frame) = family.frames else { continue };
+        let (frame_rows, layout) = crate::frame_reads::frame_rows(family, family.current, limits.store.key);
+        rows.extend(frame_rows);
+        let mut order = skein_lib::List::with_capacity(1);
+        order.push(layout).expect("one frame layout");
+        rows.push((
+            keys::order(family.name, frame.number, limits.store.key).expect("frame order key"),
+            jig_protocol_store::registry_v1::Order { layouts: order }
+                .encode(&jig_protocol_store::registry_v1::CEILINGS)
+                .expect("frame order"),
+        ));
+    }
     let mut writes = root::first().into_vec();
     if let Write::Save(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = &writes[2] {
         writes.push(Write::Save(root::cold_task(task)));

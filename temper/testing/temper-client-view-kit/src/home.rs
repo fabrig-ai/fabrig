@@ -124,6 +124,8 @@ pub fn home_documents_with_status(
             window: 200_000,
             output: 16_384,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .unwrap();
     let mut out = drive(
@@ -801,13 +803,7 @@ pub fn overturn_answer(outcome: w::Outcome, message: Option<c::Answer>) -> d::Do
     overturn_drive(
         &mut root,
         d::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed {
-                    family: wire::FORGE,
-                    served: true,
-                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-                },
-            },
+            event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family: wire::FORGE, served: true } },
         },
     );
     let out = overturn_drive(

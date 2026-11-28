@@ -24,6 +24,7 @@ fn edit_world(document: serde_json::Value, replacement: &str) -> World {
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

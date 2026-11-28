@@ -233,12 +233,13 @@ impl Draft {
                 context.select(Some(index));
                 if let Some(choice) = &mut self.requested {
                     choice.account = account;
-                    choice.main = c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() };
+                    choice.main =
+                        c::ModelEffort { model: model.name.clone(), effort: model.effort.clone(), speed: None };
                 } else {
                     self.requested = Some(c::LlmChoice {
                         later: None,
                         account,
-                        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
+                        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone(), speed: None },
                         subagents: List::with_capacity(0),
                     });
                 }

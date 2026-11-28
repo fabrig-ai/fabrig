@@ -10,6 +10,7 @@ use s = skein_codec::convert
 use own = crate::codec::settings
 by hand crate::codec::settings
 context crate::settings_v3::Limits
+refuses crate::codec::convert::speed_name_to_domain
 refuses own::charter_reasons_to_domain
 refuses own::contract_to_domain
 refuses own::contract_to_record
@@ -26,7 +27,8 @@ with context own::value_to_record
 
 record Text stands for bytes
 record ModelName = v::ModelName { efforts slice }
-record Model = c::Model { efforts slice }
+record Speed = c::Speed { also slice }
+record Model = c::Model { efforts slice, speeds slice }
 record RunPolicy = c::RunPolicy { alternatives slice, tools via own::run_tools }
 enum Kinds = jig_domain_fleet::Kinds
 record WakeBatch
@@ -113,7 +115,7 @@ enum Retention = t::Retention
 record Closer = t::Closer
 enum EndedBy = t::EndedBy { closer tuple }
 record Flags = t::Flags
-record ModelEffort = t::ModelEffort
+record ModelEffort = t::ModelEffort { speed via crate::codec::convert::speed_name }
 record LlmLater = t::LlmLater { subagents slice }
 record LlmChoice = t::LlmChoice { subagents slice }
 record Symbol = p::Symbol

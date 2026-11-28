@@ -38,6 +38,7 @@ jig-domain-views.workspace = true
 jig-protocol-tools.workspace = true
 jig-protocol-charter.workspace = true
 smith-channel.workspace = true
+smith-faults.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 skein-fork.workspace = true

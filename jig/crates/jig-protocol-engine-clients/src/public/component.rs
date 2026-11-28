@@ -285,9 +285,7 @@ fn not_served(kind: PublicKind, limits: &w::Limits) -> Option<Box<[u8]>> {
         owner: owner.clone(),
         served: {
             let mut ranges = List::with_capacity(1);
-            ranges
-                .push(w::Served { owner, first: u32::from(kind.version), last: u32::from(kind.version) })
-                .expect("one range");
+            ranges.push(crate::served::wire_range(owner, u32::from(kind.version))).expect("one range");
             ranges
         },
     };

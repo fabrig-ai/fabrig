@@ -113,6 +113,15 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   so a landing's repair has room to check. It need not fit a charter's
   reserve: a check is cut at its run's end. One past its bounds refuses the
   start at its member, `application.landing.projects[i].check_timeout_ms`.
+- **The hooks' ceiling,** in the project's landing settings alone (kind 4;
+  `../../domain/landing-settings.md`, 1.1): `hook_timeout_max_seconds`, a
+  u32 of seconds from 1 to 86,400, 3,600 when absent: the longest any of
+  the project's hooks runs, whatever its `.temper/hooks/config.toml`
+  asks, and the deadline of each of its merge and close jobs
+  (`../hooks.md`, 2.3). The engine sends it in every run's and job's
+  items (`../wires.md`, 8). `temper ctl` takes and shows it as kind 4's
+  other members, and refuses a value past its bounds, 0 among them,
+  naming the field.
 - **The tiers' project settings,** beside `by`, by either way:
   `wait`, `"cleared"` or `"landed"`, `"cleared"` when absent, another
   word refused at its member, `wait`: whether a change into a branch a
@@ -157,13 +166,17 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   repository the merge job merges, none when absent: the project's merge
   command (`../tooling.md`, 4.1), and with it the merge job before each
   resolution of its changes and catch-ups into its goals' branches
-  (`../../domain/forge/change/repairs.md` and `../../domain/forge/updates.md`, 1). A path past its bounds
+  (`../../domain/forge/change/repairs.md` and `../../domain/forge/updates.md`, 1),
+  in a repository whose job's checkout holds no `.temper/hooks/`; one that holds
+  it runs its `merge` hook and ignores the setting (`../hooks.md`, 4.3 and 5). A path past its bounds
   refuses the start at its member.
 - **The close job's command,** beside `merge_job`, by either way:
   `close_job`, a relative path of at most 4,096 bytes, without `..`, in
   each repository a goal's branch of the project is in, none when
   absent: the project's close command (`../tooling.md`, 4.2), and with it
-  the close step of each goal's closer (`../../domain/forge/branches.md`, 2). It
+  the close step of each goal's closer (`../../domain/forge/branches.md`, 2),
+  where the job's checkout of the goal's branch's tip holds no
+  `.temper/hooks/`, as `merge_job` (`../hooks.md`, 4.3 and 5). It
   is read as `merge_job` is, its errors named at
   `application.landing.projects[i].close_job`; a path past its bounds
   refuses the start at its member.

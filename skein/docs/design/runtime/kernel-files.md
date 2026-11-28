@@ -66,6 +66,19 @@ documentation, with each operation's errors; the decisions behind it:
   path-only descriptor takes no `fcntl` flags). The simulator holds the
   same permission rule: search on the parents, nothing on the entry.
   `StatEntry` (below) states an entry with no open at all.
+- **A file beside it, path-only.** `PathSiblingFile` opens one name of
+  an open directory (no `/`, not `.` or `..`, at most 255 bytes) as
+  `PathNoFollow` does, where the entry is a regular file; where it is a
+  symbolic link whose target is such a name, naming a regular file in
+  the same directory, it opens that file instead: one link, never a
+  chain. Any other link (to a path, to another link, to anything but a
+  regular file) is `TooManyLinks`, and a missing entry `NotFound`. The
+  backend reads the link and states its target without following it
+  before the open, which follows no link. Its descriptor takes `Stat`
+  and `Close` alone, as `PathNoFollow`'s, so the caller checks the kind
+  and mode it opened. It is a repository hook's check, the one rule smith
+  and temper's worker share (`temper/docs/design/protocol/hooks.md`,
+  2.2), so nothing above the kernel reads a link's target for it.
 - **Reads and writes are at an offset,** never at the descriptor's
   position, so concurrent ones need no order. Both may be short: a `Read`
   at the end of the file, and whenever the backend says (POSIX allows it;

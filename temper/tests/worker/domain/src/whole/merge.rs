@@ -13,12 +13,18 @@ const ATTEMPT: Token = Token::new(13);
 const REMOTE: &[u8] = b"org/jobs";
 const SETTLED: &[u8] = b"{\"settled\":[\"code\"]}";
 const LEFT: &[u8] = b"{\"settled\":[],\"left\":[\"code\"]}";
+const HOOK_PATH: &[u8] = b".temper/hooks/merge";
+const HOOK_COMMAND: &[u8] = b"fabrig/.temper/hooks/merge";
+const HOOK_CONFLICT: &[u8] = b"hook `.temper/hooks/merge`: left in conflict";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Case {
     Settled,
     Left,
     Marked,
+    ConflictedHook,
+    NoHookConflicted,
+    NoHookClean,
 }
 
 fn kind() -> tooling::Kind {
@@ -35,23 +41,55 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     let mut limits = crate::limits();
     limits.checkout.conflicts = 1;
     limits.checkout.path_bytes = 64;
+    if case == Case::ConflictedHook {
+        limits.host.detail_bytes = u32::try_from(HOOK_CONFLICT.len()).expect("room for the hook failure line");
+    }
     let mut world = World::new(seed, kind(), limits);
     world.repository = b"fabrig".as_slice().into();
-    let head = world.forge.advance(REMOTE, b"topic", b"code", b"head\n");
-    let base = world.forge.advance(REMOTE, b"main", b"code", b"base\n");
+    let find = no_hook(case);
+    let program = if find || case == Case::ConflictedHook { HOOK_COMMAND } else { b"fabrig/tools/merge" };
+    let path = if case == Case::ConflictedHook { HOOK_PATH } else { b"code" };
+    let main_path = if case == Case::NoHookClean { b"from-main".as_slice() } else { path };
+    let head = world.forge.advance(REMOTE, b"topic", path, b"head\n");
+    let base = world.forge.advance(REMOTE, b"main", main_path, b"base\n");
     world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind().bound]);
-    assign(&mut world, head, base)?;
-    let owner = world.start(b"fabrig/tools/merge")?;
-    command(&mut world, owner, head, base, case)?;
+    assign(&mut world, head, base, program, find)?;
+    if case == Case::ConflictedHook {
+        world.written()?;
+        assert!(world.operations.is_empty(), "an unmerged hook never reaches the spawn boundary");
+    } else if find {
+        world.absent(program, case == Case::NoHookClean)?;
+    } else {
+        let owner = world.start(program)?;
+        command(&mut world, owner, head, base, case)?;
+    }
     let commit = world.forge.branch(REMOTE, b"topic").expect("delivery branch");
     let answer = world.report.answer.as_ref().expect("one terminal answer");
+    let delivered = case == Case::Settled || case == Case::NoHookClean;
     match case {
-        Case::Settled | Case::Left => {
+        Case::Settled | Case::Left | Case::NoHookConflicted | Case::NoHookClean => {
             let host::JobEnding::Finished { result: received, work } = answer else { panic!("finished: {answer:?}") };
-            assert_eq!(received.as_ref(), if case == Case::Left { LEFT } else { SETTLED });
+            let expected = match case {
+                Case::Settled => SETTLED,
+                Case::Left => LEFT,
+                Case::NoHookConflicted => br#"{"settled":[],"hook":"none"}"#,
+                Case::NoHookClean => br#"{"settled":[]}"#,
+                Case::Marked | Case::ConflictedHook => unreachable!("the job finished"),
+            };
+            assert_eq!(received.as_ref(), expected);
             assert!(work.saved.is_none());
-            assert_eq!(work.left.is_some(), case == Case::Settled);
+            assert_eq!(work.left.is_some(), delivered);
+        }
+        Case::ConflictedHook => {
+            assert_eq!(
+                answer,
+                &host::JobEnding::Failed {
+                    failure: host::JobFailure::Failed,
+                    detail: HOOK_CONFLICT.into(),
+                    work: host::Work { left: None, saved: None },
+                }
+            );
         }
         Case::Marked => {
             let host::JobEnding::Failed { failure: host::JobFailure::Undelivered(_), work, .. } = answer else {
@@ -60,7 +98,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             assert_eq!(*work, host::Work { left: None, saved: None });
         }
     }
-    if case == Case::Settled {
+    if delivered {
         assert_eq!(world.report.pushes, 1);
         assert_eq!(world.forge.parent(commit), Some(head));
         assert_eq!(world.forge.merge_parent(commit), Some(base));
@@ -78,7 +116,11 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     Ok(world.report)
 }
 
-fn assign(world: &mut World, head: u64, base: u64) -> Result<(), String> {
+fn no_hook(case: Case) -> bool {
+    case == Case::NoHookClean || case == Case::NoHookConflicted
+}
+
+fn assign(world: &mut World, head: u64, base: u64, program: &[u8], find: bool) -> Result<(), String> {
     world.event(Event::AssignJob {
         job: host::JobAssignment {
             run: RUN,
@@ -91,6 +133,7 @@ fn assign(world: &mut World, head: u64, base: u64) -> Result<(), String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -111,9 +154,12 @@ fn assign(world: &mut World, head: u64, base: u64) -> Result<(), String> {
             }]),
         }),
         spec: Ok(wire::JobSpec {
-            command: b"fabrig/tools/merge".as_slice().into(),
+            command: program.into(),
             request: b"request".as_slice().into(),
             refusal: false,
+            result: 512,
+            outdated: false,
+            fallback: if find { Some(Box::new([])) } else { None },
         }),
     })?;
     Ok(())

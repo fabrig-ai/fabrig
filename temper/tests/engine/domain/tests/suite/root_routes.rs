@@ -3155,7 +3155,7 @@ fn a_delegate_batch_and_its_named_answer_commit_together() {
     let mut delegate = plain_delegate(SPEC);
     delegate.tracked = Some(1);
     delegate.llm = Some(tasks::LlmChoice {
-        main: tasks::ModelEffort { model: 1, effort: Some(0) },
+        main: tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
         later: None,
         account: None,
         subagents: Box::new([]),
@@ -3182,7 +3182,10 @@ fn a_delegate_batch_and_its_named_answer_commit_together() {
     let child_row = live(&driver, child);
     assert_eq!(child_row.tracked, Some(1));
     assert_eq!(child_row.spec.words.as_ref(), SPEC);
-    assert_eq!(child_row.llm.as_ref().expect("named LLM").main, tasks::ModelEffort { model: 1, effort: Some(0) });
+    assert_eq!(
+        child_row.llm.as_ref().expect("named LLM").main,
+        tasks::ModelEffort { model: 1, effort: Some(0), speed: None }
+    );
     park_task(&mut driver, &parent);
     let run = assigned_task(&driver, child);
     assert_eq!(run.run.policy.model.name.as_ref(), MODEL);
@@ -4453,7 +4456,13 @@ fn read_only_role_stages_have_one_not_ready_terminal_and_empty_projects_need_no_
         tasks::Kept { revisions: configured.settings.revisions, versions: configured.settings.versions },
         9312,
         1,
-        Box::new([tasks::CharterModels { resumes: false, number: 1, revision: 1, models: Some(Box::new([0])) }]),
+        Box::new([tasks::CharterModels {
+            resumes: false,
+            number: 1,
+            revision: 1,
+            models: Some(Box::new([0])),
+            speeds: Box::default(),
+        }]),
         Box::new([0]),
     );
     let environment = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: configured.tasks };

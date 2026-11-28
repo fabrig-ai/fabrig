@@ -102,7 +102,9 @@ agent must name.
   naming them. A member `FIELDS` marks optional may be left out and
   takes the default its row names: a template's model choice is
   `{"main": {"model": M, "effort": E}}` alone, its `account` none and
-  its `subagents` empty; a template's `resources`, the symbols a task
+  its `subagents` empty, and each model may add `"speed": S`, a speed
+  its model declares or `"standard"`, none where left out (jig's
+  `domain/tasks/README.md`, section 3); a template's `resources`, the symbols a task
   filled from it holds, is a list of `{"connector": C, "symbol": S}` as
   jig's format has it (jig's `protocol/configuration-templates.md`, 3), left
   out `[]`, so the reference's goal template names the forge's *its own
@@ -118,7 +120,10 @@ agent must name.
   anything is sent, naming the item. So is a template's or charter's effort
   that its model doesn't offer, where `me` shows that model in any of the
   party's projects: exit 1, nothing sent, `settings file item 1: model M offers
-  no effort xhigh; it offers high, medium`, or `it offers none`. A model
+  no effort xhigh; it offers high, medium`, or `it offers none`; and a
+  template's or charter's speed that its model doesn't declare, nor
+  `standard`, the same way: `settings file item 1: model M declares no
+  speed S; it declares fast, ultrafast`, or `it declares none`. A model
   `me` doesn't show goes to the engine, which refuses it by name (jig's
   `client/domain/contract/answers.md`, 1). jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, as a project's policy
@@ -133,6 +138,28 @@ agent must name.
   temper's settings with jig's, by the names above, and no project's
   policy, which is no setting (`project show` prints its roles and
   spends).
+- **A settings file's format** (`../../protocol/configuration/file-formats.md`):
+  `"format": N` beside `items`, absent 1; this client reads format 1
+  alone. A newer format is refused before anything else in the file is
+  read or anything sent, `settings file: format 2; this temper ctl reads
+  format 1: upgrade it, or write the file at format 1`, and a `format`
+  that isn't a whole number from 1 as `settings file: format: a whole
+  number from 1`, the file named before its words as `overlays.md`, 3
+  names it with several. An older format's members are moved to the
+  newest as they are read, by the moves recorded by `FIELDS`' shape and
+  member (`../../protocol/configuration/file-formats.md`, 3 and 4), each
+  noted on stderr before anything is sent, `settings file item 2:
+  charter.PATH: format 1; format 2 writes it as WORDS`; with none in this
+  release, the decoder's tests read through moves of their own, a format
+  2 over `FIELDS`' members. `FIELDS` holds the file's `format` row, and
+  the `settings-fields` page ends with the file's formats and each
+  move, as `help config` lists `temper.toml`'s
+  (`../../protocol/configuration/file.md`, 7). The engine host's read of
+  a settings file takes its `format` as ctl does and returns the read's
+  notices to the agent with its result, one line each in the file's form
+  (`../../protocol/configuration/file-formats.md`, 4). A proposal's inline
+  items, an agent's, take no `format`. `settings upgrade` prints a file
+  at the newest format (`tools-reads.md`, 1).
 - **A goal template's work** (`../../protocol/configuration/settings-kinds.md`, 1, kind
   11): its SETTING `{"kind": "template-goal", "number": N}`, N the
   template's, the deployment's as a template is, and its VALUE

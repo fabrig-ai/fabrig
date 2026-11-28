@@ -26,8 +26,8 @@ fn chosen() -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: Some(42),
-        main: tasks::ModelEffort { model: 0, effort: Some(1) },
-        subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+        main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
+        subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
     }
 }
 const CHOICE: &str = r#"{"main":{"model":0,"effort":1},"subagents":[{"model":1}],"account":42}"#;

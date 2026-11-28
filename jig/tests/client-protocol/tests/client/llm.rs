@@ -10,8 +10,8 @@ const CHOSEN: Handle = Handle { asker: Asker::JIG, number: 6 };
 fn text(bytes: &[u8]) -> contract::Text {
     contract::Text::new(bytes.into(), 32).expect("a short name")
 }
-fn named(model: &[u8], effort: &[u8]) -> contract::ModelEffort {
-    contract::ModelEffort { model: text(model), effort: Some(text(effort)) }
+fn named(model: &[u8], effort: &[u8], speed: &[u8]) -> contract::ModelEffort {
+    contract::ModelEffort { model: text(model), effort: Some(text(effort)), speed: Some(text(speed)) }
 }
 /// A model's name, efforts, configured prices and optional description.
 type Named = (Vec<u8>, Vec<Vec<u8>>, contract::ModelPrices, Option<Vec<u8>>);
@@ -45,7 +45,21 @@ fn chosen(story: &Story) -> Option<&contract::Task> {
 
 #[test]
 fn me_names_the_models_a_create_chooses_from_and_the_task_shows_the_choice() {
-    let mut story = Story::live_batch(fixtures::SEED, true);
+    let mut story = Story::live_batch_with(fixtures::SEED, true, |config, limits| {
+        // The charter keeps the configured speeds with its model.
+        limits.core.run_bytes = 1024;
+        config.core.defaults.charters[0].policy.resume = false;
+        config.core.settings.models[0].speeds = [b"fast".as_slice(), b"ultrafast"]
+            .map(|name| jig_domain_core::Speed {
+                name: name.into(),
+                also: Box::new([]),
+                input_price: 2,
+                cached_price: 2,
+                cache_write_price: None,
+                output_price: 2,
+            })
+            .into();
+    });
     story.watch(ME, Watchable::Jig(contract::Subject::Me));
     assert!(story.run_until(|s| me_models(s).is_some(), PROOF_WAIT));
     assert_eq!(
@@ -58,8 +72,16 @@ fn me_names_the_models_a_create_chooses_from_and_the_task_shows_the_choice() {
         )])
     );
     let mut subagents = List::with_capacity(1);
-    subagents.push(named(b"scripted", b"low")).expect("one sub-agent");
-    let choice = contract::LlmChoice { later: None, account: None, main: named(b"scripted", b"high"), subagents };
+    subagents.push(named(b"scripted", b"low", b"fast")).expect("one sub-agent");
+    let choice = contract::LlmChoice {
+        later: Some(contract::LlmLater {
+            main: named(b"scripted", b"low", b"standard"),
+            subagents: List::with_capacity(0),
+        }),
+        account: None,
+        main: named(b"scripted", b"high", b"ultrafast"),
+        subagents,
+    };
     let mut tasks = fixtures::create_tasks();
     tasks.get_mut(0).expect("first root").llm = Some(choice.clone());
     story.send(CREATE, Ask::Jig(Box::new(contract::Ask::Create { project: PROJECT_NUMBER, tasks })));

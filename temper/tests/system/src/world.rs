@@ -49,6 +49,8 @@ pub fn charter() -> engine::Charter {
         price_unit: 1_000_000,
         efforts: Box::new([]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     };
     charter.policy.turns = 64;
     charter.policy.time = Duration::from_secs(3600);
@@ -247,6 +249,7 @@ fn agent_for_with_options(
     let workspace = Some(run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(disk.root(b"work")),
@@ -410,7 +413,7 @@ pub fn turn(
 #[must_use]
 pub fn copy_answer(answer: &run::Answer) -> run::Answer {
     match answer {
-        run::Answer::Refused(refusal) => run::Answer::Refused(*refusal),
+        run::Answer::Refused(refusal) => run::Answer::Refused(refusal.clone()),
         run::Answer::Parked { spent, turns } => run::Answer::Parked { spent: *spent, turns: *turns },
         run::Answer::Failed { failure, spent, turns } => {
             run::Answer::Failed { failure: failure.clone(), spent: *spent, turns: *turns }

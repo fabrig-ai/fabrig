@@ -106,6 +106,23 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
     for (name, provider) in [(b"first".as_slice(), Some(f::PROVIDER)), (b"other", None), (b"last", Some(f::PROVIDER))] {
         let mut efforts = List::with_capacity(1);
         efforts.push(c::Text::new(b"low".as_slice().into(), 32).expect("effort")).expect("one effort");
+        let mut speeds = List::with_capacity(1);
+        let speed = if name == b"first" {
+            let fast = f::act_text(b"fast");
+            speeds
+                .push(c::SettingSpeed {
+                    name: fast.clone(),
+                    also: List::with_capacity(0),
+                    input_price: 14,
+                    cached_price: 4,
+                    cache_write_price: Some(18),
+                    output_price: 22,
+                })
+                .expect("one speed");
+            Some(fast)
+        } else {
+            None
+        };
         project
             .models
             .push(c::MeModel {
@@ -129,6 +146,8 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
                     accounts
                 },
                 picker: false,
+                speeds,
+                speed,
             })
             .expect("models");
     }
@@ -163,7 +182,8 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
         for fact in [
             b"\"description\":\"Careful reasoning\"".as_slice(),
             b"\"shown\":\"Shown model\"",
-            b"\"effort\":\"low\",\"accounts\":[43,47],\"picker\":false",
+            b"\"effort\":\"low\",\"speeds\":[\"fast\"],\"speed\":\"fast\",\"accounts\":[43,47],\"picker\":false",
+            b"\"effort\":\"low\",\"speeds\":[],\"speed\":null,\"accounts\":[43,47],\"picker\":false",
             b"\"prices\":{\"input\":7,\"cached\":2,\"cache_write\":9,\"output\":11,\"unit\":1000}",
         ] {
             assert!(f::json_has(&printed, fact), "{fact:?}");
@@ -397,6 +417,8 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
             picker: true,
             description: None,
             prices: c::ModelPrices { input: 17, cached: 3, cache_write: None, output: 29, unit: 100 },
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("model room");
     me.providers = f::provider_offers();

@@ -35,9 +35,9 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   runs a binary's tests in one process and measures CPU per process
   (section 11); nextest's path stays as it is.
 - **Campaigns:** `tools/tiers/campaign TREE` runs rounds of a tree's
-  campaign pair through this runner, with fresh seeds, after landing, and
-  replays each failing case alone, and each finding's first case at the
-  last campaign's commit (`tools/tiers/campaign.md`).
+  campaign pair through this runner, with fresh seeds, after landing,
+  replays each failing case alone, and marks each finding the last
+  campaign also had (`tools/tiers/campaign.md`).
 - **Visible evidence:** print each step's command; nextest prints its
   summary, and what a wrapper prints stays visible. Prerequisite failures
   name their step.
@@ -726,10 +726,14 @@ hold their options in their own words, and read no list: whether they read
 by a record kept outside this repository; stating where the figures come
 from in this repository's own words is left for later.
 
-The 217.5, 127.5 and 540 CPU seconds of `browser-skein`, `browser-temper`
-and `process-temper` are 145, 85 and 360 raised by half by the user's word
-of 11-08, for now, as `budgets.toml`'s comments say: revisiting them is the
-user's.
+The 217.5 and 540 CPU seconds of `browser-skein` and `process-temper` are
+145 and 360 raised by half by the user's word of 11-08, for now, as
+`budgets.toml`'s comments say: revisiting them is the user's.
+`browser-temper`'s 140 is the user's word of 11-27, keeping four cores with
+longer runs: held to four cores' time on the after-landing tier's machine
+from 11-26 01:06Z, its 29 full runs took 95.4 to 133.8 CPU s, 8 of them over
+the 127.5 that was 85 raised by half on 11-08, and 140 is about 5% over the
+dearest.
 
 The gate's budgets by layer and the ledger that judges a partial run whole
 are `tools/tiers/budgets.md`'s, and each test's reference held

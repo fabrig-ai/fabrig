@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 101] = [
+const SHAPES: [Shape; 102] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -14,6 +14,7 @@ const SHAPES: [Shape; 101] = [
     Shape::CharterPart,
     Shape::Document,
     Shape::Model,
+    Shape::SettingSpeed,
     Shape::Catalogue,
     Shape::Provider,
     Shape::ProviderSources,
@@ -225,7 +226,7 @@ fn every_shape_has_one_form_and_is_reached_from_the_file() {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum Edit {
+pub(crate) enum Edit {
     Base,
     Alternative(Shape, usize),
     Word(&'static Field, usize),
@@ -484,7 +485,7 @@ fn file(edit: Edit, out: &mut Encoder) -> bool {
     out.object_end();
     changed
 }
-fn generated(edit: Edit) -> (Box<[u8]>, bool) {
+pub(crate) fn generated(edit: Edit) -> (Box<[u8]>, bool) {
     let limits = JsonLimits { depth: 32, length: u32::try_from(Limits::standard().ask_bytes).expect("file bound") };
     let mut measure = Encoder::measure(&limits);
     file(edit, &mut measure);
@@ -516,6 +517,12 @@ fn optional_provider(field: &Field) -> bool {
         || (field.shape == Shape::ProviderEndpoint && [b"program".as_slice(), b"trust"].contains(&field.name))
         || field.shape == Shape::ProviderAddress
 }
+fn optional_model_speed(field: &Field) -> bool {
+    (field.shape == Shape::Model && [b"speeds".as_slice(), b"speed"].contains(&field.name))
+        || (field.shape == Shape::ModelEffort && field.name == b"speed")
+        || (field.shape == Shape::SettingSpeed && [b"also".as_slice(), b"cache_write_price"].contains(&field.name))
+}
+
 fn optional_worker(field: &Field) -> bool {
     field.shape == Shape::Worker && [b"number".as_slice(), b"digest", b"withdrawn"].contains(&field.name)
 }
@@ -558,6 +565,7 @@ fn every_generated_file_decodes() {
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
+            || optional_model_speed(field)
             || optional_worker(field)
             || optional_follow(field)
             || optional_landing(field)
@@ -580,6 +588,7 @@ fn every_generated_file_decodes() {
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
         if field.shape == Shape::Overlay
+            || (field.shape == Shape::File && field.name == b"format")
             || field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
@@ -591,6 +600,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
+            || optional_model_speed(field)
             || optional_worker(field)
             || optional_provider(field)
             || optional_follow(field)
@@ -623,7 +633,9 @@ fn a_path_resolves_through_its_shapes() {
         (b"charter.parts[].instructions", Shape::CharterPart, b"instructions"),
         (b"template.llm.later.main.model", Shape::ModelEffort, b"model"),
         (b"template.llm.later.subagents[].effort", Shape::ModelEffort, b"effort"),
+        (b"template.llm.later.subagents[].speed", Shape::ModelEffort, b"speed"),
         (b"model.name", Shape::Model, b"name"),
+        (b"model.speeds[].cache_write_price", Shape::SettingSpeed, b"cache_write_price"),
         (b"template.resources[].connector", Shape::Symbol, b"connector"),
         (b"template.resources[].symbol", Shape::Symbol, b"symbol"),
         (b"landing-rule.pattern.last.exact", Shape::LandingLast, b"exact"),
@@ -742,7 +754,7 @@ const PAGE_FIELDS: [Field; 14] = [
 
 #[test]
 fn the_page_writes_each_type_as_the_table_says() {
-    let page = super::render::page_of(&PAGE_FORMS, &PAGE_FIELDS, &Limits::standard());
+    let page = super::render::page_of(&PAGE_FORMS, &PAGE_FIELDS, &Limits::standard(), super::formats::FORMATS);
     for expected in [
         b"# Settings fields\n\nKind: reference".as_slice(),
         b"- number:u8",

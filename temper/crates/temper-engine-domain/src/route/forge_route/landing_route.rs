@@ -829,6 +829,11 @@ fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[Head
     }
     let base = base?;
     let main = row.landing.branch == repository.landing;
+    let (combine_main, combine_other) = match domain.forge.landing_settings(row.landing.project) {
+        Some(config) => (config.combine_main, config.combine_other),
+        None => (landing::Combine::Merge, landing::Combine::Squash),
+    };
+    let combine = if main { combine_main } else { combine_other };
     let mut from = base;
     let mut members = List::with_capacity(limit);
     for (index, member) in row.landing.members.iter().enumerate() {
@@ -849,7 +854,7 @@ fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[Head
                 break;
             }
         }
-        let text = forge::member_message::Member {
+        let text = temper_protocol_member_message::Member {
             title: &change.title,
             words: &change.report,
             change: member.change,
@@ -858,9 +863,12 @@ fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[Head
             goal: change.goal,
             head_trailers: trailers,
         };
-        let message =
-            forge::member_message::commit_message(&text, forge::member_message::Kind::Merge { into_main: main });
-        let squash = forge::member_message::commit_message(&text, forge::member_message::Kind::Squash);
+        let message = temper_protocol_member_message::commit_message(
+            &text,
+            temper_protocol_member_message::Kind::Merge { into_main: main },
+        );
+        let squash =
+            temper_protocol_member_message::commit_message(&text, temper_protocol_member_message::Kind::Squash);
         members
             .push(PrepareMember {
                 number: u64::try_from(index).ok()?.checked_add(1)?,
@@ -869,21 +877,19 @@ fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[Head
                 head,
                 message,
                 squash,
+                head_trailers: combine == landing::Combine::Squash
+                    && temper_protocol_member_message::trailers(&change.report).is_empty(),
             })
             .ok()?;
     }
     if members.is_empty() {
         return None;
     }
-    let (combine_main, combine_other) = match domain.forge.landing_settings(row.landing.project) {
-        Some(config) => (config.combine_main, config.combine_other),
-        None => (landing::Combine::Merge, landing::Combine::Squash),
-    };
     Some(PrepareRequest {
         repository: repository.name.clone(),
         main: base,
         from,
-        combine: if main { combine_main } else { combine_other },
+        combine,
         train_upstream: row.landing.round.upstream,
         members: members.into_boxed(),
     })
@@ -954,8 +960,11 @@ pub(super) fn prepare_workspace(
     let mut checkout = super::workspace_repository(item, None, Box::new([]))?;
     checkout.prefixes = branches.into_boxed();
     checkout.save = None;
-    let workspace =
-        super::ForgeWorkspace { rerun: super::rerun_bound(domain, project), repositories: Box::new([checkout]) };
+    let workspace = super::ForgeWorkspace {
+        rerun: super::rerun_bound(domain, project),
+        hook_timeout_max_seconds: super::hook_timeout_max_seconds(domain, project),
+        repositories: Box::new([checkout]),
+    };
     let mut writes = List::with_capacity(env.limits.forge.landing_members);
     let mut names = List::with_capacity(env.limits.forge.landing_members);
     for member in &request.members {

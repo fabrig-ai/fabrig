@@ -54,6 +54,7 @@ fn a_run_looks_for_checks_in_writable_repositories_when_a_change_must_pass_them(
         directories: Box::new([
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"temper"),
                 root: Token::new(900),
@@ -63,6 +64,7 @@ fn a_run_looks_for_checks_in_writable_repositories_when_a_change_must_pass_them(
             },
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"docs"),
                 root: Token::new(901),
@@ -134,6 +136,35 @@ fn a_report_only_run_probes_checks_in_its_writable_directory() {
         panic!("report opens after the probe: {requests:?}");
     };
     assert!(skein_lib::bytes::find(&opening.system, b"with checks (`.temper/pre-pr`)").is_some());
+}
+
+#[test]
+fn host_measure_uses_the_longer_rendered_check_label() {
+    use crate::prepare::{Check, Kind};
+    use crate::{Conventions, Hook, Hooks, prompt};
+
+    let mut mounted = workspace();
+    mounted.directories[0].writable = true;
+    let mounted = Some(&mounted);
+    let rendered_len = |selected: &Charter, kind| {
+        let mut found = Found::with_capacity(1);
+        found.checks.push(Check { directory: 0, kind }).expect("one check");
+        prompt::system(selected, mounted, &found, BUDGET, false).len()
+    };
+
+    for checks in [b".temper/pre-pr".as_slice(), b".temper/checks/legacy-with-a-longer-name-than-hooks"] {
+        let mut selected = charter();
+        selected.conventions = Some(Conventions { guide: bytes(b"AGENTS.md"), checks: bytes(checks), hooks: None });
+        let legacy_host = prompt::host_bytes(&selected, mounted, 0).unwrap();
+        let legacy_len = rendered_len(&selected, Kind::Legacy);
+
+        selected.conventions.as_mut().unwrap().hooks = Some(bytes(b".temper/hooks"));
+        let hooks_len =
+            rendered_len(&selected, Kind::Hooks(Hooks { deliver: Hook::Executable, finish: Hook::Executable }));
+        // Only the checkout label differs between the two rendered systems.
+        let extra = u64::try_from(hooks_len.saturating_sub(legacy_len)).unwrap();
+        assert_eq!(prompt::host_bytes(&selected, mounted, 0), Some(legacy_host + extra));
+    }
 }
 
 #[test]

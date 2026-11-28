@@ -163,7 +163,13 @@ pub fn batch_bytes(batch: &[crate::New]) -> Option<u64> {
 /// The sub-agents' array an LLM choice owns.
 fn llm_bytes(llm: Option<&crate::LlmChoice>) -> Option<u64> {
     match llm {
-        Some(choice) => bytes(size_of_val(&*choice.subagents)),
+        Some(choice) => {
+            let first = bytes(size_of_val(&*choice.subagents))?;
+            match &choice.later {
+                Some(later) => first.checked_add(bytes(size_of_val(&*later.subagents))?),
+                None => Some(first),
+            }
+        }
         None => Some(0),
     }
 }

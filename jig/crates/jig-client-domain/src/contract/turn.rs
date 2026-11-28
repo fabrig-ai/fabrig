@@ -95,6 +95,8 @@ pub struct Call {
     pub input: Text,
     pub outcome: Option<Text>,
     pub failed: bool,
+    /// The stored result's shapes word, absent without a result or for a live call.
+    pub answer: Option<&'static [u8]>,
     pub objects: List<ObjectKey>,
     pub parts: List<ApplicationPart>,
 }

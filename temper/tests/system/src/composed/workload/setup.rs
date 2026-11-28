@@ -22,7 +22,7 @@ pub(super) fn marker(change: &temper_workload::draw::Change) -> String {
     format!(".workload/{}.tests", change.name)
 }
 
-pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload) -> engine::Config {
+pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload, park_cell: bool) -> engine::Config {
     let mut config = super::super::agreement::config(seed);
     for project in &mut config.core.seed_projects {
         for role in &mut project.policy.policy.roles {
@@ -32,6 +32,7 @@ pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload) -> e
     for charter in &mut config.core.defaults.charters {
         if charter.number == 2 {
             charter.policy.tools.0 |= jig_domain_core::ToolFamilies::JIG.delegate.0;
+            charter.policy.shell |= park_cell;
         }
     }
     for template in &mut config.core.defaults.templates {
@@ -252,7 +253,7 @@ pub(super) fn goal(world: &World, goal: &Goal, milestone: u64) -> people::Ask {
     member.budget = people::Budget::Named;
     member.llm = Some(people::LlmChoice {
         account: Some(account(goal.party)),
-        main: people::ModelEffort { model: 0, effort: None },
+        main: people::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::default(),
         later: None,
     });

@@ -573,7 +573,7 @@ fn a_new_chats_default_comes_from_its_supplied_preview() {
                 choice: c::LlmChoice {
                     later: None,
                     account: None,
-                    main: c::ModelEffort { model: model_text(name), effort },
+                    main: c::ModelEffort { model: model_text(name), effort, speed: None },
                     subagents: List::with_capacity(0),
                 },
             })
@@ -1053,7 +1053,7 @@ fn an_empty_wait_names_only_a_choice_the_task_holds() {
             Some(c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: model_text(b"explicit"), effort: None },
+                main: c::ModelEffort { model: model_text(b"explicit"), effort: None, speed: None },
                 subagents: List::with_capacity(0),
             }),
             "No account can run explicit yet.",

@@ -42,7 +42,7 @@ What follows:
 - **The project says,** in kind 4's `flakes` (`../landing-settings.md`, 1.1): `none`, or `rerun N`, N at most the deployment's `checkout.rerun_processes`. Unset, it is `rerun` at that figure, as before.
 - **With `none`:** every checkout a worker prepares for the project's runs and jobs has `temper-rerun 1 0` (`reds.md`, 5.2); the landing gate runs no known-flake rerun (`../landing-regate.md`, 2); and no flake of a delivery's check is filed or counted (`reds.md`, 5.8). A test that fails is the change's red, or a repair shows it isn't. A test that passes alone after failing beside others is still red, its log naming the tests before it.
 - **With `rerun N`:** a worker's marker is N, at most its own `checkout.rerun_processes`; the rest is as before.
-- **A CI runner's checkout is the project's own:** temper prepares none, so the project's command writes the marker its setting states where it finds none, as fabrig's goal check does (`tools/pre-pr/design.md`, 2, *Delivery and CI entry points*).
+- **A CI runner's checkout is the project's own:** temper prepares none, so the project's command writes the marker its setting states where it finds none.
 - **fabrig's is `none`** (the user, 2026-11-25): its checks run only tests that replay, which own their clock, seeds and kernel (`tools/tiers/layers.md`, 6.1), so a test that fails and then passes is a determinism bug, fixed where it lies. The reference's settings carry it (`../../protocol/configuration/reference.md`, 2).
 
 ## 5. Across builds

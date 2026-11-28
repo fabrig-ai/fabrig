@@ -99,6 +99,7 @@ fn review_tree() -> (tasks_domain::Domain, Env<tasks_domain::Limits>) {
         resumes: false,
         revision: 1,
         models: Some(Box::new([0])),
+        speeds: Box::default(),
     });
     let mut tree =
         Domain::new(&env.limits, Kept { revisions: 4, versions: 8 }, 91, 1, Box::new(charters), Box::new([0]));

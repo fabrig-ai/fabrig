@@ -171,7 +171,7 @@ fn authority(workspace: Option<Workspace>, tools: Tools) -> Option<Authority> {
     };
     let count = u32::try_from(mounted.len()).ok()?;
     let mut repos = List::with_capacity(count);
-    for Directory { name, host, root, writable, git: _, conflicts: _, results: _ } in mounted {
+    for Directory { name, host, root, writable, .. } in mounted {
         let name = Name::new(name)?;
         let repo = ToolDirectory { host: host_names(&host)?, mount: name, root, writable };
         repos.push(repo).expect("room for every repository");
@@ -444,6 +444,12 @@ const fn completion_phase(phase: llm::CompletionPhase) -> run::CompletionPhase {
         llm::CompletionPhase::Idle => run::CompletionPhase::Idle,
         llm::CompletionPhase::Whole => run::CompletionPhase::Whole,
     }
+}
+
+/// Copy the charter's selected speed to the session's own accounting vocabulary.
+pub(crate) fn speed(source: Option<&run::charter::Speed>) -> Option<session::record::Speed> {
+    let source = source?;
+    Some(session::record::Speed { name: source.name.clone(), also: source.also.clone(), prices: prices(source.prices) })
 }
 
 /// Copy a model's resolved integer rates to its session's accounting.

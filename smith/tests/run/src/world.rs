@@ -8,6 +8,7 @@ use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
 use smith_domain_run as run;
 
 mod io;
+mod parks;
 mod relays;
 
 use io::Io;
@@ -257,6 +258,7 @@ enum Delivery {
         call: Token,
         spent: u64,
         result: run::Returned,
+        cut: bool,
     },
     /// A conversation's event reaches the run.
     Event(run::Event),
@@ -267,6 +269,7 @@ enum Delivery {
         own_spent: u64,
         subtree_spent: u64,
         usage: run::Spend,
+        answer_part: bool,
     },
     /// An unsent completion waits behind its Started/Priced notices.
     Permit {
@@ -315,6 +318,7 @@ struct Open {
 /// A run as the world sees it from outside, to tell what state a cancel finds
 /// it in.
 struct RunView {
+    host_run: Token,
     reserved_spend: u64,
     admitted_at: Time,
     budget: run::Budget,
@@ -357,6 +361,7 @@ struct Made {
 /// A conversation's call, as the world tracks it.
 struct Call {
     conversation: Token,
+    position: u32,
     deadline: Time,
     wait: bool,
     workspace: bool,
@@ -402,6 +407,7 @@ pub struct World {
     delivered: BTreeSet<Token>,
     io: Io,
     relays: Relays,
+    parks: Option<parks::Parks>,
     /// The runs as the world sees them, by the run's names for them; which run
     /// each host name, conversation and landing call is of; the
     /// conversation each peer is; and the landing calls with a check or delivery
@@ -442,7 +448,7 @@ pub struct World {
     child_of_call: BTreeMap<Token, Token>,
 
     stats: Stats,
-    trace: Trace,
+    trace: Option<Trace>,
 }
 
 impl World {
@@ -477,6 +483,7 @@ impl World {
             calls: BTreeMap::new(),
             io: Io::default(),
             relays: Relays::default(),
+            parks: None,
             deliveries: Ledger::new("push"),
             delivered: BTreeSet::new(),
             views: BTreeMap::new(),
@@ -508,7 +515,7 @@ impl World {
             pending_asks: BTreeMap::new(),
             child_of_call: BTreeMap::new(),
             stats: Stats::default(),
-            trace: Trace::default(),
+            trace: Some(Trace::default()),
         }
     }
 
@@ -665,7 +672,7 @@ impl World {
     /// What crossed between the domains and the world, in order, with times.
     #[must_use]
     pub fn trace(&self) -> &[String] {
-        self.trace.lines()
+        self.trace.as_ref().expect("the world records its boundary trace").lines()
     }
 
     /// The states cancels found runs in: preparing, stopping, opening,
@@ -717,7 +724,7 @@ impl World {
         let mut made = Vec::new();
         while let Some(event) = self.run_stage.next_event() {
             self.order(crate::order_log::Seen::Taken(crate::order_log::Input::of(&event)));
-            self.log(&format!("run <- {event:?}"));
+            self.log(format_args!("run <- {event:?}"));
             let run = self.run_of(&event);
             let cancel = self.note(&event, run);
             // What the run has left as it takes an ask, before what else it
@@ -739,7 +746,7 @@ impl World {
         let run_inputs_drained = !self.run_stage.has_events();
         while run_inputs_drained && self.run.is_due(self.now) {
             self.order(crate::order_log::Seen::Alarm);
-            self.log("run alarm");
+            self.log(format_args!("run alarm"));
             let run = self.deadline_due();
             let before = self.run_stage.out.len();
             run::fire(&mut self.run, &self.run_stage.env, &mut self.run_stage.out);
@@ -815,6 +822,7 @@ impl World {
     fn close_conversation(&mut self, peer: Token) {
         let conversation = self.conversation_of_peer[&peer];
         let run = self.run_of_conversation[&conversation];
+        self.park_cut_seen(run, conversation);
         if self.views[&run].main == Some(conversation) {
             self.views.get_mut(&run).expect("a run outlives its conversations").decided = true;
         }
@@ -827,21 +835,26 @@ impl World {
         self.send(Lane::Conversations, Delivery::Close { peer });
     }
 
+    fn yield_conversation(&mut self, peer: Token) {
+        let conversation = self.conversation_of_peer[&peer];
+        self.order(crate::order_log::Seen::Yield { run: self.run_of_conversation[&conversation] });
+    }
+
     fn run_request(&mut self, request: run::Request, current: Option<Token>) -> Option<Token> {
-        self.log(&format!("run -> {request:?}"));
+        self.log(format_args!("run -> {request:?}"));
+        self.guard_park_request(&request, current);
         let mut current = current;
         match request {
-            run::Request::Turn { host_run, number, position: _, read, spent, opens_window: _, record: _ } => {
+            run::Request::Turn { host_run, number, position: _, read, spent, opens_window: _, record } => {
                 current = Some(self.observed_turn(host_run, number, read, spent));
+                self.park_told_turn(host_run, record);
             }
             run::Request::CompletionReady { conversation } => self.completion_ready(conversation),
             run::Request::MessageRefused { .. } => {}
-            run::Request::Yield { peer } => {
-                let conversation = self.conversation_of_peer[&peer];
-                self.order(crate::order_log::Seen::Yield { run: self.run_of_conversation[&conversation] });
-            }
+            run::Request::Yield { peer } => self.yield_conversation(peer),
             run::Request::Waiting { host_run, read } => {
                 current = Some(self.observed_waiting(host_run, read));
+                self.park_waiting(host_run);
             }
             request @ run::Request::HostCall { .. } => {
                 self.host_call(request);
@@ -873,6 +886,7 @@ impl World {
             run::Request::CancelJobs { peer } => self.cancel_jobs(peer),
             run::Request::Close { peer } => self.close_conversation(peer),
             run::Request::Return { call, result, spent } => {
+                let cut = self.park_return(call, &result);
                 let ledger = self.calls.get_mut(&call).expect("a return is of a call that was made");
                 assert!(!ledger.returned, "a call returns once");
                 ledger.returned = true;
@@ -895,9 +909,12 @@ impl World {
                     let run = self.run_of_call[&owner];
                     self.lease_seen.push((self.now, run, crate::lease_referee::Seen::WorkspaceReturned { owner }));
                 }
-                self.send(Lane::Conversations, Delivery::Return { call, result, spent });
+                self.send(Lane::Conversations, Delivery::Return { call, result, spent, cut });
             }
-            request @ (run::Request::Read { .. } | run::Request::Probe { .. } | run::Request::Abort { .. }) => {
+            request @ (run::Request::Read { .. }
+            | run::Request::Probe { .. }
+            | run::Request::ProbeHooks { .. }
+            | run::Request::Abort { .. }) => {
                 self.io_request(request);
             }
             run::Request::Check { owner, program, results: _, bound, cap, tail } => {
@@ -1012,6 +1029,7 @@ impl World {
                             self.main_in_reserve += 1;
                         }
                         assert!(self.reservations.insert(conversation), "one pending completion per conversation");
+                        self.park_completion(conversation, owner);
                     }
                     Err(exhausted) => permit = run::CompletionPermit::Denied(exhausted),
                 }
@@ -1029,6 +1047,7 @@ impl World {
     fn admitted(&mut self, host_run: Token, run: Token) {
         let Start { budget, reserve, checks, reserved_spend, .. } = &self.starts[&host_run];
         let view = RunView {
+            host_run,
             reserved_spend: *reserved_spend,
             admitted_at: self.now,
             budget: *budget,
@@ -1114,7 +1133,9 @@ impl World {
             | run::Event::PartKept { run, .. }
             | run::Event::Acknowledge { run, .. }
             | run::Event::Message { run, .. } => Some(*run),
-            run::Event::Read { owner, .. } | run::Event::Probed { owner, .. } => Some(*owner),
+            run::Event::Read { owner, .. }
+            | run::Event::Probed { owner, .. }
+            | run::Event::HooksProbed { owner, .. } => Some(*owner),
             run::Event::JobsCancelled { conversation }
             | run::Event::Started { conversation, .. }
             | run::Event::Turn { conversation, .. }
@@ -1143,6 +1164,7 @@ impl World {
                 "the scripted provider charges within its reserved maximum"
             );
         }
+        self.park_note(owner, event);
         let view = self.views.get_mut(&owner)?;
         match event {
             run::Event::Started { conversation, peer } => {
@@ -1194,6 +1216,7 @@ impl World {
             | run::Event::Withdraw { .. }
             | run::Event::Read { .. }
             | run::Event::Probed { .. }
+            | run::Event::HooksProbed { .. }
             | run::Event::JobsCancelled { .. } => {}
         }
         None
@@ -1364,6 +1387,7 @@ impl World {
                 },
             ));
         }
+        parks::observe_answer(&mut self.parks, owner, self.now, &answer, turns);
         start.answer = Some(answer);
         self.send(Lane::Host, Delivery::Answered { host_run: owner });
         owner
@@ -1429,6 +1453,7 @@ impl World {
                 | run::Event::Ended { .. }
                 | run::Event::Read { .. }
                 | run::Event::Probed { .. }
+                | run::Event::HooksProbed { .. }
                 | run::Event::Delegated { .. }
                 | run::Event::Withdraw { .. }
                 | run::Event::Checked { .. }
@@ -1463,6 +1488,9 @@ impl World {
                 Delivery::Open { conversation, opening } => {
                     let mut out = Vec::new();
                     self.partner.open(self.now, conversation, &opening, &mut out);
+                    if let Some(park) = self.park_turn(conversation, &opening) {
+                        self.partner.arm_park(&out, park);
+                    }
                     self.partner_out(out);
                 }
                 Delivery::Say { peer } => {
@@ -1475,7 +1503,7 @@ impl World {
                     self.partner.close(self.now, peer, &mut out);
                     self.partner_out(out);
                 }
-                Delivery::Return { call, result, spent } => {
+                Delivery::Return { call, result, spent, cut } => {
                     if result == run::Returned::TimedOut {
                         assert!(
                             self.now >= self.calls[&call].deadline,
@@ -1483,6 +1511,9 @@ impl World {
                         );
                     }
                     let mut out = Vec::new();
+                    if cut {
+                        self.partner.cut_return(call);
+                    }
                     self.partner.returned(self.now, call, &result, spent, &mut out);
                     self.partner_out(out);
                 }
@@ -1492,7 +1523,10 @@ impl World {
                     self.partner_out(out);
                 }
                 Delivery::Permit { peer, conversation } => self.permits.push((peer, conversation)),
-                Delivery::CompletionUsage { conversation, own_spent, subtree_spent, usage } => {
+                Delivery::CompletionUsage { conversation, own_spent, subtree_spent, usage, answer_part } => {
+                    if answer_part {
+                        self.park_answer_part(conversation);
+                    }
                     self.completion_usage(conversation, own_spent, subtree_spent, usage);
                 }
                 Delivery::Event(event) => {
@@ -1549,8 +1583,9 @@ impl World {
             }
         }
         self.starts.get_mut(&host_run).expect("a start is tracked").checks = checks;
+        let tell_parts = self.park_start(host_run, &charter);
         self.run_stage.push(run::Event::Start {
-            tell_parts: false,
+            tell_parts,
             messages: self.carried_messages.clone(),
             reply_to,
             host_run,
@@ -1578,7 +1613,7 @@ impl World {
     /// opened.
     fn fact(&mut self, fact: &run::facts::Fact) {
         use run::facts::FactKind as Fact;
-        self.facts_seen.push(*fact);
+        self.facts_seen.push(fact.clone());
         let fact = &fact.kind;
         let (Fact::Admitted { run, .. }
         | Fact::MessageRead { run, .. }
@@ -1693,7 +1728,15 @@ impl World {
                         panic!("checked adjacent raw usage from the same callback")
                     };
                     assert_eq!(conversation, used, "one completion callback owns both notices");
-                    self.send(Lane::Run, Delivery::CompletionUsage { conversation, own_spent, subtree_spent, usage });
+                    let answer_part = matches!(items.peek(), Some(Out::AnswerPart(_)));
+                    if answer_part {
+                        let Some(Out::AnswerPart(of)) = items.next() else { unreachable!("checked part") };
+                        assert_eq!(of, conversation, "the answer belongs to this completion");
+                    }
+                    self.send(
+                        Lane::Run,
+                        Delivery::CompletionUsage { conversation, own_spent, subtree_spent, usage, answer_part },
+                    );
                 }
                 Out::Permit { peer, conversation } => {
                     // Preserve the Run lane's order without inventing another
@@ -1702,6 +1745,7 @@ impl World {
                     self.schedule(at, Delivery::Permit { peer, conversation });
                 }
                 Out::Event(event) => self.send(Lane::Run, Delivery::Event(event)),
+                Out::AnswerPart(_) => unreachable!("answer part follows its completion usage"),
                 Out::Wake { at, peer, wake } => {
                     self.schedule(at, Delivery::Wake { peer, wake });
                 }
@@ -1721,7 +1765,7 @@ impl World {
             | run::Event::Turn { conversation, .. }
             | run::Event::Priced { conversation, .. }
             | run::Event::Used { conversation, .. } => (conversation, false, false),
-            run::Event::Delegated { conversation, call, ask, deadline, .. } => {
+            run::Event::Delegated { conversation, call, ask, deadline, name } => {
                 // Relay admission is bounded by both the caller's and the run's deadline.
                 let deadline = if matches!(ask, run::Ask::Host { .. }) {
                     let run = self.run_of_conversation[conversation];
@@ -1735,6 +1779,7 @@ impl World {
                         *call,
                         Call {
                             conversation: *conversation,
+                            position: name.position,
                             deadline,
                             wait: matches!(ask, run::Ask::Wait),
                             workspace: matches!(
@@ -1763,6 +1808,7 @@ impl World {
             | run::Event::Drain { .. }
             | run::Event::Read { .. }
             | run::Event::Probed { .. }
+            | run::Event::HooksProbed { .. }
             | run::Event::Checked { .. }
             | run::Event::Aborted { .. }
             | run::Event::Delivered { .. } => unreachable!("not a conversation's event"),
@@ -1882,8 +1928,10 @@ impl World {
         span.draw(&mut self.rng)
     }
 
-    fn log(&mut self, line: &str) {
-        self.trace.log(self.now, line);
+    fn log(&mut self, line: std::fmt::Arguments<'_>) {
+        if let Some(trace) = &mut self.trace {
+            trace.log(self.now, line);
+        }
     }
 }
 

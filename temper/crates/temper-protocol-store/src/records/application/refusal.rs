@@ -632,6 +632,7 @@ fn encode_llm_why(value: p::LlmWhy) -> w::LlmWhy {
         p::LlmWhy::Authority => w::LlmWhy::Authority,
         p::LlmWhy::Procedure => w::LlmWhy::Procedure,
         p::LlmWhy::Repeated => w::LlmWhy::Repeated,
+        p::LlmWhy::Speed => w::LlmWhy::Speed,
     }
 }
 fn decode_llm_why(value: w::LlmWhy) -> p::LlmWhy {
@@ -642,6 +643,7 @@ fn decode_llm_why(value: w::LlmWhy) -> p::LlmWhy {
         w::LlmWhy::Authority => p::LlmWhy::Authority,
         w::LlmWhy::Procedure => p::LlmWhy::Procedure,
         w::LlmWhy::Repeated => p::LlmWhy::Repeated,
+        w::LlmWhy::Speed => p::LlmWhy::Speed,
     }
 }
 

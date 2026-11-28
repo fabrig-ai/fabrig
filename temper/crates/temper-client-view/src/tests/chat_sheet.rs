@@ -76,7 +76,7 @@ impl Case {
                 kept: List::uncapped(),
                 with: Some(jig_client::With::Transport),
             },
-            Event::Client { event: jig_client::Event::Up { up: Up::Served { served: true, versions: None } } },
+            Event::Client { event: jig_client::Event::Up { up: Up::Served { served: true } } },
         ] {
             temper_client_domain::step(&mut root, &env, event, &mut out);
         }

@@ -21,7 +21,13 @@ pub fn wide() -> String {
     jobs::test_ids::wide_text(BINARY).unwrap()
 }
 pub fn layout(text: &str, variant: &str) -> JobLayout {
-    JobLayout { root: "Row".into(), variant: Some(variant.into()), text: text.as_bytes().into(), held: Box::new([]) }
+    JobLayout {
+        root: "Row".into(),
+        variant: Some(variant.into()),
+        text: text.as_bytes().into(),
+        held: Box::new([]),
+        mode: Mode::Read,
+    }
 }
 /// One test's floor encoder: schemas once, a reverse plan once per variant.
 pub struct Floor {

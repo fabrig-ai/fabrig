@@ -1,9 +1,12 @@
 //! Seeded agreement between kept and uncached reads (skein/docs/design/data/kv.md, 6.5).
+//! Cases take their seeds as in skein/docs/design/testing/sweeps.md, 4.
 
 use super::super::logs::{OWNER, limits};
 use super::logs::draw;
 use skein_kv::{Direction, Event, Limits, LogRule, Op, Request, Store};
 use skein_lib::{Env, Queue, Time, Wall};
+use skein_world::{sweep::cases, this_test};
+use std::convert::Infallible;
 
 const SEEDS: u64 = 6;
 const STEPS: u64 = 48;
@@ -21,7 +24,8 @@ fn step(store: &mut Store, env: &Env<Limits>, request: Request) -> Event {
 #[test]
 fn generated_payload_reads_match_with_keeping_on_and_off() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
-    for initial in 1..=SEEDS {
+    let test = this_test!("generated_payload_reads_match_with_keeping_on_and_off");
+    cases::<_, Infallible, _>(test, 1..=SEEDS, |initial| {
         let mut seed = initial;
         let mut on = Store::memory(&env.limits);
         let mut off = Store::memory(&env.limits);
@@ -70,5 +74,7 @@ fn generated_payload_reads_match_with_keeping_on_and_off() {
                 }
             }
         }
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

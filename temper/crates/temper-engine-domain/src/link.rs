@@ -628,7 +628,7 @@ mod tests {
             },
             &mut out,
         );
-        let items = crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) };
+        let items = crate::ForgeWorkspace { hook_timeout_max_seconds: 1_800, ..crate::ForgeWorkspace::default() };
         let kept = crate::boundary::JobWorkspace { attempt: 1, workspace: items.clone(), offered: false };
         domain.job_workspaces.insert(task, kept).unwrap();
         assert!(!domain.job_workspaces_offered(), "a job not yet offered is unfinished work");
@@ -716,104 +716,21 @@ mod tests {
     }
 
     fn review_change(task: u64) -> temper_engine_domain_forge::ChangeRow {
-        use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
-        forge::ChangeRow {
-            settling: false,
-            behind_wait: None,
-            room: None,
-            source: None,
-            kept: None,
-            regate: None,
-            ci_recheck: None,
-            task_release: None,
-            job: None,
-            signed: Box::new([]),
-            task: 7,
-            repository: skein_forge::api::Repository { forge: 3, repository: 1 },
-            branch: b"temper/7".as_slice().into(),
-            base: b"main".as_slice().into(),
-            title: b"Change".as_slice().into(),
-            body: Box::new([]),
-            priority: 0,
-            ci: None,
-            asks: Box::new([]),
-            handed: 0,
-            previous: None,
-            change: change::Change {
-                ended_held: None,
-                early: change::Early::None,
-                way: change::Way::Queue,
-
-                task: 7,
-                state: change::State::Gating { head: [7; 32], asked: Box::new([1]) },
-                gates: Box::new([change::Gate {
-                    number: 1,
-                    kind: change::GateKind::Agent,
-                    blocking: true,
-                    freshness: change::Freshness::Clean,
-                    eager: true,
-                }]),
-                clean: Box::new([]),
-                gate_failures: Box::new([]),
-                released_resolution: false,
-                released: None,
-                repairs: 0,
-                resolutions: 0,
-                updates: 0,
-                stale: None,
-                since: skein_lib::Wall::EPOCH,
-                ready_since: None,
-                owns_turn: false,
-                last_head: Some([7; 32]),
-                last_checked: None,
-                last_checked_by: None,
-                clock: None,
-            },
-            pull: Some(7),
-            pending: None,
-            effect: change::EffectResult::None,
-            delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
-            delegate_status: change::Status::Unknown,
-            spec_revision: 0,
-            gate_revision: 0,
-            delegate_flake: false,
-            delegate_no_test: false,
-            delegate_head: None,
-            delegate_words: None,
-            verdicts: Box::new([]),
-            milestone: None,
-            person: None,
-            goal_title: None,
-            draft: None,
-            goal: None,
-            ending: None,
-            repair_tasks: Box::new([]),
-            resolution_tasks: Box::new([]),
-            result: forge::ChangeResult::empty(),
-            gate_remarks: Box::new([]),
-            drift: None,
-            base_repair: false,
-            queue_repair: None,
-            queue_repairs: 0,
-            producing_charter: 1,
-            review_charter: 1,
-            producing_llm: None,
-            review_llm: None,
-            questions: change::Questions::default(),
-            effect_account: None,
-            producer_failure: None,
-            runner_ci: None,
-            close_at: None,
-            report: Box::new([]),
-            repairs: None,
-            follows: None,
-            catch_up: None,
-            close: None,
-            merge_result: None,
-            history: None,
-            follow_check: None,
-        }
+        let mut row = crate::tests::change_row::change_row(Some(7));
+        row.change.state = change::State::Gating { head: [7; 32], asked: Box::new([1]) };
+        row.change.gates = Box::new([change::Gate {
+            number: 1,
+            kind: change::GateKind::Agent,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        }]);
+        row.change.last_head = Some([7; 32]);
+        row.delegate = Some((task, change::Delegate::Gate { number: 1, head: [7; 32] }));
+        row.producing_charter = 1;
+        row.review_charter = 1;
+        row
     }
 
     #[test]

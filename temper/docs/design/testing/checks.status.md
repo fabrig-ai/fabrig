@@ -1,9 +1,10 @@
 # checks: status
 
-2026-11-22. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-27. Where the tree's code lags or departs from [checks.md](checks.md).
 
 Section 6.1's engine adapter is `engine-checks.md`'s; the worker's
 adapter is `worker.status.md`'s.
+
 
 - **Not yet:** 6.2: no check holds the 3.3 failure table's rows for runs
   outside the system world's account case (6.3) and the composed

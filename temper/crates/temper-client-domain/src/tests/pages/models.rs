@@ -46,6 +46,8 @@ fn opened() -> (crate::Domain, skein_lib::Token) {
         picker: true,
         description: None,
         prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
+        speeds: List::with_capacity(0),
+        speed: None,
     }]));
     deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))));
     event(&mut root, Event::Went { place: Place::Address(Address::Models { project: fixtures::PROJECT }) });

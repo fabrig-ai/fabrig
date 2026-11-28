@@ -36,7 +36,7 @@ fn joint(
     );
     front.session.stream_heartbeat(Duration::from_millis(50));
     front.restart_configuration(|| jig_test_profile::config(8510));
-    front.version_fault(jig_client_domain::contract::VersionRange { first: 8, last: 8 });
+    front.version_fault(false);
     World::new(Settings { seed: 8510, ..Settings::default() }, front)
 }
 mod joint {

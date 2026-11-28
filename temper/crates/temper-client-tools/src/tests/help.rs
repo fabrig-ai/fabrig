@@ -29,6 +29,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
     (Some(jig::rows::ROLE_TALK_AT), "help_role_talk"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
+    (Some(jig::rows::MODELS_AT), "help_model_list"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
     (Some(3), "help_task_show"),
@@ -55,6 +56,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::REVISIONS_AT), "help_revision_list"),
     (Some(jig::rows::CHANGE_SETTINGS_AT), "help_settings_apply"),
     (Some(jig::rows::PROPOSE_SETTINGS_AT), "help_settings_propose"),
+    (Some(jig::rows::UPGRADE_SETTINGS_AT), "help_settings_upgrade"),
     (Some(jig::rows::PROPOSAL_AT), "help_proposal_show"),
     (Some(jig::rows::MOVE_TO_NEWEST_AT), "help_revision_advance"),
     (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
@@ -191,11 +193,17 @@ fn chat_start_explains_subagent_choices() {
 #[test]
 fn chat_start_points_to_model_list_and_models_print_readably() {
     let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
-    for reference in ["as model list shows it", "distinct models from model list"] {
+    for reference in
+        ["as model list shows it", "distinct models from model list", "Choose a speed from model list, or standard"]
+    {
         assert!(skein_lib::bytes::find(&help, reference.as_bytes()).is_some(), "{reference}");
     }
     let mut root = fixtures::account_root(false);
-    root.deliver(jig_client::contract::Delivery::Me(Box::new(readable_models())));
+    let mut me = readable_models();
+    let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
+    model.speeds = List::from_boxed(Box::new([fixtures::speed_offer(b"fast"), fixtures::speed_offer(b"ultrafast")]));
+    model.speed = Some(fixtures::act_text(b"fast"));
+    root.deliver(jig_client::contract::Delivery::Me(Box::new(me)));
     let call = root.submit(&["model", "list", "--project", "1"]);
     fixtures::deliver_accounts(&mut root, fixtures::accounts());
     let printed = root.answer(call).expect("model panel");
@@ -207,7 +215,7 @@ fn chat_start_points_to_model_list_and_models_print_readably() {
         "description: Careful reasoning",
         "window: 8192 tokens",
         "output: 1024 tokens",
-        "efforts: high",
+        "efforts: high\n    default effort: high\n    speeds: fast ultrafast\n    default speed: fast",
         "prices (per 1000 tokens)",
         "input: 7",
         "cached input: 2",
@@ -218,7 +226,7 @@ fn chat_start_points_to_model_list_and_models_print_readably() {
         "not usable",
         "model plain-model",
         "provider unknown",
-        "efforts: none listed",
+        "efforts: none listed\n    default effort: none\n    accounts:",
         "digest: models ",
     ] {
         assert!(fixtures::has(&printed, fact.as_bytes()), "{fact}: {printed:?}");
@@ -231,6 +239,18 @@ fn chat_start_points_to_model_list_and_models_print_readably() {
     let json = root.answer(json).expect("model records");
     assert_eq!(json.status, 0);
     assert!(fixtures::has(&printed, &fixtures::last_digest(&json.stdout)));
+    let record: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    let providers = &record["models"][0]["providers"];
+    let offered = &providers[0]["models"][0];
+    let speeds = offered["speeds"].as_array().unwrap();
+    assert_eq!(speeds.len(), 2);
+    assert_eq!(speeds[0], "fast");
+    assert_eq!(speeds[1], "ultrafast");
+    assert_eq!(offered["speed"], "fast");
+    let standard = &providers[1]["models"][0];
+    let no_speeds: &[serde_json::Value] = &[];
+    assert_eq!(standard["speeds"].as_array().unwrap().as_slice(), no_speeds);
+    assert_eq!(standard.get("speed"), Some(&serde_json::Value::Null));
 }
 
 #[test]
@@ -292,6 +312,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::PARTY_REISSUE_AT, b"party reissue PARTY --out FILE [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
+    (jig::rows::UPGRADE_SETTINGS_AT, b"settings upgrade FILE\n"),
     (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker|provider NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\nsettings show limits\nsettings show temper-limits [--revision REVISION]\n"),
 ];
 #[test]
@@ -307,7 +328,9 @@ fn each_derivation_names_every_tool() {
     let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
     for words in fixtures::EVERY_TOOL.iter().chain(restore).chain([&super::jig::project_waits::FILTERED]) {
         let mut call = fixtures::call(words);
-        if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
+        if [jig::rows::CHANGE_SETTINGS_AT, jig::rows::PROPOSE_SETTINGS_AT, jig::rows::UPGRADE_SETTINGS_AT]
+            .contains(&call.tool)
+        {
             let value = jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into());
             *call.values.get_mut(0).expect("FILE") = Some(if call.tool == jig::rows::CHANGE_SETTINGS_AT {
                 jig::call::Values::Many(Box::new([value]))
@@ -506,10 +529,13 @@ fn the_project_reference_is_what_the_table_renders() {
 }
 
 #[test]
-fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
-    for (group, page) in
-        [(b"chat".as_slice(), b"ctl-chat".as_slice()), (b"task", b"ctl-task"), (b"inbox", b"ctl-inbox")]
-    {
+fn the_task_chat_inbox_and_model_references_are_what_the_table_renders() {
+    for (group, page) in [
+        (b"chat".as_slice(), b"ctl-chat".as_slice()),
+        (b"task", b"ctl-task"),
+        (b"inbox", b"ctl-inbox"),
+        (b"model", b"ctl-model"),
+    ] {
         reference_matches(group, page);
     }
 }
@@ -596,6 +622,18 @@ fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"finding", b"ctl-finding");
     reference_matches(b"role", b"ctl-role");
     reference_matches(b"milestone", b"ctl-milestone");
+    for name in [b"goal".as_slice(), b"task"] {
+        let page = temper_docs::find(name).expect("choice help page");
+        for phrase in [
+            "--speed SPEED",
+            "--sub-agent-speed",
+            "A faster speed costs more",
+            "`model list`",
+            "the charter's speed or the model's default",
+        ] {
+            assert!(page.text.contains(phrase), "{}: {phrase}", page.name);
+        }
+    }
 }
 
 #[test]

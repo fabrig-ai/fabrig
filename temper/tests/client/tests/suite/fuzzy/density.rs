@@ -898,16 +898,8 @@ fn generate(seed: u64) -> World {
         Event::Start { address: Address::AllHome, kept: List::with_capacity(0), with: None },
         Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
         Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } },
-        Event::Client { event: jig_client::Event::Up { up: Up::Served { served: true, versions: None } } },
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: Up::FamilyServed {
-                    family: wire::FORGE,
-                    served: true,
-                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-                },
-            },
-        },
+        Event::Client { event: jig_client::Event::Up { up: Up::Served { served: true } } },
+        Event::Client { event: jig_client::Event::Up { up: Up::FamilyServed { family: wire::FORGE, served: true } } },
     ] {
         world.event(event);
     }

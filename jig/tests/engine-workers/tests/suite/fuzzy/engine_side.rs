@@ -5,6 +5,10 @@ use jig_engine_workers_world::{
 };
 use jig_protocol_engine_workers::{Event, Request};
 use skein_lib::{Duration, Rng, Token};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
 
 fn drawn_worker(world: &mut World, rng: &mut Rng, coverage: &mut [bool; 7]) {
     let fault = usize::try_from(rng.between(0, 6)).expect("seven faults");
@@ -45,21 +49,30 @@ fn drawn_worker(world: &mut World, rng: &mut Rng, coverage: &mut [bool; 7]) {
 }
 
 #[test]
-fn fuzzy_workers_cuts_and_stalls_keep_each_channel_told_once() {
+fn fuzzy_workers_cuts_and_stalls_keep_each_channel_told_once() -> Result<(), String> {
     let mut coverage = [false; 7];
-    for seed in 0..40 {
-        let mut world = World::new(&fixtures::limits(), &fixtures::workers(), seed);
-        let mut rng = Rng::new(seed);
-        for _ in 0..6 {
-            drawn_worker(&mut world, &mut rng, &mut coverage);
-            world.advance(Duration::from_millis(rng.between(1, 400)));
-        }
-        world.down(Event::Stop);
-        world.down(Event::Close);
-        world.run();
-        world.advance(Duration::from_secs(30));
-        referee::judge(world.root()).unwrap_or_else(|why| panic!("seed {seed}: {why}"));
-        assert!(matches!(world.root().last(), Some(Request::Closed)), "seed {seed}: closed");
+    cases(
+        this_test!("fuzzy_workers_cuts_and_stalls_keep_each_channel_told_once"),
+        0..40,
+        |seed| -> Result<(), &'static str> {
+            let mut world = World::new(&fixtures::limits(), &fixtures::workers(), seed);
+            let mut rng = Rng::new(seed);
+            for _ in 0..6 {
+                drawn_worker(&mut world, &mut rng, &mut coverage);
+                world.advance(Duration::from_millis(rng.between(1, 400)));
+            }
+            world.down(Event::Stop);
+            world.down(Event::Close);
+            world.run();
+            world.advance(Duration::from_secs(30));
+            referee::judge(world.root())?;
+            assert!(matches!(world.root().last(), Some(Request::Closed)), "expected Closed");
+            Ok(())
+        },
+    )
+    .map_err(|case| case.to_string())?;
+    if gate() {
+        assert_eq!(coverage, [true; 7]);
     }
-    assert_eq!(coverage, [true; 7]);
+    Ok(())
 }

@@ -14,8 +14,16 @@ fn request() -> NativeRequest {
 
 fn reject(changed: NativeRequest, reason: &str) {
     let mut referee = Referee::new(Meeting::default());
-    referee.observe(Time::ZERO, Seen::Request { owner: Token::new(1), request: request() }, &mut Vec::new());
-    referee.observe(Time::ZERO, Seen::Request { owner: Token::new(1), request: changed }, &mut Vec::new());
+    referee.observe(
+        Time::ZERO,
+        Seen::Request { owner: Token::new(1), request: request(), compaction: false },
+        &mut Vec::new(),
+    );
+    referee.observe(
+        Time::ZERO,
+        Seen::Request { owner: Token::new(1), request: changed, compaction: false },
+        &mut Vec::new(),
+    );
     let Verdict::Failed(failure) = referee.verdict() else { panic!("broken prefix must fail") };
     assert_eq!(failure.why, reason);
 }

@@ -1,9 +1,16 @@
+use std::convert::Infallible;
+
 use jig_fleet_world::turns::{self, Settings};
+use skein_world::{
+    sweep::{Case, cases, gate},
+    this_test,
+};
 
 #[test]
-fn turn_world_sweeps_replay_backpressure_and_fencing() {
+fn turn_world_sweeps_replay_backpressure_and_fencing() -> Result<(), Case<Infallible>> {
+    let at_gate = gate();
     let mut busy = 0;
-    for seed in 0..100 {
+    cases(this_test!("turn_world_sweeps_replay_backpressure_and_fencing"), 0..100, |seed| {
         let report = turns::run(Settings {
             drops: seed % 2 == 0,
             restart: seed % 3 != 0,
@@ -11,8 +18,14 @@ fn turn_world_sweeps_replay_backpressure_and_fencing() {
             capacity: 1 + u32::try_from(seed % 3).expect("capacity at most three"),
             ..Settings::new(seed)
         });
-        busy += report.parent_busy;
+        if at_gate {
+            busy += report.parent_busy;
+        }
         assert!(report.committed <= 8);
+        Ok(())
+    })?;
+    if at_gate {
+        assert!(busy > 0);
     }
-    assert!(busy > 0);
+    Ok(())
 }

@@ -11,13 +11,13 @@ fn write(path: &Path, content: &[u8]) {
     fs::write(path, content).expect("fixture bytes");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture file");
 }
-fn bundle(path: &Path, page: &[u8]) {
+pub(super) fn bundle(path: &Path, page: &[u8]) {
     private(path);
     private(&path.join("0000000000000001"));
     write(&path.join("index.html"), page);
     write(&path.join("0000000000000001/main.js"), b"// process fixture\n");
 }
-fn flags(config: &Path, data: &Path, cache: &Path, bundle: Option<&Path>) -> Vec<String> {
+pub(super) fn flags(config: &Path, data: &Path, cache: &Path, bundle: Option<&Path>) -> Vec<String> {
     let mut flags = vec![
         "--config".into(),
         config.display().to_string(),

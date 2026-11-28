@@ -691,7 +691,7 @@ fn a_settings_apply_past_64_kib_reports_the_stored_policy_bound_without_changes(
     assert_eq!(refused.status, 2, "{refused:?}");
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
-        "settings apply: out of shape; item 0; charter 33: shape; stored policy: supplied 82376; maximum root.journal.run_bytes 65536\n",
+        "settings apply: out of shape; item 0; charter 33: shape; stored policy: supplied 82440; maximum root.journal.run_bytes 65536\n",
     );
     assert_eq!(call(&mut world, agent, &[b"settings", b"show"]), before);
     // The world keeps decoded records; ctl pending lists the same records through this renderer.
@@ -960,6 +960,7 @@ fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name(
         main: c::ModelEffort {
             model: c::Text::new(b"scripted".as_slice().into(), 256).expect("model"),
             effort: Some(c::Text::new(b"xhigh".as_slice().into(), 256).expect("effort")),
+            speed: None,
         },
         subagents: skein_lib::List::with_capacity(0),
     });

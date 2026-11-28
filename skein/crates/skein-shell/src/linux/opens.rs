@@ -20,13 +20,14 @@ pub(crate) fn fields(how: OpenHow) -> Fields {
     let no_follow = matches!(
         how,
         OpenHow::PathNoFollow
+            | OpenHow::PathSiblingFile
             | OpenHow::ReadNoFollow
             | OpenHow::WriteNoFollow
             | OpenHow::DirectoryNoFollow
             | OpenHow::CreateNoFollow { .. }
     );
     let (flags, mode) = match how {
-        OpenHow::PathNoFollow => (libc::O_PATH | libc::O_NOFOLLOW, 0),
+        OpenHow::PathNoFollow | OpenHow::PathSiblingFile => (libc::O_PATH | libc::O_NOFOLLOW, 0),
         OpenHow::Write | OpenHow::WriteNoFollow => (libc::O_RDWR, 0),
         OpenHow::Read | OpenHow::ReadNoFollow => (libc::O_RDONLY, 0),
         OpenHow::Directory | OpenHow::DirectoryNoFollow => (libc::O_RDONLY | libc::O_DIRECTORY, 0),
@@ -38,7 +39,7 @@ pub(crate) fn fields(how: OpenHow) -> Fields {
             (libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL, mode)
         }
     };
-    let flags = if matches!(how, OpenHow::PathNoFollow) {
+    let flags = if how.path_only() {
         flags | libc::O_CLOEXEC
     } else {
         flags | libc::O_CLOEXEC | libc::O_NONBLOCK | libc::O_NOCTTY

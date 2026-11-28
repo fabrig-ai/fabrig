@@ -93,8 +93,12 @@ fn a_live_task_record_reads_back_whole() {
         record.reasons = reasons;
         record.offered = offered;
         record.llm.as_mut().expect("fixture choice").later = Some(domain::LlmLater {
-            main: domain::ModelEffort { model: 7, effort: Some(1) },
-            subagents: Box::new([domain::ModelEffort { model: 0, effort: None }]),
+            main: domain::ModelEffort { model: 7, effort: Some(1), speed: skein_lib::Name::from_checked(b"standard") },
+            subagents: Box::new([domain::ModelEffort {
+                model: 0,
+                effort: None,
+                speed: skein_lib::Name::from_checked(b"ultrafast"),
+            }]),
         });
         let row = domain::Stored::Live(Box::new(record));
         assert_eq!(saved_tasks(&row), Ok(row));

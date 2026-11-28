@@ -333,8 +333,12 @@ fn apply_with(
         directory: directory.into(),
         environment: Vec::new(),
     };
-    let serve = skein_world::end_to_end::Binary::start(command, skein_world::end_to_end::Mode::Pipes, 65_536)
-        .expect("limit-setting sitting");
+    let serve = skein_world::end_to_end::Binary::start(
+        super::fixture::dying_with_test(command, skein_io::kernel::Signal::Kill),
+        skein_world::end_to_end::Mode::Pipes,
+        65_536,
+    )
+    .expect("limit-setting sitting");
     let seen = super::ctl::run_with_serve(Story::new(directory, steps), serve);
     assert!(seen.mismatches.is_empty(), "{}", seen.mismatches.join("\n"));
     for call in seen.calls {

@@ -277,10 +277,13 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::Ste
     }
 }
 
-pub(super) fn workspace(task: u64) -> RunWorkspace {
+pub(super) fn workspace(domain: &Domain, context: &tasks::RunContext) -> RunWorkspace {
     RunWorkspace {
-        workspace: super::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
-        workstream: task,
+        workspace: super::ForgeWorkspace {
+            hook_timeout_max_seconds: super::hook_timeout_max_seconds(domain, context.project),
+            ..super::ForgeWorkspace::default()
+        },
+        workstream: context.task,
         writes: Box::new([]),
         names: Box::new([]),
         designs: Box::new([]),

@@ -1,6 +1,8 @@
 //! Help and the reference from the file's rows (protocol/configuration/file.md, 7).
 use crate::{
-    File, Shape, SignIn, binary, render,
+    File, Shape, SignIn, binary,
+    formats::{FIRST, Formats, PRODUCTION},
+    render::render_at,
     rows::{self, Form, Row, Set},
 };
 use std::fmt::Write;
@@ -9,6 +11,10 @@ const RESTART: &str = "Every key is read at a start; changing any key needs a re
 
 #[must_use]
 pub fn help(shape: Shape) -> Box<[u8]> {
+    help_at(shape, PRODUCTION)
+}
+
+pub(crate) fn help_at(shape: Shape, formats: Formats) -> Box<[u8]> {
     let mut out = format!("# {}: {}\n\n{RESTART}\n", binary(shape), crate::FILE);
     out.push_str("| Key | Default | What it says |\n|---|---|---|\n");
     for row in rows::ROWS {
@@ -17,8 +23,10 @@ pub fn help(shape: Shape) -> Box<[u8]> {
         }
     }
     out.push_str("\n## Example file\n\n```toml\n");
-    out.push_str(std::str::from_utf8(&render(&example(shape), shape)).expect("rendered UTF-8"));
-    out.push_str("```\n");
+    out.push_str(std::str::from_utf8(&render_at(&example(shape), shape, formats)).expect("rendered UTF-8"));
+    out.push_str("```\n\n## Formats\n\n");
+    format_help(&mut out, shape, formats);
+    format_moves(&mut out, formats);
     out.into_bytes().into_boxed_slice()
 }
 
@@ -48,7 +56,8 @@ fn key(row: &Row) -> String {
     match row.form {
         Form::Table | Form::Environment => format!("[{}]", row.key),
         Form::Members | Form::Records => format!("[[{}]]", row.key),
-        Form::Socket
+        Form::Format
+        | Form::Socket
         | Form::Origin
         | Form::Address
         | Form::Name
@@ -71,6 +80,10 @@ fn key(row: &Row) -> String {
 
 #[must_use]
 pub fn reference() -> Box<[u8]> {
+    reference_at(PRODUCTION)
+}
+
+pub(crate) fn reference_at(formats: Formats) -> Box<[u8]> {
     let mut out = format!(
         "# Configuration\n\nKind: reference\n\nThe configuration file's keys, their shapes, bounds and defaults.\n\n{RESTART}\n"
     );
@@ -110,8 +123,34 @@ pub fn reference() -> Box<[u8]> {
         let (_, words) = rows::MOVED.iter().find(|(key, _)| *key == name).expect("moved key");
         writeln!(out, "- `{path}`: {words}.").expect("string");
     }
+    out.push_str("\n## Formats\n");
+    for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
+        out.push('\n');
+        format_help(&mut out, shape, formats);
+    }
+    format_moves(&mut out, formats);
     crate::merge::command(&mut out);
     out.into_bytes().into_boxed_slice()
+}
+
+fn format_help(out: &mut String, shape: Shape, formats: Formats) {
+    writeln!(
+        out,
+        "Format {} is the newest {} reads; a file without format is format {FIRST}.",
+        formats.newest,
+        binary(shape)
+    )
+    .expect("string");
+}
+
+fn format_moves(out: &mut String, formats: Formats) {
+    if !formats.moves.is_empty() {
+        out.push('\n');
+        for movement in formats.moves {
+            writeln!(out, "- format {}: {}: {}", movement.format, movement.key, movement.description())
+                .expect("string");
+        }
+    }
 }
 
 #[cfg(test)]

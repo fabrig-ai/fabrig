@@ -1,10 +1,16 @@
-//! Seeded completion reordering for shared startup-root ownership controls.
+//! Seeded reordering for startup-root ownership (skein/docs/design/testing/sweeps.md, 4.2–4.5).
+
+use std::convert::Infallible;
 
 use skein_io::kernel::{Error, Exit};
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
 
 #[test]
-fn startup_roots_settle_over_reordered_normal_failed_and_killed_launches() {
-    for seed in 0..100 {
+fn startup_roots_settle_over_reordered_normal_failed_and_killed_launches() -> Result<(), Case<Infallible>> {
+    cases(this_test!("startup_roots_settle_over_reordered_normal_failed_and_killed_launches"), 0..100, |seed| {
         for (kill, missing) in [(false, false), (true, false), (false, true)] {
             let mut outcome = skein_world_tests::roots::simulated(seed, kill, missing);
             if missing {
@@ -19,5 +25,6 @@ fn startup_roots_settle_over_reordered_normal_failed_and_killed_launches() {
             }
             outcome.machine.finish();
         }
-    }
+        Ok(())
+    })
 }

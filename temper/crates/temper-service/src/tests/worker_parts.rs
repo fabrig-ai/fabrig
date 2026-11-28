@@ -109,17 +109,22 @@ fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
             repositories.push(fields).unwrap();
         }
         fields.repositories = repositories;
+        fields.hook_timeout_max_seconds = 1800;
         let record = fields;
         let parts = [Part { token: Token::new(9), bytes: payload::items(&record) }];
         let workspace = worker_route::items(&fixtures::worker_assignment(), &parts, &limits).unwrap();
         let mut expected = fixtures::one_repository();
         expected.rerun = Some(2);
+        expected.hook_timeout_max_seconds = 1800;
         expected.repositories[0].admit = true;
         expected.repositories[0].git = program;
         expected.repositories[0].save = Some(b"temper/7/s7".as_slice().into());
         assert_eq!(workspace, expected);
     }
-    assert_eq!(translate::workspace(None), wire::Workspace { rerun: None, repositories: Box::new([]) });
+    assert_eq!(
+        translate::workspace(None),
+        wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories: Box::new([]) }
+    );
 }
 
 fn start(assignment: host::RunAssignment, live: host::LiveAsk) -> host::Start {

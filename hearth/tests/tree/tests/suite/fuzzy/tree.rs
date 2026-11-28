@@ -1,3 +1,5 @@
+//! Tree-world sweeps take their cases from skein (skein/docs/design/testing/sweeps.md, 4.2–4.5).
+
 use hearth_domain_tree::{
     limits::{Limits, SHIPPED},
     vocabulary::{Answer, Cause, Fault, Request},
@@ -12,6 +14,7 @@ use hearth_tree_world::{
     layers, mutate, oracle,
 };
 use skein_lib::Rng;
+use skein_world::{sweep::cases, this_test};
 
 const FIRST_SEED: u64 = 0x7EE0_F000;
 const SEEDS: u64 = 2_000;
@@ -24,11 +27,14 @@ const PINNED: &[u64] = &[];
 fn random_store_and_cache_file_frames_cut_and_mutated_read_as_the_oracle_says() {
     let limits = fixtures::limits();
     let mut mutations = mutate::MutationBatch::default();
-    for seed in (FIRST_SEED..FIRST_SEED + SEEDS).chain(PINNED.iter().copied()) {
+    let test = this_test!("random_store_and_cache_file_frames_cut_and_mutated_read_as_the_oracle_says");
+    cases(test, PINNED.iter().copied().chain(FIRST_SEED..FIRST_SEED + SEEDS), |seed| {
         let mut rng = Rng::new(seed);
         let record = generate::small(&mut rng, &limits);
         check::sweep(&mut rng, &record, &limits, seed, &mut mutations);
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
 }
 
@@ -36,12 +42,15 @@ fn random_store_and_cache_file_frames_cut_and_mutated_read_as_the_oracle_says() 
 fn random_resolution_frames_cut_and_mutated_read_as_the_oracle_says() {
     let limits = fixtures::limits();
     let mut mutations = mutate::MutationBatch::default();
-    for seed in (FIRST_SEED..FIRST_SEED + RESOLUTION_SEEDS).chain(PINNED.iter().copied()) {
+    let test = this_test!("random_resolution_frames_cut_and_mutated_read_as_the_oracle_says");
+    cases(test, PINNED.iter().copied().chain(FIRST_SEED..FIRST_SEED + RESOLUTION_SEEDS), |seed| {
         let mut rng = Rng::new(seed);
         let packages = u32::try_from(rng.between(0, 512)).expect("small closure");
         let record = Record::Resolution(generate::resolution(&mut rng, &limits, packages));
         check::sweep(&mut rng, &record, &limits, seed, &mut mutations);
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
 }
 
@@ -49,11 +58,14 @@ fn random_resolution_frames_cut_and_mutated_read_as_the_oracle_says() {
 fn random_layer_frames_cut_and_mutated_read_as_the_oracle_says() {
     let limits = fixtures::limits();
     let mut mutations = mutate::MutationBatch::default();
-    for seed in (FIRST_SEED..FIRST_SEED + LAYER_SEEDS).chain(PINNED.iter().copied()) {
+    let test = this_test!("random_layer_frames_cut_and_mutated_read_as_the_oracle_says");
+    cases(test, PINNED.iter().copied().chain(FIRST_SEED..FIRST_SEED + LAYER_SEEDS), |seed| {
         let mut rng = Rng::new(seed);
         let record = Record::Layer(Box::new(generate::layer(&mut rng, &limits)));
         check::sweep(&mut rng, &record, &limits, seed, &mut mutations);
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
 }
 
@@ -61,7 +73,8 @@ fn random_layer_frames_cut_and_mutated_read_as_the_oracle_says() {
 fn random_tree_files_cut_and_mutated_read_as_the_oracle_says() {
     let limits = fixtures::limits();
     let mut mutations = mutate::MutationBatch::default();
-    for seed in (FIRST_SEED..FIRST_SEED + TREE_SEEDS).chain(PINNED.iter().copied()) {
+    let test = this_test!("random_tree_files_cut_and_mutated_read_as_the_oracle_says");
+    cases(test, PINNED.iter().copied().chain(FIRST_SEED..FIRST_SEED + TREE_SEEDS), |seed| {
         let mut rng = Rng::new(seed);
         let size = rng.between(1, 120);
         let items = generate::tree_file(&mut rng, size);
@@ -76,7 +89,9 @@ fn random_tree_files_cut_and_mutated_read_as_the_oracle_says() {
                 }
             });
         }
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
 }
 
@@ -96,7 +111,8 @@ fn limits(rng: &mut Rng) -> Limits {
 
 #[test]
 fn random_layers_hash_to_what_the_oracle_lists() {
-    for seed in HASH_FIRST_SEED..HASH_FIRST_SEED + HASH_SEEDS {
+    let test = this_test!("random_layers_hash_to_what_the_oracle_lists");
+    cases(test, HASH_FIRST_SEED..HASH_FIRST_SEED + HASH_SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let fs = if rng.chance(100) {
             let (width, depth) = (rng.between(1, 200), rng.between(1, 60));
@@ -118,12 +134,15 @@ fn random_layers_hash_to_what_the_oracle_lists() {
         let read = check::read_tree(&walked.file, &protocol::SHIPPED).expect("a tree file");
         assert_eq!(read.as_ref(), items.as_slice(), "file, seed {seed}");
         assert_eq!(tree_file.size, u64::try_from(walked.file.len()).expect("a size"), "seed {seed}");
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn an_io_failure_anywhere_ends_the_walk_at_that_requests_path_and_never_panics() {
-    for seed in HASH_FIRST_SEED..HASH_FIRST_SEED + FAULT_SEEDS {
+    let test = this_test!("an_io_failure_anywhere_ends_the_walk_at_that_requests_path_and_never_panics");
+    cases(test, HASH_FIRST_SEED..HASH_FIRST_SEED + FAULT_SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let size = rng.between(0, 40);
         let fs = layers::layer(&mut rng, size);
@@ -163,7 +182,9 @@ fn an_io_failure_anywhere_ends_the_walk_at_that_requests_path_and_never_panics()
         assert_eq!(path, wanted, "seed {seed}, request {at}");
         assert_ne!(cause, Cause::Unexpected, "seed {seed}");
         assert_eq!(walked.requests.len(), at + 1, "seed {seed}");
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 const AGAINST_FIRST_SEED: u64 = 0x7EE0_F200;
@@ -173,7 +194,8 @@ const PARENT_FAULT_SEEDS: u64 = 300;
 
 #[test]
 fn random_layers_walk_against_their_edits_to_what_the_oracle_lists() {
-    for seed in AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + AGAINST_SEEDS {
+    let test = this_test!("random_layers_walk_against_their_edits_to_what_the_oracle_lists");
+    cases(test, AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + AGAINST_SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let parent = if rng.chance(60) {
             let (width, depth) = (rng.between(1, 120), rng.between(1, 40));
@@ -186,13 +208,17 @@ fn random_layers_walk_against_their_edits_to_what_the_oracle_lists() {
         edits::edit(&mut rng, &mut child, 0, 14);
         let limits = limits(&mut rng);
         checked(&parent, &child, &limits, &format!("seed {seed}"));
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn each_edit_alone_walks_to_what_the_oracle_lists() {
-    for edit in edits::ALL {
-        for seed in AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + EDIT_SEEDS {
+    let test = this_test!("each_edit_alone_walks_to_what_the_oracle_lists");
+    cases(test, AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + EDIT_SEEDS, |seed| {
+        // Each edit starts with the same parent and random stream for this seed.
+        for edit in edits::ALL {
             let mut rng = Rng::new(seed);
             let size = rng.between(10, 120);
             let parent = layers::layer(&mut rng, size);
@@ -202,12 +228,15 @@ fn each_edit_alone_walks_to_what_the_oracle_lists() {
                 checked(&parent, &child, &limits, &format!("{edit:?}, seed {seed}"));
             }
         }
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn an_io_failure_in_a_walk_against_a_parent_ends_it_at_that_requests_path_and_never_panics() {
-    for seed in AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + PARENT_FAULT_SEEDS {
+    let test = this_test!("an_io_failure_in_a_walk_against_a_parent_ends_it_at_that_requests_path_and_never_panics");
+    cases(test, AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + PARENT_FAULT_SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let size = rng.between(0, 40);
         let parent = layers::layer(&mut rng, size);
@@ -226,12 +255,15 @@ fn an_io_failure_in_a_walk_against_a_parent_ends_it_at_that_requests_path_and_ne
         let (_, cause) = walked.failed();
         assert_ne!(cause, Cause::Unexpected, "seed {seed}");
         assert_eq!(walked.requests.len(), at + 1, "seed {seed}: nothing is asked after a failure");
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn a_damaged_parent_stream_never_gives_digests() {
-    for seed in AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + PARENT_FAULT_SEEDS {
+    let test = this_test!("a_damaged_parent_stream_never_gives_digests");
+    cases(test, AGAINST_FIRST_SEED..AGAINST_FIRST_SEED + PARENT_FAULT_SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let size = rng.between(1, 40);
         let parent = layers::layer(&mut rng, size);
@@ -247,5 +279,7 @@ fn a_damaged_parent_stream_never_gives_digests() {
         helper.tamper(tamper);
         let walked = helper::walk_with(helper, &limits, KEY);
         assert_eq!(walked.failed().1, Cause::Parent, "seed {seed}, {tamper:?} of {entries} entries");
-    }
+        Ok::<(), &str>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

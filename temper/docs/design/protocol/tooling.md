@@ -3,9 +3,10 @@
 Provisional, 2026-11-10. The contract between temper
 and a project's own tooling: the `prepare` and `key` commands a project
 that lands by turn may name (`../domain/landing-prepare.md`, 1.3, and `../domain/landing-proof.md`, 1.1),
-the `merge` command any project may name for the merge job
-(`../domain/forge/change/repairs.md`), and the `close` command any project may name
-for a goal's closer (`../domain/forge/branches.md`, 2); what temper gives them,
+the `merge` command any repository may keep for the merge job
+(`../domain/forge/change/repairs.md`), and the `close` command any repository may keep
+for a goal's closer (`../domain/forge/branches.md`, 2), each its hook or, in a
+repository without `.temper/hooks/`, a path its project names (`hooks.md`); what temper gives them,
 what they write, and how they end. temper runs them as jobs on a worker
 (`../domain/worker/jobs.md`). What is open is `tooling.md`, section 7.
 
@@ -17,11 +18,16 @@ what they write, and how they end. temper runs them as jobs on a worker
   `merge` settles the conflicts it knows in a merge in progress, a path
   in the repository it merges, run from that merge (4.1); `close`
   settles what a goal leaves once its changes have ended, a path in the
-  goal's branch's repository, run at the branch's tip (4.2).
+  goal's branch's repository, run at the branch's tip (4.2). Each of
+  these two is the repository's hook, `.temper/hooks/merge` or
+  `.temper/hooks/close`, or, in a repository without `.temper/hooks/`,
+  the project's `merge_job` or `close_job`, found in the job's checkout
+  (`hooks.md`, 4.2, 4.3 and 5).
 - **A directory, not a forge.** temper fetches every repository the
   command needs into a directory it gives the command, and pushes what
   the command made. The command holds no credential, reaches no forge,
-  and needs no model.
+  and needs no model. It uses only what its directory holds: a need for
+  more is fixed or relaxed in what it does, never fetched (2).
 - **Files in, files out:** a request file in JSON, the repositories as
   git directories, and a result file in JSON, each bounded.
 - **The exit code says which:** 0, a candidate, a merge settled, or a
@@ -41,15 +47,31 @@ what they write, and how they end. temper runs them as jobs on a worker
   `close`.
 - **Its environment** is `PATH` from the worker's configuration,
   `HOME` the job's directory, `LANG=C.UTF-8`, `TEMPER_JOB` the job's
-  directory, `TEMPER_CLOSE_REFUSAL=3` for a close whose job asks for a
-  typed refusal (4.2), and nothing else: no credential, no token, no
-  variable of the worker's.
+  directory. For a close whose job asks for a typed refusal (4.2), it
+  adds `TEMPER_CLOSE_REFUSAL=3` and `TEMPER_CLOSE_RESULT_BYTES`, the
+  lesser of the spec's result limit and the worker's declared result
+  limit, in decimal. For a close whose job asks for an outdated finding
+  (4.2), it adds `TEMPER_CLOSE_OUTDATED=3`. Nothing else: no credential,
+  no token, no variable of the worker's.
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
-  `close` its kind's deadline (4.1, 4.2), after which it and its
-  children are killed and the job fails.
+  `close` the hook's time, its `config.toml`'s or ten minutes, cut at
+  the project's `hook_timeout_max_seconds`, which is the job's deadline
+  (`hooks.md`, 2.3), after which it and its children are killed and the
+  job fails as the command's failure.
 - **Its network** is the worker's containment's (`../domain/worker/README.md`,
-  section 8): a command that fetches what the directory lacks does so
-  without temper's credentials.
+  section 8), and a command needs none.
+- **Only what its checkout holds.** A hook uses only what its checkout
+  holds, and a need for more is fixed or relaxed, never fetched (the
+  user, 2026-11-27). A command's checkout is its directory: its
+  repositories' files, history and references, the request and what
+  temper wrote beside them, with the programs on its `PATH` and the build
+  caches the worker gives it. A command that would need anything else,
+  another repository, a reference its checkout lacks or a file from the
+  network, has a bug: it is fixed, or it does less, says so and goes on,
+  as fabrig's close check does without main's counts (fabrig's
+  `tools/pre-pr/design.md`, 4.1). The project's delivery check is bound
+  the same way to the run's checkout (`../domain/agent/charter.md`,
+  section 4; fabrig's `tools/pre-pr/design.md`, 1).
 
 ## 3. The directory
 
@@ -74,7 +96,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **`request.json`:** `{"version": 1, "repository": NAME, "main":
   COMMIT, "from": COMMIT, "combine": "merge" | "squash",
   "train_upstream": COMMIT, "members": [{"number": N, "branch": BRANCH,
-  "head": COMMIT, "message": TEXT, "squash": TEXT, "prefix": BRANCH}],
+  "head": COMMIT, "message": TEXT, "squash": TEXT, "head_trailers":
+  true, "prefix": BRANCH}],
   "upstreams": [{"repository": NAME, "main": COMMIT, "candidate":
   COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
   names as the project's settings give them, `main` the round's base.
@@ -103,6 +126,18 @@ what they write, and how they end. temper runs them as jobs on a worker
     (`../testing/qa/landings.md`, 4). `message` carries no TRAILERS: a
     merge keeps the member's own commits, and their trailers with them.
     Neither ends in a newline.
+  - **`head_trailers`,** present, and `true`, only for a member whose
+    producer's words keep no TRAILERS in a train whose `combine` is
+    `squash`: its TRAILERS are its head commit's, which the job reads
+    from its checkout (`git-operations.md`, 1.9, `Message`) where it
+    squashes the member, and nowhere else. Its squash's message is then
+    `squash` with the head's TRAILERS in place of any it holds, composed
+    by this section's order and bound, DESCRIPTION cut again where they
+    take its room: what `squash` would be had the engine composed it
+    with them. A head whose message the read gives none of leaves
+    `squash` as it is. A member the job merges reads nothing. A worker
+    of an earlier build ignores the field, and a request of an earlier
+    engine, without it, reads as `false`: `version` stays 1.
   - **TITLE** is the member's change's title, as its pull request
     carries it, N the pull request's number, C the change's task, G its
     goal's task (the tracked task it serves), and HEAD the member's head
@@ -121,8 +156,10 @@ what they write, and how they end. temper runs them as jobs on a worker
     line, so the trailers are always the message's last paragraph.
   - **TRAILERS** are the member's own: those of the last paragraph of
     its producer's words, or, where the words keep none, of its head
-    commit's message, as the round read it
-    (`../domain/landing-prepare.md`, 1.2). A text's last paragraph is
+    commit's message: as the job reads it under `head_trailers`, and in
+    `squash` as the first page of the round's containment read gave it,
+    where that page held the head (`../domain/landing-prepare.md`, 1.2).
+    A text's last paragraph is
     what follows its last blank line (a line empty or of whitespace
     alone), blank lines at its end aside. It holds trailers where a
     paragraph comes before it and each of its lines, its trailing
@@ -185,11 +222,18 @@ The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker/
 ): it settles the conflicts the project's rules know (a counted
 baseline recounted, a generated file made again), with no model.
 
-- **Named by the project's `merge_job`** (`configuration/engine.md`
-  ), a path in the repository being merged, run from the merge in
+- **The repository's `merge` hook, or the project's `merge_job`**
+  (`hooks.md`, 4.2, 4.3 and 5; `configuration/engine.md`): `.temper/hooks/merge`
+  where the merge in progress holds `.temper/hooks/`, the
+  project's `merge_job` where it holds none; a path in the repository
+  being merged, run from the merge in
   progress, not from the home: the files it settles and the scripts
   that settle them are that repository's. A command file left in
-  conflict, or absent from the merge, is the command's failure.
+  conflict is the command's failure, as a hook the worker's check
+  refuses is, and so is a `merge_job` absent from the merge; where
+  there is no command, the job answers none, its result
+  `{"settled":[],"hook":"none"}`, and the change goes to its resolution
+  at once, a clean merge being delivered as on exit 0 (`hooks.md`, 4.2).
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the head being merged into, with the base
   merged in by temper and not committed, git's merge in progress, the
@@ -335,11 +379,17 @@ into its base. fabrig's settles the goal's in-flight status entries
 (fabrig's `DESIGN.md`, section 2); another project's may settle what it
 keeps of a goal's work in its own files.
 
-- **Named by the project's `close_job`** (`configuration/engine.md`
-  ), a path in the goal's branch's repository, as `merge_job` is: the
+- **The repository's `close` hook, or the project's `close_job`**
+  (`hooks.md`, 4.2, 4.3 and 5; `configuration/engine.md`): `.temper/hooks/close`
+  where the goal's branch's tip holds `.temper/hooks/`, the project's
+  `close_job` where it holds none; a path in the goal's branch's
+  repository, as the merge command is: the
   files it settles and the scripts that settle them are that
-  repository's. A command file absent from the branch is the command's
-  failure.
+  repository's. A `close_job` absent from the branch is the command's
+  failure, as a hook the worker's check refuses is; where there is no
+  command, the job answers none, its result
+  `{"settled":[],"hook":"none"}`, which the engine takes as settlement
+  with nothing settled (`hooks.md`, 4.2).
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the goal's branch's tip, on
   the close change's own branch made there, clean, nothing staged. That
@@ -369,11 +419,12 @@ keeps of a goal's work in its own files.
   all the same: its entry is deleted when its change landed, and
   otherwise the tag alone goes, with the space before it, the
   punctuation staying.
-- **A close may check what it settles,** as fabrig's `.temper/checked-close`
+- **A close may check what it settles,** as fabrig's `.temper/hooks/close`
   does: it settles, then runs pre-PR's close check over the staged tree
   (`tools/pre-pr/design.md`, 4.1). The check's verdict is the close's:
   passed, refused by the goal's own failures, or not judged, the check
-  having broken (`../draft/whose-red.md`, 3.1).
+  having broken (`../draft/whose-red.md`, 3.1), or having found the goal
+  outdated for main's published counts.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
@@ -388,13 +439,30 @@ keeps of a goal's work in its own files.
   counts it judged against, `null` where it read none there; each NAME a
   failure of the goal's own, as the check names it, in the check's order.
   It is compact JSON with ASCII escapes, members in that order, within
-  the kind's result bound with its newline, the names that fit kept whole
-  and the rest counted in `more`, absent when none is omitted, as
-  `merge`'s are (4.1, *Bounded whole*). Nothing is committed or pushed.
+  the bound `TEMPER_CLOSE_RESULT_BYTES` names, including its newline.
+  The names that fit are kept whole and the rest counted in `more`,
+  absent when none is omitted, as `merge`'s are (4.1, *Bounded whole*).
+  Without a whole decimal bound of at least 512 the close check uses 512.
+  The requester decided on 2026-11-27 to carry more names where both ends
+  hold them and still place closes on workers declaring 512. The worker
+  reads within its declared bound. Nothing is committed or pushed.
   The job finishes, spending no try, and the close change holds at once
   on the refusal (`../domain/forge/change/repairs-releases.md`, 1).
-- **Any other exit,** a signal, the job's deadline, or a result missing
-  or past its bound: the command's failure, the check broke, its stderr's
+- **`result.json`, exit 3, outdated,** only where the command's
+  environment holds `TEMPER_CLOSE_OUTDATED=3`: the goal's branch could
+  not be judged against main's published counts,
+  `{"outdated":{"head":H,"why":W}}`. H is the commit the job's checkout
+  was at; W `window`, the branch holding none of the commits the counts
+  cover, or `ancestry`, its checkout's ancestry too incomplete to tell.
+  It is compact JSON, members in that order, ending in a newline, and
+  replaces the settlement's result; nothing is committed or pushed. The
+  job finishes, spending no try, and the close change ends with no
+  change, for its closer to catch the goal up from main
+  (`../domain/forge/change/repairs-releases.md`, 1). A close that sees
+  `TEMPER_CLOSE_REFUSAL=3` alone writes no finding: it breaks, as below.
+- **Any other exit,** a signal, the hook's time or the job's deadline
+  passed, a fault of the hooks' `config.toml` (`hooks.md`, 2.3), or a
+  result missing or past its bound: the command's failure, the check broke, its stderr's
   last `tooling_log_bytes` kept. The job fails in the run's own class and
   is tried again within its tries; past them the close change holds, its
   words naming the check, not the goal's changes, and escalates to the
@@ -403,15 +471,22 @@ keeps of a goal's work in its own files.
   command of an earlier build refuses any other. The engine asks for the
   refusal in the close job's spec, which only a worker whose layout keeps
   the ask is sent (`wires.md`, 8; `../domain/worker/jobs.md`, 2), and
-  that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). A command that doesn't
-  see it exits as before, so a refusal never reaches a build that would
+  that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). Workers whose layouts lack
+  the result limit still take the ask and use the 512-byte fallback. A
+  command that doesn't see the refusal ask exits as before, so a refusal never reaches a build that would
   read a finished close with nothing pushed as one with nothing to
-  settle.
+  settle. The outdated finding is asked for the same way, in the spec's
+  `outdated`, which the worker turns into `TEMPER_CLOSE_OUTDATED=3`;
+  but a worker whose layout lacks that field keeps the spec without it
+  (`wires.md`, 8), so its close runs with the command not told, and
+  breaks as before.
 - **Checked against its attempt.** The engine takes a finished close as a
   refusal only when its job asked for one, its result is `refused`, its
   `head` is the commit that job's checkout started at, and nothing was
-  pushed; as settlement it takes only `settled`. Any other finished
-  result is the command's failure. The engine knows the commit, not the
+  pushed; as an outdated finding, only on the same terms with the result
+  `outdated`, its `why` one of the two; as settlement it takes only
+  `settled`, none's `{"settled":[],"hook":"none"}` among them. Any other
+  finished result is the command's failure. The engine knows the commit, not the
   tree settlement makes of it; the close is deterministic by contract,
   so the commit and the job's fixed request give the tree.
 - **Deterministic by contract,** as `merge`: the same tree and request
@@ -446,8 +521,10 @@ limit of the worker's jobs (`../domain/worker/jobs.md`).
   (`configuration/worker.md`, section 1) and no override (`configuration/limits.md`). The first kind built, `merge`, keeps them the
   profile's constants, so they stay open until a deployment needs
   another.
-- **A command's own network:** whether a worker gives it none, so that
-  a pin bump needs nothing fetched, or the project's.
+- **A command's own network:** a command needs none (2), so a worker
+  could give it none, holding the rule by containment rather than by the
+  command alone. Default: the worker's containment, the rule the
+  command's to keep.
 - **A train's request near its job's spec bound:** a member's `squash`
   may hold up to 4,096 bytes with its TRAILERS (4), so a train of five
   members, each with trailers near that bound, passes the prepare

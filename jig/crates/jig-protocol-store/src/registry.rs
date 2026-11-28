@@ -2,7 +2,7 @@
 use crate::{Job, JobLayout, OpenRefusal, Owner, Store};
 use alloc::boxed::Box;
 use skein_codec::{
-    layout::{Misconverted, Plan, Workspace},
+    layout::{Misconverted, Mode, Plan, Workspace},
     schema::Schema,
 };
 use skein_lib::{Buffer, List, Map, Queue};
@@ -94,6 +94,8 @@ struct Row {
     value: crate::registry_v1::Layout,
     stored: bool,
     retire: bool,
+    // Checked while the order is in memory; written jobs run after it is discarded.
+    later: bool,
 }
 #[derive(Debug)]
 struct Order {
@@ -422,6 +424,7 @@ impl Layouts {
                     },
                     text: self.texts.get(&row.value.text)?.bytes.clone(),
                     held: held.into_boxed(),
+                    mode: if row.later { Mode::Keep } else { Mode::Read },
                 },
             ));
             match converts.from {
@@ -502,12 +505,12 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     }
     let mut work = Workspace::new();
     let mut frames = Workspace::new();
-    let later = check::plans(store, &mut layouts, &mut binary, &mut work, &mut frames)?;
+    let audit = check::plans(store, &mut layouts, &mut binary, &mut work, &mut frames)?;
     let mut work = ReadWork::fit(work, store.limits.store.value);
-    later.run(store, &layouts, &mut work)?;
+    audit.run(store, &layouts, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
     rows::operations(store.limits.store.key, &mut layouts)?;
-    if !writing && store.directory.patch.is_none() {
+    if !writing && store.directory.upgrade_levels.is_none() {
         // Retirement alone does not write: these erases wait for a writing open.
         layouts.pending = Queue::uncapped();
     }

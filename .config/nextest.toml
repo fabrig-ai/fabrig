@@ -18,12 +18,15 @@
 #
 #   fabrig: package(=fabrig-boundary)
 #
-# The tier profiles are browser-skein, live-skein, real-skein; live-smith,
-# real-smith, campaign-smith; live-jig, browser-jig, real-jig; process-temper, live-temper,
-# browser-temper, real-temper, campaign-temper; conformance-hearth and real-hearth.
+# The tier profiles are browser-skein, live-skein, real-skein, campaign-skein;
+# live-smith, real-smith, campaign-smith;
+# live-jig, browser-jig, real-jig, campaign-jig;
+# process-temper, live-temper, browser-temper, real-temper, campaign-temper;
+# conformance-hearth, real-hearth and campaign-hearth.
 # A change to a tree's default or fuzzy clause changes its copy in real-TREE;
 # a change to its fuzzy clause also changes its copy in campaign-TREE.
-# Real pairs report the gate layers' budgets; other tiers keep their own.
+# Real pairs report the gate layers' budgets; campaigns report the gate's
+# fuzzy layer ceilings as warnings. Other tiers keep their own budgets.
 #
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
 # at the user's request on 10-22; the workspace's is their sum, until the
@@ -55,7 +58,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell)) & test(/^fuzzy::/))
+  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
   & not ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not (binary(=proof_live) & test(/^rung_b0s_/))
@@ -119,7 +122,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell)) & test(/^fuzzy::/))
+  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
      | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
@@ -308,6 +311,126 @@ slow-timeout = { period = "2000ms" }
 platform = 'cfg(target_os = "macos")'
 slow-timeout = { period = "80s" }
 
+[profile.campaign-hearth]
+junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
+default-filter = """
+(
+  package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))
+) & (
+  binary_id(=hearth-accounts-world::suite)
+  | binary_id(=hearth-builder-world::simulated)
+  | binary_id(=hearth-config-world::suite)
+  | binary_id(=hearth-git-world::suite)
+  | binary_id(=hearth-mmdebstrap-world::suite)
+  | binary_id(=hearth-render-world::suite)
+  | binary_id(=hearth-template-world::suite)
+  | binary_id(=hearth-tree-world::suite)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.campaign-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.campaign-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.campaign-jig]
+junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
+default-filter = """
+(
+  package(/^jig(-|$)/)
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
+  & not binary(/^browser_/)
+) & (
+  binary_id(=jig-accounts-world::suite)
+  | binary_id(=jig-brief-world::suite)
+  | binary_id(=jig-channel-world::suite)
+  | binary_id(=jig-client-protocol-http::frames)
+  | binary_id(=jig-client-protocol-world::suite)
+  | binary_id(=jig-client-views-world::suite)
+  | binary_id(=jig-client-wire-world::suite)
+  | binary_id(=jig-client-world::joint)
+  | binary_id(=jig-client-world::suite)
+  | binary_id(=jig-conformance-world::suite)
+  | binary_id(=jig-core-world::suite)
+  | binary_id(=jig-engine-clients-world::protocol)
+  | binary_id(=jig-engine-workers-world::suite)
+  | binary_id(=jig-fleet-world::suite)
+  | binary_id(=jig-host-world::suite)
+  | binary_id(=jig-notes-world::suite)
+  | binary_id(=jig-one-process-world::suite)
+  | binary_id(=jig-ops-world::suite)
+  | binary_id(=jig-people-world::suite)
+  | binary_id(=jig-protocol-accounts-world::suite)
+  | binary_id(=jig-store-codecs-world::suite)
+  | binary_id(=jig-store-world::frame_limits)
+  | binary_id(=jig-store-world::suite)
+  | binary_id(=jig-tasks-world::suite)
+  | binary_id(=jig-test-connector-world::suite)
+  | binary_id(=jig-worker-link-world::suite)
+  | binary_id(=jig-worker-wire-world::suite)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.campaign-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.campaign-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.campaign-skein]
+junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
+default-filter = """
+(
+  (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
+  & ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/))
+) & (
+  binary_id(=skein-browser-world::suite)
+  | binary_id(=skein-channel-world::suite)
+  | binary_id(=skein-codec-tests::suite)
+  | binary_id(=skein-conformance-sim::suite)
+  | binary_id(=skein-deflate)
+  | binary_id(=skein-echo-world::simulated)
+  | binary_id(=skein-fake-checkout-tests::suite)
+  | binary_id(=skein-fake-peers-tests::simulated)
+  | binary_id(=skein-forge-client-world::suite)
+  | binary_id(=skein-forge-dialect-tests::suite)
+  | binary_id(=skein-forge-protocol-world::suite)
+  | binary_id(=skein-forge-setup-world::suite)
+  | binary_id(=skein-http-world::suite)
+  | binary_id(=skein-io-world::suite)
+  | binary_id(=skein-json-world::suite)
+  | binary_id(=skein-kv-tests::simulated)
+  | binary_id(=skein-lib-tests::suite)
+  | binary_id(=skein-llm-connection-world::suite)
+  | binary_id(=skein-llm-world::suite)
+  | binary_id(=skein-oauth-accounts-world::simulated)
+  | binary_id(=skein-oauth-issuer-world::suite)
+  | binary_id(=skein-oauth-world::suite)
+  | binary_id(=skein-protocol-world::suite)
+  | binary_id(=skein-sim-tests::suite)
+  | binary_id(=skein-world-tests::simulated)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.campaign-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.campaign-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
 [profile.campaign-smith]
 junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
 default-filter = """
@@ -332,7 +455,7 @@ junit = { path = "junit.xml", store-success-output = true, store-failure-output 
 default-filter = """
 (
   package(/^temper(-|$)/)
-  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell)) & test(/^fuzzy::/))
+  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
      | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
@@ -492,7 +615,7 @@ junit = { path = "junit.xml" }
 default-filter = """
 ((
   package(/^temper(-|$)/)
-  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell)) & test(/^fuzzy::/))
+  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
   & not ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not (binary(=proof_live) & test(/^rung_b0s_/))
@@ -500,7 +623,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell)) & test(/^fuzzy::/))
+  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
      | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)

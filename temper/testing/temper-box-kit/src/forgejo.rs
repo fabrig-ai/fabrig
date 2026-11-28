@@ -364,20 +364,23 @@ pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     super::write_file(&path, &file, shape);
     super::limit_settings::install_paths(&[config.into(), data.into(), cache.into()]);
     let binary = Binary::start(
-        Command {
-            program: skein_scratch::paths::built("temper-box", "temper-box").with_file_name(binary),
-            arguments: vec![
-                "serve".into(),
-                "--config".into(),
-                config.into(),
-                "--data".into(),
-                data.into(),
-                "--cache".into(),
-                cache.into(),
-            ],
-            directory: config.into(),
-            environment: Vec::new(),
-        },
+        super::fixture::dying_with_test(
+            Command {
+                program: skein_scratch::paths::built("temper-box", "temper-box").with_file_name(binary),
+                arguments: vec![
+                    "serve".into(),
+                    "--config".into(),
+                    config.into(),
+                    "--data".into(),
+                    data.into(),
+                    "--cache".into(),
+                    cache.into(),
+                ],
+                directory: config.into(),
+                environment: Vec::new(),
+            },
+            skein_io::kernel::Signal::Kill,
+        ),
         Mode::Pipes,
         65_536,
     )

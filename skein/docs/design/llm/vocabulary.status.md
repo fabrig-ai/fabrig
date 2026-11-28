@@ -1,6 +1,7 @@
 # vocabulary: status
 
-2026-11-23. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+2026-11-27. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+
 
 - **Departs:** 1: `skein/docs/foundation/programming-model.md`, 10.3 puts generic items out
   of step code, but `skein-llm/src/wire/output.rs`'s `Output<P>` is one, as

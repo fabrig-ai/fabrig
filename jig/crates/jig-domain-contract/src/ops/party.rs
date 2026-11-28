@@ -1149,6 +1149,8 @@ pub enum LlmWhy {
     Procedure,
     /// The sub-agents name the model twice.
     Repeated,
+    /// The speed is not one the model declares, nor `standard`.
+    Speed,
 }
 
 /// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).

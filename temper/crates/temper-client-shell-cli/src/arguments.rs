@@ -18,6 +18,7 @@ pub enum Class {
     Link,
     Pending,
     Help,
+    SettingsUpgrade,
 }
 impl Class {
     #[must_use]
@@ -46,6 +47,7 @@ pub fn file_root(parsed: &Parsed) -> Option<Box<[u8]>> {
             if class(call) == Class::Help
                 || name == b"finding file"
                 || name == b"task amend"
+                || name == rows::UPGRADE_SETTINGS.name
                 || name == b"settings apply"
                 || name == b"settings propose"
             {
@@ -81,6 +83,8 @@ pub fn class(call: &Call) -> Class {
         Class::Link
     } else if tool.name == rows::PENDING.name {
         Class::Pending
+    } else if tool.name == rows::UPGRADE_SETTINGS.name {
+        Class::SettingsUpgrade
     } else if tool.name == rows::HELP.name {
         Class::Help
     } else if temper_client_tools::jig::call::waiting(tool, call) {
@@ -120,7 +124,12 @@ pub fn text_files(parsed: &Parsed) -> Vec<(u8, Box<[u8]>)> {
     let mut files = Vec::new();
     let Parsed::Call { call, .. } = parsed else { return files };
     let name = TOOLS[usize::from(call.tool)].name;
-    if name != b"task amend" && name != b"settings apply" && name != b"settings propose" && name != b"finding file" {
+    if name != b"task amend"
+        && name != b"settings apply"
+        && name != b"settings propose"
+        && name != rows::UPGRADE_SETTINGS.name
+        && name != b"finding file"
+    {
         return files;
     }
     for (index, slot) in call.values.iter().enumerate() {

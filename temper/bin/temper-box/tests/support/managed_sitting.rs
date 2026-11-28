@@ -197,7 +197,8 @@ fn connect(root: &Path, binary: &Path, clients: SocketAddr, peers: &[(SocketAddr
 fn ctl(root: &Path, binary: &Path, words: &[&str]) -> String {
     let mut command = environment(root, binary);
     command.arg("ctl").arg(root.join("client")).args(words);
-    let mut process = Process::start(&mut command);
+    let child = command.spawn().expect("start private sitting ctl");
+    let mut process = Process::started(&command, child);
     let status = process.wait(COMMAND);
     assert!(status.success(), "{}", process.failure(status, "during ctl"));
     process.stdout()
@@ -270,13 +271,17 @@ struct Process {
 }
 impl Process {
     fn start(command: &mut Command) -> Self {
+        let child = temper_box_kit::fixture::spawn(command, skein_io::kernel::Signal::Kill)
+            .expect("start private sitting fixture");
+        Self::started(command, child)
+    }
+    fn started(command: &Command, child: Child) -> Self {
         let name = command
             .get_current_dir()
             .and_then(Path::file_name)
             .expect("named sitting child")
             .to_string_lossy()
             .into_owned();
-        let child = command.spawn().expect("start private sitting process");
         let mut process = Self { child, name, lines: Arc::default(), readers: Vec::new() };
         let stdout = process.child.stdout.take().expect("private stdout");
         let stderr = process.child.stderr.take().expect("private stderr");

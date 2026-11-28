@@ -208,7 +208,7 @@ enum RoundRead {
     Branch,
     Prefix(u32),
     Head,
-    Contained(u32),
+    Contained,
     Pull,
     Upstream,
 }
@@ -618,7 +618,7 @@ impl Domain {
         *command = Some(close_job);
         true
     }
-    /// The project's optional close command (temper/docs/design/domain/forge/change/README.md, 1).
+    /// The project's optional close fallback (temper/docs/design/domain/forge/change/README.md, 1).
     #[must_use]
     pub fn close_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, _, command, _, _) = self.landing.projects.get(&project)?;
@@ -641,7 +641,7 @@ impl Domain {
         }
         None
     }
-    /// The project's optional merge command (temper/docs/design/protocol/configuration/engine.md).
+    /// The project's optional merge fallback (temper/docs/design/protocol/configuration/engine.md).
     #[must_use]
     pub fn merge_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, command, _, _, _) = self.landing.projects.get(&project)?;
@@ -2755,7 +2755,7 @@ fn round_read(
             }
             match candidate {
                 Some(tip) => (RoundRead::Prefix(1), api::Read::Commits { before: below, after: tip, page: 1 }),
-                None => (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 }),
+                None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }),
             }
         }
         RoundRead::Prefix(page) => {
@@ -2796,7 +2796,7 @@ fn round_read(
             if merge {
                 (RoundRead::Head, api::Read::Commits { before: candidate.expect("prefix"), after: head, page: 1 })
             } else {
-                (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
+                (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
             }
         }
         RoundRead::Head => {
@@ -2809,39 +2809,28 @@ fn round_read(
                     return;
                 }
             }
-            (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
+            (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
         }
-        RoundRead::Contained(page) => {
-            let (more, trailers) = match &answer {
-                Ok(api::Answer::Commits { commits, more }) => (*more, head_commit_trailers(commits, head)),
-                Err(api::Error::TooLarge(_)) => (false, None),
+        RoundRead::Contained => {
+            let trailers = match &answer {
+                Ok(api::Answer::Commits { commits, .. }) => head_commit_trailers(commits, head),
+                Err(api::Error::TooLarge(_)) => None,
                 Ok(_) | Err(_) => {
                     read_failed(d, row, &p, error, out);
                     return;
                 }
             };
-            // The first page alone tells whether the base contains the head.
-            if page == 1 {
-                fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
-                    policy::Status::Passed
-                } else {
-                    policy::Status::Failed
-                };
-            }
-            if let Some(block) = trailers {
-                if !block.is_empty() {
-                    p.head_trailers
-                        .push(crate::LandingHeadTrailers { member: index, block })
-                        .expect("one block per member");
-                }
-            } else if more {
-                let Some(page) = page.checked_add(1) else {
-                    read_failed(d, row, &p, None, out);
-                    return;
-                };
-                p.stage = Stage::Round { member: index, stage: RoundRead::Contained(page), candidate };
-                ask(d, env, owner, p, repository(member), api::Read::Commits { before: base, after: head, page }, out);
-                return;
+            fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
+                policy::Status::Passed
+            } else {
+                policy::Status::Failed
+            };
+            if let Some(block) = trailers
+                && !block.is_empty()
+            {
+                p.head_trailers
+                    .push(crate::LandingHeadTrailers { member: index, block })
+                    .expect("one block per member");
             }
             round_member(d, env, owner, p, row, index.checked_add(1).expect("member bound"), out);
             return;
@@ -2864,7 +2853,7 @@ fn round_read(
 fn head_commit_trailers(commits: &[api::CommitMessage], head: api::Commit) -> Option<Box<[u8]>> {
     for commit in commits {
         if commit.id == head {
-            return Some(crate::member_message::trailers(&commit.message));
+            return Some(temper_protocol_member_message::trailers(&commit.message));
         }
     }
     None
@@ -3053,7 +3042,7 @@ fn upstream_branch(d: &Domain, row: &LandingRow) -> Option<Box<[u8]>> {
 }
 
 fn squash_head(message: &[u8], head: api::Commit) -> bool {
-    crate::member_message::names_head(message, head)
+    temper_protocol_member_message::names_head(message, head)
 }
 
 /// A receipt is shared by project, repository, gate and filtered tree, independent

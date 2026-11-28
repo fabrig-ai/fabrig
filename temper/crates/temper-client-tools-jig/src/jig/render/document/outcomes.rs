@@ -339,6 +339,7 @@ fn encode_llm_why(value: jig_client::contract::LlmWhy, out: &mut Encoder) {
     match value {
         jig_client::contract::LlmWhy::Unconfigured => out.string(b"unconfigured"),
         jig_client::contract::LlmWhy::Effort => out.string(b"effort"),
+        jig_client::contract::LlmWhy::Speed => out.string(b"speed"),
         jig_client::contract::LlmWhy::Charter => out.string(b"charter"),
         jig_client::contract::LlmWhy::Authority => out.string(b"authority"),
         jig_client::contract::LlmWhy::Procedure => out.string(b"procedure"),

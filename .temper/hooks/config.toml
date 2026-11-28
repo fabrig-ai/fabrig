@@ -1,0 +1,3 @@
+# Hook timeouts (temper/docs/design/protocol/hooks.md, 2.3).
+[close]
+timeout_seconds = 1800

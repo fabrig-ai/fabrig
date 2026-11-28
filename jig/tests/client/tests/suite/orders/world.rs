@@ -243,7 +243,7 @@ impl World {
         self.deliver(Event::SignIn { with });
         self.label = "hello";
         if self.unlinked {
-            self.deliver(Event::Up { up: Up::Served { served: true, versions: None } });
+            self.deliver(Event::Up { up: Up::Served { served: true } });
         } else {
             self.execute(Command::Hello);
         }
@@ -348,7 +348,7 @@ impl World {
                 self.outputs(&mut out);
                 self.unlinked_outputs(&mut unlinked);
             }
-            Command::Visit => self.deliver(Event::Up { up: Up::Served { served: true, versions: None } }),
+            Command::Visit => self.deliver(Event::Up { up: Up::Served { served: true } }),
             Command::LoseRequest(key) => self.request_answer(key, false),
             Command::FinishRequest(key) => self.request_answer(key, true),
             Command::FinishRequests => {

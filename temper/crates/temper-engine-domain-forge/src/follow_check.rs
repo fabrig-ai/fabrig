@@ -26,9 +26,23 @@ pub(crate) enum Action {
     Held,
 }
 
-fn configured(d: &Domain, row: &ChangeRow) -> Option<(u32, settings::Follow)> {
+fn configured<'a>(d: &'a Domain, row: &ChangeRow) -> Option<&'a settings::Follow> {
     let project = d.repository(row.repository)?.project;
-    Some((project, d.follow(project, row.follows.as_ref()?.follow)?.clone()))
+    d.follow(project, row.follows.as_ref()?.follow)
+}
+fn is_current(row: &ChangeRow, setting: &settings::Follow) -> bool {
+    let Some(check) = &row.follow_check else { return false };
+    let Some(follows) = &row.follows else { return false };
+    follows.follow == check.follow
+        && follows.commits.last() == Some(&check.source)
+        && definition(&setting.check) == check.definition
+}
+fn current<'a>(d: &'a Domain, row: &ChangeRow) -> Option<&'a settings::Follow> {
+    let setting = configured(d, row)?;
+    if is_current(row, setting) { Some(setting) } else { None }
+}
+pub(crate) fn obsolete(d: &Domain, row: &ChangeRow) -> bool {
+    row.follow_check.is_some() && current(d, row).is_none()
 }
 fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     let mut length = 0_usize;
@@ -63,16 +77,9 @@ fn definition(check: &settings::FollowCheck) -> Box<[u8]> {
 pub(crate) fn select(d: &Domain, row: &mut ChangeRow, limits: &Limits) -> Result<(), u64> {
     let config = configured(d, row);
     let selected = config.is_some();
-    if let Some(check) = &row.follow_check {
-        let current = match &row.follows {
-            Some(follows) => match &config {
-                Some((_, setting)) => {
-                    follows.follow == check.follow
-                        && follows.commits.last() == Some(&check.source)
-                        && definition(&setting.check) == check.definition
-                }
-                None => false,
-            },
+    if row.follow_check.is_some() {
+        let current = match config {
+            Some(setting) => is_current(row, setting),
             None => false,
         };
         if !current {
@@ -124,15 +131,14 @@ fn inputs(check: &FollowCheck) -> Box<[api::Input]> {
         .expect("source input");
     inputs.into_boxed()
 }
-fn following(d: &Domain, row: &ChangeRow) -> runs::Follow {
-    let (_, setting) = configured(d, row).expect("configured follow check");
+fn following(d: &Domain, row: &ChangeRow, setting: &settings::Follow) -> runs::Follow {
     let check = row.follow_check.as_ref().expect("active check");
     let mut follow = runs::follow(
         row.task,
         0,
         crate::purpose::EffectPurpose::Step { task: row.task, purpose: 18 }.identity().expect("check purpose"),
         row.repository,
-        setting.check.workflow,
+        setting.check.workflow.clone(),
         if let c::State::Judging { target, .. } = &row.change.state {
             target.branch.clone()
         } else {
@@ -165,8 +171,7 @@ pub(crate) fn in_flight(d: &Domain, row: &ChangeRow) -> Option<runs::Follow> {
             return None;
         }
     }
-    configured(d, row)?;
-    Some(following(d, row))
+    Some(following(d, row, current(d, row)?))
 }
 fn remember(row: &mut ChangeRow, follow: &runs::Follow) {
     let check = row.follow_check.as_mut().expect("active check");
@@ -193,7 +198,7 @@ pub(crate) fn advance(
     if !crate::domain::entries_looked(d, row.task) {
         return Action::Wait;
     }
-    let Some((_, setting)) = configured(d, row) else { return Action::Done };
+    let Some(setting) = configured(d, row) else { return Action::Done };
     let follows = row.follows.as_ref().expect("follow provenance");
     let Some(source) = follows.commits.last().copied() else { return Action::Held };
     let definition = definition(&setting.check);
@@ -228,10 +233,11 @@ pub(crate) fn advance(
         return Action::Read { kind: ReadKind::Tree(1), read: api::Read::Tree { object: head, page: 1 } };
     }
     if let Some(receipt) = d.receipt(&receipt_key(d, row)).cloned() {
-        judged(d, env, row, &receipt, out);
+        let source = setting.source.repository;
+        judged(d, env, row, source, &receipt, out);
         return Action::Done;
     }
-    let mut follow = following(d, row);
+    let mut follow = following(d, row, setting);
     if let Some(key::Verdict::Fault(reason)) = follow.outcome {
         let words = fault_words(&follow, reason);
         fault(d, row, &mut follow, &words);
@@ -251,7 +257,7 @@ pub(crate) fn advance(
     if let Some(flight) = &check.flight
         && let Some(run) = &flight.report
         && let Some(read) =
-            crate::tiers::parts::artifact_read(run.id, setting.check.artifact, setting.check.format, env)
+            crate::tiers::parts::artifact_read(run.id, setting.check.artifact.clone(), setting.check.format, env)
     {
         return Action::Read { kind: ReadKind::Report, read };
     }
@@ -262,7 +268,7 @@ pub(crate) fn advance(
 }
 /// Take the next write, keeping its progress with the outbox entry in one decision.
 pub(crate) fn write(d: &Domain, row: &mut ChangeRow, entry: u64) -> Option<api::Write> {
-    let mut follow = following(d, row);
+    let mut follow = following(d, row, current(d, row)?);
     let write = follow.write(entry);
     remember(row, &follow);
     write
@@ -281,25 +287,32 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
     if flight.entry != entry || !flight.waiting {
         return;
     }
-    let mut follow = following(d, &row);
-    follow.waiting = false;
-    if let api::Write::Dispatch { .. } = &kept.entry.effect.write
-        && let Some(start) = kept.entry.start
-    {
-        follow.start = Some(start.at);
-    }
-    if let Some(attempt) = kept.entry.attempt {
-        follow.since = Some(attempt.sent);
-        follow.wall = Some(attempt.wall);
-    }
-    match outcome {
-        Outcome::Made { .. } => {}
-        Outcome::Failed(_) | Outcome::Raced { .. } | Outcome::Withdrawn | Outcome::Held => {
-            follow.outcome = Some(key::Verdict::Fault(key::Fault::Lost));
+    if let Some(setting) = current(d, &row) {
+        let mut follow = following(d, &row, setting);
+        follow.waiting = false;
+        if let api::Write::Dispatch { .. } = &kept.entry.effect.write
+            && let Some(start) = kept.entry.start
+        {
+            follow.start = Some(start.at);
         }
-        Outcome::Queued | Outcome::Uncertain => unreachable!("nonterminal outcomes returned"),
+        if let Some(attempt) = kept.entry.attempt {
+            follow.since = Some(attempt.sent);
+            follow.wall = Some(attempt.wall);
+        }
+        match outcome {
+            Outcome::Made { .. } => {}
+            Outcome::Failed(_) | Outcome::Raced { .. } | Outcome::Withdrawn | Outcome::Held => {
+                follow.outcome = Some(key::Verdict::Fault(key::Fault::Lost));
+            }
+            Outcome::Queued | Outcome::Uncertain => unreachable!("nonterminal outcomes returned"),
+        }
+        remember(&mut row, &follow);
+    } else if let Some(check) = &mut row.follow_check {
+        check.flight = None;
+        if row.pending == Some(entry) {
+            row.pending = None;
+        }
     }
-    remember(&mut row, &follow);
     row.effect = c::EffectResult::None;
     d.changes.insert(task, row.clone()).expect("known change");
     crate::domain::save_change(d, out, row);
@@ -315,17 +328,18 @@ pub(crate) fn answered(
     entries: &mut List<key::Entry>,
     out: &mut Queue<Request>,
 ) -> Option<Action> {
+    let Some(setting) = current(d, row) else { return Some(Action::Done) };
     if let Err(api::Error::Busy | api::Error::Unavailable | api::Error::Timeout) = &answer {
         return Some(Action::Wait);
     }
     match kind {
         ReadKind::Tree(page) => tree_answer(env, row, page, answer, entries),
         ReadKind::Run | ReadKind::Report => {
-            let mut follow = following(d, row);
+            let mut follow = following(d, row, setting);
+            let source = setting.source.repository;
             if kind == ReadKind::Report {
-                let (_, setting) = configured(d, row).expect("configured check");
                 match crate::tiers::parts::report_answer(setting.check.format, env, answer) {
-                    report::Outcome::Failed(failures) => finish(d, env, row, &follow, Some(failures), out),
+                    report::Outcome::Failed(failures) => finish(d, env, row, source, &follow, Some(failures), out),
                     report::Outcome::Fault => fault(d, row, &mut follow, b"artifact report"),
                     report::Outcome::Passed => unreachable!("a failed report never passes"),
                 }
@@ -333,7 +347,7 @@ pub(crate) fn answered(
                 let writer = d.writers.get(&row.repository.forge).copied().unwrap_or(0);
                 let _ended = follow.answered(answer, writer, env.now, env.wall, env.limits.client.lifetime);
                 match follow.outcome {
-                    Some(key::Verdict::Passed) => finish(d, env, row, &follow, None, out),
+                    Some(key::Verdict::Passed) => finish(d, env, row, source, &follow, None, out),
                     Some(key::Verdict::Fault(reason)) => {
                         let words = fault_words(&follow, reason);
                         fault(d, row, &mut follow, &words);
@@ -441,6 +455,7 @@ fn finish(
     d: &mut Domain,
     env: &Env<Limits>,
     row: &mut ChangeRow,
+    source: api::Repository,
     follow: &runs::Follow,
     failures: Option<report::Failures>,
     out: &mut Queue<Request>,
@@ -458,9 +473,16 @@ fn finish(
         logs: Box::new([]),
     };
     crate::landing::put_receipt(d, env, receipt_key(d, row), receipt.clone(), out);
-    judged(d, env, row, &receipt, out);
+    judged(d, env, row, source, &receipt, out);
 }
-fn judged(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, receipt: &Receipt, out: &mut Queue<Request>) {
+fn judged(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut ChangeRow,
+    source_repository: api::Repository,
+    receipt: &Receipt,
+    out: &mut Queue<Request>,
+) {
     let check = row.follow_check.as_ref().expect("judged follow check");
     let source = check.source;
     let head = check.head;
@@ -491,7 +513,7 @@ fn judged(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, receipt: &Rece
         }
     };
     if !receipt.passed {
-        let words = remarks(d, row, receipt);
+        let words = remarks(d, row, source_repository, receipt);
         let words = crate::ResultText { bytes: words, cut: 0 }
             .fitted(env.limits.client.answer_bytes)
             .expect("the configured gate remark bound fits its cut account");
@@ -511,15 +533,9 @@ fn judged(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, receipt: &Rece
         out.push(Request::Marked { tasks: Box::new([crate::follows_subject(project)]) });
     }
 }
-fn remarks(d: &Domain, row: &ChangeRow, receipt: &Receipt) -> Box<[u8]> {
-    let (_, setting) = configured(d, row).expect("configured check");
+fn remarks(d: &Domain, row: &ChangeRow, source: api::Repository, receipt: &Receipt) -> Box<[u8]> {
     let check = row.follow_check.as_ref().expect("check");
-    let source = d
-        .repository(api::Repository {
-            forge: setting.source.repository.forge,
-            repository: setting.source.repository.repository,
-        })
-        .expect("adopted source");
+    let source = d.repository(source).expect("adopted source");
     let count = match &receipt.failures {
         Some(report::Failures::Tests(tests)) => Decimal::of(skein_lib::len_u64(tests.len())).as_bytes().into(),
         Some(report::Failures::Many) | None => Box::from(b"many".as_slice()),

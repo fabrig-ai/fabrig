@@ -128,17 +128,6 @@ pub fn invalid_to_record(value: &jig_domain_host::Invalid) -> jig_protocol_worke
 }
 
 #[must_use]
-pub fn mismatch_to_record(value: &jig_domain_host::Mismatch) -> jig_protocol_worker_wire::v22::Mismatch {
-    let jig_domain_host::Mismatch { wire: field_000000, version: field_000001, lowest: field_000002, highest: field_000003 } = value;
-    jig_protocol_worker_wire::v22::Mismatch {
-        wire: field_000000.clone(),
-        version: *field_000001,
-        lowest: *field_000002,
-        highest: *field_000003
-    }
-}
-
-#[must_use]
 pub fn bound_to_record(value: &jig_domain_host::Bound) -> jig_protocol_worker_wire::v22::Bound {
     match value {
         jig_domain_host::Bound::Reasoning => jig_protocol_worker_wire::v22::Bound::Reasoning,

@@ -99,7 +99,7 @@ Offered where the run's charter names the delegate family and its authority hold
 - `merge`: text. Catch-up: 40/64 hex commit.
 - `after`: array. Task IDs/earlier names.
 - `producer`: integer >=1. Producer charter; omit: forge default.
-- `llm`: object. producer/review:{main:{model,effort},sub_agents:[{model,effort}]}.
+- `llm`: object. producer/review:{main:{model,effort,speed},sub_agents:[{model,effort,speed}]}; speed by name or standard.
 - `changes`: array. Batch: put all options inside each item.
   - `words`: text; required. Change's complete brief.
   - `repository`: text. owner/name; omit if sole writable.
@@ -109,7 +109,7 @@ Offered where the run's charter names the delegate family and its authority hold
   - `merge`: text. Catch-up: 40/64 hex commit.
   - `after`: array. Task IDs/earlier names.
   - `producer`: integer >=1. Producer charter; omit: forge default.
-  - `llm`: object. producer/review:{main:{model,effort},sub_agents:[{model,effort}]}.
+  - `llm`: object. producer/review:{main:{model,effort,speed},sub_agents:[{model,effort,speed}]}; speed by name or standard.
   - `repairs`: text. Red landing's 40/64 hex merge commit.
   - `questions`: text. up, none; omit: project setting. the `questions` form, under Shared forms.
 - `repairs`: text. Red landing's 40/64 hex merge commit.
@@ -146,7 +146,7 @@ Offered where the run's charter names the delegate family and its authority hold
     - `kind`: one of `batch|existing`; required.
     - `number`: integer >=0; required.
   - `wake`: object. the `wake` form, under Shared forms.
-  - `llm`: object. main {model, effort} names the model, effort optional; subagents and account are optional. the `llm` form, under Shared forms.
+  - `llm`: object. main {model, effort, speed}: effort optional, speed optional by name or standard; subagents and account optional. the `llm` form, under Shared forms.
   - `symbolic_grants`: array. the `grants` form, under Shared forms.
 
 ## amend
@@ -168,7 +168,7 @@ Offered where the run's charter names the control family and its authority holds
   - `authority`: object. Whole: restate every member you keep. A deadline is budget.deadline. the `authority` form, under Shared forms.
   - `dependencies`: array. The whole list of the existing tasks it waits on.
   - `wake`: object. the `wake` form, under Shared forms.
-  - `llm`: object. main {model, effort} names the model, effort optional; subagents and account are optional. the `llm` form, under Shared forms.
+  - `llm`: object. main {model, effort, speed}: effort optional, speed optional by name or standard; subagents and account optional. the `llm` form, under Shared forms.
 
 ## mark_read
 
@@ -557,6 +557,12 @@ Offered to an asking run, where its authority holds the asking family.
 - `answers`: boolean; required.
 - `timers`: boolean; required.
 
+### llm
+
+- `main`: object; required. the `main` form, under Shared forms.
+- `subagents`: array. the `main` form, under Shared forms.
+- `account`: integer >=0.
+
 ### spec
 
 - `words`: text; required.
@@ -567,12 +573,6 @@ Offered to an asking run, where its authority holds the asking family.
   - `connector`: integer >=0.
   - `resource`: integer >=0.
 - `inputs`: array.
-
-### llm
-
-- `main`: object; required. the `main` form, under Shared forms.
-- `subagents`: array. the `main` form, under Shared forms.
-- `account`: integer >=0.
 
 ### kind
 
@@ -596,6 +596,7 @@ one of `charter|template|policy|rules|model|worker|provider|limits|temper-limits
 
 - `model`: integer [0, 255]; required.
 - `effort`: integer [0, 255].
+- `speed`: text.
 
 ### tracked
 

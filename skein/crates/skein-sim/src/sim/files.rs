@@ -186,6 +186,7 @@ impl Sim {
             Op::Open {
                 how:
                     OpenHow::PathNoFollow
+                    | OpenHow::PathSiblingFile
                     | OpenHow::Read
                     | OpenHow::ReadNoFollow
                     | OpenHow::Directory

@@ -517,7 +517,10 @@ pub fn overview_bound(limits: &super::DocumentLimits) -> Option<u64> {
             .checked_add(List::<u64>::price(limits.lines)?)?
             .checked_add(32 * 8)?
             .checked_add(List::<ProposalRef>::price(limits.lines)?)?
-            .checked_add(u64::from(tasks::MODELS).checked_mul(u64::try_from(size_of::<tasks::ModelEffort>()).ok()?)?)?
+            .checked_add(
+                u64::from(tasks::MODELS.checked_mul(2)?)
+                    .checked_mul(u64::try_from(size_of::<tasks::ModelEffort>()).ok()?)?,
+            )?
             .checked_add(authority)?;
     let tree = chip
         .checked_add(List::<TreeRow>::price(limits.rows)?)?

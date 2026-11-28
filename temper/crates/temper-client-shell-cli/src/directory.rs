@@ -181,7 +181,7 @@ impl Directory {
             || (self.io.takes()
                 && (self.closing && self.io.open_files() > 0
                     || !self.closing
-                        && self.root.is_some()
+                        && (self.root.is_some() || self.stage == Stage::Link)
                         && self.stage != Stage::Ready
                         && self.retry.is_none_or(|at| now >= at)))
     }
@@ -441,10 +441,10 @@ impl Directory {
             self.progress_close(now);
             return;
         }
-        let Some(root) = self.root else {
-            return;
-        };
         if self.stage == Stage::Start {
+            if self.root.is_none() {
+                return;
+            }
             self.stage = if self.class == Class::SignIn { Stage::Private } else { Stage::Exists };
         }
         let request = match self.stage {
@@ -454,12 +454,14 @@ impl Directory {
             }
             Stage::Exists => file::Request::OpenDirectory {
                 owner: OWNER,
-                root: self.io.descriptor(root).expect("parent"),
+                root: self.parent(),
                 name: self.leaf.clone(),
                 no_follow: true,
             },
             Stage::Checked => file::Request::Close { owner: OWNER, file: self.check.expect("checked directory") },
-            Stage::Private => file::Request::OpenPrivate { owner: OWNER, root, path: self.leaf.clone() },
+            Stage::Private => {
+                file::Request::OpenPrivate { owner: OWNER, root: self.root.expect("parent"), path: self.leaf.clone() }
+            }
             Stage::Lock => {
                 let started = *self.started.get_or_insert(now);
                 if now >= started.saturating_add(limits::LOCK) {

@@ -159,8 +159,11 @@ it is live:
   order, each with instructions of its own for some of the reasons a run
   runs, which a run those reasons meet reads after the charter's (`messages.md`, 6).
   Each model declares its efforts, in order, in its `model` setting
-  (../engine/settings.md, 1); a charter's model is that row but for its `effort`,
-  which selects one of them or none, for the row's own default.
+  (../engine/settings.md, 1), and its faster speeds by name
+  (../engine/settings-catalogue.md, 1); a charter's model is that row but for its `effort`,
+  which selects one of them or none, for the row's own default, and its
+  `speed`, which names one of its speeds or `standard`, or none, for the
+  row's own default speed.
 - **Its revision:** the settings' revision it was made in, the newest
   then, whatever its parent's (../engine/settings.md, 3). An agent task's runs
   read its charter from it, until a move sets it to a newer one
@@ -168,16 +171,17 @@ it is live:
   under. Every task keeps it, live and ended; only an agent task's holds
   its revision (../engine/settings.md, 3).
 - **Its LLM choice,** for an agent task, what its runs' LLMs are:
-  - *main:* a configured model, and an effort among those the model
-    declares (`../../protocol/configuration-engine.md`, section 1); its runs use
-    it, and their check holds its most costly completion (../authority-checks.md,
-    1.3);
+  - *main:* a configured model, an effort among those the model
+    declares (`../../protocol/configuration-engine.md`, section 1) and a
+    speed (below); its runs use
+    it, and their check holds its most costly completion, at that speed's
+    prices (../authority-checks.md, 1.3);
   - *sub-agents:* the models its runs' sub-agents may use, each with an
-    effort, among which smith chooses within a run (smith's
+    effort and a speed, among which smith chooses within a run (smith's
     `domain/run.md`, 5.3);
   - *account:* optionally, one LLM account its creator wants in
     particular, within the account's uses (../accounts-uses.md, 1.3);
-  - *later:* optionally, a second main model with its effort and the
+  - *later:* optionally, a second main model with its effort and speed and the
     sub-agents' models with theirs, which every run whose reasons hold no
     `first` takes (`messages.md`, 6), the first choice going to the runs of its first
     activation. It names no account: the task's preference covers both.
@@ -186,6 +190,27 @@ it is live:
     `Llm` with the fault `Charter`, naming its main model, and a run of a task
     whose charter has come to resume since takes the first choice.
 
+  A model's **speed** in a choice, its main's, each sub-agent's and
+  its `later`'s alike, is one of the faster speeds the model declares,
+  by its own name and never an `also` (../engine/settings-catalogue.md,
+  1), or `standard`, or none. A name or `standard` is taken as it is;
+  none takes the speed the charter's resolution gives the model: the
+  charter's speed for it, else the model's default speed, else the
+  provider's standard speed (../engine/executors.md, 1). It is kept by
+  its name, at most 32 bytes, never by its position among the model's
+  speeds, so that a reordered list moves no choice. It is checked as an
+  effort is, against the speeds its model declares in the charter
+  version the check reads (../engine/settings.md, 3): at a batch, the
+  newest; at an amendment, the task's; at a move, the newest, a task
+  whose named speed the newest version's model doesn't declare staying
+  on its revision (../engine/settings.md, 4); and on a restore, the
+  task's. `standard` and none always pass. A speed its model doesn't
+  declare is refused as `Llm` with the fault `Speed`, naming the model;
+  a client words it with the model's speeds, which `me` carries
+  (`../../client/domain/contract/documents.md`, 1). A faster speed costs
+  more, and only a choice, a charter or a model's default asks for one:
+  nothing else in the core chooses it.
+
   Its creator gives it, or a template does
   (`../../protocol/configuration-templates.md`, 1), each model within the task's
   authority (../authority.md, section 3). A task given none keeps none: each
@@ -193,17 +218,18 @@ it is live:
   authority, the first it can use its main and the others its sub-agents'
   (../accounts-uses.md, 1.3); each takes the effort its charter selects, or else
   its model's default (`effort`, `../../protocol/configuration-engine.md`, section 1),
-  or none where it declares none, which leaves its LLM provider's default. Its document shows what its next run would take
+  or none where it declares none, which leaves its LLM provider's default,
+  and the speed its charter's resolution gives the model. Its document shows what its next run would take
   (`../../client/domain/contract/documents.md`, 1). A batch or an amendment that
   leaves such a task with an authority allowing none of its charter's
   models is refused, naming the charter's first.
   A `later` is checked as the first choice is, model by model: within the
   task's authority at its batch or amendment, within its charter's models
-  and their declared efforts at each run's check, and again on a restore.
+  and their declared efforts and speeds at each run's check, and again on a restore.
   A task keeps the choice it was given, and only an amendment changes it,
   whole, its `later` with it: one giving a choice without `later` leaves the
   task none (`changes.md`).
-  Configuration templates choose models and efforts; they never name an
+  Configuration templates choose models, efforts and speeds; they never name an
   account. Runtime requests supply the optional account preference.
 - **Its account:** the LLM account its runs use for its main model's LLM
   provider, chosen at its first run's check and kept from run to run,
@@ -370,7 +396,8 @@ dependencies among them.
     produce, its spec within its limits, its words and text parameters
     UTF-8 (section 3), the conversation flag on an agent's task only,
     and an LLM choice on an agent's task only, its models configured
-    and its efforts among those its models declare, and each of its
+    and its efforts and speeds among those its models declare, `standard`
+    or none for a speed (section 3), and each of its
     models, main and sub-agent, one its charter allows at the newest
     revision (section 3), as a template's and a move's are checked
     (`../../protocol/configuration-templates.md`, 1; ../engine/settings.md, 4). Whoever

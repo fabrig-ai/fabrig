@@ -55,7 +55,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             jobs::assign(domain, env, job, Err(wire::Undecodable), Err(wire::Undecodable), out);
         }
         Event::Link(host::LinkDown::Assign { assignment }) => {
-            let items = wire::Workspace { rerun: None, repositories: Box::new([]) };
+            let items = wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories: Box::new([]) };
             assign(domain, env, assignment, Ok(items), out);
         }
         Event::Link(host::LinkDown::Acknowledge { run, attempt }) => {
@@ -413,6 +413,7 @@ fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queu
         | Op::Point { .. }
         | Op::Create { .. }
         | Op::IsAncestor { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::DiffPaths { .. }
         | Op::Merge { .. }

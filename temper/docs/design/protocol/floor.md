@@ -114,7 +114,7 @@ declared in `temper-engine-service-vocabulary`, upstream first:
   (`binaries.md`, 2).
 - **Admission checks the sets at open** (jig's
   `protocol/store/opening-owners.md`, 1). The one-process test
-  `every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row`
+  `every_golden_key_has_exactly_one_owner_family_or_a_reserved_component_row`
   additionally reads both maps of the golden deployment (5): each
   non-reserved key lies in exactly one family's range. It checks the
   reserved format, layouts, wires, floor, installation and log rows
@@ -167,6 +167,17 @@ start afresh. Staging is made again at dev's build for each drill
   and empty directories. The store holds floor 1, its registry and
   inert done-job rows. Nothing rewrites the directory; moving the
   floor replaces it with a fixture at the new floor (8).
+- **Its loaded copies:** the kept store predates the frame registry,
+  and this build reads a turn frame only through a registered layout
+  row (jig's `protocol/store/transcripts.md`, 6). Every copy loaded
+  from the floor, into the fake machine or onto the host for the
+  shell's stories, first appends one map commit with the two frame
+  layout rows dev.fabrig.ai's 2026-11-25 open wrote, as a deployment
+  opened at the build before this one holds them: `jig-store-core`'s
+  `TurnRecord` at id 6 and `smith-transcript`'s `Turn` at id 7, each
+  fingerprinting the schema text already in the store, with the
+  deployment header advanced to that commit. One definition serves
+  every loader; the kept bytes stay unchanged.
 - **Its focused open:** loads a fresh machine, starts with production
   sets, and compares `Event::Ran`'s job counts with `upgraded.txt`,
   empty at the floor. New layouts register in a copied generation;

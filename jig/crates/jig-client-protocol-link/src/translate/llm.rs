@@ -19,6 +19,10 @@ pub(crate) fn model_effort_to_record(value: &c::ModelEffort) -> w::ModelEffort {
             Some(effort) => Some(bytes::copy_of(effort.bytes())),
             None => None,
         },
+        speed: match &value.speed {
+            Some(speed) => Some(bytes::copy_of(speed.bytes())),
+            None => None,
+        },
     }
 }
 pub(crate) fn choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Result<Option<c::LlmChoice>, w::Problem> {
@@ -32,6 +36,10 @@ pub(crate) fn model_effort_to_domain(value: w::ModelEffort, limits: &Limits) -> 
         model: checked_name(value.model, limits.receiving().model_effort_model)?,
         effort: match value.effort {
             Some(effort) => Some(checked_name(effort, limits.receiving().model_effort_effort_some)?),
+            None => None,
+        },
+        speed: match value.speed {
+            Some(speed) => Some(checked_name(speed, limits.receiving().model_effort_speed_some)?),
             None => None,
         },
     })
@@ -78,6 +86,11 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
         for effort in &value.efforts {
             efforts.push(name(effort, limits.receiving().me_model_efforts_item)?).expect("same capacity");
         }
+        let speeds = super::settings::restore_speeds(&value.speeds, limits.receiving())?;
+        let speed = match &value.speed {
+            Some(speed) => Some(name(speed, limits.receiving().me_model_speed_some)?),
+            None => None,
+        };
         models
             .push(c::MeModel {
                 new_until: match &value.new_until {
@@ -96,6 +109,8 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
                 shown,
                 accounts: value.accounts.clone(),
                 picker: value.picker,
+                speeds,
+                speed,
                 prices: client::me_prices_to_domain(prices.clone()),
                 description,
             })

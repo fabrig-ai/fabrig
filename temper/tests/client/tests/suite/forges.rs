@@ -1,6 +1,6 @@
 //! The tools' root joined to the engine root; only the box link is scripted
 //! (client/ctl/testing.md, 2; testing/checks.md, 3).
-use jig_client::{self as client, contract as c};
+use jig_client as client;
 use jig_client_kit::{harness::ClientId, joint::transport::Transport};
 use jig_domain_people as people;
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
@@ -114,10 +114,7 @@ impl World {
         assert!(engine::valid(&limits), "the story profile covers the larger cohort");
         let store = temper_engine_domain_world::fixtures::restored_over(Store::new(), config(under_box), &limits);
         let configuration = config(under_box);
-        let mut transport = Transport::new(c::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        });
+        let mut transport = Transport::new(true);
         transport.models.clone_from(&configuration.core.settings.models);
         transport.providers = configuration.core.settings.llm_providers.clone();
         let component = Composition::new(&configuration, tools::limits::client().client.domain);

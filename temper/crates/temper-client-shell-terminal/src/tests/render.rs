@@ -158,7 +158,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             kept: List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     ] {
         client::step(&mut root, &env, event, &mut out);
     }
@@ -352,6 +352,8 @@ pub(super) fn models_frame(
                 picker,
                 description: None,
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 5, unit: 1000 },
+                speeds: List::with_capacity(0),
+                speed: None,
             })
             .unwrap();
     }
@@ -360,7 +362,7 @@ pub(super) fn models_frame(
         choice: c::LlmChoice {
             later: None,
             account: None,
-            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
+            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")), speed: None },
             subagents: List::with_capacity(0),
         },
     }]));

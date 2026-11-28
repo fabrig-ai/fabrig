@@ -770,7 +770,7 @@ fn final_read_failures_keep_the_reads_status() {
     for end in TASK_ENDS {
         for (result, status) in [
             (jig_client::Readout::Limit, 1),
-            (jig_client::Readout::NotServed { family: None, served: None }, 1),
+            (jig_client::Readout::NotServed { family: None }, 1),
             (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)), 1),
             (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)), 1),
             (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)), 1),

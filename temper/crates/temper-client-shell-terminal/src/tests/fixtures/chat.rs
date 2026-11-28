@@ -92,7 +92,7 @@ fn first_run_words(
     for event in [
         jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
         jig_client::Event::SignIn { with: jig_client::With::Transport },
-        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        jig_client::Event::Up { up: jig_client::Up::Served { served: true } },
     ] {
         client::step(&mut root, &env, Event::Client { event }, &mut out);
     }
@@ -102,14 +102,7 @@ fn first_run_words(
             &env,
             Event::Client {
                 event: jig_client::Event::Up {
-                    up: jig_client::Up::FamilyServed {
-                        family: temper_client_protocol_wire::FORGE,
-                        served: true,
-                        versions: Some(c::VersionRange {
-                            first: temper_client_protocol_wire::CLIENT_VERSION,
-                            last: temper_client_protocol_wire::CLIENT_VERSION,
-                        }),
-                    },
+                    up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, served: true },
                 },
             },
             &mut out,
@@ -463,6 +456,8 @@ fn demo_me() -> contract::Me {
             window: 1024,
             output: 128,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("demo model");
     me.projects.get_mut(0).expect("demo project").models = models;

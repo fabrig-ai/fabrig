@@ -104,7 +104,7 @@ pub fn feedback_bound(limits: &run::Limits) -> Option<u64> {
     let problems = fields.checked_add(u64::from(Problems::LISTED).checked_mul(256)?)?.checked_add(128)?;
     // Admission prices repository names and custom check paths together within
     // run_bytes. Both and the tail may expand fourfold; 256 holds the default
-    // path, labels, exit and both u64 counts (given_ms and cut).
+    // path, labels, exit, the time and cut counts, and the ceiling explanation.
     let checks = limits.run_bytes.checked_add(u64::from(limits.check_tail))?.checked_mul(4)?.checked_add(256)?;
     let count = u64::from(limits.directories.min(run::MAX_DIRECTORIES));
     let receipts = u64::try_from(run::Receipt::CAPACITY)
@@ -167,13 +167,13 @@ fn render(text: &mut Text, returned: &Returned) {
                 render_problem(text, problem);
             }
         }
-        Returned::ChecksFailed { repository, check, given, ran } => {
+        Returned::ChecksFailed { repository, check, given, ceiling_cut, ran } => {
             text.put(b"checks-failed");
-            render_checks(text, repository, check, *given, ran);
+            render_checks(text, repository, check, *given, *ceiling_cut, ran);
         }
-        Returned::ChecksNotJudged { repository, check, given, ran } => {
+        Returned::ChecksNotJudged { repository, check, given, ceiling_cut, ran } => {
             text.put(b"checks-not-judged");
-            render_checks(text, repository, check, *given, ran);
+            render_checks(text, repository, check, *given, *ceiling_cut, ran);
         }
         Returned::Stale => text.put(b"stale"),
         Returned::DeliveryFailed { failure } => {
@@ -260,7 +260,14 @@ fn render_delivery_refusal(text: &mut Text, refusal: &run::DeliveryRefusal) {
     }
 }
 
-fn render_checks(text: &mut Text, repository: &[u8], check: &[u8], given: skein_lib::Duration, ran: &run::Ran) {
+fn render_checks(
+    text: &mut Text,
+    repository: &[u8],
+    check: &[u8],
+    given: skein_lib::Duration,
+    ceiling_cut: Option<skein_lib::Duration>,
+    ran: &run::Ran,
+) {
     text.put(b" repository=");
     text.bytes(repository);
     text.put(b" check=");
@@ -269,10 +276,34 @@ fn render_checks(text: &mut Text, repository: &[u8], check: &[u8], given: skein_
     render_exit(text, ran.exit);
     text.put(b" given_ms=");
     text.number(given.as_millis());
+    if let Some(asked) = ceiling_cut {
+        text.put(b" (given ");
+        check_seconds(text, given);
+        text.put(b" s, cut at the host's ceiling from the ");
+        check_seconds(text, asked);
+        text.put(b" s its directory asks)");
+    }
     text.put(b" cut=");
     text.number(ran.cut);
     text.put(b" tail=");
     text.bytes(&ran.output);
+}
+
+fn check_seconds(text: &mut Text, duration: skein_lib::Duration) {
+    const SECOND: u64 = 1_000_000_000;
+    let nanos = duration.as_nanos();
+    text.number(nanos.div_euclid(SECOND));
+    let mut fraction = nanos.rem_euclid(SECOND);
+    if fraction != 0 {
+        text.put(b".");
+        for place in [100_000_000, 10_000_000, 1_000_000, 100_000, 10_000, 1_000, 100, 10, 1] {
+            text.number(fraction.div_euclid(place));
+            fraction = fraction.rem_euclid(place);
+            if fraction == 0 {
+                break;
+            }
+        }
+    }
 }
 
 fn render_child(text: &mut Text, answer: &[u8], cut: u64, stop: Stop) {

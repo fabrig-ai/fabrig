@@ -200,6 +200,7 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
         let workspace = run::Workspace {
             directories: Box::new([run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root,
@@ -294,6 +295,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
         let workspace = run::Workspace {
             directories: Box::new([run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root,
@@ -378,6 +380,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the two dialects share the fixture and assertions in one story")]
 fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
     for several in [false, true] {
         for configuration in client_peer::configurations() {
@@ -388,6 +391,7 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             let sibling = Token::new(disk.root(b"docs"));
             let mut directories = vec![run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"hidden-working-name".as_slice().into(),
                 root: working,
@@ -398,6 +402,7 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             if several {
                 directories.push(run::Directory {
                     results: None,
+                    hooks: None,
                     host: Box::from(b"/host".as_slice()),
                     name: b"docs".as_slice().into(),
                     root: sibling,
@@ -444,7 +449,7 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             if several {
                 assert!(contains(&initial.system, b"Your working directory is `hidden-working-name`"));
             } else {
-                assert!(contains(&initial.system, b"Paths start in your working directory. Use `src/lib.rs`"));
+                assert!(contains(&initial.system, b"Use paths relative to the working directory: `src/lib.rs`."));
                 assert!(!contains(&initial.system, b"hidden-working-name"));
             }
             for name in [b"read".as_slice(), b"list", b"search", b"write", b"edit"] {

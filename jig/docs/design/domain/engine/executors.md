@@ -76,10 +76,21 @@ is due again once its dependencies are done.
      section 3): the main model with its effort, and those its
      sub-agents may use, each with its effort, its window (the input
      tokens a conversation's window may hold), its output (the most
-     output tokens a completion may have) and its prices (../authority-budgets.md,
-     section 1).
+     output tokens a completion may have), its prices (../authority-budgets.md,
+     section 1) and its speed: the speed its task's choice names for
+     that model, or the provider's standard speed where it names
+     `standard`; where it names none, or the task has no choice, the
+     speed the charter's resolution gives the model, which is the
+     charter's speed for it, else the model's default speed, else
+     standard (`settings-catalogue.md`, 1; ../tasks/README.md, section 3).
      The engine's protocol layer translates it into smith's (`protocol/charter.md`,
-     section 2);
+     section 2). A model at a speed gives its LLM that speed, with its
+     `also` names and its prices in the model's unit; one at the
+     standard speed gives none, except a model of OpenAI's dialect, on no
+     program, that declares speeds: its LLM is given the speed
+     `default`, at the model's own prices, so that the project's own
+     default can't serve it faster than it is charged (skein's
+     `llm/wire.md`, 1.8);
    - its transcript's current window, when it resumes, and the calls
      committed since its last turn;
    - its credential grants: for each account its check chose, its
@@ -225,12 +236,16 @@ hosted run with no agent:
   spec and a result of it may hold and its longest deadline. A batch
   naming a job of a kind not declared, or a spec or deadline past its
   kind's, is refused; the kind's result bound is the job's `Job`
-  contract. A job's executor is named by its kind in a delegation's
+  contract where its procedure names none. A `Job` contract its
+  procedure names is kept, within the tasks child's bounds, and the
+  kind's declared bounds then serve its claim alone: a result between
+  the two reaches the job's task, a result past its contract is
+  invalid (2026-11-27). A job's executor is named by its kind in a delegation's
   kinds (../authority.md, section 3), and no party creates one
   (`../../client/domain/contract/documents.md`, 7).
 - **Its claim** goes to a host whose hello declared its kind, whose
   bounds for that kind (its spec's and result's bytes, its deadline)
-  cover the job's, and that has a free slot, as a run's does (`fleet.md`
+  cover the kind's declared ones, and that has a free slot, as a run's does (`fleet.md`
   ), fenced by its attempt. Nothing of a run's placement applies: no
   charter's hosts, no model, no account's source, no login. With no such
   host it is not claimed: it stays due, its wait naming the host and

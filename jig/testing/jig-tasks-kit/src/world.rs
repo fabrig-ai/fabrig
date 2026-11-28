@@ -98,8 +98,14 @@ pub const EFFORTS: [u8; 4] = [2, 0, 1, 0];
 #[must_use]
 pub fn charters() -> Box<[CharterModels]> {
     Box::new([
-        CharterModels { resumes: false, number: 1, revision: 1, models: Some(Box::new([0, 1, 2])) },
-        CharterModels { resumes: false, number: 2, revision: 1, models: Some(Box::new([3])) },
+        CharterModels {
+            resumes: false,
+            number: 1,
+            revision: 1,
+            models: Some(Box::new([0, 1, 2])),
+            speeds: Box::default(),
+        },
+        CharterModels { resumes: false, number: 2, revision: 1, models: Some(Box::new([3])), speeds: Box::default() },
     ])
 }
 

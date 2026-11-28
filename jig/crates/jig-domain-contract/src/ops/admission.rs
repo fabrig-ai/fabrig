@@ -285,6 +285,7 @@ impl Refusal {
                 LlmFault::Authority => b"model outside authority",
                 LlmFault::Procedure => b"no model runs this task",
                 LlmFault::Repeated => b"model repeated",
+                LlmFault::Speed => b"speed is not one the model declares",
             },
         };
         concat(&[b"Refused: ", reason])
@@ -405,6 +406,8 @@ pub enum LlmFault {
     Procedure,
     /// The sub-agents name the model twice.
     Repeated,
+    /// The speed is not one the model declares, nor `standard`.
+    Speed,
 }
 
 /// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).

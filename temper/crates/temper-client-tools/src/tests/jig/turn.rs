@@ -20,18 +20,8 @@ fn a_large_page_turn_prints_its_read_call() {
 }
 #[test]
 fn a_page_turn_that_fits_prints_whole() {
-    let ReadResult::Value(ReadValue::Turn(turn)) = fixtures::turn_call(None) else { panic!("decoded turn") };
-    let mut rows = skein_lib::List::with_capacity(fixtures::PAGE_ROWS);
-    rows.push(crate::tests::documents::turn(1, turn.at, turn.name, turn.turn)).expect("one decoded turn row");
-    let printed = fixtures::read_answer(
-        fixtures::ACTIVITY_CALL,
-        ReadResult::Value(ReadValue::Activity(Box::new(jig_client::contract::ActivityPage {
-            cut: false,
-            rows,
-            before: None,
-            after: None,
-        }))),
-    );
+    // The supplied answer kind adds no words to the text form.
+    let printed = fixtures::read_answer(fixtures::ACTIVITY_CALL, activity_with_turn(fixtures::turn_call(None)));
     assert_eq!(printed.status, 0);
     assert_eq!(
         printed.stdout.as_ref(),
@@ -39,6 +29,56 @@ fn a_page_turn_that_fits_prints_whole() {
     );
     assert!(skein_lib::bytes::find(&printed.stdout, b"read with:").is_none());
 }
+#[test]
+fn activity_and_chat_json_print_call_answer_kinds() {
+    use jig_client::contract as c;
+    use skein_lib::List;
+
+    const BLOCKS: u32 = 3; // Two calls and one result.
+    let mut blocks = List::with_capacity(BLOCKS);
+    for (number, outcome, failed, answer) in
+        [(1, Some(note_text(b"job missing")), true, Some(b"unknown_job".as_slice())), (2, None, false, None)]
+    {
+        blocks
+            .push(c::Block::Call(c::Call {
+                number,
+                tool: note_text(b"job"),
+                input: note_text(b"{}"),
+                outcome,
+                failed,
+                answer,
+                objects: List::with_capacity(0),
+                parts: List::with_capacity(0),
+            }))
+            .expect("supplied call");
+    }
+    blocks
+        .push(c::Block::Result { call: 1, summary: note_text(b"job missing"), failed: true })
+        .expect("result of the first call");
+    let page = activity_with_turn(fixtures::turn_blocks(blocks));
+    let argv = fixtures::extended(fixtures::ACTIVITY_CALL, &["--json"]);
+    let activity = fixtures::read_answer(argv.as_slice(), page.clone());
+    let chat = chat_json(page);
+    for (command, printed, answered, unanswered) in [
+        (
+            "task activity",
+            activity,
+            br#""failed":true,"answer":"unknown_job","objects":"#.as_slice(),
+            br#""outcome":null,"failed":false,"answer":null,"objects":"#.as_slice(),
+        ),
+        (
+            "chat show",
+            chat,
+            br#""number":1,"tool":"job","input":null,"outcome":null,"failed":true,"answer":"unknown_job""#,
+            br#""number":2,"tool":"job","input":null,"outcome":null,"failed":false,"answer":null"#,
+        ),
+    ] {
+        assert_eq!(printed.status, 0, "{command}");
+        assert!(fixtures::json_has(&printed, answered), "{command}: missing the known answer kind");
+        assert!(fixtures::json_has(&printed, unanswered), "{command}: missing the null answer kind");
+    }
+}
+
 #[test]
 fn whole_note_turns_and_activity_print_the_acknowledgments_and_replies() {
     use jig_client::contract as c;
@@ -70,6 +110,7 @@ fn whole_note_turns_and_activity_print_the_acknowledgments_and_replies() {
                 input: note_text(b"{}"),
                 outcome: Some(note_text(acknowledgment)),
                 failed: false,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))
@@ -204,23 +245,26 @@ fn chat_show_json_keeps_the_committed_reply() {
     use jig_client::contract as c;
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks.push(c::Block::Text(c::Text::new(WORDS.into(), 64).expect("reply fits"))).expect("one reply");
-    let ReadResult::Value(ReadValue::Turn(turn)) = fixtures::turn_blocks(blocks) else { panic!("decoded turn") };
-    let mut rows = skein_lib::List::with_capacity(1);
-    rows.push(crate::tests::documents::turn(1, turn.at, turn.name, turn.turn)).expect("one committed turn");
-    let (mut root, call) = fixtures::read_call(&["chat", "show", "41", "--json"]);
-    root.serve(
-        call,
-        ReadResult::Value(ReadValue::Activity(Box::new(c::ActivityPage {
-            cut: false,
-            rows,
-            before: None,
-            after: None,
-        }))),
-    );
-    root.deliver_run(fixtures::no_provisional());
-    let printed = root.answer(call).expect("chat shown");
+    let printed = chat_json(activity_with_turn(fixtures::turn_blocks(blocks)));
     assert_eq!(printed.status, 0);
     assert!(skein_lib::bytes::find(&printed.stdout, WORDS).is_some(), "JSON carries the committed reply");
+}
+
+fn activity_with_turn(value: ReadResult) -> ReadResult {
+    use jig_client::contract::ActivityPage;
+
+    let ReadResult::Value(ReadValue::Turn(turn)) = value else { panic!("decoded turn") };
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(crate::tests::documents::turn(1, turn.at, turn.name, turn.turn)).expect("one committed turn");
+    ReadResult::Value(ReadValue::Activity(Box::new(ActivityPage { cut: false, rows, before: None, after: None })))
+}
+
+fn chat_json(page: ReadResult) -> crate::jig::Printed {
+    let argv = fixtures::extended(fixtures::CHAT_CALL, &["--json"]);
+    let (mut root, call) = fixtures::read_call(argv.as_slice());
+    root.serve(call, page);
+    root.deliver_run(fixtures::no_provisional());
+    root.answer(call).expect("chat shown")
 }
 
 #[test]
@@ -273,6 +317,7 @@ fn a_document_sized_turn_prints_escaped_tool_names_with_the_shipped_limits() {
                 input: c::Text::new(Box::default(), limits::CLIENT_TEXT).expect("empty input"),
                 outcome: None,
                 failed: false,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))

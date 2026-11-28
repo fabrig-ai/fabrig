@@ -26,6 +26,8 @@ fn model() -> core::Model {
         price_unit: 1000,
         efforts: Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]),
         effort: Some(Box::from(b"high".as_slice())),
+        speeds: Box::default(),
+        speed: None,
     }
 }
 pub(super) fn charter() -> core::Charter {
@@ -154,12 +156,16 @@ fn template() -> core::Template {
         grace: Some(Duration::from_secs(1)),
         llm: Some(tasks::LlmChoice {
             later: Some(tasks::LlmLater {
-                main: tasks::ModelEffort { model: 1, effort: Some(0) },
-                subagents: Box::new([tasks::ModelEffort { model: 0, effort: None }]),
+                main: tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
+                subagents: Box::new([tasks::ModelEffort { model: 0, effort: None, speed: None }]),
             }),
             account: Some(3),
-            main: tasks::ModelEffort { model: 0, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+            main: tasks::ModelEffort {
+                model: 0,
+                effort: Some(1),
+                speed: Some(skein_lib::Name::from_checked(b"fast").unwrap()),
+            },
+            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
         }),
     }
 }
@@ -328,6 +334,7 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
             s::Value::Template(value) => {
                 let choice = value.llm.unwrap();
                 assert_eq!(choice.main.model, 1);
+                assert_eq!(choice.main.speed.unwrap().as_bytes(), b"fast");
                 assert_eq!(choice.subagents[0].model, 0);
             }
             s::Value::Overlay(_)
@@ -356,7 +363,10 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
     let before = [catalogue_name(b"one"), catalogue_name(b"two")];
     let mut after = before.clone();
     after[0].efforts = Box::new([Box::from(b"high".as_slice()), Box::from(b"low".as_slice())]);
-    let value = s::Value::Template(Box::new(template()));
+    let template = template();
+    let speed = template.llm.as_ref().expect("template choice").main.speed;
+    assert_eq!(speed.expect("named speed").as_bytes(), b"fast");
+    let value = s::Value::Template(Box::new(template));
     for original in [
         s::Record::Default {
             setting: s::Setting::Template(1),
@@ -401,7 +411,7 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
             let s::Value::Template(value) = value else { panic!("template") };
             assert_eq!(
                 value.llm.unwrap().main,
-                tasks::ModelEffort { model: expected_model, effort: Some(expected_effort) }
+                tasks::ModelEffort { model: expected_model, effort: Some(expected_effort), speed }
             );
         }
     }

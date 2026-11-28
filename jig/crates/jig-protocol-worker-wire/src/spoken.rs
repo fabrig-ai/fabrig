@@ -46,6 +46,15 @@ pub fn spoken() -> List<Spoken> {
     wires
 }
 
+/// Whether jig, rather than the application, owns this wire's converter.
+#[must_use]
+pub fn owns(name: &str) -> bool {
+    name == crate::wire::FAMILY
+        || name == smith_channel::pieces::wire::FAMILY
+        || name == smith_charter::wire::FAMILY
+        || name == smith_transcript::wire::FAMILY
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

@@ -11,10 +11,11 @@ use temper_service_core::limits;
 pub use temper_service_core::values::{grant_bytes, token_credential_bytes as credential_bytes};
 use temper_worker_domain as root;
 
-/// Git's operations, job files, source inspection and the worker root's close. Git's operation
-/// count covers the checkout workspaces, which cover the worker's slots.
+/// Git's operations, job files (one operation and its potential cancel per job), source inspection
+/// and startup hook reads (each with a potential cancel), and the worker root's close.
+/// Git's operation count covers the checkout workspaces and the worker's slots.
 pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32> {
-    temper_worker_protocol_git::limits::operations(git)?.checked_add(3)?.checked_add(git.operations)
+    temper_worker_protocol_git::limits::operations(git)?.checked_add(5)?.checked_add(git.operations.checked_mul(2)?)
 }
 
 /// Operations reserved by the process for the configured git component.
@@ -329,7 +330,7 @@ pub fn close_bound() -> jig_domain_link::JobBound {
         kind: jig_domain_link::JobKind(CLOSE_KIND),
         spec: limits::CLOSE_SPEC_BYTES,
         result: limits::CLOSE_RESULT_BYTES,
-        deadline: limits::CLOSE_DEADLINE,
+        deadline: limits::hook_job_deadline_limit(),
     }
 }
 /// The worker's declared kinds, ascending (protocol/services.md, 5).

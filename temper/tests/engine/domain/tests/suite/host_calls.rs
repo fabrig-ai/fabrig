@@ -887,7 +887,7 @@ fn assert_help_preservation_instructions(run: &engine::Assignment) {
     for rule in [
         "keep the requested change and unrelated base content",
         "a file the base deleted stays deleted unless the requested change needs it",
-        "read the commit that deleted it before you restore anything",
+        "ask your requester why it went before you restore it",
         "Restore losses a review names",
         "never remove content just to pass a check",
     ] {

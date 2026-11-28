@@ -1114,6 +1114,7 @@ fn versions(rows: &[(u32, u32, Option<&[u8]>)]) -> Box<[crate::CharterModels]> {
             number,
             revision,
             models: models.map(Box::from),
+            speeds: Box::default(),
         })
         .collect()
 }
@@ -1245,7 +1246,7 @@ fn settings_choice(model: u8) -> crate::LlmChoice {
     crate::LlmChoice {
         later: None,
         account: None,
-        main: crate::ModelEffort { model, effort: None },
+        main: crate::ModelEffort { model, effort: None, speed: None },
         subagents: Box::new([]),
     }
 }
@@ -1261,6 +1262,10 @@ fn settings_agent(number: u64, model: u8) -> New {
 fn settings_amend(test: &mut Harness, number: u64, model: u8) -> Vec<Request> {
     let mut change = amendment();
     change.llm = Some(settings_choice(model));
+    amend_settings_choice(test, number, change)
+}
+
+fn amend_settings_choice(test: &mut Harness, number: u64, change: Amendment) -> Vec<Request> {
     test.send(Event::Amend {
         reads_project: false,
         operation: crate::Amend {
@@ -1274,6 +1279,40 @@ fn settings_amend(test: &mut Harness, number: u64, model: u8) -> Vec<Request> {
         reply_to: to(),
         by: Party::Person(9),
     })
+}
+
+#[test]
+fn an_amended_speed_reads_the_tasks_charter_version() {
+    const CHARTER: u32 = 7;
+    const TASK: u64 = 1;
+    const MODEL: u8 = 0;
+    let mut h = Harness::new();
+    let retained = skein_lib::Name::from_checked(b"fast").unwrap();
+    let newest = skein_lib::Name::from_checked(b"ultrafast").unwrap();
+    let mut charters = versions(&[(CHARTER, 2, Some(&[MODEL])), (CHARTER, 1, Some(&[MODEL]))]);
+    charters[0].speeds = Box::new([crate::DeclaredSpeed { model: MODEL, name: newest }]);
+    charters[1].speeds = Box::new([crate::DeclaredSpeed { model: MODEL, name: retained }]);
+    h.send(Event::Charters { newest: 1, charters: Box::new([charters[1].clone()]), efforts: Box::new([0, 0]) });
+    h.make(vec![settings_agent(TASK, MODEL)]);
+    h.send(Event::Charters { newest: 2, charters, efforts: Box::new([0, 0]) });
+    let mut choice = settings_choice(MODEL);
+    choice.main.speed = Some(newest);
+    let mut change = amendment();
+    change.llm = Some(choice.clone());
+    let refused = amend_settings_choice(&mut h, TASK, change);
+    choice.main.speed = Some(retained);
+    let mut change = amendment();
+    change.llm = Some(choice.clone());
+    h.amend(TASK, change);
+    assert!(
+        refused.iter().any(|request| match request {
+            Request::Refused { problem, .. } =>
+                problem.why == crate::Refusal::Llm { model: MODEL, why: crate::LlmFault::Speed },
+            _ => false,
+        }),
+        "{refused:?}"
+    );
+    assert_eq!(h.domain.task(TASK).unwrap().llm, Some(choice));
 }
 
 #[test]

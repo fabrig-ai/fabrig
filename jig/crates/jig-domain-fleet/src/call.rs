@@ -35,6 +35,22 @@ pub(crate) struct PendingCall {
     writes: bool,
 }
 
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_relay(&self, mut from: u32) -> Option<(u32, Token, Token, &[u8])> {
+        for _ in 0..self.calls.len() {
+            let (next, _, call) = self.calls.live_from(from)?;
+            if let Some(attempt) = self.attempts.get(call.attempt) {
+                return Some((next, attempt.run, attempt.token, &call.name));
+            }
+            // The attempt is gone; the parent's late answer has no host route.
+            from = next;
+        }
+        None
+    }
+}
+
 /// Where the parent's live claim is, as far as relaying goes.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Live {

@@ -463,6 +463,8 @@ fn picker_host() -> Host {
         shown: None,
         accounts: List::from_boxed(Box::new([1])),
         picker: true,
+        speeds: List::with_capacity(0),
+        speed: None,
     };
     let mut me = launchpad_me(true);
     let mut projects = Vec::new();

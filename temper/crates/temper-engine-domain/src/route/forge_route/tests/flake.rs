@@ -119,7 +119,7 @@ fn only_landing_repairs_with_named_failed_tests_offer_the_flake_choice() {
             change::Delegate::Produce,
             change::Delegate::Resolve { base: SHA256 },
         ] {
-            let Some(delegate) = super::super::change_delegate(&domain, &env, task, kind) else {
+            let Some(delegate) = super::super::change_delegate(&domain, &env, task, kind, None) else {
                 panic!("delegate {kind:?}")
             };
             let tasks::Contract::Change { choices, words, .. } = delegate.contract else { panic!("change contract") };
@@ -222,7 +222,8 @@ fn only_landing_repairs_of_a_gate_promising_no_report_offer_the_no_test_choice()
             change::Repair::LandingAt { gate: 0, candidate: SHA1, below: None },
             change::Repair::Ci,
         ] {
-            let delegate = super::super::change_delegate(&domain, &env, task, change::Delegate::Repair(why)).unwrap();
+            let delegate =
+                super::super::change_delegate(&domain, &env, task, change::Delegate::Repair(why), None).unwrap();
             let tasks::Contract::Change { choices, words, .. } = delegate.contract else { panic!("change contract") };
             let landing = why != change::Repair::Ci;
             let offered = reportless && landing;
@@ -268,6 +269,7 @@ fn only_landing_repairs_of_a_gate_promising_no_report_offer_the_no_test_choice()
         &env,
         task,
         change::Delegate::Repair(change::Repair::Landing { gate: 0 }),
+        None,
     )
     .unwrap();
     let tasks::Contract::Change { choices, .. } = delegate.contract else { panic!("change contract") };

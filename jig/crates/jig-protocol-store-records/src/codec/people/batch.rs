@@ -65,7 +65,7 @@ pub(crate) fn member_to_domain(member: wire::Member, limits: &wire::Limits) -> R
     Ok(domain::Member {
         symbols: decoded_symbols.into_boxed(),
         llm: match llm {
-            Some(value) => Some(mapped::llm_choice_to_domain(value)),
+            Some(value) => Some(mapped::llm_choice_to_domain(value)?),
             None => None,
         },
         deadline: mapped::deadline_to_domain(deadline),

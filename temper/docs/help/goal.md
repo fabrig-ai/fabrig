@@ -87,6 +87,11 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   sub-agents unless `--sub-agent MODEL[:EFFORT]` replaces them.
   `--effort` and `--sub-agent` need `--model`; omitted efforts take each
   model's default. Without `--model` the template's choice holds whole.
+  `--speed SPEED` sets how fast the main model generates its reply and
+  needs `--model`. Use `--sub-agent-speed MODEL:SPEED` for a model named
+  by `--sub-agent`, once per model. A faster speed costs more. See
+  `model list` for the names, or choose `standard`. When a choice names
+  no speed, it uses the charter's speed or the model's default.
   A model flag a bound refuses is named with its value and the bound,
   and nothing is made. Read `temper help ctl-goal` for the controls.
   Within your creating bounds the goal is made; beyond them, when

@@ -118,10 +118,17 @@ pub fn settings_combine_to_domain(record: temper_client_protocol_wire::v1::Setti
 
 #[must_use]
 pub fn named_model_to_record(value: &crate::settings::NamedModel) -> temper_client_protocol_wire::v1::NamedModel {
-    let crate::settings::NamedModel { model: field_000000, effort: field_000001 } = value;
+    let crate::settings::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     temper_client_protocol_wire::v1::NamedModel {
         model: field_000000.clone(),
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
@@ -133,10 +140,17 @@ pub fn named_model_to_record(value: &crate::settings::NamedModel) -> temper_clie
 
 #[must_use]
 pub fn named_model_to_domain(record: temper_client_protocol_wire::v1::NamedModel) -> crate::settings::NamedModel {
-    let temper_client_protocol_wire::v1::NamedModel { model: field_000000, effort: field_000001 } = record;
+    let temper_client_protocol_wire::v1::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = record;
     crate::settings::NamedModel {
         model: field_000000,
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
@@ -299,7 +313,7 @@ pub fn repair_settings_to_domain(record: temper_client_protocol_wire::v1::Repair
 }
 
 pub fn project_landing_to_record(value: &crate::settings::ProjectLanding) -> Result<temper_client_protocol_wire::v1::ProjectLanding, temper_client_protocol_wire::v1::Problem> {
-    let crate::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014 } = value;
+    let crate::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = value;
     Ok(temper_client_protocol_wire::v1::ProjectLanding {
         by: settings_landing_way_to_record(field_000000),
         batch: *field_000001,
@@ -345,13 +359,14 @@ pub fn project_landing_to_record(value: &crate::settings::ProjectLanding) -> Res
                 Some(converted)
             }
             None => None,
-        }
+        },
+        hook_timeout_max_seconds: *field_000015
     })
 }
 
 #[must_use]
 pub fn project_landing_to_domain(record: temper_client_protocol_wire::v1::ProjectLanding) -> crate::settings::ProjectLanding {
-    let temper_client_protocol_wire::v1::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014 } = record;
+    let temper_client_protocol_wire::v1::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = record;
     crate::settings::ProjectLanding {
         by: settings_landing_way_to_domain(field_000000),
         batch: field_000001,
@@ -397,7 +412,8 @@ pub fn project_landing_to_domain(record: temper_client_protocol_wire::v1::Projec
                 Some(converted)
             }
             None => None,
-        }
+        },
+        hook_timeout_max_seconds: field_000015
     }
 }
 

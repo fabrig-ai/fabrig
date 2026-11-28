@@ -20,6 +20,7 @@ The reasons behind [jig-domain-api.md](jig-domain-api.md), the map of today's ed
   - today's names kept out of the draft's tables and in the map below, so that the draft reads as the API rather than as its move;
   - the engine's own slots as a worker in its process, so that every host is reached one way, the crate graph stays acyclic and `jig-domain-hub-link` has nothing left to do (the draft's section 9);
   - a connector's own observation for news, so that a settlement and its news can arrive apart (14.4);
+  - an application's request decided as an operation that ends later, not a judgement (6.3), on the asks goal's question of 2026-11-28: temper's application decides many requests only after held work, its checkpoint store's loads, an installation's or a box's setup, or a forge read, and the core already keeps the pending request until it is decided;
   - and the defaults of the draft's section 18.
 
 ## 2. Where today's edge goes

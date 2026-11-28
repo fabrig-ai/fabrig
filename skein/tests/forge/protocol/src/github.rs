@@ -1,4 +1,5 @@
 //! HTTP framing over seeded streams (skein/docs/design/testing/fakes/github.md, 1.6).
+//! Fresh cases constrain cut eligibility (skein/docs/design/testing/sweeps.md, 4.5).
 use crate::{fixtures, github_fixture as fixture, referee::Accounting};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_fake_forge_github::{
@@ -32,6 +33,7 @@ struct Trace {
 
 struct Peer {
     pipe: Pipe,
+    cut_on_call: Cut,
     server: Server,
     above: Queue<server::Event>,
     below: Queue<Down>,
@@ -48,26 +50,27 @@ struct Peer {
 }
 impl Peer {
     // Observe bytes at Send, before the pipe cuts or fragments them. Heads are
-    // queued whole by HTTP; bodies may arrive in separate sends.
-    fn sent(&mut self, bytes: &[u8], secrets: &mut Vec<Secret>) {
+    // queued whole by HTTP; bodies may arrive in separate sends. Returns true
+    // on a charged REST head, so a cut can arm after the first send.
+    fn sent(&mut self, bytes: &[u8], secrets: &mut Vec<Secret>) -> bool {
         if bytes.is_empty() {
-            return;
+            return false;
         }
         if self.remaining > 0 {
             assert!(bytes.len() <= self.remaining, "one request body per Send");
             self.remaining -= bytes.len();
-            return;
+            return false;
         }
         if self.sent.is_empty() {
             self.traces.push(Trace::default());
         }
         self.sent.extend_from_slice(bytes);
-        let Some(end) = self.sent.windows(4).position(|w| w == b"\r\n\r\n") else { return };
+        let Some(end) = self.sent.windows(4).position(|w| w == b"\r\n\r\n") else { return false };
         let mut lines = self.sent[..end].split(|b| *b == b'\n').map(<[u8]>::trim_ascii);
         let line = lines.next().expect("request line");
         let target = line.split(|b| *b == b' ').nth(1).expect("target");
-        self.traces.last_mut().expect("first byte observed").own =
-            target.starts_with(b"/app/") || target == b"/graphql";
+        let own = target.starts_with(b"/app/") || target == b"/graphql";
+        self.traces.last_mut().expect("first byte observed").own = own;
         let mut length = 0;
         for line in lines {
             let colon = line.iter().position(|b| *b == b':').expect("header colon");
@@ -82,6 +85,7 @@ impl Peer {
         }
         self.remaining = (end + 4 + length).checked_sub(self.sent.len()).expect("one request per Send");
         self.sent.clear();
+        !own
     }
     // A second framing observer counts complete heads in delivered bytes,
     // independently of both the component and the HTTP server's Call events.
@@ -121,6 +125,13 @@ impl Peer {
     }
 }
 
+#[derive(Clone, Copy)]
+enum CutScope {
+    All,
+    ChargedCalls,
+    Replacing,
+}
+
 pub(crate) struct Github {
     pub component: Component,
     pub env: Env<Limits>,
@@ -140,6 +151,7 @@ pub(crate) struct Github {
     service: Service,
     rng: Rng,
     cut_chance: u32,
+    cut_scope: CutScope,
     lines: Vec<Vec<u8>>,
     totals: Accounting,
     lose_creation: bool,
@@ -190,6 +202,7 @@ impl Github {
             service: fixture::service(seed, fixture::key()),
             rng: Rng::new(seed),
             cut_chance,
+            cut_scope: CutScope::All,
             lines: Vec::new(),
             totals: Accounting { reported: 0, written: 0, served: 0, cut_in_head: 0 },
             secrets: Vec::new(),
@@ -335,8 +348,13 @@ impl Github {
                 let cut =
                     if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
                 let env = self.server_env();
+                let (cut, cut_on_call) = match self.cut_scope {
+                    CutScope::All => (cut, Cut::Never),
+                    CutScope::ChargedCalls | CutScope::Replacing => (Cut::Never, cut),
+                };
                 let mut peer = Peer {
                     pipe: Pipe::new(self.rng.next_u64(), cut),
+                    cut_on_call,
                     server: Server::new(owner, &env.limits).expect("GitHub server limits"),
                     above: Queue::with_capacity(64),
                     below: Queue::with_capacity(64),
@@ -359,7 +377,16 @@ impl Github {
             skein_io::Request::Stream { stream, down } => {
                 if let Some(peer) = self.peers.get_mut(&stream) {
                     if let Down::Send(bytes) = &down {
-                        peer.sent(bytes, &mut self.secrets);
+                        let charged = peer.sent(bytes, &mut self.secrets);
+                        // Setup uses its own connection. Put the cut's byte offset
+                        // on the first charged request, not on authentication.
+                        if charged
+                            && matches!(self.cut_scope, CutScope::ChargedCalls)
+                            && let Cut::At(bytes) = peer.cut_on_call
+                        {
+                            peer.pipe.cut_after(bytes);
+                            peer.cut_on_call = Cut::Never;
+                        }
                     }
                     peer.pipe.client_down(down);
                 }
@@ -433,9 +460,25 @@ impl Github {
     pub fn ambiguous_updates(&mut self) {
         self.service.ambiguous_updates();
     }
+    pub(crate) fn protect_setup(&mut self) {
+        self.cut_scope = CutScope::ChargedCalls;
+    }
+    pub(crate) fn protect_replacement(&mut self) -> bool {
+        if matches!(self.cut_scope, CutScope::All) {
+            return false;
+        }
+        self.cut_scope = CutScope::Replacing;
+        for peer in self.peers.values_mut() {
+            peer.pipe.disarm_cut();
+        }
+        true
+    }
     pub fn rotate(&mut self, key: &'static [u8]) {
+        if matches!(self.cut_scope, CutScope::Replacing) {
+            self.cut_scope = CutScope::ChargedCalls;
+        }
         self.key = key;
-        self.service = fixture::service(self.seed + 1, key);
+        self.service = fixture::service(self.seed.wrapping_add(1), key);
         self.seen_mints = 0;
         self.action(Request::Connect { forge: 1, access: fixture::access(key) });
     }
