@@ -1,12 +1,33 @@
 //! Whole reads of the project's home (temper/docs/design/domain/forge/temper-dir.md, 2–3).
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
-use skein_lib::{Decimal, Env, List, Map, Queue, Time, Token, bytes, len_u64};
+use skein_lib::{Decimal, Env, List, Map, Queue, Set, Time, Token, bytes, len_u64};
 use temper_protocol_temper_dir::{Home, Reading, Touch, Verdict};
 
-use crate::{Domain, Key, Limits, Request, Role, Stored, TemperFile, TemperRefusal, TemperRevision, effect_words};
+use crate::{
+    Domain, DotTemperFile, DotTemperRefusal, DotTemperRevision, Key, Limits, Request, Role, Stored, effect_words,
+};
 
 const WORDS: usize = 1024;
+
+impl Domain {
+    /// Each forge the project can push to, in writable repository order,
+    /// with the host of its first repository.
+    #[must_use]
+    pub fn writable_forges(&self, project: u32) -> Box<[(u16, &[u8])]> {
+        let repositories = self.writable_repositories(project);
+        let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
+        let mut seen = Set::with_capacity(capacity);
+        let mut forges = List::with_capacity(capacity);
+        for repository in repositories {
+            let forge = repository.provider.forge;
+            if seen.insert(forge).expect("one entry per writable forge") {
+                forges.push((forge, repository.host.as_ref())).expect("bounded writable forges");
+            }
+        }
+        forges.into_boxed()
+    }
+}
 
 #[derive(Hash, Debug)]
 struct Pending {
@@ -47,7 +68,7 @@ struct Retry {
 
 #[derive(Hash, Debug)]
 pub(crate) struct State {
-    pub(crate) rows: Map<u32, TemperRevision>,
+    pub(crate) rows: Map<u32, DotTemperRevision>,
     provisional: Map<Repository, Token>,
     stamped: Map<u32, u64>,
     reads: Map<Token, Pending>,
@@ -82,7 +103,7 @@ impl State {
 impl Domain {
     /// The retained repository revision, including observations before the first good read.
     #[must_use]
-    pub fn temper_revision(&self, project: u32) -> Option<&TemperRevision> {
+    pub fn temper_revision(&self, project: u32) -> Option<&DotTemperRevision> {
         self.temper_revisions.rows.get(&project)
     }
 }
@@ -323,7 +344,7 @@ pub(crate) fn answered(
 
 struct Good {
     method: bool,
-    files: Box<[TemperFile]>,
+    files: Box<[DotTemperFile]>,
 }
 
 fn judgement(reading: &Reading, verdict: &Verdict) -> Result<Good, Box<[u8]>> {
@@ -343,7 +364,7 @@ fn judgement(reading: &Reading, verdict: &Verdict) -> Result<Good, Box<[u8]>> {
     let method_files = reading.method_files();
     let mut files = List::with_capacity(u32::try_from(method_files.len()).expect("bounded method files"));
     for file in method_files {
-        files.push(TemperFile { path: file.path, bytes: file.bytes }).expect("one row per method file");
+        files.push(DotTemperFile { path: file.path, bytes: file.bytes }).expect("one row per method file");
     }
     Ok(Good { method: verdict.method, files: files.into_boxed() })
 }
@@ -361,7 +382,7 @@ fn take(
 ) {
     let project = pending.project;
     let rows = &mut d.temper_revisions.rows;
-    let mut row = rows.remove(&project).unwrap_or(TemperRevision {
+    let mut row = rows.remove(&project).unwrap_or(DotTemperRevision {
         project,
         number: 0,
         home: pending.home,
@@ -385,11 +406,11 @@ fn take(
         }
         Err(words) => {
             let words = if words.len() > WORDS { bytes::copy_of(prefix(&words, WORDS)) } else { words };
-            row.refused = Some(TemperRefusal { commit, observed: row.observed, words });
+            row.refused = Some(DotTemperRefusal { commit, observed: row.observed, words });
         }
     }
     rows.insert(project, row.clone()).expect("one revision per observed project");
-    out.push(Request::Save { record: Stored::TemperRevision(row), read_afresh: None, release: None });
+    out.push(Request::Save { record: Stored::DotTemperRevision(row), read_afresh: None, release: None });
 }
 
 // Only a home known to have method has its own branch observer. Its tip
@@ -511,6 +532,6 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
         d.temper_revisions.reads.remove(&owner);
     }
     if d.temper_revisions.rows.remove(&project).is_some() {
-        out.push(Request::Erase { key: Key::TemperRevision { project } });
+        out.push(Request::Erase { key: Key::DotTemperRevision { project } });
     }
 }

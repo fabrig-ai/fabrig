@@ -13,7 +13,7 @@ skein-forge.workspace = true
 skein-lib.workspace = true
 skein-toml.workspace = true
 temper-charter-set.workspace = true
-temper-worker-domain-tooling.workspace = true
+temper-protocol-hooks.workspace = true
 
 [lints]
 workspace = true

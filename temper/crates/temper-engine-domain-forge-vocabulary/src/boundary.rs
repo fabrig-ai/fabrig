@@ -2003,25 +2003,25 @@ pub enum CallPayload {
 /// A project's last good repository revision and latest observation
 /// (temper/docs/design/domain/forge/temper-dir.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct TemperRevision {
+pub struct DotTemperRevision {
     pub project: u32,
     pub number: u64,
     pub home: skein_forge::api::Repository,
     pub commit: Option<skein_forge::api::Commit>,
     pub method: bool,
-    pub files: Box<[TemperFile]>,
+    pub files: Box<[DotTemperFile]>,
     pub observed: u64,
-    pub refused: Option<TemperRefusal>,
+    pub refused: Option<DotTemperRefusal>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct TemperFile {
+pub struct DotTemperFile {
     pub path: Box<[u8]>,
     pub bytes: Box<[u8]>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct TemperRefusal {
+pub struct DotTemperRefusal {
     pub commit: Option<skein_forge::api::Commit>,
     pub observed: u64,
     pub words: Box<[u8]>,
@@ -2124,7 +2124,7 @@ pub enum Stored {
         what: crate::PersonFact,
     },
     ProjectFacts(crate::ProjectFacts),
-    TemperRevision(TemperRevision),
+    DotTemperRevision(DotTemperRevision),
     PersonBrief(crate::PersonBrief),
     Looked(crate::Looked),
     Away(crate::Away),
@@ -2238,7 +2238,7 @@ pub enum Key {
     PersonBrief { party: u64, project: u32 },
     Writes(Name),
     // Store family 53 follows Writes in the startup walk.
-    TemperRevision { project: u32 },
+    DotTemperRevision { project: u32 },
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },

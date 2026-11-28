@@ -76,7 +76,7 @@ files, and the judgement made of them, is
 ## 3. The repository revision
 
 - **A record of the project's own** in the store, one per project,
-  `TemperRevision`, a forge family (`../../protocol/store.md`, 2):
+  `DotTemperRevision`, a forge family (`../../protocol/store.md`, 2):
   - `project`;
   - `number`, from 1, and 0 before the project's first good read;
   - `home`, the repository it was read from, by its forge and id;
@@ -224,7 +224,7 @@ files, and the judgement made of them, is
 
 ## 6. Upgrades
 
-- **The store:** `TemperRevision` is a new family of the forge's,
+- **The store:** `DotTemperRevision` is a new family of the forge's,
   registered as `../../protocol/store.md`, 2 registers each, and no
   version moves. A store an earlier build wrote holds no row of it, and
   each project with a home is read at the engine's first start.

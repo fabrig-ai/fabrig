@@ -438,9 +438,9 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.person_briefs.capacity(),
             d.person_briefs.contains_key(&(row.party, row.project)),
         ),
-        Stored::TemperRevision(row) => room(
-            K::TemperRevision,
-            Rows(K::TemperRevision),
+        Stored::DotTemperRevision(row) => room(
+            K::DotTemperRevision,
+            Rows(K::DotTemperRevision),
             d.temper_revisions.rows.len(),
             d.temper_revisions.rows.capacity(),
             d.temper_revisions.rows.contains_key(&row.project),

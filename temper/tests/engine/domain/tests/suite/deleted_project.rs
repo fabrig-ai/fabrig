@@ -405,7 +405,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         | forge::Key::Making(_)
         | forge::Key::PersonBrief { .. }
         | forge::Key::ProjectFacts { .. }
-        | forge::Key::TemperRevision { .. }
+        | forge::Key::DotTemperRevision { .. }
         | forge::Key::Looked { .. }
         | forge::Key::Away { .. }
         | forge::Key::Decided { .. }
@@ -545,7 +545,7 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         | forge::Stored::Milestone(_)
         | forge::Stored::PersonBrief(_)
         | forge::Stored::ProjectFacts(_)
-        | forge::Stored::TemperRevision(_)
+        | forge::Stored::DotTemperRevision(_)
         | forge::Stored::Looked(_)
         | forge::Stored::Away(_)
         | forge::Stored::Decided(_)

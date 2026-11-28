@@ -280,11 +280,14 @@ configuration/limits.md).
   for the census. Written in the decisions that admit, send and settle
   its entries, and erased as `../domain/forge/writes.md`, 6 says.
 - **The project's repository revision** (`../domain/forge/temper-dir.md`,
-  3): 53 `TemperRevision`, keyed `TemperRevision { project }`. One row
+  3): 53 `DotTemperRevision`, keyed `DotTemperRevision { project }`. One row
   for the last good home, commit, number, method and method files, the
   latest observation and any refusal (its commit, observation and words).
-  Written whole when a read's final answer is taken; erased with the
-  project, not with its home. Bounded by `judge_projects`, 64 files of
+  `DotTemperFile` holds each file and `DotTemperRefusal` holds the refusal.
+  Its `Value` variant is `dot_temper_revision`, named
+  `temper.dot-temper-revision` for the census. Written whole when a read's
+  final answer is taken; erased with the project, not with its home.
+  Bounded by `judge_projects`, 64 files of
   at most 524,288 bytes in all per row, and 1,024 bytes of refusal words.
 - **The landing history** (`../domain/landing-history.md`, 4.1): 127
   `HistoryProject`, keyed by the project, its next event's number, the

@@ -80,8 +80,8 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::PersonBrief(row) => w::Value::PersonBrief(status::encode_person_brief(row)),
-        d::Stored::TemperRevision(row) => {
-            w::Value::TemperRevision(crate::generated::store::temper_revision_to_record(row).expect(FITS))
+        d::Stored::DotTemperRevision(row) => {
+            w::Value::DotTemperRevision(crate::generated::store::dot_temper_revision_to_record(row).expect(FITS))
         }
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
         d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
@@ -166,7 +166,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::PersonBrief(row) => d::Stored::PersonBrief(status::decode_person_brief(row)),
-        w::Value::TemperRevision(row) => {
+        w::Value::DotTemperRevision(row) => {
             let mut bytes = 0_u64;
             for file in &row.files {
                 bytes = bytes.saturating_add(skein_lib::len_u64(file.bytes.len()));
@@ -174,7 +174,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             if bytes > 524_288 {
                 return Err(Undecodable::Malformed);
             }
-            d::Stored::TemperRevision(crate::generated::store::temper_revision_to_domain(row))
+            d::Stored::DotTemperRevision(crate::generated::store::dot_temper_revision_to_domain(row))
         }
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
         w::Value::Device(row) => d::Stored::Device(away::decode_device(row)?),

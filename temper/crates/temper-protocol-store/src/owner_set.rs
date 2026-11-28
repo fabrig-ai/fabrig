@@ -336,8 +336,8 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                 ValueType {
                     number: 53,
                     root: "Row",
-                    variant: Some("temper_revision"),
-                    keys: &[KeyRange { from: &[crate::keys::TEMPER_REVISION], to: &[54] }],
+                    variant: Some("dot_temper_revision"),
+                    keys: &[KeyRange { from: &[crate::keys::DOT_TEMPER_REVISION], to: &[54] }],
                 },
                 ValueType {
                     number: 41,
@@ -418,7 +418,7 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                 Keys { from: &[48], to: &[49], root: "Row" },
                 Keys { from: &[50], to: &[51], root: "Row" },
                 Keys { from: &[crate::keys::WRITES], to: &[53], root: "Row" },
-                Keys { from: &[crate::keys::TEMPER_REVISION], to: &[54], root: "Row" },
+                Keys { from: &[crate::keys::DOT_TEMPER_REVISION], to: &[54], root: "Row" },
                 Keys { from: &[127], to: &[128], root: "Row" },
                 Keys { from: &[128], to: &[129], root: "Row" },
                 Keys { from: &[129], to: &[130], root: "Row" },

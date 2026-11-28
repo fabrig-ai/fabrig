@@ -4,7 +4,7 @@ use crate::{FAULTS, Fault, Home, METHOD, READER, ROOT, Verdict, ways};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
 use temper_charter_set::FormatFault;
-use temper_worker_domain_tooling::hooks;
+use temper_protocol_hooks as hooks;
 
 impl Reading {
     /// Judge the completed reading, including a reading stopped at a bound.

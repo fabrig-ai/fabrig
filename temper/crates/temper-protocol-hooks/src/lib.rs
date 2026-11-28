@@ -1,5 +1,9 @@
 //! Job hook paths and failure lines (temper/docs/design/domain/worker/jobs.md, 2),
 //! and the time file (temper/docs/design/protocol/hooks.md, 2.3).
+#![cfg_attr(not(test), no_std)]
+#![forbid(unsafe_code)]
+extern crate alloc;
+
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Set, Writer, bytes};
 

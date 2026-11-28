@@ -153,7 +153,8 @@ impl Snapshot {
 // and even an identical observation advances the stamp, not the revision.
 fn startup_observed_temper_revision(before: &Record, after: Option<&Record>) -> bool {
     let (Record::Forge { row: before }, Some(Record::Forge { row: after })) = (before, after) else { return false };
-    let (ForgeRow::TemperRevision(before), ForgeRow::TemperRevision(after)) = (before.as_ref(), after.as_ref()) else {
+    let (ForgeRow::DotTemperRevision(before), ForgeRow::DotTemperRevision(after)) = (before.as_ref(), after.as_ref())
+    else {
         return false;
     };
     if after.observed <= before.observed {

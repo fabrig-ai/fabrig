@@ -11057,7 +11057,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::PersonBrief(row) => {
             d.person_briefs.insert((row.party, row.project), row).expect("restored person brief room checked");
         }
-        Stored::TemperRevision(row) => {
+        Stored::DotTemperRevision(row) => {
             d.temper_revisions.rows.insert(row.project, row).expect("restored revision room checked");
         }
         Stored::ProjectFacts(row) => {
@@ -12094,7 +12094,7 @@ impl Domain {
             | RecordKind::Milestone
             | RecordKind::HistoryProject
             | RecordKind::PersonBrief
-            | RecordKind::TemperRevision
+            | RecordKind::DotTemperRevision
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft

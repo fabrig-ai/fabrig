@@ -1,7 +1,7 @@
 //! Observation ordering across delayed fake-forge answers and restarts.
 #![expect(clippy::disallowed_methods, clippy::disallowed_macros, reason = "ordinary Rust refusal and tree oracle")]
 use crate::{
-    TemperRevision,
+    DotTemperRevision,
     tests::temper_revision::{GOOD, PROJECT, WAYS, World, file},
 };
 use alloc::collections::BTreeMap;
@@ -14,7 +14,7 @@ fn fuzzy_temper_revision_follows_the_latest_taken_observation() {
         let mut rng = Rng::new(seed);
         let mut w = World::new(seed, vec![file(WAYS, GOOD)]);
         w.restore_home();
-        let mut kept: Option<TemperRevision> = None;
+        let mut kept: Option<DotTemperRevision> = None;
         let mut delayed = None;
         let mut expected = BTreeMap::new();
         expected.insert(w.tip(), GOOD);

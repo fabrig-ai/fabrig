@@ -407,10 +407,10 @@ pub struct Limits {
     pub written_retarget_from: u32,
     pub written_retarget_to: u32,
     pub writes_entries: u32,
-    pub temper_file_path: u32,
-    pub temper_file_bytes: u32,
-    pub temper_refusal_words: u32,
-    pub temper_revision_files: u32,
+    pub dot_temper_file_path: u32,
+    pub dot_temper_file_bytes: u32,
+    pub dot_temper_refusal_words: u32,
+    pub dot_temper_revision_files: u32,
 }
 
 pub const CEILINGS: Limits = Limits {
@@ -804,10 +804,10 @@ pub const CEILINGS: Limits = Limits {
     written_retarget_from: 1_048_576,
     written_retarget_to: 1_048_576,
     writes_entries: 32,
-    temper_file_path: 52,
-    temper_file_bytes: 65_536,
-    temper_refusal_words: 1_024,
-    temper_revision_files: 64,
+    dot_temper_file_path: 52,
+    dot_temper_file_bytes: 65_536,
+    dot_temper_refusal_words: 1_024,
+    dot_temper_revision_files: 64,
 };
 
 pub const LIMIT_NAMES: &[&str] = &[
@@ -1201,10 +1201,10 @@ pub const LIMIT_NAMES: &[&str] = &[
     "written_retarget_from",
     "written_retarget_to",
     "writes_entries",
-    "temper_file_path",
-    "temper_file_bytes",
-    "temper_refusal_words",
-    "temper_revision_files",
+    "dot_temper_file_path",
+    "dot_temper_file_bytes",
+    "dot_temper_refusal_words",
+    "dot_temper_revision_files",
 ];
 
 impl Limits {
@@ -1602,10 +1602,10 @@ impl Limits {
             self.written_retarget_from,
             self.written_retarget_to,
             self.writes_entries,
-            self.temper_file_path,
-            self.temper_file_bytes,
-            self.temper_refusal_words,
-            self.temper_revision_files,
+            self.dot_temper_file_path,
+            self.dot_temper_file_bytes,
+            self.dot_temper_refusal_words,
+            self.dot_temper_revision_files,
         ].into())
     }
 
@@ -2004,10 +2004,10 @@ impl Limits {
             written_retarget_from: self.written_retarget_from.min(most),
             written_retarget_to: self.written_retarget_to.min(most),
             writes_entries: self.writes_entries.min(most),
-            temper_file_path: self.temper_file_path.min(most),
-            temper_file_bytes: self.temper_file_bytes.min(most),
-            temper_refusal_words: self.temper_refusal_words.min(most),
-            temper_revision_files: self.temper_revision_files.min(most),
+            dot_temper_file_path: self.dot_temper_file_path.min(most),
+            dot_temper_file_bytes: self.dot_temper_file_bytes.min(most),
+            dot_temper_refusal_words: self.dot_temper_refusal_words.min(most),
+            dot_temper_revision_files: self.dot_temper_revision_files.min(most),
         }
     }
 }
@@ -2403,10 +2403,10 @@ const LIMIT_PATHS: &[Path] = &[
     paths::WRITTEN_RETARGET_FROM,
     paths::WRITTEN_RETARGET_TO,
     paths::WRITES_ENTRIES,
-    paths::TEMPER_FILE_PATH,
-    paths::TEMPER_FILE_BYTES,
-    paths::TEMPER_REFUSAL_WORDS,
-    paths::TEMPER_REVISION_FILES,
+    paths::DOT_TEMPER_FILE_PATH,
+    paths::DOT_TEMPER_FILE_BYTES,
+    paths::DOT_TEMPER_REFUSAL_WORDS,
+    paths::DOT_TEMPER_REVISION_FILES,
 ];
 
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
@@ -4630,22 +4630,22 @@ pub mod paths {
     pub const WRITES_NEXT: Path = Path::new("Writes.next");
     pub const WRITES_ENTRIES: Path = Path::new("Writes.entries");
     pub const WRITES_TAIL: Path = Path::new("Writes (tail)");
-    pub const TEMPER_FILE_PATH: Path = Path::new("TemperFile.path");
-    pub const TEMPER_FILE_BYTES: Path = Path::new("TemperFile.bytes");
-    pub const TEMPER_FILE_TAIL: Path = Path::new("TemperFile (tail)");
-    pub const TEMPER_REFUSAL_COMMIT: Path = Path::new("TemperRefusal.commit");
-    pub const TEMPER_REFUSAL_OBSERVED: Path = Path::new("TemperRefusal.observed");
-    pub const TEMPER_REFUSAL_WORDS: Path = Path::new("TemperRefusal.words");
-    pub const TEMPER_REFUSAL_TAIL: Path = Path::new("TemperRefusal (tail)");
-    pub const TEMPER_REVISION_PROJECT: Path = Path::new("TemperRevision.project");
-    pub const TEMPER_REVISION_NUMBER: Path = Path::new("TemperRevision.number");
-    pub const TEMPER_REVISION_HOME: Path = Path::new("TemperRevision.home");
-    pub const TEMPER_REVISION_COMMIT: Path = Path::new("TemperRevision.commit");
-    pub const TEMPER_REVISION_METHOD: Path = Path::new("TemperRevision.method");
-    pub const TEMPER_REVISION_FILES: Path = Path::new("TemperRevision.files");
-    pub const TEMPER_REVISION_OBSERVED: Path = Path::new("TemperRevision.observed");
-    pub const TEMPER_REVISION_REFUSED: Path = Path::new("TemperRevision.refused");
-    pub const TEMPER_REVISION_TAIL: Path = Path::new("TemperRevision (tail)");
+    pub const DOT_TEMPER_FILE_PATH: Path = Path::new("DotTemperFile.path");
+    pub const DOT_TEMPER_FILE_BYTES: Path = Path::new("DotTemperFile.bytes");
+    pub const DOT_TEMPER_FILE_TAIL: Path = Path::new("DotTemperFile (tail)");
+    pub const DOT_TEMPER_REFUSAL_COMMIT: Path = Path::new("DotTemperRefusal.commit");
+    pub const DOT_TEMPER_REFUSAL_OBSERVED: Path = Path::new("DotTemperRefusal.observed");
+    pub const DOT_TEMPER_REFUSAL_WORDS: Path = Path::new("DotTemperRefusal.words");
+    pub const DOT_TEMPER_REFUSAL_TAIL: Path = Path::new("DotTemperRefusal (tail)");
+    pub const DOT_TEMPER_REVISION_PROJECT: Path = Path::new("DotTemperRevision.project");
+    pub const DOT_TEMPER_REVISION_NUMBER: Path = Path::new("DotTemperRevision.number");
+    pub const DOT_TEMPER_REVISION_HOME: Path = Path::new("DotTemperRevision.home");
+    pub const DOT_TEMPER_REVISION_COMMIT: Path = Path::new("DotTemperRevision.commit");
+    pub const DOT_TEMPER_REVISION_METHOD: Path = Path::new("DotTemperRevision.method");
+    pub const DOT_TEMPER_REVISION_FILES: Path = Path::new("DotTemperRevision.files");
+    pub const DOT_TEMPER_REVISION_OBSERVED: Path = Path::new("DotTemperRevision.observed");
+    pub const DOT_TEMPER_REVISION_REFUSED: Path = Path::new("DotTemperRevision.refused");
+    pub const DOT_TEMPER_REVISION_TAIL: Path = Path::new("DotTemperRevision (tail)");
     pub const VALUE_TAG: Path = Path::new("Value (tag)");
     pub const ROW_VALUE: Path = Path::new("Row.value");
     pub const ROW_VERSION: Path = Path::new("Row (version)");
@@ -43391,18 +43391,18 @@ impl Record for Writes {
     }
 }
 
-// Type: TemperFile.
+// Type: DotTemperFile.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TemperFile {
+pub struct DotTemperFile {
     pub path: Box<[u8]>,
     pub bytes: Box<[u8]>,
 }
 
-// Record: TemperFile.
-impl TemperFile {
+// Record: DotTemperFile.
+impl DotTemperFile {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, temper_file_path) },
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, temper_file_bytes) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, dot_temper_file_path) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, dot_temper_file_bytes) },
         skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
     ];
 
@@ -43410,16 +43410,16 @@ impl TemperFile {
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
 
-impl Record for TemperFile {
+impl Record for DotTemperFile {
     type Limits = Limits;
-    const TAIL: Path = paths::TEMPER_FILE_TAIL;
+    const TAIL: Path = paths::DOT_TEMPER_FILE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperFile")?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperFile")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperFile")?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperFile")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -43432,34 +43432,34 @@ impl Record for TemperFile {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::Bytes { limit: limits.temper_file_path.min(CEILINGS.temper_file_path) }, &self.path, limits, out, paths::TEMPER_FILE_PATH)?;
-        field::write(field::Bytes { limit: limits.temper_file_bytes.min(CEILINGS.temper_file_bytes) }, &self.bytes, limits, out, paths::TEMPER_FILE_BYTES)?;
+        field::write(field::Bytes { limit: limits.dot_temper_file_path.min(CEILINGS.dot_temper_file_path) }, &self.path, limits, out, paths::DOT_TEMPER_FILE_PATH)?;
+        field::write(field::Bytes { limit: limits.dot_temper_file_bytes.min(CEILINGS.dot_temper_file_bytes) }, &self.bytes, limits, out, paths::DOT_TEMPER_FILE_BYTES)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
-            path: field::read(field::Bytes { limit: limits.temper_file_path.min(CEILINGS.temper_file_path) }, limits, reader, paths::TEMPER_FILE_PATH)?,
-            bytes: field::read(field::Bytes { limit: limits.temper_file_bytes.min(CEILINGS.temper_file_bytes) }, limits, reader, paths::TEMPER_FILE_BYTES)?,
+            path: field::read(field::Bytes { limit: limits.dot_temper_file_path.min(CEILINGS.dot_temper_file_path) }, limits, reader, paths::DOT_TEMPER_FILE_PATH)?,
+            bytes: field::read(field::Bytes { limit: limits.dot_temper_file_bytes.min(CEILINGS.dot_temper_file_bytes) }, limits, reader, paths::DOT_TEMPER_FILE_BYTES)?,
         })
     }
 }
 
-// Type: TemperRefusal.
+// Type: DotTemperRefusal.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TemperRefusal {
+pub struct DotTemperRefusal {
     pub commit: Option<[u8; 32]>,
     pub observed: u64,
     pub words: Box<[u8]>,
 }
 
-// Record: TemperRefusal.
-impl TemperRefusal {
+// Record: DotTemperRefusal.
+impl DotTemperRefusal {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, temper_refusal_words) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, dot_temper_refusal_words) },
         skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3] },
     ];
 
@@ -43467,16 +43467,16 @@ impl TemperRefusal {
     pub const ENCODED_AT_ZERO: u64 = 45;
 }
 
-impl Record for TemperRefusal {
+impl Record for DotTemperRefusal {
     type Limits = Limits;
-    const TAIL: Path = paths::TEMPER_REFUSAL_TAIL;
+    const TAIL: Path = paths::DOT_TEMPER_REFUSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRefusal")?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRefusal")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRefusal")?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRefusal")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -43489,36 +43489,36 @@ impl Record for TemperRefusal {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::TEMPER_REFUSAL_COMMIT)?;
-        field::write(field::U64, &self.observed, limits, out, paths::TEMPER_REFUSAL_OBSERVED)?;
-        field::write(field::Bytes { limit: limits.temper_refusal_words.min(CEILINGS.temper_refusal_words) }, &self.words, limits, out, paths::TEMPER_REFUSAL_WORDS)?;
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::DOT_TEMPER_REFUSAL_COMMIT)?;
+        field::write(field::U64, &self.observed, limits, out, paths::DOT_TEMPER_REFUSAL_OBSERVED)?;
+        field::write(field::Bytes { limit: limits.dot_temper_refusal_words.min(CEILINGS.dot_temper_refusal_words) }, &self.words, limits, out, paths::DOT_TEMPER_REFUSAL_WORDS)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
-            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::TEMPER_REFUSAL_COMMIT)?,
-            observed: field::read(field::U64, limits, reader, paths::TEMPER_REFUSAL_OBSERVED)?,
-            words: field::read(field::Bytes { limit: limits.temper_refusal_words.min(CEILINGS.temper_refusal_words) }, limits, reader, paths::TEMPER_REFUSAL_WORDS)?,
+            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::DOT_TEMPER_REFUSAL_COMMIT)?,
+            observed: field::read(field::U64, limits, reader, paths::DOT_TEMPER_REFUSAL_OBSERVED)?,
+            words: field::read(field::Bytes { limit: limits.dot_temper_refusal_words.min(CEILINGS.dot_temper_refusal_words) }, limits, reader, paths::DOT_TEMPER_REFUSAL_WORDS)?,
         })
     }
 }
 
-// Type: TemperRevision.
+// Type: DotTemperRevision.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TemperRevision {
+pub struct DotTemperRevision {
     pub project: u32,
     pub number: u64,
     pub home: Repository,
     pub commit: Option<[u8; 32]>,
     pub method: bool,
-    pub files: List<TemperFile>,
+    pub files: List<DotTemperFile>,
     pub observed: u64,
-    pub refused: Option<TemperRefusal>,
+    pub refused: Option<DotTemperRefusal>,
 }
 
-// Record: TemperRevision.
-impl TemperRevision {
+// Record: DotTemperRevision.
+impl DotTemperRevision {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(8),
@@ -43526,10 +43526,10 @@ impl TemperRevision {
         skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 3 },
         skein_codec::bounds::Node::Scalar(1),
-        skein_codec::bounds::Node::Named("TemperFile"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, temper_revision_files), item: 6, size: size_of::<TemperFile>() },
+        skein_codec::bounds::Node::Named("DotTemperFile"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, dot_temper_revision_files), item: 6, size: size_of::<DotTemperFile>() },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Named("TemperRefusal"),
+        skein_codec::bounds::Node::Named("DotTemperRefusal"),
         skein_codec::bounds::Node::Option { item: 9 },
         skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 7, 8, 10] },
     ];
@@ -43538,16 +43538,16 @@ impl TemperRevision {
     pub const ENCODED_AT_ZERO: u64 = 110;
 }
 
-impl Record for TemperRevision {
+impl Record for DotTemperRevision {
     type Limits = Limits;
-    const TAIL: Path = paths::TEMPER_REVISION_TAIL;
+    const TAIL: Path = paths::DOT_TEMPER_REVISION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRevision")?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRevision")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TemperRevision")?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DotTemperRevision")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -43560,27 +43560,27 @@ impl Record for TemperRevision {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::U32, &self.project, limits, out, paths::TEMPER_REVISION_PROJECT)?;
-        field::write(field::U64, &self.number, limits, out, paths::TEMPER_REVISION_NUMBER)?;
-        field::write(field::Nested, &self.home, limits, out, paths::TEMPER_REVISION_HOME)?;
-        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::TEMPER_REVISION_COMMIT)?;
-        field::write(field::Boolean, &self.method, limits, out, paths::TEMPER_REVISION_METHOD)?;
-        field::write(field::Sequence { limit: limits.temper_revision_files.min(CEILINGS.temper_revision_files), minimum: 8, item: field::Nested }, &self.files, limits, out, paths::TEMPER_REVISION_FILES)?;
-        field::write(field::U64, &self.observed, limits, out, paths::TEMPER_REVISION_OBSERVED)?;
-        field::write(field::Optional { item: field::Nested }, &self.refused, limits, out, paths::TEMPER_REVISION_REFUSED)?;
+        field::write(field::U32, &self.project, limits, out, paths::DOT_TEMPER_REVISION_PROJECT)?;
+        field::write(field::U64, &self.number, limits, out, paths::DOT_TEMPER_REVISION_NUMBER)?;
+        field::write(field::Nested, &self.home, limits, out, paths::DOT_TEMPER_REVISION_HOME)?;
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.commit, limits, out, paths::DOT_TEMPER_REVISION_COMMIT)?;
+        field::write(field::Boolean, &self.method, limits, out, paths::DOT_TEMPER_REVISION_METHOD)?;
+        field::write(field::Sequence { limit: limits.dot_temper_revision_files.min(CEILINGS.dot_temper_revision_files), minimum: 8, item: field::Nested }, &self.files, limits, out, paths::DOT_TEMPER_REVISION_FILES)?;
+        field::write(field::U64, &self.observed, limits, out, paths::DOT_TEMPER_REVISION_OBSERVED)?;
+        field::write(field::Optional { item: field::Nested }, &self.refused, limits, out, paths::DOT_TEMPER_REVISION_REFUSED)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
-            project: field::read(field::U32, limits, reader, paths::TEMPER_REVISION_PROJECT)?,
-            number: field::read(field::U64, limits, reader, paths::TEMPER_REVISION_NUMBER)?,
-            home: field::read(field::Nested, limits, reader, paths::TEMPER_REVISION_HOME)?,
-            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::TEMPER_REVISION_COMMIT)?,
-            method: field::read(field::Boolean, limits, reader, paths::TEMPER_REVISION_METHOD)?,
-            files: field::read(field::Sequence { limit: limits.temper_revision_files.min(CEILINGS.temper_revision_files), minimum: 8, item: field::Nested }, limits, reader, paths::TEMPER_REVISION_FILES)?,
-            observed: field::read(field::U64, limits, reader, paths::TEMPER_REVISION_OBSERVED)?,
-            refused: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TEMPER_REVISION_REFUSED)?,
+            project: field::read(field::U32, limits, reader, paths::DOT_TEMPER_REVISION_PROJECT)?,
+            number: field::read(field::U64, limits, reader, paths::DOT_TEMPER_REVISION_NUMBER)?,
+            home: field::read(field::Nested, limits, reader, paths::DOT_TEMPER_REVISION_HOME)?,
+            commit: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::DOT_TEMPER_REVISION_COMMIT)?,
+            method: field::read(field::Boolean, limits, reader, paths::DOT_TEMPER_REVISION_METHOD)?,
+            files: field::read(field::Sequence { limit: limits.dot_temper_revision_files.min(CEILINGS.dot_temper_revision_files), minimum: 8, item: field::Nested }, limits, reader, paths::DOT_TEMPER_REVISION_FILES)?,
+            observed: field::read(field::U64, limits, reader, paths::DOT_TEMPER_REVISION_OBSERVED)?,
+            refused: field::read(field::Optional { item: field::Nested }, limits, reader, paths::DOT_TEMPER_REVISION_REFUSED)?,
         })
     }
 }
@@ -43640,7 +43640,7 @@ pub enum Value {
     PersonBrief(PersonBrief),
     LimitHold(LimitHold),
     Writes(Writes),
-    TemperRevision(TemperRevision),
+    DotTemperRevision(DotTemperRevision),
 }
 
 // Record: Value.
@@ -43704,7 +43704,7 @@ impl Value {
         skein_codec::bounds::Node::Named("PersonBrief"),
         skein_codec::bounds::Node::Named("LimitHold"),
         skein_codec::bounds::Node::Named("Writes"),
-        skein_codec::bounds::Node::Named("TemperRevision"),
+        skein_codec::bounds::Node::Named("DotTemperRevision"),
         skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57, 58] },
     ];
 
@@ -43787,7 +43787,7 @@ impl Record for Value {
             Self::PersonBrief(value) => { field::put(out, &[49], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::LimitHold(value) => { field::put(out, &[50], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::Writes(value) => { field::put(out, &[51], paths::VALUE_TAG)?; value.write(limits, out) },
-            Self::TemperRevision(value) => { field::put(out, &[52], paths::VALUE_TAG)?; value.write(limits, out) },
+            Self::DotTemperRevision(value) => { field::put(out, &[52], paths::VALUE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -43846,7 +43846,7 @@ impl Record for Value {
             49 => Ok(Self::PersonBrief(PersonBrief::read(limits, reader)?)),
             50 => Ok(Self::LimitHold(LimitHold::read(limits, reader)?)),
             51 => Ok(Self::Writes(Writes::read(limits, reader)?)),
-            52 => Ok(Self::TemperRevision(TemperRevision::read(limits, reader)?)),
+            52 => Ok(Self::DotTemperRevision(DotTemperRevision::read(limits, reader)?)),
             53..=u8::MAX => Err(Problem { path: paths::VALUE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
@@ -44031,6 +44031,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "DispatchInput", nodes: DispatchInput::SHAPE },
     skein_codec::bounds::Declaration { name: "DispatchWrite", nodes: DispatchWrite::SHAPE },
     skein_codec::bounds::Declaration { name: "DispatchedKey", nodes: DispatchedKey::SHAPE },
+    skein_codec::bounds::Declaration { name: "DotTemperFile", nodes: DotTemperFile::SHAPE },
+    skein_codec::bounds::Declaration { name: "DotTemperRefusal", nodes: DotTemperRefusal::SHAPE },
+    skein_codec::bounds::Declaration { name: "DotTemperRevision", nodes: DotTemperRevision::SHAPE },
     skein_codec::bounds::Declaration { name: "Drift", nodes: Drift::SHAPE },
     skein_codec::bounds::Declaration { name: "DriftChange", nodes: DriftChange::SHAPE },
     skein_codec::bounds::Declaration { name: "Early", nodes: Early::SHAPE },
@@ -44458,9 +44461,6 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Summary", nodes: Summary::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskRelease", nodes: TaskRelease::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskRevision", nodes: TaskRevision::SHAPE },
-    skein_codec::bounds::Declaration { name: "TemperFile", nodes: TemperFile::SHAPE },
-    skein_codec::bounds::Declaration { name: "TemperRefusal", nodes: TemperRefusal::SHAPE },
-    skein_codec::bounds::Declaration { name: "TemperRevision", nodes: TemperRevision::SHAPE },
     skein_codec::bounds::Declaration { name: "TemplateGoal", nodes: TemplateGoal::SHAPE },
     skein_codec::bounds::Declaration { name: "TierBranch", nodes: TierBranch::SHAPE },
     skein_codec::bounds::Declaration { name: "TierBranchEntry", nodes: TierBranchEntry::SHAPE },
@@ -44923,10 +44923,10 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.written_retarget_from,
     CEILINGS.written_retarget_to,
     CEILINGS.writes_entries,
-    CEILINGS.temper_file_path,
-    CEILINGS.temper_file_bytes,
-    CEILINGS.temper_refusal_words,
-    CEILINGS.temper_revision_files,
+    CEILINGS.dot_temper_file_path,
+    CEILINGS.dot_temper_file_bytes,
+    CEILINGS.dot_temper_refusal_words,
+    CEILINGS.dot_temper_revision_files,
 ];
 
 #[must_use]

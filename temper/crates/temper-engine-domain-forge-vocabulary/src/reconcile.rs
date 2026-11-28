@@ -36,7 +36,7 @@ pub enum RecordKind {
     Making,
     Dismissed,
     ProjectFacts,
-    TemperRevision,
+    DotTemperRevision,
     PersonBrief,
     Looked,
     Away,
@@ -85,7 +85,7 @@ impl RecordKind {
             | RecordKind::Milestone
             | RecordKind::HistoryProject
             | RecordKind::PersonBrief
-            | RecordKind::TemperRevision
+            | RecordKind::DotTemperRevision
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft

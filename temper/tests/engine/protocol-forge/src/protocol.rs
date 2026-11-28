@@ -1022,7 +1022,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
-        top::Stored::TemperRevision(row) => top::Key::TemperRevision { project: row.project },
+        top::Stored::DotTemperRevision(row) => top::Key::DotTemperRevision { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },

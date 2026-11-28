@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use jig_domain_people::settings::is_name;
 use skein_forge::api::{Answer, Commit, Entry, EntryKind, Error, Read};
 use skein_lib::{List, Map, bytes, usize_of};
-use temper_worker_domain_tooling::hooks;
+use temper_protocol_hooks as hooks;
 
 /// A listed method file read at the commit; the path is repository-relative.
 #[derive(Debug, PartialEq, Eq)]

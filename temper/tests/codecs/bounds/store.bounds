@@ -123,6 +123,9 @@ Dismissed: ceilings encoded=37 decoded=0; at_most(3) encoded=37 decoded=0
 DispatchInput: ceilings encoded=1048839 decoded=1048831; at_most(3) encoded=14 decoded=6
 DispatchWrite: ceilings encoded=10492753 decoded=10492981; at_most(3) encoded=60 decoded=120
 DispatchedKey: ceilings encoded=34 decoded=0; at_most(3) encoded=34 decoded=0
+DotTemperFile: ceilings encoded=65596 decoded=65588; at_most(3) encoded=14 decoded=6
+DotTemperRefusal: ceilings encoded=1069 decoded=1024; at_most(3) encoded=48 decoded=3
+DotTemperRevision: ceilings encoded=4199278 decoded=4200704; at_most(3) encoded=155 decoded=117
 Drift: ceilings encoded=8217 decoded=8192; at_most(3) encoded=74 decoded=6
 DriftChange: ceilings encoded=8209 decoded=8192; at_most(3) encoded=66 decoded=6
 Early: ceilings encoded=2565 decoded=2560; at_most(3) encoded=125 decoded=120
@@ -550,9 +553,6 @@ Subscriber: ceilings encoded=4726829 decoded=4739072; at_most(3) encoded=118 dec
 Summary: ceilings encoded=5242923 decoded=5242880; at_most(3) encoded=55 decoded=12
 TaskRelease: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 TaskRevision: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
-TemperFile: ceilings encoded=65596 decoded=65588; at_most(3) encoded=14 decoded=6
-TemperRefusal: ceilings encoded=1069 decoded=1024; at_most(3) encoded=48 decoded=3
-TemperRevision: ceilings encoded=4199278 decoded=4200704; at_most(3) encoded=155 decoded=117
 TemplateGoal: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 TierBranch: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 TierBranchEntry: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0

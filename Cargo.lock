@@ -8174,6 +8174,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-protocol-hooks"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-protocol-member-message"
 version = "0.0.0"
 dependencies = [
@@ -8265,7 +8272,7 @@ dependencies = [
  "skein-lib",
  "skein-toml",
  "temper-charter-set",
- "temper-worker-domain-tooling",
+ "temper-protocol-hooks",
 ]
 
 [[package]]
@@ -8782,6 +8789,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-link",
  "skein-lib",
+ "temper-protocol-hooks",
 ]
 
 [[package]]

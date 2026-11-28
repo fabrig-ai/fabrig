@@ -4823,34 +4823,37 @@ fn a_temper_dir_repair_round_trips_but_cannot_be_kept_by_the_previous_layout() {
     reason = "ordinary Rust store fixture at the byte ceiling"
 )]
 fn temper_revision_row_is_keyed_by_project_and_bounded() {
-    let mut revision = forge::TemperRevision {
+    let mut revision = forge::DotTemperRevision {
         project: u32::MAX,
         number: 9,
         home: fixtures::REPO,
         commit: Some([1; 32]),
         method: true,
         files: (0_u32..8_u32)
-            .map(|n| forge::TemperFile {
+            .map(|n| forge::DotTemperFile {
                 path: format!(".temper/ways/a{n}.toml").into_bytes().into(),
                 bytes: vec![b'x'; 65_536].into(),
             })
             .collect(),
         observed: 43,
-        refused: Some(forge::TemperRefusal { commit: Some([2; 32]), observed: 43, words: vec![b'w'; 1024].into() }),
+        refused: Some(forge::DotTemperRefusal { commit: Some([2; 32]), observed: 43, words: vec![b'w'; 1024].into() }),
     };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    let row = forge::Stored::TemperRevision(revision.clone());
+    let row = forge::Stored::DotTemperRevision(revision.clone());
     let key = forge::stored_key(&row);
     let encoded_key = crate::keys::encode(&key, u32::MAX).unwrap();
     assert_eq!(encoded_key[0], 53);
     assert_eq!(
         crate::keys::decode(&encoded_key, &fixtures::LIMITS),
-        Some(forge::Key::TemperRevision { project: u32::MAX })
+        Some(forge::Key::DotTemperRevision { project: u32::MAX })
     );
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     let mut files = revision.files.into_vec();
-    files.push(forge::TemperFile { path: b".temper/ways/extra.toml".as_slice().into(), bytes: b"x".as_slice().into() });
+    files.push(forge::DotTemperFile {
+        path: b".temper/ways/extra.toml".as_slice().into(),
+        bytes: b"x".as_slice().into(),
+    });
     revision.files = files.into();
-    let over = records::encode(&forge::Stored::TemperRevision(revision));
+    let over = records::encode(&forge::Stored::DotTemperRevision(revision));
     assert_eq!(records::decode(&over, &bounds), Err(crate::Undecodable::Malformed));
 }

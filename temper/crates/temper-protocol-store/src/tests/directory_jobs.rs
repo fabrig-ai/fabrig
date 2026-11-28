@@ -58,7 +58,7 @@ const fn after_floor(from: &[u8]) -> bool {
             || from[0] == crate::keys::CHANGE_HOT
             || from[0] == crate::keys::PERSON_BRIEF
             || from[0] == crate::keys::WRITES
-            || from[0] == crate::keys::TEMPER_REVISION)
+            || from[0] == crate::keys::DOT_TEMPER_REVISION)
 }
 const fn floor_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.len() - NEW_TYPES] {
     let types = crate::OWNER_SET.families[0].types;

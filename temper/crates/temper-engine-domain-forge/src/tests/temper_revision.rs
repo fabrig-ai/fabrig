@@ -24,7 +24,7 @@ pub(crate) struct World {
     forge_env: Env<fake::Config>,
     calls: Vec<(Token, api::Repository, Read)>,
     seen: Vec<Read>,
-    pub(crate) saved: Vec<TemperRevision>,
+    pub(crate) saved: Vec<DotTemperRevision>,
     erased: Vec<Key>,
 }
 
@@ -68,7 +68,7 @@ impl World {
             if let Request::Call { call, repository, op: Op::Read(read) } = request {
                 self.seen.push(read.clone());
                 self.calls.push((call, repository, read));
-            } else if let Request::Save { record: Stored::TemperRevision(row), .. } = request {
+            } else if let Request::Save { record: Stored::DotTemperRevision(row), .. } = request {
                 self.saved.push(row);
             } else if let Request::Erase { key } = request {
                 self.erased.push(key);
@@ -83,13 +83,13 @@ impl World {
         self.d.reclaim();
     }
 
-    pub(crate) fn restart(&mut self, previous: Option<TemperRevision>) {
+    pub(crate) fn restart(&mut self, previous: Option<DotTemperRevision>) {
         self.calls.clear();
         self.d = domain_with_limits(&self.env.limits);
         self.d.restore_begin(self.env.wall);
         self.restore_home();
         if let Some(row) = previous {
-            self.event(Event::Restore { record: Stored::TemperRevision(row) });
+            self.event(Event::Restore { record: Stored::DotTemperRevision(row) });
         }
         self.event(Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         self.event(Event::CatchUp);
@@ -260,7 +260,7 @@ impl World {
         crate::temper_revision::landed(&mut self.d, &self.env, REPO, BRANCH, tip);
     }
 
-    fn revision(&self) -> &TemperRevision {
+    fn revision(&self) -> &DotTemperRevision {
         self.d.temper_revision(PROJECT).unwrap()
     }
 
@@ -330,7 +330,7 @@ fn only_a_taken_home_adoption_reads_the_revision() {
                 (w.revision().number, w.revision().home, w.revision().commit, w.revision().method),
                 (1, REPO, Some(w.tip()), true)
             );
-            assert_eq!(w.revision().files.as_ref(), &[TemperFile { path: WAYS.into(), bytes: GOOD.into() }]);
+            assert_eq!(w.revision().files.as_ref(), &[DotTemperFile { path: WAYS.into(), bytes: GOOD.into() }]);
             assert_eq!(w.saved.len(), 1);
         } else {
             assert_eq!(w.root_reads(), 0);
@@ -460,20 +460,20 @@ fn revision_keeps_last_good_and_retries_only_unread_trees() {
 fn restart_coalesces_triggers_and_drops_stale_or_retired_home_answers() {
     let mut w = World::new(21, vec![file(WAYS, GOOD)]);
     let first = w.tip();
-    let row = TemperRevision {
+    let row = DotTemperRevision {
         project: PROJECT,
         number: 7,
         home: REPO,
         commit: Some(first),
         method: true,
-        files: Box::new([TemperFile { path: WAYS.into(), bytes: GOOD.into() }]),
+        files: Box::new([DotTemperFile { path: WAYS.into(), bytes: GOOD.into() }]),
         observed: 83,
         refused: None,
     };
     w.restart(Some(row.clone()));
     w.settle();
     assert_eq!(w.root_reads(), 1);
-    assert_eq!(w.revision(), &TemperRevision { observed: 84, ..row });
+    assert_eq!(w.revision(), &DotTemperRevision { observed: 84, ..row });
     w.trigger(Some(first));
     let (call, repository, read) = w.next().unwrap();
     assert!(matches!(&read, Read::File { head, path, .. } if *head == first && path.as_ref() == b".temper"));
@@ -490,8 +490,8 @@ fn restart_coalesces_triggers_and_drops_stale_or_retired_home_answers() {
     w.trigger(Some(latest));
     let (call, repository, read) = w.next().unwrap();
     let result = w.answer_for(repository, &read);
-    let protected = TemperRevision { observed: 87, ..w.revision().clone() };
-    w.event(Event::Restore { record: Stored::TemperRevision(protected.clone()) });
+    let protected = DotTemperRevision { observed: 87, ..w.revision().clone() };
+    w.event(Event::Restore { record: Stored::DotTemperRevision(protected.clone()) });
     let count = w.saved.len();
     w.answer(call, result);
     w.settle();
@@ -530,7 +530,7 @@ fn restart_coalesces_triggers_and_drops_stale_or_retired_home_answers() {
     assert_eq!(w.root_reads(), reads);
     assert_eq!(w.revision(), &refused);
     w.event(Event::ReleaseProject { project: PROJECT, request: Token::new(9) });
-    assert!(w.erased.contains(&Key::TemperRevision { project: PROJECT }));
+    assert!(w.erased.contains(&Key::DotTemperRevision { project: PROJECT }));
     assert!(w.d.temper_revision(PROJECT).is_none());
 }
 

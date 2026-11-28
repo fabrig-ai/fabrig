@@ -929,7 +929,8 @@ fn a_held_answer_in_an_earlier_layout_defaults_to_no_question_or_blocker() {
 }
 
 fn previous_branches_layout(current: &str) -> Box<str> {
-    let before = current.replace(", writes: Writes, temper_revision: TemperRevision }", " }");
+    let before =
+        current.replace(", writes: Writes, dot_temper_revision was temper_revision: DotTemperRevision }", " }");
     assert_ne!(before, current);
     before.into_boxed_str()
 }

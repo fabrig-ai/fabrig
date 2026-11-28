@@ -56,7 +56,7 @@ pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspac
         (MILESTONE, "temper.milestones"),
         (LIMIT_HOLD, "temper.limit-holds"),
         (WRITES, "temper.writes"),
-        (TEMPER_REVISION, "temper.temper-revision"),
+        (DOT_TEMPER_REVISION, "temper.dot-temper-revision"),
         (127, "temper.history-project"),
         (128, "temper.landing-history"),
         (129, "temper.history-change"),
@@ -123,7 +123,7 @@ pub const LIMIT_HOLD: u8 = 51;
 /// Temper's own writes on a branch (domain/forge/writes.md, 7).
 pub const WRITES: u8 = 52;
 /// The project’s repository revision (temper/docs/design/protocol/store.md, 2).
-pub const TEMPER_REVISION: u8 = 53;
+pub const DOT_TEMPER_REVISION: u8 = 53;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_EVENT: u8 = 128;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
@@ -378,8 +378,8 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::PersonBrief { party, project } => {
             writer.tag(PERSON_BRIEF).u64(*party).u64(u64::from(*project));
         }
-        forge::Key::TemperRevision { project } => {
-            writer.tag(TEMPER_REVISION).u64(u64::from(*project));
+        forge::Key::DotTemperRevision { project } => {
+            writer.tag(DOT_TEMPER_REVISION).u64(u64::from(*project));
         }
         forge::Key::ProjectFacts { project } => {
             writer.tag(PROJECT_FACTS).u64(u64::from(*project));
@@ -530,7 +530,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             name: read_branch(&mut reader, limits)?,
         }),
         PERSON_BRIEF => forge::Key::PersonBrief { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },
-        TEMPER_REVISION => forge::Key::TemperRevision { project: u32::try_from(reader.u64()?).ok()? },
+        DOT_TEMPER_REVISION => forge::Key::DotTemperRevision { project: u32::try_from(reader.u64()?).ok()? },
         PROJECT_FACTS => forge::Key::ProjectFacts { project: u32::try_from(reader.u64()?).ok()? },
         HISTORY_PROJECT => forge::Key::HistoryProject { project: u32::try_from(reader.u64()?).ok()? },
         HISTORY_EVENT => {

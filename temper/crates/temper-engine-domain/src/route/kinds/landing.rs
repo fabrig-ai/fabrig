@@ -75,19 +75,12 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
 }
 fn sign_off_refusal(domain: &Domain, project: u32) -> Option<Box<[u8]>> {
     let owner = jig_domain_people::Role::Owner.number();
-    let repositories = domain.forge.writable_repositories(project);
-    let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
-    let mut seen = skein_lib::Set::with_capacity(capacity);
-    for repository in repositories {
-        let forge = repository.provider.forge;
-        if !seen.insert(forge).expect("one entry per writable forge") {
-            continue;
-        }
+    for (forge, host) in domain.forge.writable_forges(project) {
         if super::fake_forge(domain, forge) {
             return Some(words(&[b"temper_dir_sign_off: the playground's forge has no accounts"]));
         }
         if super::eligible_people(domain, project, forge, owner) == 0 {
-            return Some(words(&[b"temper_dir_sign_off: no eligible project owner on forge ", &repository.host]));
+            return Some(words(&[b"temper_dir_sign_off: no eligible project owner on forge ", host]));
         }
     }
     None

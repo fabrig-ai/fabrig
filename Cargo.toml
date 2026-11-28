@@ -407,6 +407,7 @@ members = [
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-store-codec",
     "temper/crates/temper-protocol-brief",
+    "temper/crates/temper-protocol-hooks",
     "temper/crates/temper-protocol-member-message",
     "temper/crates/temper-protocol-temper-dir",
     "temper/crates/temper-charter-set",
@@ -817,6 +818,7 @@ temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wir
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
 temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-codec" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
+temper-protocol-hooks = { path = "temper/crates/temper-protocol-hooks" }
 temper-protocol-member-message = { path = "temper/crates/temper-protocol-member-message" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
