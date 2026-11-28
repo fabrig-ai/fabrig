@@ -1,0 +1,11 @@
+# Worker on the same machine as the engine.
+engine = "127.0.0.1:7200"
+name = "fixture-worker" # Keep this name if the machine is replaced.
+
+[programs]
+git = "/usr/bin/git"
+claude = "/usr/local/bin/claude"
+
+[environment] # The worker passes these to its agents' programs.
+TZ = "UTC"
+LANG = "C.UTF-8"

@@ -37,18 +37,9 @@ mod opening {
                 .expect("credential length"),
         );
         value.write(&jig_protocol_worker_wire::CEILINGS, &mut bytes).expect("credential");
-        let channel = skein_channel::Limits {
-            kinds: schema.version(wire::VERSION).expect("worker table").kinds.len(),
-            ..fixtures::channel_limits()
-        };
-        skein_fake_channel::ScriptedPeer::new(
-            schema,
-            skein_channel::Role::Initiator,
-            channel,
-            wire::VERSION,
-            bytes.finish(),
-        )
-        .expect("worker")
+        let channel = skein_channel::Limits { kinds: schema.kinds.len(), ..fixtures::channel_limits() };
+        skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Initiator, channel, bytes.finish())
+            .expect("worker")
     }
 
     fn spoken() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
@@ -60,7 +51,6 @@ mod opening {
         schema: &skein_channel::Schema,
     ) -> jig_protocol_engine_workers::Statement {
         use jig_protocol_engine_workers::{Stated, Statement};
-        use jig_protocol_worker_wire::VERSION;
         use skein_channel::{Direction, Term};
         Statement {
             wires: skein_lib::List::from_boxed(
@@ -76,8 +66,6 @@ mod opening {
             output: fixtures::LIMITS.room,
             terms: skein_lib::List::from_boxed(
                 schema
-                    .version(VERSION)
-                    .expect("current version")
                     .kinds
                     .iter()
                     .filter(|rule| rule.direction == Direction::FromResponder)
@@ -148,11 +136,10 @@ mod opening {
         let mut wires = fixtures::statement(APPLICATION_VERSION);
         let mut schema = fixtures::schema();
         // An additional responder kind is in the worker's terms, but not the engine's own table.
-        let current = schema.versions.get_mut(0).expect("one version");
-        let part_busy = current.kind(wire::Kind::PartBusy.number()).expect("part busy");
-        let mut worker_kinds: Vec<_> = current.kinds.iter().copied().collect();
+        let part_busy = schema.kind(wire::Kind::PartBusy.number()).expect("part busy");
+        let mut worker_kinds: Vec<_> = schema.kinds.iter().copied().collect();
         worker_kinds.push(Kind { kind: part_busy.kind + 1, ..part_busy });
-        current.kinds = skein_lib::List::from_boxed(worker_kinds.into_boxed_slice());
+        schema.kinds = skein_lib::List::from_boxed(worker_kinds.into_boxed_slice());
         for (index, old, new) in [
             (0, "part_busy: PartBusy", "part_busy: PartBusy, quiet: PartBusy"),
             (2, "versioned record Charter {", "versioned record Charter { test_note: u8 = 0"),
@@ -171,7 +158,7 @@ mod opening {
             &["jig-worker-wire", "smith-charter", "smith-transcript", "test-worker-wire"],
         );
 
-        let quiet = schema.versions.get_mut(0).expect("one version").kinds.iter_mut().last().expect("quiet kind");
+        let quiet = schema.kinds.iter_mut().last().expect("quiet kind");
         let text = quiet.kind.to_string().into_bytes().into_boxed_slice();
         quiet.largest -= 1;
         assert_eq!(saved_judgement(&whole(&wires, &schema)), Err(Unfit::Limits(text.clone())));
@@ -245,7 +232,6 @@ mod opening {
     #[test]
     fn unequal_output_rooms_are_refused_with_both_values_and_the_setting() {
         use jig_protocol_engine_workers::{Loss, Request};
-        use jig_protocol_worker_wire as wire;
         const ENGINE: u32 = 1_048_576;
         for (output, secret, payload, reason) in [
             (ENGINE, SECRET_A, APPLICATION_VERSION, None),
@@ -258,7 +244,7 @@ mod opening {
         ] {
             let limits = jig_protocol_engine_workers::Limits { room: ENGINE, ..fixtures::limits() };
             let mut world = World::new(&limits, &fixtures::workers(), 1);
-            let peer = fixtures::peer_with_output(fixtures::schema(), wire::VERSION, WORKER_A, secret, payload, output);
+            let peer = fixtures::peer_with_output(fixtures::schema(), WORKER_A, secret, payload, output);
             let connection = world.connect(peer);
             world.run();
             if let Some(reason) = reason {
@@ -320,52 +306,28 @@ mod opening {
         assert!(world.gone(older));
     }
     #[test]
-    fn another_version_is_refused_by_skein_as_version() {
+    fn another_channel_version_still_opens_with_a_valid_credential() {
         let mut schema = fixtures::schema();
-        let other = 15; // An old channel is refused before reading its credential.
-        schema.versions.truncate(1);
-        schema.versions.get_mut(0).expect("one version").version = other;
+        schema.version = 15;
         let mut world = world();
-        let peer = skein_fake_channel::ScriptedPeer::new(
-            schema,
-            skein_channel::Role::Initiator,
-            fixtures::channel_limits(),
-            other,
-            b"not a credential".as_slice().into(),
-        )
-        .expect("old worker");
+        let mut peer = fixtures::peer(schema, WORKER_A, SECRET_A, APPLICATION_VERSION);
+        peer.play(fixtures::hello_frame());
         let connection = world.connect(peer);
         world.run();
-        let current = jig_protocol_worker_wire::VERSION;
-        let expected = format!("speaks {current}..{current}, offered {other}..{other}");
-        assert_eq!(world.refusal(connection), Some((1, expected.as_bytes().into())));
-        let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
-            panic!("precredential refusal")
-        };
-        assert_eq!(text.as_ref(), expected.as_bytes());
-        assert!(world.root().is_empty());
+        assert!(world.ready(connection));
+        assert_eq!(world.refusal(connection), None);
+        assert!(world.root().iter().any(|event| matches!(event, jig_protocol_engine_workers::Request::Hello { .. })));
     }
     #[test]
     fn terms_below_the_largest_assignment_are_refused_as_limits() {
         let mut schema = fixtures::schema();
-        for version in schema.versions.iter_mut() {
-            if version.version != jig_protocol_worker_wire::VERSION {
-                continue;
-            }
-            for kind in version.kinds.iter_mut() {
-                if kind.kind == 0x0180 {
-                    kind.largest = 1;
-                }
+        for kind in schema.kinds.iter_mut() {
+            if kind.kind == 0x0180 {
+                kind.largest = 1;
             }
         }
         let mut world = world();
-        let connection = world.connect(fixtures::peer(
-            schema,
-            jig_protocol_worker_wire::VERSION,
-            WORKER_A,
-            SECRET_A,
-            APPLICATION_VERSION,
-        ));
+        let connection = world.connect(fixtures::peer(schema, WORKER_A, SECRET_A, APPLICATION_VERSION));
         world.run();
         assert_eq!(world.refusal(connection), Some((2, Box::from(b"384".as_slice()))));
         assert!(world.root().is_empty());

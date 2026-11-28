@@ -28,18 +28,8 @@ impl Io {
             completions: Queue::with_capacity(1),
         })
     }
-    fn complete(&mut self, kind: Op) -> Complete {
-        self.submissions.push(Submit { op: Token::new(1), kind });
-        loop {
-            self.kernel.submit(&mut self.submissions, Wait::Forever);
-            self.kernel.reap(&mut self.completions);
-            if let Some(completion) = self.completions.pop() {
-                return completion;
-            }
-        }
-    }
     pub fn perform(&mut self, kind: Op) -> Result<Done, Error> {
-        self.complete(kind).result
+        StartupIo::perform(self, kind)
     }
     pub fn socket(&mut self) -> Result<Fd, String> {
         socket(self)
@@ -52,43 +42,91 @@ impl Io {
     }
     fn write(&mut self, destination: &Path, bytes: Box<[u8]>, mode: u32) -> Result<(), String> {
         let root = skein_shell::open_root(destination.parent().expect("file parent"))
-            .map_err(|errno| format!("errno {errno}"))?;
-        let opened = self.perform(Op::Open {
-            root,
-            path: destination.file_name().expect("file name").as_bytes().into(),
-            how: OpenHow::Create { mode: Some(mode) },
-        });
-        self.close(root);
-        let Done::Fd(fd) = opened.map_err(io_error)? else { unreachable!("open answers descriptor") };
-        let mut bytes = bytes;
-        let mut from = 0;
-        let result = (|| {
-            while usize::try_from(from).expect("file length fits") < bytes.len() {
-                let completion = self.complete(Op::Write { fd, bytes, from, at: u64::from(from) });
-                let Op::Write { bytes: returned, .. } = completion.kind else { unreachable!("write returned") };
-                bytes = returned;
-                let Done::Count(count) = completion.result.map_err(io_error)? else {
-                    unreachable!("write answers count")
-                };
-                from += count;
-            }
-            // Create's mode is filtered by umask; init's public files have an exact mode.
-            std::fs::set_permissions(destination, std::fs::Permissions::from_mode(mode))
-                .map_err(|why| why.to_string())?;
-            Ok(())
-        })();
-        self.close(fd);
-        result
+            .map_err(|errno| format!("{}: errno {errno}", destination.display()))?;
+        write_file(self, root, destination, bytes, mode, |partial| {
+            // Create's mode is filtered by umask; init's files have exact modes.
+            std::fs::set_permissions(partial, std::fs::Permissions::from_mode(mode)).map_err(|why| why.to_string())
+        })
     }
 }
 trait StartupIo {
-    fn perform(&mut self, kind: Op) -> Result<Done, Error>;
+    fn complete(&mut self, kind: Op) -> Complete;
+
+    fn perform(&mut self, kind: Op) -> Result<Done, Error> {
+        self.complete(kind).result
+    }
 }
 
 impl StartupIo for Io {
-    fn perform(&mut self, kind: Op) -> Result<Done, Error> {
-        Io::perform(self, kind)
+    fn complete(&mut self, kind: Op) -> Complete {
+        self.submissions.push(Submit { op: Token::new(1), kind });
+        loop {
+            self.kernel.submit(&mut self.submissions, Wait::Forever);
+            self.kernel.reap(&mut self.completions);
+            if let Some(completion) = self.completions.pop() {
+                return completion;
+            }
+        }
     }
+}
+
+fn write_file(
+    io: &mut impl StartupIo,
+    root: Fd,
+    destination: &Path,
+    bytes: Box<[u8]>,
+    mode: u32,
+    set_mode: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    let name = destination.file_name().expect("file name");
+    let mut partial = name.to_os_string();
+    partial.push(".partial");
+    let create = || Op::Open { root, path: partial.as_bytes().into(), how: OpenHow::Create { mode: Some(mode) } };
+    let remove = || Op::Remove { dir: root, name: partial.as_bytes().into(), directory: false };
+    let result = (|| {
+        let opened = match io.perform(create()) {
+            Err(Error::Exists) => {
+                match io.perform(remove()) {
+                    Ok(_) | Err(Error::NotFound) => {}
+                    Err(why) => return Err(io_error(why)),
+                }
+                io.perform(create())
+            }
+            result => result,
+        };
+        let Done::Fd(fd) = opened.map_err(io_error)? else { unreachable!("open answers descriptor") };
+        let written =
+            write_all(io, fd, bytes).map_err(io_error).and_then(|()| set_mode(&destination.with_file_name(&partial)));
+        let closed = io.perform(Op::Close { fd }).map_err(io_error);
+        let published = written.and(closed).and_then(|_| {
+            io.perform(Op::Rename {
+                from_dir: root,
+                from: partial.as_bytes().into(),
+                to_dir: root,
+                to: name.as_bytes().into(),
+                no_replace: true,
+            })
+            .map_err(io_error)
+        });
+        if published.is_err() {
+            let _ = io.perform(remove());
+        }
+        published.map(|_| ())
+    })();
+    close(io, root);
+    result.map_err(|why| format!("{}: {why}", destination.display()))
+}
+
+fn write_all(io: &mut impl StartupIo, fd: Fd, mut bytes: Box<[u8]>) -> Result<(), Error> {
+    let mut from = 0;
+    while usize::try_from(from).expect("file length fits") < bytes.len() {
+        let completion = io.complete(Op::Write { fd, bytes, from, at: u64::from(from) });
+        let Op::Write { bytes: returned, .. } = completion.kind else { unreachable!("write returned") };
+        bytes = returned;
+        let Done::Count(count) = completion.result? else { unreachable!("write answers count") };
+        from += count;
+    }
+    Ok(())
 }
 
 fn socket(io: &mut impl StartupIo) -> Result<Fd, String> {
@@ -384,15 +422,16 @@ fn write_deployment_with(
                 temper_init::Directory::Data => path(&directories.data),
             };
             let destination = root.join(path(file.name));
-            let result = match file.content {
+            match file.content {
                 temper_init::Content::Bytes { bytes, private } => {
-                    startup.write(&mut io, &destination, bytes, if private { 0o600 } else { 0o644 })
+                    startup.write(&mut io, &destination, bytes, if private { 0o600 } else { 0o644 })?;
                 }
                 // skein-io at the pin has no symlink operation; like exact modes above,
                 // creating the link stays in this startup shell (protocol/setup/init.md, 5).
-                temper_init::Content::Link { target } => startup.symlink(path(&target), &destination),
-            };
-            result.map_err(|why| format!("{}: {why}", destination.display()))?;
+                temper_init::Content::Link { target } => startup
+                    .symlink(path(&target), &destination)
+                    .map_err(|why| format!("{}: {why}", destination.display()))?,
+            }
             paths.push(destination);
             if boxed && file.name == b"worker.secret" {
                 let key = data.join("provider.key");
@@ -405,14 +444,12 @@ fn write_deployment_with(
         }
         let file = configuration(listeners[0].1, listeners[1].1);
         let destination = config.join(temper_config_shell::FILE);
-        startup
-            .write(
-                &mut io,
-                &destination,
-                temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
-                0o644,
-            )
-            .map_err(|why| format!("{}: {why}", destination.display()))?;
+        startup.write(
+            &mut io,
+            &destination,
+            temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
+            0o644,
+        )?;
         paths.push(destination);
         Ok((paths, git.is_none(), person, login, no_sign_in))
     })();

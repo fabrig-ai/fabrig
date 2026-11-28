@@ -6,6 +6,7 @@ use jig_domain_host as hub;
 use jig_domain_link::Grant;
 use jig_protocol_config::{self as config, Path, Problems, What};
 use jig_protocol_worker_wire::Part;
+pub use jig_protocol_worker_wire::convert::Converting;
 use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{Duration, List, Map, Queue, Time, Token, stream};
@@ -26,6 +27,8 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
+    /// The oldest value waits for a written converter.
+    Convert,
     /// A pause ask the worker's layout cannot carry (protocol/channel/pause.md, 3).
     Unpaused {
         worker: Box<[u8]>,
@@ -308,6 +311,24 @@ impl Workers {
         }
         Seen::Taken
     }
+    /// The time of the last input, also used while routing its outputs.
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.now
+    }
+
+    /// Lends the value announced by `Output::Convert`, if its channel still exists.
+    #[must_use]
+    pub fn converting(&self) -> Option<Converting<'_>> {
+        self.component.converting()
+    }
+
+    /// Answers `Output::Convert` before taking the next output.
+    pub fn converted(&mut self, now: Time, answer: Result<Box<[u8]>, skein_codec::layout::Refusal>) {
+        self.now = now;
+        self.component.converted(now, answer, &mut self.out);
+    }
+
     /// The component's requests waiting for `output`.
     #[must_use]
     pub fn pending(&self) -> u32 {
@@ -316,6 +337,7 @@ impl Workers {
     /// Takes one request, doing itself what needs no owner.
     pub fn output(&mut self) -> Option<Output> {
         match self.out.pop()? {
+            Request::Convert => return Some(Output::Convert),
             Request::Unpaused { worker, version, mode } => return Some(Output::Unpaused { worker, version, mode }),
             Request::Told { worker, version, wait } => return Some(Output::Told { worker, version, wait }),
             Request::Take { connection } => self.io.push(io::Request::Bind {

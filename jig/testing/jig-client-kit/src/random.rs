@@ -18,6 +18,10 @@ pub enum Start {
 }
 impl Start {
     pub const ALL: [Self; 6] = [Self::NewChat, Self::Chat, Self::Held, Self::Proposal, Self::Goal, Self::Incident];
+
+    pub fn draw(rng: &mut Rng) -> Self {
+        Self::ALL[usize::try_from(rng.below(6)).expect("six starts")]
+    }
 }
 /// Actual fixture and opening address reached by a random whole-document run.
 #[derive(Clone, Copy, Debug)]
@@ -66,9 +70,11 @@ pub fn story(seed: u64, start: Start, heap_ceiling: u64) -> Outcome {
 }
 /// Random whole documents, addresses, family values and offers behind the same shell.
 #[must_use]
-fn world_with_heap(seed: u64, heap_ceiling: Option<u64>) -> (Outcome, Reach) {
+fn world_with_heap(seed: u64, start: Option<Start>, heap_ceiling: Option<u64>) -> (Outcome, Reach) {
     let mut rng = Rng::new(seed);
-    let start = Start::ALL[usize::try_from(rng.below(6)).expect("six starts")];
+    // Consume the start draw even when the sweep supplies the fixture, so
+    // the documents and address use the same subsequent draws.
+    let start = start.unwrap_or(Start::draw(&mut rng));
     let (mut world, mut address) = fixture(seed, start);
     let original_address = address;
     if let Some(ReadValue::Task(task)) = world.front().engine.truth().objects.get(&ObjectKey::Task(9)) {
@@ -118,7 +124,7 @@ fn world_with_heap(seed: u64, heap_ceiling: Option<u64>) -> (Outcome, Reach) {
 /// Random whole documents with allocator accounting against the scenario's measured heap ceiling.
 #[must_use]
 pub fn world(seed: u64, heap_ceiling: u64) -> Outcome {
-    world_with_heap(seed, Some(heap_ceiling)).0
+    world_with_heap(seed, None, Some(heap_ceiling)).0
 }
 
 /// The same story exploration without heap bookkeeping; metered scenarios
@@ -132,11 +138,11 @@ pub fn story_without_heap(seed: u64, start: Start) -> Outcome {
 /// The same random documents and faults without heap bookkeeping.
 #[must_use]
 pub fn world_without_heap(seed: u64) -> Outcome {
-    world_with_heap(seed, None).0
+    world_with_heap(seed, None, None).0
 }
 
-/// Random whole documents without heap bookkeeping, with typed reach at their opening.
+/// Random whole documents from the sweep's named start, with opening reach and no heap bookkeeping.
 #[must_use]
-pub fn world_with_coverage(seed: u64) -> (Outcome, Reach) {
-    world_with_heap(seed, None)
+pub fn world_with_coverage(seed: u64, start: Start) -> (Outcome, Reach) {
+    world_with_heap(seed, Some(start), None)
 }

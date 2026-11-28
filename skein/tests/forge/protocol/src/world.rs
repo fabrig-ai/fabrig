@@ -254,8 +254,25 @@ impl World {
         Self::with(seed, cut_chance, Shape::Github { log_poll })
     }
 
-    /// Replace the fake App's key and the component's access while calls run.
-    pub fn replace_github_access(&mut self) {
+    /// Keep fixture startup and renewal traffic outside fresh cases' fault draws.
+    pub fn protect_github_setup(&mut self) {
+        let Driver::Github(github) = &mut self.joint else { unreachable!("GitHub world") };
+        github.protect_setup();
+    }
+
+    /// Replace the fake App's key and the component's access after an owner read writes.
+    pub fn replace_github_access(&mut self, number: u64) {
+        let Driver::Github(github) = &mut self.joint else { unreachable!("GitHub world") };
+        if github.protect_replacement() {
+            // Other calls can consume the owner's two slots. Drain them before
+            // asking for the read that must cross the replacement.
+            self.settle_before_replacement();
+        }
+        self.event(Event::Read {
+            owner: Token::new(100),
+            repository: REPO,
+            read: Read::Item { number, after: 0, since: Time::ZERO },
+        });
         let end = self.joint.now().saturating_add(Duration::from_secs(5));
         for _ in 0..TURNS {
             if !self.pending.is_empty() {
@@ -278,6 +295,22 @@ impl World {
         self.referee.access(&access);
         self.referee.fact(format!("{:?}", skein_forge_connection::Request::Connect { forge: 1, access }));
         self.joint.rotate(key);
+    }
+
+    fn settle_before_replacement(&mut self) {
+        let end = self.joint.now().saturating_add(Duration::from_secs(60));
+        for _ in 0..TURNS {
+            self.route();
+            if self.pending.is_empty()
+                && self.deliveries.is_empty()
+                && !self.client.is_ready()
+                && !self.client.is_due(self.joint.now())
+            {
+                return;
+            }
+            assert!(self.iterate(end), "old owner work settles before the replacement read");
+        }
+        panic!("replacement read could not be set up, seed {}", self.seed);
     }
 
     /// Delivery-log request lines observed independently of call costs.
@@ -550,6 +583,17 @@ impl World {
             self.joint.events(),
             &format!("{:?}", self.joint.observations()),
         )
+    }
+
+    pub(crate) fn protect_forgejo_startup(&mut self) {
+        let Driver::Forgejo(joint) = &mut self.joint else { unreachable!("Forgejo world") };
+        joint.protect_forgejo_startup();
+    }
+
+    #[must_use]
+    pub fn startup_head_cuts(&self) -> u64 {
+        let Driver::Forgejo(joint) = &self.joint else { unreachable!("Forgejo world") };
+        joint.start_counts().cut_in_head
     }
 
     pub(crate) fn startup(&mut self) {

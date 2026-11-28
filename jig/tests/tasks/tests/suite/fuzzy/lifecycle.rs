@@ -1,46 +1,115 @@
 use jig_tasks_world::{PERSON_PARTY, run_story, run_story_choices, stories::Story};
+use skein_world::{
+    sweep::{Case, cases, gate},
+    this_test,
+};
+use std::{collections::BTreeSet, convert::Infallible};
 
 // Stable draw stream for timing/price and fault/cut variations after exhaustive choices.
 const DRAW_SOURCE: u64 = 47;
 const DRAWN_SEEDS: usize = 8;
 
 #[test]
-fn random_faults_and_restart_cuts_reach_every_retained_ending() {
-    let mut seen = std::collections::BTreeSet::new();
-    let markers = jig_tasks_world::coverage::MARKERS;
+fn random_faults_and_restart_cuts_reach_every_retained_ending() -> Result<(), Case<Infallible>> {
+    macro_rules! part {
+        ($story:literal) => {
+            this_test!("random_faults_and_restart_cuts_reach_every_retained_ending", $story)
+        };
+    }
+
+    // Parts follow Story::all()'s order and keep the same choices at every seed.
+    let parts = [
+        part!("staged-refused-skip-succeeded-skip"),
+        part!("staged-refused-skip-succeeded-restore"),
+        part!("staged-refused-skip-failed-skip"),
+        part!("staged-refused-skip-failed-restore"),
+        part!("staged-refused-restore-succeeded-skip"),
+        part!("staged-refused-restore-succeeded-restore"),
+        part!("staged-refused-restore-failed-skip"),
+        part!("staged-refused-restore-failed-restore"),
+        part!("staged-lost-skip-succeeded-skip"),
+        part!("staged-lost-skip-succeeded-restore"),
+        part!("staged-lost-skip-failed-skip"),
+        part!("staged-lost-skip-failed-restore"),
+        part!("staged-lost-restore-succeeded-skip"),
+        part!("staged-lost-restore-succeeded-restore"),
+        part!("staged-lost-restore-failed-skip"),
+        part!("staged-lost-restore-failed-restore"),
+        part!("staged-none-skip-succeeded-skip"),
+        part!("staged-none-skip-succeeded-restore"),
+        part!("staged-none-skip-failed-skip"),
+        part!("staged-none-skip-failed-restore"),
+        part!("staged-none-restore-succeeded-skip"),
+        part!("staged-none-restore-succeeded-restore"),
+        part!("staged-none-restore-failed-skip"),
+        part!("staged-none-restore-failed-restore"),
+        part!("committed-refused-skip-succeeded-skip"),
+        part!("committed-refused-skip-succeeded-restore"),
+        part!("committed-refused-skip-failed-skip"),
+        part!("committed-refused-skip-failed-restore"),
+        part!("committed-refused-restore-succeeded-skip"),
+        part!("committed-refused-restore-succeeded-restore"),
+        part!("committed-refused-restore-failed-skip"),
+        part!("committed-refused-restore-failed-restore"),
+        part!("committed-lost-skip-succeeded-skip"),
+        part!("committed-lost-skip-succeeded-restore"),
+        part!("committed-lost-skip-failed-skip"),
+        part!("committed-lost-skip-failed-restore"),
+        part!("committed-lost-restore-succeeded-skip"),
+        part!("committed-lost-restore-succeeded-restore"),
+        part!("committed-lost-restore-failed-skip"),
+        part!("committed-lost-restore-failed-restore"),
+        part!("committed-none-skip-succeeded-skip"),
+        part!("committed-none-skip-succeeded-restore"),
+        part!("committed-none-skip-failed-skip"),
+        part!("committed-none-skip-failed-restore"),
+        part!("committed-none-restore-succeeded-skip"),
+        part!("committed-none-restore-succeeded-restore"),
+        part!("committed-none-restore-failed-skip"),
+        part!("committed-none-restore-failed-restore"),
+    ];
+    let mut seen = BTreeSet::new();
     let choices = Story::all();
-    assert_eq!(choices.iter().copied().collect::<std::collections::BTreeSet<_>>().len(), 48);
-    for (index, choice) in choices.into_iter().enumerate() {
+    assert_eq!(choices.iter().copied().collect::<BTreeSet<_>>().len(), 48);
+    assert_eq!(choices.len(), parts.len());
+    for (index, (choice, test)) in choices.into_iter().zip(parts).enumerate() {
         let timing_seed = u64::try_from(index).expect("48 choice timings");
-        let (trace, frozen) = run_story_choices(timing_seed, choice);
-        assert_eq!(frozen.results.len(), 5, "seed {timing_seed}, choice {choice:?}");
-        seen.extend(trace.coverage.0);
+        cases(test, [timing_seed], |seed| {
+            let (trace, frozen) = run_story_choices(seed, choice);
+            assert_eq!(frozen.results.len(), 5, "seed {seed}, choice {choice:?}");
+            seen.extend(trace.coverage.0);
+            Ok(())
+        })?;
     }
     let mut random = skein_lib::Rng::new(DRAW_SOURCE);
-    let mut drawn = std::collections::BTreeSet::new();
+    let mut drawn = BTreeSet::new();
     while drawn.len() < DRAWN_SEEDS {
         drawn.insert(random.below(256));
     }
     eprintln!("lifecycle drawn seeds={drawn:?}");
-    for seed in drawn {
+    cases(part!("drawn"), drawn, |seed| {
         let (trace, frozen) = run_story(seed);
         assert_eq!(frozen.results.len(), 5, "seed {seed}");
         seen.extend(trace.coverage.0);
+        Ok(())
+    })?;
+    if gate() {
+        for marker in jig_tasks_world::coverage::MARKERS {
+            assert!(seen.contains(&marker), "sweep reaches {marker:?}");
+        }
     }
-    for marker in markers {
-        assert!(seen.contains(&marker), "sweep reaches {marker:?}");
-    }
+    Ok(())
 }
 
 #[test]
-fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() {
+fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() -> Result<(), Case<Infallible>> {
     use jig_domain_tasks::{
         self as tasks, Domain, Event, Key, LlmChoice, ModelEffort, RestoreCause, RestoreFailure, RestoreLlmWhy,
     };
     use jig_tasks_world::{EFFORTS, LIMITS, Reply, World, charters, task};
     use skein_lib::{Queue, Rng};
     const CHOICE_SEEDS: [u64; 8] = [131, 241, 353, 467, 571, 683, 797, 911];
-    for seed in CHOICE_SEEDS {
+    cases(this_test!("selected_starts_keep_drawn_choices_and_name_the_first_removed_effort"), CHOICE_SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let number = 10 + rng.below(100);
         let chosen =
@@ -82,5 +151,6 @@ fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() {
         assert!(!restored.checked());
         assert!(out.is_empty());
         assert_eq!(restored.restore_failure(), failure);
-    }
+        Ok(())
+    })
 }

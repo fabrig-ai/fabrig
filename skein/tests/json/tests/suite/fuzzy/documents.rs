@@ -1,12 +1,7 @@
-//! The tokenizer's machine world, swept (testing-strategy.md, 8; data/json.md,
-//! 6): many documents, generated and mutated, and the transcripts, cut and
-//! mutated, under limits and neighbours drawn from each seed, each run
-//! checked against the reference parser. This stands in for the fuzz
-//! target, which waits for a nightly toolchain.
-//!
-//! A sweep asserts that what it injects fell (testing-strategy.md, 3): each
-//! way a document can fail, a stream ending early, idle or failing, and a
-//! close in each state.
+//! The tokenizer's machine world (skein/docs/design/data/json.md, 6): each
+//! case checks a generated or transcript document against the reference
+//! under drawn limits and neighbours. The gate seeds also check error,
+//! fault and neighbour reach (skein/docs/design/testing/sweeps.md, 4).
 
 use skein_json::tokenizer::Error;
 use skein_json_world::generate::{self, Shape};
@@ -14,6 +9,9 @@ use skein_json_world::world::{self, Run, Settings};
 use skein_json_world::{Outcome, transcript};
 use skein_lib::Rng;
 use skein_protocol_kit::seen::Seen;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
+use std::convert::Infallible;
 
 const ROUNDS: u64 = 20_000;
 
@@ -97,78 +95,103 @@ const EVERY_NEIGHBOUR: [&str; 9] = [
 
 #[test]
 fn generated_and_mutated_documents_read_as_the_reference_reads_them_whatever_the_neighbours() {
+    let at_gate = gate();
     let mut tally = Seen::default();
     let mut mutations = generate::MutationBatch::default();
-    for round in 0..ROUNDS {
-        let seed = 0x0050_0000 + round;
-        let mut rng = Rng::new(seed);
-        let shape = Shape {
-            depth: u32::try_from(rng.between(2, 6)).unwrap(),
-            width: u32::try_from(rng.between(2, 8)).unwrap(),
-            string: u32::try_from(rng.between(0, 16)).unwrap(),
-        };
-        let tokens = generate::tokens(&mut rng, shape);
-        let document = generate::render(&mut rng, &tokens);
-        let document = if rng.chance(600) { generate::mutate(&mut rng, &document) } else { document.into() };
-        let limits = world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, document.input().len());
-        let run = mutations.judge(document, |document| world::check(&document, &settings, seed));
-        record(&mut tally, &run, &settings);
-    }
+    cases(
+        this_test!("generated_and_mutated_documents_read_as_the_reference_reads_them_whatever_the_neighbours"),
+        0x0050_0000..0x0050_0000 + ROUNDS,
+        |seed| {
+            let mut rng = Rng::new(seed);
+            let shape = Shape {
+                depth: u32::try_from(rng.between(2, 6)).unwrap(),
+                width: u32::try_from(rng.between(2, 8)).unwrap(),
+                string: u32::try_from(rng.between(0, 16)).unwrap(),
+            };
+            let tokens = generate::tokens(&mut rng, shape);
+            let document = generate::render(&mut rng, &tokens);
+            let document = if rng.chance(600) { generate::mutate(&mut rng, &document) } else { document.into() };
+            let limits = world::limits(&mut rng);
+            let settings = Settings::chaotic(&mut rng, limits, document.input().len());
+            let run = mutations.judge(document, |document| world::check(&document, &settings, seed));
+            if at_gate {
+                record(&mut tally, &run, &settings);
+            }
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
-    tally.assert_fell(&EVERY_ERROR);
-    tally.assert_fell(&EVERY_FAULT);
-    tally.assert_fell(&EVERY_NEIGHBOUR);
+    if at_gate {
+        tally.assert_fell(&EVERY_ERROR);
+        tally.assert_fell(&EVERY_FAULT);
+        tally.assert_fell(&EVERY_NEIGHBOUR);
+    }
 }
 
 #[test]
 fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
     let (hostile, realistic): (Vec<_>, Vec<_>) =
         transcript::all().into_iter().partition(|transcript| transcript.name.starts_with("hostile-"));
+    let at_gate = gate();
     let mut tally = Seen::default();
     let mut mutations = generate::MutationBatch::default();
-    for round in 0..ROUNDS / 4 {
-        let seed = 0x0051_0000 + round;
-        let mut rng = Rng::new(seed);
-        // Mostly the realistic ones, which are long enough to cut and
-        // mutate in many places.
-        let transcripts = if rng.chance(800) { &realistic } else { &hostile };
-        let transcript = &transcripts[usize::try_from(rng.below(transcripts.len() as u64)).unwrap()];
-        let document = transcript.document.clone();
-        let document = if rng.chance(500) { generate::mutate(&mut rng, &document) } else { document.into() };
-        let mut limits = transcript.limits;
-        limits.chunk = u32::try_from(rng.between(1, 128)).unwrap();
-        let settings = Settings::chaotic(&mut rng, limits, document.input().len());
-        let run = mutations.judge(document, |document| world::check(&document, &settings, seed));
-        record(&mut tally, &run, &settings);
-    }
+    cases(
+        this_test!("transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them"),
+        0x0051_0000..0x0051_0000 + ROUNDS / 4,
+        |seed| {
+            let mut rng = Rng::new(seed);
+            // Mostly the realistic ones, which are long enough to cut and
+            // mutate in many places.
+            let transcripts = if rng.chance(800) { &realistic } else { &hostile };
+            let transcript = &transcripts[usize::try_from(rng.below(transcripts.len() as u64)).unwrap()];
+            let document = transcript.document.clone();
+            let document = if rng.chance(500) { generate::mutate(&mut rng, &document) } else { document.into() };
+            let mut limits = transcript.limits;
+            limits.chunk = u32::try_from(rng.between(1, 128)).unwrap();
+            let settings = Settings::chaotic(&mut rng, limits, document.input().len());
+            let run = mutations.judge(document, |document| world::check(&document, &settings, seed));
+            if at_gate {
+                record(&mut tally, &run, &settings);
+            }
+            Ok::<(), Infallible>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
-    tally.assert_fell(&EVERY_ERROR);
-    tally.assert_fell(&EVERY_FAULT);
-    tally.assert_fell(&EVERY_NEIGHBOUR);
+    if at_gate {
+        tally.assert_fell(&EVERY_ERROR);
+        tally.assert_fell(&EVERY_FAULT);
+        tally.assert_fell(&EVERY_NEIGHBOUR);
+    }
 }
 
 #[test]
 fn fuzzy_text_and_skip_demands_cover_each_disposition() {
     use skein_json::tokenizer::{Event, Limits};
     let limits = Limits { depth: 32, string: 4096, number: 128, chunk: 16, length: 1 << 20 };
+    let at_gate = gate();
     let mut token_count = 0;
     let mut longs = 0;
     let mut skipped = 0;
-    for seed in 0..2_000 {
+    cases(this_test!("fuzzy_text_and_skip_demands_cover_each_disposition"), 0..2_000, |seed| {
         let mut rng = Rng::new(seed);
         let tokens = generate::tokens(&mut rng, Shape { depth: 4, width: 4, string: 16 });
         let document = generate::render(&mut rng, &tokens);
         let settings = Settings::calm(&mut rng, limits);
         for event in world::check_demands(&document, &settings, seed).answers {
             match event {
-                Event::Token(_) => token_count += 1,
-                Event::Long(_) => longs += 1,
-                Event::Skipped(_) => skipped += 1,
-                Event::Done => {}
+                Event::Token(_) if at_gate => token_count += 1,
+                Event::Long(_) if at_gate => longs += 1,
+                Event::Skipped(_) if at_gate => skipped += 1,
+                Event::Token(_) | Event::Long(_) | Event::Skipped(_) | Event::Done => {}
                 event @ (Event::Failed(_) | Event::Closed) => panic!("unexpected {event:?}"),
             }
         }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        assert!(token_count > 0 && longs > 0 && skipped > 0);
     }
-    assert!(token_count > 0 && longs > 0 && skipped > 0);
 }

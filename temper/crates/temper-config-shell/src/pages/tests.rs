@@ -6,6 +6,7 @@ fn help_lists_only_the_shapes_public_rows_and_their_defaults_and_lines() {
         let page = String::from_utf8(help(shape).into_vec()).expect("UTF-8");
         let (table, _) = page.split_once("## Example file").expect("example follows keys");
         assert!(page.contains(crate::FILE));
+        assert!(table.contains("| `format` | 1 |"));
         assert_eq!(page.matches("restart").count(), 1);
         for row in rows::ROWS {
             let listed = table.lines().find(|line| line.starts_with(&format!("| `{}` |", key(row))));
@@ -37,8 +38,15 @@ fn help_examples_are_the_files_from_the_table() {
         (Shape::WorkerAlone, "engine = \"10.0.0.1:7200\""),
     ] {
         let page = String::from_utf8(help(shape).into_vec()).expect("UTF-8");
-        let file = page.split_once("```toml\n").expect("TOML example").1.strip_suffix("```\n").expect("fence");
-        assert_eq!(file.as_bytes(), render(&example(shape), shape).as_ref());
+        let (file, after) = page.split_once("```toml\n").expect("TOML example").1.split_once("```\n").expect("fence");
+        assert_eq!(file.as_bytes(), crate::render(&example(shape), shape).as_ref());
+        assert_eq!(
+            after,
+            format!(
+                "\n## Formats\n\nFormat 1 is the newest {} reads; a file without format is format 1.\n",
+                binary(shape)
+            )
+        );
         assert!(file.contains(expected));
         assert!(file.starts_with("# temper's "));
         if shape == Shape::EngineAlone {
@@ -82,6 +90,17 @@ fn configuration_is_the_table_reference() {
         assert!(text.contains(member.words));
     }
     assert!(text.ends_with("A job that fails for good holds the change, as a resolution that fails does.\n"));
+    let (before, merge) = text.split_once("## The merge command").expect("merge section");
+    assert!(!merge.contains("## Formats"));
+    let (_, formats) = before.split_once("## Formats\n").expect("formats before merge");
+    for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
+        assert!(
+            formats.contains(&format!(
+                "Format 1 is the newest {} reads; a file without format is format 1.",
+                binary(shape)
+            ))
+        );
+    }
     let page = skein_scratch::paths::tree().join("docs/help/reference/configuration.md");
     if temper_test_env::rewrite() {
         std::fs::write(page, rendered).expect("write reference");

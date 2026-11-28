@@ -1,10 +1,15 @@
-//! Seeded holds race snapshots, rollovers, payload drops and file-operation crashes (data/kv.md, 9).
+//! Seeded holds race snapshots, rollovers, payload drops and file-operation crashes (skein/docs/design/data/kv.md, 9).
+//! Cases take their seeds as in skein/docs/design/testing/sweeps.md, 4.
 
 use super::super::logs::{self, OWNER};
 use skein_kv::{Event, Op, Range, Request};
 use skein_kv_tests::world::World;
 use skein_lib::Token;
-use std::collections::BTreeMap;
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
+use std::{collections::BTreeMap, convert::Infallible};
 
 type Rows = BTreeMap<Vec<u8>, Vec<u8>>;
 
@@ -53,7 +58,9 @@ fn admit(world: &mut World, versions: &mut Vec<Model>, seed: &mut u64) {
         model.rows.insert(key.clone(), value.clone());
         Op::Put { key: key.into_boxed_slice(), value: value.into_boxed_slice() }
     };
+    let replies = world.above.len();
     world.start(Request::Commit { owner: OWNER, ops: Box::new([row, payload]) });
+    assert_eq!(world.above.len(), replies, "a disk commit is admitted without an inline reply");
     versions.push(model);
 }
 
@@ -85,6 +92,35 @@ fn commits(world: &mut World) {
     }
 }
 
+fn prepare_crash(world: &mut World, versions: &mut Vec<Model>, seed: &mut u64) {
+    for _ in 0..draw(seed) % 60 {
+        if !world.step(true) {
+            break;
+        }
+    }
+    commits(world);
+    if !world.file_pending() {
+        // The calm disk has finished its current requests. A commit on the
+        // held store starts file work even when the hold defers a rename.
+        admit(world, versions, seed);
+    }
+    assert!(world.file_pending(), "crash at a pending file operation");
+}
+
+#[test]
+fn crash_cut_with_no_file_pending_admits_work_at_a_full_width_seed() {
+    let mut world = logs::world();
+    world.start(Request::Hold { owner: OWNER });
+    assert!(matches!(world.pop(), Event::Held { last: 0, .. }));
+    assert!(!world.file_pending());
+
+    let mut versions = vec![Model::default()];
+    let mut seed = u64::MAX;
+    prepare_crash(&mut world, &mut versions, &mut seed);
+    assert_eq!(versions.len(), 2, "the fallback admits exactly one commit");
+    assert_eq!(world.store.last(), 0, "the crash cut precedes its acknowledgment");
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -95,7 +131,9 @@ fn copied_holds_recover_the_model_while_the_serving_store_runs_or_crashes() {
     let mut linked_segments = 0;
     let mut copied_segments = 0;
     let mut crashes = 0;
-    for initial in 1..=32 {
+    let at_gate = gate();
+    let test = this_test!("copied_holds_recover_the_model_while_the_serving_store_runs_or_crashes");
+    cases::<_, Infallible, _>(test, 1..=32, |initial| {
         let mut seed = initial;
         let mut limits = logs::limits();
         limits.segment = 80 + draw(&mut seed) % 160;
@@ -132,9 +170,11 @@ fn copied_holds_recover_the_model_while_the_serving_store_runs_or_crashes() {
                     Event::Held { last, snapshot, segments, .. } => {
                         assert_eq!(last, expected_last, "seed {initial}");
                         assert_eq!(world.store.last(), last, "copy before later commits are answered");
-                        snapshots += u32::from(snapshot);
-                        linked_segments += segments.iter().filter(|s| s.end.is_none()).count();
-                        copied_segments += segments.iter().filter(|s| s.end.is_some()).count();
+                        if at_gate {
+                            snapshots += u32::from(snapshot);
+                            linked_segments += segments.iter().filter(|s| s.end.is_none()).count();
+                            copied_segments += segments.iter().filter(|s| s.end.is_some()).count();
+                        }
                         let model = &versions[usize::try_from(last).expect("version")];
                         assert_eq!(rows(&mut world), model.rows, "seed {initial}: map at Held");
                         let extents: Vec<_> = model.extents.iter().map(|(&log, &end)| (log, end)).collect();
@@ -167,15 +207,7 @@ fn copied_holds_recover_the_model_while_the_serving_store_runs_or_crashes() {
             for _ in 0..3 {
                 admit(&mut world, &mut versions, &mut seed);
             }
-            for _ in 0..draw(&mut seed) % 60 {
-                if !world.step(true) {
-                    break;
-                }
-            }
-            if !world.file_pending() {
-                admit(&mut world, &mut versions, &mut seed);
-            }
-            assert!(world.file_pending(), "seed {initial}: crash at a pending file operation");
+            prepare_crash(&mut world, &mut versions, &mut seed);
             let acknowledged = world.store.last();
             world.crash(draw(&mut seed));
             world.request(Request::Open { owner: OWNER, root: world.root });
@@ -186,7 +218,9 @@ fn copied_holds_recover_the_model_while_the_serving_store_runs_or_crashes() {
                 &versions[usize::try_from(recovered).expect("version")],
                 &format!("seed {initial}: source after crash"),
             );
-            crashes += 1;
+            if at_gate {
+                crashes += 1;
+            }
         } else {
             world.start(Request::Release { owner: OWNER });
             assert_eq!(world.pop(), Event::Released { owner: OWNER });
@@ -200,9 +234,13 @@ fn copied_holds_recover_the_model_while_the_serving_store_runs_or_crashes() {
         check(&mut world, &versions[usize::try_from(last).expect("version")], &format!("seed {initial}: copy"));
         world.request(Request::Close { owner: OWNER });
         assert_eq!(world.pop(), Event::Closed { owner: OWNER });
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        assert!(
+            snapshots > 0 && linked_segments > 0 && copied_segments > 0 && crashes > 0,
+            "draws cover both copy forms, snapshots and crashes"
+        );
     }
-    assert!(
-        snapshots > 0 && linked_segments > 0 && copied_segments > 0 && crashes > 0,
-        "draws cover both copy forms, snapshots and crashes"
-    );
 }

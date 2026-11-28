@@ -91,7 +91,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         return refuse(store, owner, OpenRefusal::Unready { why: crate::Unready::Upgrade }, above);
     }
     if jobs {
-        store.directory.patch = Some(Box::new(found_levels));
+        store.directory.upgrade_levels = Some(Box::new(found_levels));
     }
     let registry = match crate::registry::open(store, false) {
         Ok(writing) => writing,
@@ -100,8 +100,8 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     if registry && store.directory.purpose == crate::Purpose::Checkpoint {
         return refuse(store, owner, OpenRefusal::Unready { why: crate::Unready::Upgrade }, above);
     }
-    if registry && store.directory.patch.is_none() {
-        store.directory.patch = Some(Box::new(found_levels));
+    if registry && store.directory.upgrade_levels.is_none() {
+        store.directory.upgrade_levels = Some(Box::new(found_levels));
     }
     if header.is_none() {
         refuse(store, owner, OpenRefusal::Numbers { store: last, header: 0 }, above);
@@ -261,7 +261,7 @@ fn ready(
         return;
     }
     store.directory.admitted_schemas = None;
-    if store.directory.patch.is_none() {
+    if store.directory.upgrade_levels.is_none() {
         // Serving codecs read the catalogue after the registry's commit and jobs (protocol/store/opening.md, 2).
         if let Err(failure) = crate::catalogue::catalogue(store) {
             store.open_failed(restore::OpenFailure::Data(failure));

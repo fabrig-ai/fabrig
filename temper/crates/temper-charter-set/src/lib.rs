@@ -7,6 +7,8 @@ use alloc::boxed::Box;
 use core::fmt;
 use skein_lib::{List, Writer};
 
+mod format;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum File {
     Common,
@@ -63,6 +65,9 @@ pub struct Part<R> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Refusal {
     UnknownFile { name: Box<str> },
+    FrontMatter { file: File },
+    BadFormat { file: File },
+    NewerFormat { file: File, number: Box<str> },
     BeforeSection { file: File, line: usize },
     EmptyReason { file: File, line: usize },
     RepeatedReason { file: File, line: usize, name: Box<str> },
@@ -74,6 +79,13 @@ impl fmt::Display for Refusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownFile { name } => write!(f, "{name}: unknown Markdown file"),
+            Self::FrontMatter { file } => write!(f, "{}: front matter holds format = N alone", file.name()),
+            Self::BadFormat { file } => write!(f, "{}: format: a whole number from 1", file.name()),
+            Self::NewerFormat { file, number } => write!(
+                f,
+                "{}: format {number}; this temper ctl reads format 1: upgrade it, or write the file at format 1",
+                file.name()
+            ),
             Self::BeforeSection { file, line } => write!(f, "{}:{line}: text before first section", file.name()),
             Self::EmptyReason { file, line } => write!(f, "{}:{line}: empty reason", file.name()),
             Self::RepeatedReason { file, line, name } => write!(f, "{}:{line}: repeated reason {name}", file.name()),

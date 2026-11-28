@@ -97,6 +97,7 @@ pub(super) fn answered(
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -150,6 +151,7 @@ fn read_error(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
     }

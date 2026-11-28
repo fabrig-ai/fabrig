@@ -6,6 +6,9 @@ temper/docs/help/**
 temper/docs/design/draft/reference-code-production.md
 temper/docs/design/protocol/setup/owned.md
 temper/docs/examples/reference/README.md
+temper/docs/examples/formats/charters/1/*.md
+temper/docs/examples/formats/settings/1/*.json
+temper/docs/examples/formats/**
 jig/docs/design/protocol/store/README.md
 jig/docs/design/protocol/store/records.md
 jig/docs/design/protocol/store/opening.md

@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x6b, 0x07, 0x38, 0x44, 0x2c, 0xae, 0x7e, 0x65, 0x9b, 0x7f, 0x52, 0xed, 0x77, 0x84, 0xb8, 0x61, 0x6a, 0x9d, 0x99,
-    0xf3, 0x60, 0x8c, 0x19, 0xeb, 0x87, 0x16, 0xdb, 0x09, 0x44, 0xe7, 0x0a, 0xd0,
+    0x8e, 0x38, 0x92, 0x81, 0x11, 0xb9, 0xcb, 0x5a, 0x04, 0x03, 0x37, 0x75, 0x2a, 0x56, 0x9d, 0x09, 0x0b, 0x97, 0x47,
+    0xdb, 0x51, 0xe2, 0x2f, 0xf0, 0x30, 0xef, 0xa8, 0x57, 0x2b, 0xbb, 0xd1, 0xa6,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -311,6 +311,7 @@ pub struct Limits {
     pub closer_landing_changes: u32,
     pub closer_selections: u32,
     pub closer_superseded: u32,
+    pub closer_catch_up_changes: u32,
     pub landed_draft_path: u32,
     pub landed_draft_branch: u32,
     pub landed_draft_title: u32,
@@ -701,6 +702,7 @@ pub const CEILINGS: Limits = Limits {
     closer_landing_changes: 1_024,
     closer_selections: 1_024,
     closer_superseded: 1_024,
+    closer_catch_up_changes: 1_024,
     landed_draft_path: 1_024,
     landed_draft_branch: 1_024,
     landed_draft_title: 200,
@@ -1091,6 +1093,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "closer_landing_changes",
     "closer_selections",
     "closer_superseded",
+    "closer_catch_up_changes",
     "landed_draft_path",
     "landed_draft_branch",
     "landed_draft_title",
@@ -1485,6 +1488,7 @@ impl Limits {
             self.closer_landing_changes,
             self.closer_selections,
             self.closer_superseded,
+            self.closer_catch_up_changes,
             self.landed_draft_path,
             self.landed_draft_branch,
             self.landed_draft_title,
@@ -1880,6 +1884,7 @@ impl Limits {
             closer_landing_changes: self.closer_landing_changes.min(most),
             closer_selections: self.closer_selections.min(most),
             closer_superseded: self.closer_superseded.min(most),
+            closer_catch_up_changes: self.closer_catch_up_changes.min(most),
             landed_draft_path: self.landed_draft_path.min(most),
             landed_draft_branch: self.landed_draft_branch.min(most),
             landed_draft_title: self.landed_draft_title.min(most),
@@ -2272,6 +2277,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CLOSER_LANDING_CHANGES,
     paths::CLOSER_SELECTIONS,
     paths::CLOSER_SUPERSEDED,
+    paths::CLOSER_CATCH_UP_CHANGES,
     paths::LANDED_DRAFT_PATH,
     paths::LANDED_DRAFT_BRANCH,
     paths::LANDED_DRAFT_TITLE,
@@ -3982,6 +3988,8 @@ pub mod paths {
     pub const CLOSER_DONE: Path = Path::new("Closer.done");
     pub const CLOSER_RELAY: Path = Path::new("Closer.relay");
     pub const CLOSER_SUPERSEDED: Path = Path::new("Closer.superseded");
+    pub const CLOSER_CAUGHT_UP: Path = Path::new("Closer.caught_up");
+    pub const CLOSER_CATCH_UP_CHANGES: Path = Path::new("Closer.catch_up_changes");
     pub const CLOSER_TAIL: Path = Path::new("Closer (tail)");
     pub const LANDED_DRAFT_REPOSITORY: Path = Path::new("LandedDraft.repository");
     pub const LANDED_DRAFT_PATH: Path = Path::new("LandedDraft.path");
@@ -4241,10 +4249,12 @@ pub mod paths {
     pub const REGATE_TAIL: Path = Path::new("Regate (tail)");
     pub const CLOSE_REFUSED_COUNTS: Path = Path::new("CloseRefused.counts");
     pub const CLOSE_REFUSED_TAIL: Path = Path::new("CloseRefused (tail)");
+    pub const CLOSE_OUTDATED_TAG: Path = Path::new("CloseOutdated (tag)");
     pub const CLOSE_AT_BRANCH: Path = Path::new("CloseAt.branch");
     pub const CLOSE_AT_LANDING: Path = Path::new("CloseAt.landing");
     pub const CLOSE_AT_ASKED: Path = Path::new("CloseAt.asked");
     pub const CLOSE_AT_REFUSED: Path = Path::new("CloseAt.refused");
+    pub const CLOSE_AT_OUTDATED: Path = Path::new("CloseAt.outdated");
     pub const CLOSE_AT_TAIL: Path = Path::new("CloseAt (tail)");
     pub const BEHIND_READ_TAG: Path = Path::new("BehindRead (tag)");
     pub const READ_BEHIND_READ: Path = Path::new("ReadBehind.read");
@@ -31903,6 +31913,7 @@ impl Record for Decided {
 pub enum ClosingStep {
     Close,
     Land,
+    CatchUp,
 }
 
 // Record: ClosingStep.
@@ -31910,7 +31921,8 @@ impl ClosingStep {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -31942,6 +31954,7 @@ impl Record for ClosingStep {
         match self {
             Self::Close => field::put(out, &[0], paths::CLOSING_STEP_TAG),
             Self::Land => field::put(out, &[1], paths::CLOSING_STEP_TAG),
+            Self::CatchUp => field::put(out, &[2], paths::CLOSING_STEP_TAG),
         }
     }
 
@@ -31950,7 +31963,8 @@ impl Record for ClosingStep {
         match tag {
             0 => Ok(Self::Close),
             1 => Ok(Self::Land),
-            2..=u8::MAX => Err(Problem { path: paths::CLOSING_STEP_TAG, reason: skein_codec::Reason::Tag }),
+            2 => Ok(Self::CatchUp),
+            3..=u8::MAX => Err(Problem { path: paths::CLOSING_STEP_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -32788,6 +32802,8 @@ pub struct Closer {
     pub done: bool,
     pub relay: Option<ClosingRelay>,
     pub superseded: List<u64>,
+    pub caught_up: Option<ClosingTasks>,
+    pub catch_up_changes: List<u64>,
 }
 
 // Record: Closer.
@@ -32823,11 +32839,15 @@ impl Closer {
         skein_codec::bounds::Node::Option { item: 26 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_superseded), item: 28, size: size_of::<u64>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25, 27, 29] },
+        skein_codec::bounds::Node::Named("ClosingTasks"),
+        skein_codec::bounds::Node::Option { item: 30 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_catch_up_changes), item: 32, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25, 27, 29, 31, 33] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 137;
+    pub const ENCODED_AT_ZERO: u64 = 146;
 }
 
 impl Record for Closer {
@@ -32869,6 +32889,8 @@ impl Record for Closer {
         field::write(field::Boolean, &self.done, limits, out, paths::CLOSER_DONE)?;
         field::write(field::Optional { item: field::Nested }, &self.relay, limits, out, paths::CLOSER_RELAY)?;
         field::write(field::Sequence { limit: limits.closer_superseded.min(CEILINGS.closer_superseded), minimum: 8, item: field::U64 }, &self.superseded, limits, out, paths::CLOSER_SUPERSEDED)?;
+        field::write(field::Optional { item: field::Nested }, &self.caught_up, limits, out, paths::CLOSER_CAUGHT_UP)?;
+        field::write(field::Sequence { limit: limits.closer_catch_up_changes.min(CEILINGS.closer_catch_up_changes), minimum: 8, item: field::U64 }, &self.catch_up_changes, limits, out, paths::CLOSER_CATCH_UP_CHANGES)?;
         Ok(())
     }
 
@@ -32891,6 +32913,8 @@ impl Record for Closer {
             done: field::read(field::Boolean, limits, reader, paths::CLOSER_DONE)?,
             relay: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSER_RELAY)?,
             superseded: field::read(field::Sequence { limit: limits.closer_superseded.min(CEILINGS.closer_superseded), minimum: 8, item: field::U64 }, limits, reader, paths::CLOSER_SUPERSEDED)?,
+            caught_up: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSER_CAUGHT_UP)?,
+            catch_up_changes: field::read(field::Sequence { limit: limits.closer_catch_up_changes.min(CEILINGS.closer_catch_up_changes), minimum: 8, item: field::U64 }, limits, reader, paths::CLOSER_CATCH_UP_CHANGES)?,
         })
     }
 }
@@ -37532,6 +37556,63 @@ impl Record for CloseRefused {
     }
 }
 
+// Type: CloseOutdated.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum CloseOutdated {
+    Window,
+    Ancestry,
+}
+
+// Record: CloseOutdated.
+impl CloseOutdated {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for CloseOutdated {
+    type Limits = Limits;
+    const TAIL: Path = paths::CLOSE_OUTDATED_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CloseOutdated")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CloseOutdated")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Window => field::put(out, &[0], paths::CLOSE_OUTDATED_TAG),
+            Self::Ancestry => field::put(out, &[1], paths::CLOSE_OUTDATED_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::CLOSE_OUTDATED_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Window),
+            1 => Ok(Self::Ancestry),
+            2..=u8::MAX => Err(Problem { path: paths::CLOSE_OUTDATED_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: CloseAt.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CloseAt {
@@ -37539,6 +37620,7 @@ pub struct CloseAt {
     pub landing: [u8; 32],
     pub asked: bool,
     pub refused: Option<CloseRefused>,
+    pub outdated: Option<CloseOutdated>,
 }
 
 // Record: CloseAt.
@@ -37549,11 +37631,13 @@ impl CloseAt {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("CloseRefused"),
         skein_codec::bounds::Node::Option { item: 3 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4] },
+        skein_codec::bounds::Node::Named("CloseOutdated"),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 99;
+    pub const ENCODED_AT_ZERO: u64 = 101;
 }
 
 impl Record for CloseAt {
@@ -37582,6 +37666,7 @@ impl Record for CloseAt {
         field::write(field::Fixed::<32>, &self.landing, limits, out, paths::CLOSE_AT_LANDING)?;
         field::write(field::Boolean, &self.asked, limits, out, paths::CLOSE_AT_ASKED)?;
         field::write(field::Optional { item: field::Nested }, &self.refused, limits, out, paths::CLOSE_AT_REFUSED)?;
+        field::write(field::Optional { item: field::Nested }, &self.outdated, limits, out, paths::CLOSE_AT_OUTDATED)?;
         Ok(())
     }
 
@@ -37591,6 +37676,7 @@ impl Record for CloseAt {
             landing: field::read(field::Fixed::<32>, limits, reader, paths::CLOSE_AT_LANDING)?,
             asked: field::read(field::Boolean, limits, reader, paths::CLOSE_AT_ASKED)?,
             refused: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSE_AT_REFUSED)?,
+            outdated: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSE_AT_OUTDATED)?,
         })
     }
 }
@@ -38130,7 +38216,7 @@ impl ChangeHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1756;
+    pub const ENCODED_AT_ZERO: u64 = 1758;
 }
 
 impl Record for ChangeHot {
@@ -43295,7 +43381,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1757;
+    pub const ENCODED_AT_ZERO: u64 = 1759;
 }
 
 impl Record for Value {
@@ -43450,7 +43536,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1759;
+    pub const ENCODED_AT_ZERO: u64 = 1761;
 }
 
 impl Record for Row {
@@ -43569,6 +43655,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ClientRow", nodes: ClientRow::SHAPE },
     skein_codec::bounds::Declaration { name: "ClientValue", nodes: ClientValue::SHAPE },
     skein_codec::bounds::Declaration { name: "CloseAt", nodes: CloseAt::SHAPE },
+    skein_codec::bounds::Declaration { name: "CloseOutdated", nodes: CloseOutdated::SHAPE },
     skein_codec::bounds::Declaration { name: "CloseRefused", nodes: CloseRefused::SHAPE },
     skein_codec::bounds::Declaration { name: "Closer", nodes: Closer::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingAsked", nodes: ClosingAsked::SHAPE },
@@ -44406,6 +44493,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.closer_landing_changes,
     CEILINGS.closer_selections,
     CEILINGS.closer_superseded,
+    CEILINGS.closer_catch_up_changes,
     CEILINGS.landed_draft_path,
     CEILINGS.landed_draft_branch,
     CEILINGS.landed_draft_title,

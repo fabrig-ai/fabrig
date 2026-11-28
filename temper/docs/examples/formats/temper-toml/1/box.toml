@@ -1,0 +1,40 @@
+# Standalone box behind our HTTPS proxy.
+listen = "127.0.0.1:7100"
+public = "https://temper.example.com"
+webhooks = "127.0.0.1:7110" # The proxy forwards forge hooks here.
+owner = "sam@example.com" # Only used when creating the store.
+
+[sign_in.google]
+client = "fixture-box.apps.googleusercontent.com"
+secret = "secrets/google.secret"
+
+[[sign_in.members]]
+address = "sam@example.com"
+login = "sam"
+
+[[sign_in.forges]]
+forge = 1
+client = "forgejo"
+
+[openid]
+key = "provider.key"
+addresses = [1, 3]
+
+[[openid.clients]]
+id = "forgejo"
+secret = "secrets/forgejo-client.secret"
+redirect = "https://forge.example.com/user/oauth2/temper/callback"
+
+[push]
+key = "push.key"
+subject = "mailto:sam@example.com"
+
+[programs]
+git = "/usr/bin/git"
+claude = "/usr/local/bin/claude"
+forgejo = "/usr/local/bin/forgejo"
+runner = "/usr/local/bin/forgejo-runner"
+
+[environment]
+TZ = "UTC"
+LANG = "C.UTF-8"

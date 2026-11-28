@@ -23,7 +23,7 @@ fn order(store: &mut Store, number: u16) -> Option<Box<[[u8; 32]]>> {
     Some(wire.layouts.into_boxed())
 }
 
-fn write(disk: &mut Disk, store: &mut Store, rows: &[(&[u8], &[u8])]) -> u64 {
+pub(super) fn write(disk: &mut Disk, store: &mut Store, rows: &[(&[u8], &[u8])]) -> u64 {
     let number = store.stores.store.last() + 1;
     let mut writes = vec![fixtures::header(number)];
     for &(key, bytes) in rows {
@@ -35,7 +35,7 @@ fn write(disk: &mut Disk, store: &mut Store, rows: &[(&[u8], &[u8])]) -> u64 {
     number
 }
 
-fn get(disk: &mut Disk, store: &mut Store, key: &[u8]) -> Box<[u8]> {
+pub(super) fn get(disk: &mut Disk, store: &mut Store, key: &[u8]) -> Box<[u8]> {
     let events = disk.request(store, Request::Get { owner: Token::new(1), key: Get::Application(key.into()) });
     let [Event::Got { row: Some(Row::Application { value, .. }), .. }] = events.as_ref() else { panic!("{events:?}") };
     value.clone()
@@ -183,7 +183,12 @@ fn assert_refusal(events: &[Event], refused: u64, why: Refused, declaration: &st
             value_type: 0,
             id: 3,
             values: Some(values),
-            why: Unplanned::Unkept(crate::Unkept { refused, why, declaration: declaration.into(), part: part.into() }),
+            why: Unplanned::Unkept(crate::Refusals {
+                refused,
+                why,
+                declaration: declaration.into(),
+                part: part.into()
+            }),
         }
     );
 }
@@ -288,7 +293,9 @@ fn a_job_that_names_a_later_layout_takes_its_values_before_the_keep_check() {
     let mut earlier = store(&disk, set);
     let events = disk.open(&mut earlier);
     let [Event::Job { owner, page, .. }] = events.as_ref() else { panic!("{events:?}") };
-    assert_eq!(page.layout.as_ref().unwrap().text.as_ref(), BACK_LATER.as_bytes());
+    let layout = page.layout.as_ref().unwrap();
+    assert_eq!(layout.text.as_ref(), BACK_LATER.as_bytes());
+    assert_eq!(layout.mode, skein_codec::layout::Mode::Keep);
     assert_eq!(page.rows.len(), 1);
     assert_eq!(page.rows[0].key.as_ref(), b"a/1");
     assert_eq!(page.rows[0].value.as_ref(), &[&[0, 3], &unkept[2..]].concat());

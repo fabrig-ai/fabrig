@@ -81,7 +81,7 @@ fn a_configured_floor_goes_back_to_no_previous_generation() {
 }
 
 #[test]
-fn every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row() {
+fn every_golden_key_has_exactly_one_owner_family_or_a_reserved_component_row() {
     temper_one_process_world::upgrade::golden_ranges(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"),
     );

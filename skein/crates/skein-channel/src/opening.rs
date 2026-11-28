@@ -1,37 +1,11 @@
 //! Opening policy that is mechanical rather than the owner's decision
-//! (net/channel.md, sections 5.1–5.3). The machine checks magic, range, phase
+//! (net/channel.md, sections 5.1–5.3). The machine checks magic, phase
 //! and terms; its owner alone judges credentials and acceptable limits.
 use alloc::boxed::Box;
-use skein_lib::{Decimal, List, Writer};
+use skein_lib::{List, Writer};
 
 use super::schema::KindTableError;
-
-/// Version refusal, with this side's range before the peer's (net/channel.md, 5.2).
-pub(super) fn version_words(ours: (u16, u16), offered: (u16, u16)) -> Box<[u8]> {
-    let low = Decimal::of(u64::from(ours.0));
-    let high = Decimal::of(u64::from(ours.1));
-    let peer_low = Decimal::of(u64::from(offered.0));
-    let peer_high = Decimal::of(u64::from(offered.1));
-    let parts: [&[u8]; 8] = [
-        b"speaks ",
-        low.as_bytes(),
-        b"..",
-        high.as_bytes(),
-        b", offered ",
-        peer_low.as_bytes(),
-        b"..",
-        peer_high.as_bytes(),
-    ];
-    let mut length = 0_usize;
-    for part in parts {
-        length = length.checked_add(part.len()).expect("four u16 ranges fit");
-    }
-    let mut out = Writer::new(length);
-    for part in parts {
-        out.put(part).expect("measured version refusal");
-    }
-    out.finish()
-}
+use super::{Direction, Limits, Role, Schema, Term};
 
 /// Limits refusal for a responder's invalid replacement table (net/channel.md, 5.2).
 pub(super) fn table_words(error: KindTableError) -> Box<[u8]> {
@@ -49,39 +23,10 @@ pub(super) fn table_words(error: KindTableError) -> Box<[u8]> {
     out.put(why).expect("measured table refusal");
     out.finish()
 }
-
-use super::{Direction, Limits, Role, Schema, Term};
-
-/// Returns the offered intersection or a frozen refusal reason.
-pub(super) fn accept_open(
-    schema: &Schema,
-    magic: [u8; 4],
-    lowest: u16,
-    highest: u16,
-    features: u16,
-) -> Result<(u16, u16), u16> {
-    if magic != schema.magic || lowest > highest || features != 0 {
-        return Err(3);
-    }
-    let (ours_low, ours_high) = schema.range().expect("validated versions");
-    let common_low = lowest.max(ours_low);
-    let common_high = highest.min(ours_high);
-    if common_low > common_high {
-        return Err(1);
-    }
-    Ok((common_low, common_high))
-}
-
-/// Whether an Accept names a version in this side's offer.
-pub(super) fn offers_version(schema: &Schema, number: u16) -> bool {
-    schema.version(number).is_some()
-}
-
-/// Builds the terms for kinds this side receives in one version.
-pub(super) fn local_terms(schema: &Schema, role: Role, number: u16, limits: &Limits) -> List<Term> {
-    let version = schema.version(number).expect("selected version is supported");
+/// Builds the terms for kinds this side receives.
+pub(super) fn local_terms(schema: &Schema, role: Role, limits: &Limits) -> List<Term> {
     let mut terms = List::with_capacity(limits.kinds);
-    for kind in &version.kinds {
+    for kind in &schema.kinds {
         let receive = match role {
             Role::Initiator => match kind.direction {
                 Direction::FromInitiator => false,
@@ -101,10 +46,9 @@ pub(super) fn local_terms(schema: &Schema, role: Role, number: u16, limits: &Lim
 
 /// Checks that peer terms name only distinct kinds this side may send.
 #[expect(clippy::manual_let_else, reason = "step code uses an exhaustive match instead of let-else")]
-pub(super) fn check_terms(schema: &Schema, role: Role, number: u16, terms: &List<Term>) -> bool {
-    let version = schema.version(number).expect("selected version is supported");
+pub(super) fn check_terms(schema: &Schema, role: Role, terms: &List<Term>) -> bool {
     for (index, term) in terms.iter().enumerate() {
-        let kind = match version.kind(term.kind) {
+        let kind = match schema.kind(term.kind) {
             Some(kind) => kind,
             None => return false,
         };

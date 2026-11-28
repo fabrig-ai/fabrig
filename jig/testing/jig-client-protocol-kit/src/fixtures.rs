@@ -73,11 +73,10 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         served: jig_client_kit::test::list([
             Served {
                 family: None,
-                first: jig_client_protocol_wire::VERSION,
-                last: jig_client_protocol_wire::VERSION,
+                version: jig_client_protocol_wire::VERSION,
                 layout: jig_client_protocol_wire::LAYOUT,
             },
-            Served { family: Some(1), first: 2, last: 2, layout: jig_client_test_protocol_wire::LAYOUT },
+            Served { family: Some(1), version: 2, layout: jig_client_test_protocol_wire::LAYOUT },
         ]),
         providers: jig_client_kit::test::list([0]),
         seed: Secret::new(Box::new([7; 32])),

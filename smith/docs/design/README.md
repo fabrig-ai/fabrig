@@ -87,3 +87,4 @@
 20. **testing-tiers.md:** the tiers, including simulated worlds, the real loop, and end to end.
 21. **drawn-agent.md:** what the fake model says in smith's worlds: a body for every tool, the slots, the refusals it targets, its weights.
 22. **shapes.md:** the words in which smith's worlds count the shapes their completions reached.
+23. **parks.md:** a session's states at a park, as kinds smith's worlds draw, with what each becomes if the run resumes or ends.

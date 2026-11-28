@@ -6,9 +6,9 @@ use skein_forge::api::Commit;
 use skein_json::{Kind, document::Document};
 use skein_lib::{Decimal, List, bytes};
 use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_closer::relay::{CLOSE_FAILURES, CLOSE_REFUSED_AT as PREFIX};
 use temper_engine_domain_forge_landing::{Fault, Judgement, Shown, judge};
 
-const PREFIX: &[u8] = b"the close check refused the goal's branch at ";
 const BASE: &[u8] = b", against main at ";
 const MOVES: &[u8] = b"; it checks again once the goal's branch or main moves.";
 const BROKE: &[u8] = b"the close check broke and didn't judge the goal: ";
@@ -18,47 +18,44 @@ const FINISHED: &[u8] = b"it finished with ";
 const RESULT_PREFIX_BYTES: usize = 64;
 const HOLD_BYTES: u32 = jig_domain_tasks::HOLD_ACCOUNT_BYTES;
 
-pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) {
-    let Some((_, kind)) = row.delegate else { return };
+pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) -> Option<Box<[u8]>> {
+    let (_, kind) = row.delegate?;
     if row.delegate_status != change::Status::Passed
         || kind != change::Delegate::Close
         || row.change.state != (change::State::Producing { requested: true })
     {
-        return;
+        return None;
     }
-    let verdict = result(&row.report, row.close_at, pushed);
-    match classify(verdict.as_ref(), false) {
-        Judgement::Passed => {}
-        Judgement::Refused => {
-            let Some(Verdict::Refused { counts, words }) = verdict else { unreachable!("a shown refusal") };
-            // The refusal was validated against this attempt above.
-            row.close_at.as_mut().expect("a refusal names its attempt").refused = Some(change::CloseRefused { counts });
+    match result(&row.report, row.close_at, pushed) {
+        Some(Verdict::Settled) => {}
+        Some(Verdict::Outdated(finding)) => {
+            // No landing judgement was made. Leave the job passed so the change can end without a hold.
+            let at = row.close_at.as_mut().expect("an outdated finding names its attempt");
+            at.refused = None;
+            at.outdated = Some(finding);
+        }
+        Some(Verdict::Refused { counts, words, goal_words }) => {
+            let at = row.close_at.as_mut().expect("a refusal names its attempt");
+            at.refused = Some(change::CloseRefused { counts });
+            at.outdated = None;
             row.delegate_status = change::Status::Failed;
             row.producer_failure = Some(words);
             row.report = Box::new([]);
+            return Some(goal_words);
         }
-        Judgement::Broke => {
+        None => {
             let words = finished_words(&row.report);
             row.delegate_status = change::Status::Failed;
             row.producer_failure = Some(words);
             row.report = Box::new([]);
-            clear_refusal(row);
+            clear_findings(row);
         }
-        Judgement::Runner(_) => unreachable!("a finished job was not lost"),
     }
-}
-
-fn classify(verdict: Option<&Verdict>, lost: bool) -> Judgement {
-    let shown = match verdict {
-        Some(Verdict::Settled) => Shown::Passed,
-        Some(Verdict::Refused { .. }) => Shown::Failures,
-        None => Shown::Nothing,
-    };
-    judge(shown, if lost { Some(Fault::Lost) } else { None })
+    None
 }
 
 pub(crate) fn failed_words(words: &[u8], failed: bool, lost: bool) -> Box<[u8]> {
-    match classify(None, lost) {
+    match judge(Shown::Nothing, if lost { Some(Fault::Lost) } else { None }) {
         Judgement::Runner(Fault::Lost) => not_judged(LOST, words),
         Judgement::Broke => {
             if failed {
@@ -81,9 +78,10 @@ pub(crate) fn failed_words(words: &[u8], failed: bool, lost: bool) -> Box<[u8]> 
     }
 }
 
-pub(crate) fn clear_refusal(row: &mut ChangeRow) {
+pub(crate) fn clear_findings(row: &mut ChangeRow) {
     if let Some(at) = &mut row.close_at {
         at.refused = None;
+        at.outdated = None;
     }
 }
 
@@ -105,7 +103,8 @@ fn finished_words(result: &[u8]) -> Box<[u8]> {
 
 enum Verdict {
     Settled,
-    Refused { counts: Option<Commit>, words: Box<[u8]> },
+    Refused { counts: Option<Commit>, words: Box<[u8]>, goal_words: Box<[u8]> },
+    Outdated(change::CloseOutdated),
 }
 
 fn result(raw: &[u8], at: Option<change::CloseAt>, pushed: bool) -> Option<Verdict> {
@@ -113,15 +112,41 @@ fn result(raw: &[u8], at: Option<change::CloseAt>, pushed: bool) -> Option<Verdi
     let limits = skein_json::tokenizer::Limits { depth: 4, string: length, number: 20, chunk: 256, length };
     let document =
         skein_json::parse(raw, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
-    if let Some(refused) = document.member(0, b"refused") {
-        let at = at?;
-        if !at.asked || pushed || refused != 2 || document.value_end(refused)?.checked_add(1)? != document.len() {
-            return None;
-        }
-        return refusal(&document, refused, at.branch);
+    if let Some(object) = document.member(0, b"outdated") {
+        let start = typed_start(&document, object, at?, pushed)?;
+        return outdated(&document, object, start);
+    }
+    if let Some(object) = document.member(0, b"refused") {
+        let start = typed_start(&document, object, at?, pushed)?;
+        return refusal(&document, object, start);
     }
     strings(&document, document.member(0, b"settled")?)?;
     Some(Verdict::Settled)
+}
+
+// A typed result is the only member of the outer object and needs its job's ask and read-back.
+fn typed_start(document: &Document, object: u32, at: change::CloseAt, pushed: bool) -> Option<Commit> {
+    if !at.asked || pushed || object != 2 || document.value_end(object)?.checked_add(1)? != document.len() {
+        return None;
+    }
+    Some(at.branch)
+}
+
+fn outdated(document: &Document, object: u32, start: Commit) -> Option<Verdict> {
+    let head = commit(document, document.member(object, b"head")?)?;
+    let why = document.token(document.member(object, b"why")?)?;
+    if head != start || why.kind != Kind::String || members(document, object)? != 2 {
+        return None;
+    }
+    let why = document.text(why)?;
+    let finding = if why == b"window" {
+        change::CloseOutdated::Window
+    } else if why == b"ancestry" {
+        change::CloseOutdated::Ancestry
+    } else {
+        return None;
+    };
+    Some(Verdict::Outdated(finding))
 }
 
 fn refusal(document: &Document, object: u32, start: Commit) -> Option<Verdict> {
@@ -137,6 +162,15 @@ fn refusal(document: &Document, object: u32, start: Commit) -> Option<Verdict> {
         Some(value) => (number(document, value)?, 6),
         None => (0, 5),
     };
+    if members(document, object)? != expected || (names.is_empty() && more == 0) {
+        return None;
+    }
+    let words = refusal_words(document, names.clone(), more, head, base, counts);
+    let goal_words = goal_refusal_words(document, names, more, head);
+    Some(Verdict::Refused { counts, words, goal_words })
+}
+
+fn members(document: &Document, object: u32) -> Option<u32> {
     let end = document.value_end(object)?.checked_sub(1)?;
     let start = object.checked_add(1)?;
     let mut members = 0_u32;
@@ -148,11 +182,7 @@ fn refusal(document: &Document, object: u32, start: Commit) -> Option<Verdict> {
         members = members.checked_add(1)?;
         cursor = document.value_end(index.checked_add(1)?)?;
     }
-    if members != expected || (names.is_empty() && more == 0) {
-        return None;
-    }
-    let words = refusal_words(document, names, more, head, base, counts);
-    Some(Verdict::Refused { counts, words })
+    Some(members)
 }
 
 fn strings(document: &Document, array: u32) -> Option<core::ops::Range<u32>> {
@@ -201,6 +231,35 @@ fn commit(document: &Document, index: u32) -> Option<Commit> {
         *byte = high.checked_mul(16)?.checked_add(low)?;
     }
     Some(commit)
+}
+
+fn goal_refusal_words(document: &Document, names: core::ops::Range<u32>, more: u64, head: Commit) -> Box<[u8]> {
+    let suffix = Decimal::of(more);
+    let mut size = PREFIX.len().saturating_add(12).saturating_add(CLOSE_FAILURES.len()).saturating_add(1);
+    for index in names.clone() {
+        let separator = if index == names.start { 0 } else { 2 };
+        size = size.saturating_add(separator).saturating_add(name(document, index).len());
+    }
+    if more != 0 {
+        size = size.saturating_add(b" and  more".len()).saturating_add(suffix.as_bytes().len());
+    }
+    let mut words = List::with_capacity(u32::try_from(size).expect("bounded close result and framing"));
+    append(&mut words, PREFIX);
+    short_commit(&mut words, &head);
+    append(&mut words, CLOSE_FAILURES);
+    for index in names.clone() {
+        if index != names.start {
+            append(&mut words, b", ");
+        }
+        append(&mut words, name(document, index));
+    }
+    if more != 0 {
+        append(&mut words, b" and ");
+        append(&mut words, suffix.as_bytes());
+        append(&mut words, b" more");
+    }
+    append(&mut words, b".");
+    words.into_boxed()
 }
 
 fn refusal_words(
@@ -292,35 +351,108 @@ fn short_commit(words: &mut List<u8>, commit: &Commit) {
 mod tests {
     use super::*;
 
-    const AT: change::CloseAt = change::CloseAt { branch: [0x11; 32], landing: [0x22; 32], asked: true, refused: None };
+    const AT: change::CloseAt =
+        change::CloseAt { branch: [0x11; 32], landing: [0x22; 32], asked: true, refused: None, outdated: None };
     const REFUSAL: &[u8] = br#"{"refused":{"head":"1111111111111111111111111111111111111111111111111111111111111111","tree":"2222222222222222222222222222222222222222","base":null,"counts":null,"failures":["test A::rules rule_00"]}}"#;
 
     #[test]
     fn a_judged_close_distinguishes_a_refusal_from_a_broken_result() {
-        use crate::tests::fixtures;
-        let mut row = fixtures::opening_row();
-        row.change.state = change::State::Producing { requested: true };
-        row.delegate = Some((9, change::Delegate::Close));
+        let at = change::CloseAt { outdated: Some(change::CloseOutdated::Window), ..AT };
         for (result, cause) in
             [(REFUSAL, change::Cause::CloseRefused), (b"not a verdict".as_slice(), change::Cause::Failed)]
         {
-            row.delegate_status = change::Status::Passed;
-            row.report = Box::from(result);
-            row.close_at = Some(AT);
-            judged(&mut row, false);
+            let (row, goal_words) = finished_with_words(at, result, false);
+            assert_eq!(goal_words.is_some(), cause == change::Cause::CloseRefused);
             assert_eq!(row.delegate_status, change::Status::Failed);
             assert_eq!(row.close_at.unwrap().failed_cause(), cause);
+            assert_eq!(row.close_at.unwrap().outdated, None);
+        }
+    }
+
+    const OUTDATED_AT: change::CloseAt = change::CloseAt {
+        branch: [
+            0xc0, 0xff, 0xee, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0,
+        ],
+        ..AT
+    };
+    const HEAD: &[u8] = b"c0ffee0000010000000000000000000000000000000000000000000000000000";
+    const HEAD_FIELD: &[u8] = b"{\"outdated\":{\"head\":\"";
+
+    fn finding(head: &[u8], why: &[u8]) -> Box<[u8]> {
+        bytes::concat(&[HEAD_FIELD, head, b"\",\"why\":\"", why, b"\"}}\n"])
+    }
+
+    fn finished(at: change::CloseAt, words: &[u8], pushed: bool) -> ChangeRow {
+        finished_with_words(at, words, pushed).0
+    }
+
+    fn finished_with_words(at: change::CloseAt, words: &[u8], pushed: bool) -> (ChangeRow, Option<Box<[u8]>>) {
+        const CLOSE_JOB: u64 = 9;
+        let mut row = crate::tests::fixtures::opening_row();
+        row.change.state = change::State::Producing { requested: true };
+        row.delegate = Some((CLOSE_JOB, change::Delegate::Close));
+        row.delegate_status = change::Status::Passed;
+        row.close_at = Some(at);
+        row.report = Box::from(words);
+        let goal_words = judged(&mut row, pushed);
+        (row, goal_words)
+    }
+
+    #[test]
+    fn an_asked_outdated_close_does_not_break() {
+        let at = change::CloseAt { refused: Some(change::CloseRefused { counts: None }), ..OUTDATED_AT };
+        for (why, expected) in [
+            (b"window".as_slice(), change::CloseOutdated::Window),
+            (b"ancestry".as_slice(), change::CloseOutdated::Ancestry),
+        ] {
+            let row = finished(at, &finding(HEAD, why), false);
+            assert_eq!(row.delegate_status, change::Status::Passed);
+            assert_eq!(row.close_at, Some(change::CloseAt { refused: None, outdated: Some(expected), ..at }));
+            assert!(row.producer_failure.is_none());
+        }
+    }
+
+    #[test]
+    fn an_invalid_outdated_close_breaks_at_once() {
+        const OTHER_HEAD: &[u8] = b"1111111111111111111111111111111111111111111111111111111111111111";
+        let window = finding(HEAD, b"window");
+        let wrong_head = finding(OTHER_HEAD, b"window");
+        let wrong_why = finding(HEAD, b"other");
+        let extra_member = bytes::concat(&[HEAD_FIELD, HEAD, br#"","why":"window","extra":null}}"#]);
+        let extra_outer = bytes::concat(&[HEAD_FIELD, HEAD, br#"","why":"window"},"settled":[]}"#]);
+        let missing_why = bytes::concat(&[HEAD_FIELD, HEAD, b"\"}}"]);
+        let trailing = bytes::concat(&[&window, b"{}"]);
+        for (at, pushed, words) in [
+            (change::CloseAt { asked: false, ..OUTDATED_AT }, false, window.as_ref()),
+            (OUTDATED_AT, true, &window),
+            (OUTDATED_AT, false, &wrong_head),
+            (OUTDATED_AT, false, &wrong_why),
+            (OUTDATED_AT, false, &extra_member),
+            (OUTDATED_AT, false, &extra_outer),
+            (OUTDATED_AT, false, &missing_why),
+            (OUTDATED_AT, false, br#"{"outdated":{"why":"window"}}"#),
+            (OUTDATED_AT, false, &trailing),
+        ] {
+            let row = finished(at, words, pushed);
+            assert_eq!(row.delegate_status, change::Status::Failed, "{words:?}");
+            let prefix = &words[..words.len().min(RESULT_PREFIX_BYTES)];
+            let account = bytes::concat(&[
+                b"the close check broke and didn't judge the goal: it finished with ",
+                prefix,
+                b"; its release runs it again.",
+            ]);
+            assert_eq!(row.producer_failure.as_deref(), Some(account.as_ref()), "{words:?}");
+            assert_eq!(row.close_at.unwrap().outdated, None, "{words:?}");
         }
     }
 
     #[test]
     fn an_unasked_or_pushed_refusal_is_not_a_judgment() {
         for (at, pushed) in [(change::CloseAt { asked: false, ..AT }, false), (AT, true)] {
-            assert_eq!(
-                classify(result(REFUSAL, Some(at), pushed).as_ref(), false),
-                Judgement::Broke,
-                "{at:?}, pushed: {pushed}"
-            );
+            let row = finished(at, REFUSAL, pushed);
+            assert_eq!(row.delegate_status, change::Status::Failed, "{at:?}, pushed: {pushed}");
+            assert_eq!(row.close_at.unwrap().failed_cause(), change::Cause::Failed);
         }
     }
 }

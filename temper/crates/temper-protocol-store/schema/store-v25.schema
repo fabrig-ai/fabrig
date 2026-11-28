@@ -492,7 +492,7 @@ record Looked { party: u64 project: u32 previous: option u64 latest: u64 seen: u
 record Away { party: u64 project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
 record Decided { project: u32 number: u32 party: u64 task: u64 at: u64 question: bytes 400 options: list 6 bytes 120 took: option u8 why: bytes 400 overturned: bool reach: Reach }
 
-enum ClosingStep { close, land }
+enum ClosingStep { close, land, catch_up }
 record ClosingRun { step: ClosingStep change: u64 }
 record ClosingTasks { tasks: list 1024 u64 }
 record ClosingJobs { attempts: list 8 JobAttempt next: u32 }
@@ -507,7 +507,7 @@ enum ClosingForm { words, question, answer: Number }
 record ClosingMessage { target: u64 form: ClosingForm words: bytes 1048576 }
 record ClosingRelay { open: option ClosingQuestion replies: list 1024 ClosingMessage waiting: list 1024 ClosingQuestion = [] }
 enum ClosingReportCheck { unread, held, released }
-record Closer { report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none goal_asked: option bytes 1048576 = none task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay superseded: list 1024 u64 = [] }
+record Closer { report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none goal_asked: option bytes 1048576 = none task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay superseded: list 1024 u64 = [] caught_up: option ClosingTasks = none catch_up_changes: list 1024 u64 = [] }
 
 record LandedDraft { repository: Repository path: bytes 1024 project: u32 branch: bytes 1024 commit: fixed 32 title: bytes 200 writer: u64 at: u64 chat: option u64 goal: option u64 ready: bool }
 
@@ -586,7 +586,8 @@ record ChangeSource { branch: bytes 4096 at: option fixed 32 }
 record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none milestone: option u64 = none source: option ChangeSource = none goal: option u64 task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 base_repair: bool producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice report: bytes 1048576 repairs: option fixed 32 follows: option ChangeFollows catch_up: option fixed 32 close: option bytes 16384 }
 record Regate { receipt: ReceiptKey run: u64 taken: option u64 = none }
 record CloseRefused { counts: option fixed 32 }
-record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none }
+enum CloseOutdated { window ancestry }
+record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none outdated: option CloseOutdated = none }
 enum BehindRead { branch, base, pull_head, pull_base, pull_state }
 record ReadBehind { read: BehindRead expected: option fixed 32 found: option fixed 32 }
 record BehindWait { since: u64 until: u64 evidence: ReadBehind }

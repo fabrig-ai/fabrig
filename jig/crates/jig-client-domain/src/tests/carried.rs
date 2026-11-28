@@ -77,7 +77,7 @@ fn a_carried_request_the_link_cannot_send_is_unsent_at_once() {
     let mut signed_out = Client::live();
     signed_out.step(Event::Up { up: Up::SignedOut });
     let mut not_served = Client::live();
-    not_served.step(Event::Up { up: Up::FamilyServed { family: 19, versions: None, served: false } });
+    not_served.step(Event::Up { up: Up::FamilyServed { family: 19, served: false } });
     for mut c in [unconfirmed, signed_out, not_served] {
         c.downs();
         c.told();

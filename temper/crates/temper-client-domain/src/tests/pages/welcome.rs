@@ -38,7 +38,7 @@ fn playground_answer(root: &mut Domain, present: bool) {
         parts.state = w::PlaygroundState::Starting;
         Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&parts)) }
     } else {
-        Readout::NotServed { family: Some(wire::FORGE), served: None }
+        Readout::NotServed { family: Some(wire::FORGE) }
     };
     crate::route::told(root, &f::env(&f::limits()), Told::Page { handle, page }, &mut Queue::uncapped());
 }

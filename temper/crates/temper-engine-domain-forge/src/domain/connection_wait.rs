@@ -75,6 +75,7 @@ pub(super) fn wait(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         },
     );
 }

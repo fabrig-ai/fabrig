@@ -19,14 +19,7 @@ fn the_opened_stream_delivers_me_and_watch_zero_delivers_its_later_value() {
     h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
     h.clear();
     h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
-    assert!(h.has(&Request::Hello {
-        family: None,
-        versions: Some(c::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION
-        }),
-        served: true,
-    }));
+    assert!(h.has(&Request::Hello { family: None, served: true }));
     let delivered = Request::Watch {
         watch: Token::new(0),
         event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(fixtures::frame()))),
@@ -57,17 +50,15 @@ fn the_opened_stream_delivers_me_and_watch_zero_delivers_its_later_value() {
 }
 
 #[test]
-fn a_hello_alone_serving_the_client_is_out_of_order() {
+fn a_hello_alone_names_no_layouts_even_with_matching_ranges() {
     let mut h = fixtures::Harness::new(&fixtures::limits());
     h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
-    let bytes = fixtures::hello_event(fixtures::HEARTBEAT);
-    let w::StreamEvent::Opened(opened) = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap() else {
-        panic!("opened fixture");
-    };
     h.clear();
-    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(opened.hello)));
+    let hello = fixtures::opened(fixtures::HEARTBEAT).hello;
+    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(hello)));
+    assert!(h.has(&Request::Hello { family: None, served: false }));
+    assert!(h.has(&Request::Hello { family: Some(fixtures::OWNER.family), served: false }));
     assert!(h.has(&Request::CloseStream));
-    assert!(h.has(&Request::Fact { fact: Fact::StreamDropped }));
     assert!(!h.has(&Request::Fact { fact: Fact::UndecodableEvent }));
 }
 
@@ -138,57 +129,71 @@ fn mismatched_row_parts_drop_deliveries_as_malformed_records() {
 }
 
 #[test]
-fn the_hello_s_jig_range_reaches_the_domain() {
-    let harness = fixtures::Harness::streaming(fixtures::application_subject());
-    assert!(harness.has(&Request::Hello {
-        family: None,
-        versions: Some(c::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION
-        }),
-        served: true,
-    }));
-}
-#[test]
-fn the_hello_s_family_range_reaches_its_owner() {
-    let harness = fixtures::Harness::streaming(fixtures::family_subject());
-    assert!(harness.has(&Request::Hello {
-        family: Some(19),
-        versions: Some(c::VersionRange { first: 23, last: 23 }),
-        served: true
-    }));
+fn matching_layouts_serve_jig_and_the_family_regardless_of_hello_ranges() {
+    let excluded = [
+        w::Served { owner: w::Owner::Jig, first: w::VERSION + 1, last: w::VERSION + 1 },
+        w::Served {
+            owner: w::Owner::Family(w::Family { number: fixtures::OWNER.family }),
+            first: fixtures::OWNER.version + 1,
+            last: fixtures::OWNER.version + 1,
+        },
+    ];
+    let inverted = [w::Served { owner: w::Owner::Jig, first: w::VERSION + 1, last: w::VERSION }];
+    for ranges in [excluded.as_slice(), inverted.as_slice(), &[]] {
+        let mut h = fixtures::Harness::new(&fixtures::limits());
+        h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
+        h.clear();
+        let mut opened = fixtures::opened(fixtures::HEARTBEAT);
+        opened.hello.served = skein_lib::List::from_boxed(Box::from(ranges));
+        h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
+        assert!(h.has(&Request::Hello { family: None, served: true }), "{ranges:?}");
+        assert!(h.has(&Request::Hello { family: Some(fixtures::OWNER.family), served: true }), "{ranges:?}");
+        assert!(h.has(&Request::Watch {
+            watch: Token::new(0),
+            event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(fixtures::frame()))),
+        }));
+        assert!(!h.has(&Request::CloseStream));
+    }
 }
 
 #[test]
-fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
-    let mut harness = fixtures::Harness::new(&fixtures::limits());
-    harness.open(fixtures::WATCH, fixtures::family_subject());
-    harness.clear();
-    let bytes = fixtures::hello_event(fixtures::HEARTBEAT);
-    let w::StreamEvent::Opened(opened) = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap() else {
-        panic!("fixture hello");
-    };
-    let mut opened = opened;
-    let mut hello = opened.hello;
-    hello.served.clear();
-    hello
-        .served
-        .push(w::Served {
-            owner: w::Owner::Jig,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        })
-        .unwrap();
-    opened.hello = hello;
-    harness.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
-    assert!(harness.has(&Request::Hello { family: Some(19), versions: None, served: false }));
-    for request in &harness.out {
-        if let Request::Exchange { .. } = request {
-            panic!("no opening exchange outside its owner range");
-        }
+fn another_or_missing_jig_layout_refuses_by_name() {
+    for jig in [Some(w::Layout { owner: w::Owner::Jig, layout: [0; 32] }), None] {
+        let mut h = fixtures::Harness::new(&fixtures::limits());
+        h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
+        h.clear();
+        let mut opened = fixtures::opened(fixtures::HEARTBEAT);
+        opened.layouts = skein_lib::List::from_boxed(Box::from(jig.as_slice()));
+        // The refusal must precede any attempt to translate Me at the other layout.
+        opened.me.record = Box::new([]);
+        h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
+        assert!(h.has(&Request::Hello { family: None, served: false }), "{jig:?}");
+        assert!(h.has(&Request::CloseStream));
+        assert!(!h.has(&Request::Fact { fact: Fact::UndecodableEvent }));
     }
-    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::NotServed));
 }
+
+#[test]
+fn another_or_missing_family_layout_refuses_only_its_owner() {
+    for family in [Some([0; 32]), None] {
+        let mut h = fixtures::Harness::new(&fixtures::limits());
+        h.open(fixtures::WATCH, fixtures::family_subject());
+        h.clear();
+        let mut opened = fixtures::opened(fixtures::HEARTBEAT);
+        if let Some(layout) = family {
+            opened.layouts.get_mut(1).expect("family layout after Jig").layout = layout;
+        } else {
+            opened.layouts.truncate(1);
+        }
+        h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
+        assert!(h.has(&Request::Hello { family: None, served: true }));
+        assert!(h.has(&Request::Hello { family: Some(fixtures::OWNER.family), served: false }));
+        h.assert_no_watch_exchange();
+        assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::NotServed));
+        assert!(!h.has(&Request::CloseStream));
+    }
+}
+
 #[test]
 fn a_delivery_before_its_opening_s_answer_admits_it() {
     let mut harness = fixtures::Harness::streaming(fixtures::family_subject());
@@ -834,11 +839,7 @@ fn a_watch_ended_not_served_ends_its_handle_naming_why() {
     let (_, name) = h.opening();
     h.stream_record(&fixtures::ending(name, w::WatchEnd::NotServed(fixtures::not_served())));
     assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::NotServed));
-    assert!(h.has(&Request::Hello {
-        family: Some(19),
-        versions: Some(c::VersionRange { first: 28, last: 28 }),
-        served: false
-    }));
+    assert!(h.has(&Request::Hello { family: Some(19), served: false }));
 }
 
 #[test]

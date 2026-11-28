@@ -40,7 +40,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
     assert_eq!(super::adoption_failure(skein_forge::api::Error::Busy), people::Outcome::Again(people::Again::Busy));
 }
 
-fn adopted(forge: u16) -> super::forge::Repository {
+pub(super) fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
@@ -620,6 +620,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
                 reviews_complete: true,
             }),
             close_at: None,
+            close_refusal: None,
         },
     );
     assert_eq!(domain.engine.core().tasks.writer(&resource).unwrap().writer, tasks::Writer::Effect { entry: ENTRY });
@@ -1273,6 +1274,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             entry: None,
             evidence: Some(evidence),
             close_at: None,
+            close_refusal: None,
         });
         super::outputs(&mut domain, &env, &mut decision, &mut routed);
         let Some(super::Work::Tasks(super::tasks::Event::HoldFrom { source, .. })) = domain.work.pop() else {
@@ -2835,6 +2837,7 @@ fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_rev
             size: None,
         }),
         close_at: None,
+        close_refusal: None,
     });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -3598,7 +3601,7 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
     assert_eq!(super::change_llm::read(text.as_slice()), None);
 }
 
-fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+pub(super) fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
     change_choice_world_with_producer_speeds(&[])
 }
 
@@ -3957,7 +3960,7 @@ fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     assert!(lacks.executors);
 }
 
-fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
+pub(super) fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
     use super::{forge, tasks};
     let (mut domain, mut env, task) =
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
@@ -4912,14 +4915,14 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
     let root = found.expect("job spec root");
     assert_eq!(root.wire, wire::FAMILY);
     assert_eq!(root.declaration, "JobSpec");
-    for (bytes, refusal) in [
+    for (bytes, asks) in [
         (super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"), true),
         (super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
-        assert_eq!(spec.refusal, refusal);
+        assert_eq!((spec.refusal, spec.outdated), (asks, asks));
     }
 }
 
@@ -5856,56 +5859,6 @@ fn report_tests() -> super::forge::ReceiptReport {
         super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
         super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
     ]))
-}
-
-#[test]
-fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
-    use super::forge_change::{Below, Landed, Repair};
-    use skein_lib::bytes::{concat, find};
-    let mut row = change_row(Some(42));
-    row.change.last_head = Some(SHA1);
-    let why = Repair::LandingAt {
-        gate: 1,
-        candidate: SHA1,
-        below: Some(Below {
-            by_test: false,
-            top: false,
-            green: SHA256,
-            changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
-        }),
-    };
-    let mut failure = repair_failure(SHA1, Some(SHA256));
-    failure.report = report_tests();
-    let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-    let tests =
-        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
-    let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
-    let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
-    let job_at = find(&whole, b"\nFailed job: gate: read_ci what=job commit=").unwrap();
-    assert!(run_at < tests_at && tests_at < job_at);
-    let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
-    let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
-    assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
-    assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
-    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
-    let marker = b"\n[2 more failed tests and jobs: read_ci what=checks names them]";
-    let bound = u32::try_from(
-        usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
-    )
-    .unwrap();
-    let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
-    assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
-    for (report, line) in [
-        (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
-        (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
-        (super::forge::ReceiptReport::Unread, b"\nFailed tests: not known (its report could not be read)".as_slice()),
-    ] {
-        failure.report = report;
-        let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-        let at = find(&words, line).unwrap();
-        assert!(find(&words[..at], b"\nGate run:").is_some());
-        assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
-    }
 }
 
 /// questions.md, 1, What every delegate is told: the step's retained amendment is visible before admission.

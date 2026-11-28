@@ -1,10 +1,14 @@
 //! Deterministic arbitrary wire bytes for every top-level sample record
-//! (data/codec/golden.md, section 1; testing-strategy.md, section 8).
+//! (skein/docs/design/data/codec/golden.md, 1).
+//! One case keeps the stream across all draws (skein/docs/design/testing/sweeps.md, 4.2).
 
 #[cfg(test)]
 mod tests {
+    use core::convert::Infallible;
     use skein_codec_tests::{scalars, v1};
     use skein_lib::{Reader, Rng};
+    use skein_world::sweep::{Case, cases};
+    use skein_world::this_test;
     use v1::Record;
 
     fn check_field(bytes: &[u8]) {
@@ -50,8 +54,16 @@ mod tests {
     }
 
     #[test]
-    fn arbitrary_and_mutated_fixed_value_bytes_never_panic_and_round_trip_if_valid() {
-        let mut rng = Rng::new(0xC0DE_CAFE_8100_0001);
+    fn arbitrary_and_mutated_fixed_value_bytes_never_panic_and_round_trip_if_valid() -> Result<(), Case<Infallible>> {
+        let test = this_test!("arbitrary_and_mutated_fixed_value_bytes_never_panic_and_round_trip_if_valid");
+        cases(test, [0xC0DE_CAFE_8100_0001], |seed| {
+            check_stream(seed);
+            Ok(())
+        })
+    }
+
+    fn check_stream(seed: u64) {
+        let mut rng = Rng::new(seed);
         let mut buffer = [0_u8; 128];
         for _round in 0_u32..10_000 {
             let length = usize::try_from(rng.below(129)).expect("bounded length");

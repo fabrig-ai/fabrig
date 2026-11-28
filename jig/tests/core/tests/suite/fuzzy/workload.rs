@@ -1,6 +1,10 @@
 //! Workload sweeps (`jig/docs/design/domain/testing-workloads.md`, 7).
 use jig_core_kit::{bounds, open, parks, people, workload};
-use skein_world::{streams::Streams, sweep::Sweep};
+use skein_world::{
+    streams::Streams,
+    sweep::{Sweep, cases},
+    this_test,
+};
 
 #[test]
 fn people_act_on_tasks_at_any_step() -> Result<(), String> {
@@ -29,12 +33,12 @@ fn people_act_on_tasks_at_any_step() -> Result<(), String> {
     }
     // Each is necessary: 1 amends a passed deadline, 3 widens authority,
     // and 29 answers an ended run and never answers. Together they strike every configured kind.
-    for seed in [1, 3, 29] {
-        eprintln!("workload seed {seed}");
+    cases(this_test!("people_act_on_tasks_at_any_step"), [1, 3, 29], |seed| -> Result<(), String> {
         let ledger = workload::run(Streams::new(seed), &configured, &sweep)?;
-        eprintln!("workload fell {seed}: {:?}", ledger.fell());
         sweep.ran(&ledger);
-    }
+        Ok(())
+    })
+    .map_err(|case| case.to_string())?;
     sweep.check_fell()
 }
 
@@ -57,12 +61,12 @@ fn runs_park_resume_and_move_at_any_step() -> Result<(), String> {
     // 11 covers the one-goal circle and the answer after ending; 61 covers
     // the two-goal circle by reading. 1763 parks on nothing and answers a
     // parked run; 3570 covers the control, successor and coordinator end.
-    for seed in [11, 61, 1763, 3570] {
-        eprintln!("parks seed {seed}");
+    cases(this_test!("runs_park_resume_and_move_at_any_step"), [11, 61, 1763, 3570], |seed| -> Result<(), String> {
         let ledger = workload::run(Streams::new(seed), &configured, &sweep)?;
-        eprintln!("parks fell {seed}: {:?}", ledger.fell());
         sweep.ran(&ledger);
-    }
+        Ok(())
+    })
+    .map_err(|case| case.to_string())?;
     sweep.check_fell()
 }
 
@@ -88,12 +92,12 @@ fn the_cores_tables_and_funds_reach_their_bounds() -> Result<(), String> {
     }
     // Each is necessary: 261 reaches all three funds edges, and 1731 fills
     // the kept-answer table with the goals' requests and person answers.
-    for seed in [261, 1731] {
-        eprintln!("bounds workload seed {seed}");
+    cases(this_test!("the_cores_tables_and_funds_reach_their_bounds"), [261, 1731], |seed| -> Result<(), String> {
         let ledger = workload::run(Streams::new(seed), &configured, &sweep)?;
-        eprintln!("bounds workload fell {seed}: {:?}", ledger.fell());
         sweep.ran(&ledger);
-    }
+        Ok(())
+    })
+    .map_err(|case| case.to_string())?;
     for exclusion in open::EXCLUSIONS {
         if configured.contains(&exclusion.fault) {
             eprintln!("{} left out {}", exclusion.scenario, sweep.left_out(exclusion.scenario));

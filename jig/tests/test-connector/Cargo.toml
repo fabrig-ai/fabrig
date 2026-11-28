@@ -24,6 +24,7 @@ jig-domain-core.workspace = true
 skein-codegen.workspace = true
 jig-test-store.workspace = true
 sha2.workspace = true
+skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

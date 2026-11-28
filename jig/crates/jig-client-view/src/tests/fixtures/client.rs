@@ -97,7 +97,7 @@ impl Fixture {
         };
         value.native(jig_client::Event::StartUnlinked { kept }, &mut out);
         value.native(jig_client::Event::Up { up: Up::SignedIn }, &mut out);
-        value.native(jig_client::Event::Up { up: Up::Served { served: true, versions: None } }, &mut out);
+        value.native(jig_client::Event::Up { up: Up::Served { served: true } }, &mut out);
         value.output(out);
         value
     }
@@ -412,7 +412,7 @@ pub struct Served {
 }
 impl Input for Served {
     fn enter(self, fixture: &mut Fixture, out: &mut Queue<Request>) {
-        Up::Served { served: self.served, versions: None }.enter(fixture, out);
+        Up::Served { served: self.served }.enter(fixture, out);
     }
 }
 pub struct Reported<K = Key> {

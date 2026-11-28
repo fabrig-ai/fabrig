@@ -267,6 +267,7 @@ fn jobs_cancelled_by_the_opener_before_another_writer_answer_cancelled() {
     );
 }
 
+// The park story for a running job: its terminal precedes the old session's end.
 #[test]
 fn a_session_closing_with_a_job_running_tells_its_job_ended() {
     let mut world = world();
@@ -335,15 +336,31 @@ fn a_session_closing_while_a_job_read_waits_answers_the_read_before_it_ends() {
     world.close();
 }
 
+// The park story for a running job, resumed: the number survives but the job does not.
 #[test]
 fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
+    const OLD_JOB: JobNumber = JobNumber(3);
     let old = recorded::scenario(1);
     let mut transcript = recorded::transcript(&old);
-    transcript.turns.last_mut().expect("last turn").jobs = 3;
+    transcript.turns.last_mut().expect("last turn").jobs = OLD_JOB.0;
     let mut world = Scripted::new(1);
     world.open(opening(Some(transcript)));
+    complete(
+        &mut world,
+        vec![called(b"poll", Call::Job { job: OLD_JOB, wait: Wait::Default, output: Budget::Default, stop: false })],
+    );
+    assert!(world.job_acts.is_empty() && world.operations.is_empty(), "the tools refuse the poll at admission");
+    world.resume();
+    let result = &world.prompts[1].messages.last().expect("poll result message").content[0];
+    assert_eq!(
+        result,
+        &llm::Block::ToolResult {
+            id: bytes(b"poll"),
+            result: llm::Returned::Invalid { problem: llm::Problem::UnknownJob { job: OLD_JOB.0 } },
+        }
+    );
     let owner = start_job(&mut world);
-    assert_eq!(world.turns[0].jobs, 4);
+    assert_eq!(world.turns.last().expect("new job's turn").jobs, 4);
     assert_eq!(
         outcomes(&world)[0],
         tools::Outcome::Running {
@@ -433,4 +450,37 @@ fn job_calls_alone_wait_as_each_asks() {
     assert_eq!(world.hastened, vec![]);
     end_job(&mut world, owner, JobEnd::Ended(tools::Exit::Code { code: 0 }));
     finish(&mut world);
+}
+
+#[test]
+fn inspection_reads_four_job_cells_until_the_session_closes() {
+    use skein_world::inspect::{Inspection, Moment, Release, check_tables};
+    use smith_inspect::KINDS;
+
+    let mut world = world();
+    let owners = [start_job(&mut world), start_job(&mut world), start_job(&mut world), start_job(&mut world)];
+    world.domain.reclaim();
+    let mut reading = Inspection::new("smith", KINDS);
+    smith_inspect::session(&world.domain, &mut reading);
+    let cells: Vec<_> = reading.tables().iter().filter(|table| table.name == "job cells").collect();
+    let [cells] = cells.as_slice() else { panic!("one kit's cells") };
+    assert_eq!(cells.capacity, 4);
+    assert_eq!(cells.entries.len(), 4);
+    assert!(cells.entries.iter().all(|cell| cell.release == Release::Pending));
+    let moment = Moment { seed: 1, at: world.env.now, iteration: 1 };
+    check_tables(&[&reading], moment).expect("all four jobs still hold their cells");
+    smith_inspect::room(&world.domain, moment).expect("four independently owned cells");
+
+    world.step(session::Event::Close { session: world.session.expect("opened") });
+    for owner in owners {
+        end_job(&mut world, owner, JobEnd::Cancelled);
+    }
+    if let Some(owner) = world.completing {
+        world.step(session::Event::Cancelled { owner });
+    }
+    assert!(world.end.is_some());
+    world.domain.reclaim();
+    let mut reading = Inspection::new("smith", KINDS);
+    smith_inspect::session(&world.domain, &mut reading);
+    assert!(reading.tables().iter().filter(|table| table.name == "job cells").all(|table| table.entries.is_empty()));
 }

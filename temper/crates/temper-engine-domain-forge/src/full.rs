@@ -7,7 +7,7 @@ use skein_forge_client::{CallOwner, Holding};
 use skein_lib::{Decimal, Env, List, Map, Queue, Time, Wall, bytes};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) enum Reservation {
+pub enum Reservation {
     Asked(crate::room::Waiter),
     Call(skein_lib::Token),
     Projection(u64),
@@ -96,6 +96,25 @@ impl State {
     }
 }
 impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_room_taken(&self) -> usize {
+        usize::try_from(crate::room::taken(self))
+            .expect("the number of resident outbox entries and reservations fits usize")
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_room_reservations(&self) -> &Map<Reservation, (u64, u64, Option<Wall>)> {
+        &self.full.reservations
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_reservation_held(&self, holder: Reservation) -> bool {
+        reservation_held(self, holder)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_reservations(&self) -> Box<[u64]> {

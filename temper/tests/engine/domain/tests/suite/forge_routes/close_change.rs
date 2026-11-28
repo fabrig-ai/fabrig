@@ -164,22 +164,35 @@ fn finish_with_on(world: &mut World, channel: Token, job: &host::JobAssignment, 
 }
 
 pub(super) const CLOSE_COUNTS: [u8; 32] = [0x33; 32];
+pub(super) const CLOSE_FAILURE: &str = "test A::rules rule_00";
 
 pub(super) fn check_refusal(head: [u8; 32], base: [u8; 32]) -> Box<[u8]> {
-    refusal_with(head, base, r#""test A::rules rule_00""#)
+    refusal_with(head, Some((base, CLOSE_COUNTS)), &[CLOSE_FAILURE], 0)
 }
 
-pub(super) fn refusal_with(head: [u8; 32], base: [u8; 32], failures: &str) -> Box<[u8]> {
-    let head = forge_top::commit_text(&head);
-    let base = forge_top::commit_text(&base);
-    let counts = forge_top::commit_text(&CLOSE_COUNTS);
-    let head = core::str::from_utf8(&head).expect("head hex");
-    let base = core::str::from_utf8(&base).expect("base hex");
-    let counts = core::str::from_utf8(&counts).expect("counts hex");
+pub(super) fn refusal_with(
+    head: [u8; 32],
+    against: Option<([u8; 32], [u8; 32])>,
+    failures: &[&str],
+    more: usize,
+) -> Box<[u8]> {
+    let head = refusal_commit(head);
+    let (base, counts) = match against {
+        Some((base, counts)) => (refusal_commit(base), refusal_commit(counts)),
+        None => ("null".to_owned(), "null".to_owned()),
+    };
     let tree = "2222222222222222222222222222222222222222";
-    format!(r#"{{"refused":{{"head":"{head}","tree":"{tree}","base":"{base}","counts":"{counts}","failures":[{failures}]}}}}"#)
+    let failures = serde_json::to_string(failures).expect("failure names as JSON");
+    let more = if more == 0 { String::new() } else { format!(",\"more\":{more}") };
+    format!("{{\"refused\":{{\"head\":{head},\"tree\":\"{tree}\",\"base\":{base},\"counts\":{counts},\"failures\":{failures}{more}}}}}\n")
         .into_bytes()
         .into_boxed_slice()
+}
+
+fn refusal_commit(commit: [u8; 32]) -> String {
+    let hex = forge_top::commit_text(&commit);
+    let hex = core::str::from_utf8(&hex).expect("commit hex");
+    format!("\"{hex}\"")
 }
 
 #[test]
@@ -603,7 +616,7 @@ fn measuring_a_refused_close_runs_one_fresh_job_at_unchanged_tips() {
     assert_eq!((accepted.revision, accepted.measure), (revision, true));
     assert_eq!(
         row.close_at,
-        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None })
+        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None, outdated: None })
     );
     finish_job(&mut world, &fresh);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
@@ -632,6 +645,7 @@ fn moving_main_alone_rechecks_a_refused_close() {
             landing: translate::commit(landing),
             asked: true,
             refused: None,
+            outdated: None,
         })
     );
     finish_job(&mut world, &fresh);

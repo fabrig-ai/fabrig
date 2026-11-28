@@ -1,7 +1,11 @@
+//! Refresh scenarios vary by case seed (`skein/docs/design/testing/sweeps.md`, 4.2–4.5).
+
+use core::convert::Infallible;
 use skein_fake_oauth as fake;
 use skein_lib::Duration;
 use skein_oauth as oauth;
 use skein_oauth_world::{boxed as box_of, client_step, documents, fake_step, time as at, wall};
+use skein_world::{sweep::cases, this_test};
 
 fn registration(seed: u64) -> oauth::Registration {
     oauth::Registration {
@@ -16,6 +20,10 @@ fn registration(seed: u64) -> oauth::Registration {
         metadata_claim: None,
         terms: None,
     }
+}
+
+fn delay_and_mode(seed: u64) -> (u64, u64) {
+    (seed % 5, seed % 3)
 }
 
 fn scenario(seed: u64) {
@@ -48,8 +56,7 @@ fn scenario(seed: u64) {
         fake::Limits { document, uri_bytes: 256, request_bytes: 512, codes: 2, rotations: 2, plans: 2, carried: 0 },
     )
     .expect("issuer");
-    let delay = seed % 5;
-    let mode = seed % 3;
+    let (delay, mode) = delay_and_mode(seed);
     let plan = plan(mode, delay);
     issuer.queue(plan).expect("plan");
     let Some(oauth::Request::Http(request)) = client_step(
@@ -104,9 +111,17 @@ fn scenario(seed: u64) {
 
 #[test]
 fn varied_delay_rotation_and_error_body_keep_one_terminal_per_refresh() {
-    for seed in 0_u64..192 {
+    cases(this_test!("varied_delay_rotation_and_error_body_keep_one_terminal_per_refresh"), 0..192, |seed| {
         scenario(seed);
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
+#[test]
+fn refresh_draws_reduce_full_width_seeds_before_time_arithmetic() {
+    assert_eq!(delay_and_mode(u64::MAX), (0, 0));
+    assert_eq!(delay_and_mode(u64::MAX - 1), (4, 2));
 }
 
 fn plan(mode: u64, delay: u64) -> fake::Plan {

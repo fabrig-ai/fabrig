@@ -62,10 +62,12 @@ This document holds the store's records and version changes, split from [`store.
   know is its refusal.
 - **The jobs `test-ids-*`** bring a store written while a failing
   test's id had a ceiling of 4,096 bytes to the binary's ceiling of
-  1,024 (below; `../draft/config.md`, 5.2). A narrowed bound is a
-  `retype`, which no plan derives (skein's `data/codec/layouts.md`, 2),
+  1,024 (below; `../draft/config.md`, 5.2). A narrowed bound plans in
+  Read, refusing a value past it (skein's `data/codec/layouts.md`, 2),
   so every older layout of the four value types whose values reach
-  `FailingTest` or `TierFlake` is unplanned, whichever build wrote it:
+  `FailingTest` or `TierFlake` has a plan that may refuse a value,
+  whichever build wrote it, which an `Unplanned` job takes (jig's
+  `protocol/store/layouts.md`, 5.3):
   - **One written job per value type,** each converting its value
     type's unplanned layouts (`Layouts::Unplanned`, jig's
     `protocol/store/jobs.md`, 4) over its value type's ranges:
@@ -77,16 +79,18 @@ This document holds the store's records and version changes, split from [`store.
   - **The wide text:** the binary's text with `FailingTest.test_id` and
     `TierFlake.test` at `bytes 4096` and the five tier lists of
     landings (below) at `list 759`, the ceilings every older layout
-    has, so that each plans to it. A page derives it from the binary's
-    text by those seven substitutions, each of a declaration's exact
+    has, so that each plans to it. The converter derives it from the
+    target's text by those seven substitutions, each of a declaration's exact
     words found once; one not found once refuses the page, `why` `the
     binary's text has no single {words}`, which the focused test of
     the binary's text keeps from happening. The job keeps no text of
     its own.
-  - **A value's conversion:** its stored layout, the page's
-    `JobLayout`, is planned to the wide text at the value type's root
-    and variant and converted by that plan; the result is read as a
-    generic value of the wide text. Where its ids are all within 1,024
+  - **Their written converter:** temper's store crate's one function
+    (skein's `data/codec/layouts.md`, 4), which each job's page calls
+    for each value, from the page's `JobLayout` to the binary's layout
+    of the value type. The source is planned to the wide text at the
+    value type's root and variant and converted by that plan; the
+    result is read as a generic value of the wide text. Where its ids are all within 1,024
     bytes it is, byte for byte, a value of the binary's layout; where
     one is longer, the rule below changes it, by replacing or removing
     the spans the generic value gives and the counts above them. The
@@ -160,7 +164,7 @@ This document holds the store's records and version changes, split from [`store.
     `OpenRefusal::Job` naming it, the store unchanged.
   - **Its ranges:** families 1, 3 to 8, 10, 11, 13 to 15, 23, 24, 28
     to 30, 42 and 47, in key order; family 12 is reserved. **What it reads:** while each page is out,
-    families 2, 25 and 26 whole, through `Store::patch_page` (jig's
+    families 2, 25 and 26 whole, through `Store::job_read` (jig's
     `protocol/store/jobs.md`, 3), bounded by `repositories` and
     `forges`; a row of them that does not decode refuses, naming it.
   - **Its answers** fit `room`: an answer stops
@@ -297,8 +301,8 @@ This document holds the store's records and version changes, split from [`store.
 
   CHECK's words: `Number` `its number is not the store's next`, `Closed`
   `the store is not open`, `Queue` `the queue behind transcripts' syncs
-  is full`, `Writes` `more writes than the root's bound`, `Switching` `a
-  patch switch is pending`, `Encoding` `a key, record or frame past its
+  is full`, `Writes` `more writes than the root's bound`, `Switching` `an
+  upgrade's switch is pending`, `Encoding` `a key, record or frame past its
   codec's limits`, `Copy` `a copy's first key is not in the map`, `Reads`
   `a read of the map it needs failed`, `Capacity` `more operations than
   the commit's bounds hold`, `Bytes` `its operations past the store's

@@ -5,7 +5,7 @@ use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store::{
     self as store, Event, KeptFamily, Owner, OwnerSet, OwnerSets, Request, TranscriptRead, Write,
 };
-use jig_store_world::{World, patches, root};
+use jig_store_world::{World, root, upgrade_fixtures};
 use jig_test_layouts::frames;
 use skein_lib::{Token, length::len_u64};
 
@@ -33,7 +33,7 @@ pub(crate) fn kinds() -> [TranscriptRead; 4] {
     ]
 }
 fn ask(read: TranscriptRead, bytes: u64) -> Request {
-    Request::Transcript { owner: READER, read, rows: patches::limits().store.page.rows, bytes }
+    Request::Transcript { owner: READER, read, rows: upgrade_fixtures::limits().store.page.rows, bytes }
 }
 pub(crate) fn log_frame_bytes(turn: &jig_domain_core::TurnRecord) -> u64 {
     let limits = root::limits();
@@ -42,9 +42,10 @@ pub(crate) fn log_frame_bytes(turn: &jig_domain_core::TurnRecord) -> u64 {
     kv.frame(&store::codec::core::turn(turn, &codec).expect("turn body")).expect("log frame").len()
 }
 fn fixture(sets: OwnerSets, transcript: &[u8]) -> World {
-    let mut world = World::unopened_observed(41, patches::limits(), None);
-    let version_heads = sets.sets.iter().any(|set| set.families.iter().any(|family| family.frames.is_some()));
-    world.owner_sets(if version_heads { patches::FRAME_VERSION_HEADS } else { sets });
+    let mut world = World::unopened_observed(41, upgrade_fixtures::limits(), None);
+    let older = transcript.starts_with(&1_u16.to_be_bytes())
+        && sets.sets.iter().any(|set| set.families.iter().any(|family| family.frames.is_some()));
+    world.owner_sets(if older { upgrade_fixtures::EARLIER_FRAMES } else { sets });
     assert_eq!(world.open_switched(), Some(0));
     assert_eq!(world.commit(root::first()), Some(1));
     let mut writes = root::turn_commit(2, frames::TASK, frames::TURN, transcript).into_vec();
@@ -54,10 +55,10 @@ fn fixture(sets: OwnerSets, transcript: &[u8]) -> World {
         }
     }
     assert_eq!(world.commit(writes.into_boxed_slice()), Some(2));
-    if version_heads {
+    if older {
         world.crash(41);
         world.owner_sets(sets);
-        world.open_switched().expect("register the frame layouts without rewriting the log");
+        world.open_switched().expect("plan the old turn without rewriting the log");
     }
     world
 }
@@ -90,7 +91,7 @@ fn every_read_converts_again_without_writes() {
 
 #[test]
 fn empty_sets_keep_the_opaque_turn_path() {
-    for sets in [OwnerSets::NONE, patches::FRAME_VERSION_HEADS] {
+    for sets in [OwnerSets::NONE, upgrade_fixtures::OPAQUE_FRAMES] {
         let mut world = fixture(sets, b"opaque turn");
         let before = world.contents();
         for read in kinds() {
@@ -109,9 +110,9 @@ fn converted_frames_past_bounds_match_current_boundaries() {
     let mut current = fixture(frame_reads::SETS, &expected);
     for read in kinds() {
         let reference = current.request(ask(read, charge - 1));
-        let patched = behind.request(ask(read, charge - 1));
+        let converted = behind.request(ask(read, charge - 1));
         if matches!(read, TranscriptRead::Window { .. }) {
-            for events in [&reference, &patched] {
+            for events in [&reference, &converted] {
                 let [Event::Turns { owner, turns, next: None, cut }] = events.as_slice() else {
                     panic!("cut window {read:?}: {events:?}")
                 };
@@ -127,8 +128,8 @@ fn converted_frames_past_bounds_match_current_boundaries() {
                 "{read:?}: {reference:?}"
             );
             assert!(
-                matches!(patched.as_slice(), [Event::Unread { owner }] if *owner == READER),
-                "{read:?}: {patched:?}"
+                matches!(converted.as_slice(), [Event::Unread { owner }] if *owner == READER),
+                "{read:?}: {converted:?}"
             );
         }
     }
@@ -151,7 +152,7 @@ fn replaced(owner: Owner, families: &'static [KeptFamily]) -> OwnerSets {
     slot.families = families;
     OwnerSets { sets: Box::leak(sets.into_boxed_slice()) }
 }
-#[expect(clippy::too_many_lines, reason = "frame admission cases keep each current text beside its frame texts")]
+#[expect(clippy::too_many_lines, reason = "each frame admission refusal has its own case")]
 fn invalid_sets() -> Vec<(&'static str, OwnerSets)> {
     const KEYS: store::Keys = store::Keys { from: &[1, 0, 0], to: &[1, 0, 1], root: "TurnRecord" };
     const RANGES: &[store::KeyRange] = &[store::KeyRange { from: KEYS.from, to: KEYS.to }];
@@ -205,42 +206,19 @@ fn invalid_sets() -> Vec<(&'static str, OwnerSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nrecord TurnRecord { transcript: bytes 64 holds fixture-turn Turn }\n",
-                    frames: Some(store::Frames {
-                        texts: &[
-                            "family fixture-frame 6\nrecord TurnRecord { transcript: bytes 64 holds fixture-turn Turn }\n",
-                        ],
-                        ..BODY_FRAMES
-                    }),
                     ..BODY
                 }],
             ),
         ),
         (
             "enumeration root",
-            replaced(
-                Owner::Smith,
-                &[KeptFamily {
-                    current: "family fixture-turn 2\nenum Turn { blank }\n",
-                    frames: Some(store::Frames {
-                        texts: &["family fixture-turn 2\nenum Turn { blank }\n"],
-                        ..TURN_FRAMES
-                    }),
-                    ..TURN
-                }],
-            ),
+            replaced(Owner::Smith, &[KeptFamily { current: "family fixture-turn 2\nenum Turn { blank }\n", ..TURN }]),
         ),
         (
             "unversioned turn",
             replaced(
                 Owner::Smith,
-                &[KeptFamily {
-                    current: "family fixture-turn 2\nrecord Turn { said: text 64 }\n",
-                    frames: Some(store::Frames {
-                        texts: &["family fixture-turn 2\nrecord Turn { said: text 64 }\n"],
-                        ..TURN_FRAMES
-                    }),
-                    ..TURN
-                }],
+                &[KeptFamily { current: "family fixture-turn 2\nrecord Turn { said: text 64 }\n", ..TURN }],
             ),
         ),
         (
@@ -249,12 +227,6 @@ fn invalid_sets() -> Vec<(&'static str, OwnerSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds absent Turn }\n",
-                    frames: Some(store::Frames {
-                        texts: &[
-                            "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds absent Turn }\n",
-                        ],
-                        ..BODY_FRAMES
-                    }),
                     ..BODY
                 }],
             ),
@@ -265,10 +237,6 @@ fn invalid_sets() -> Vec<(&'static str, OwnerSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 }\n",
-                    frames: Some(store::Frames {
-                        texts: &["family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 }\n"],
-                        ..BODY_FRAMES
-                    }),
                     ..BODY
                 }],
             ),
@@ -279,12 +247,6 @@ fn invalid_sets() -> Vec<(&'static str, OwnerSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds fixture-turn Turn extra: bytes 64 holds fixture-turn Turn }\n",
-                    frames: Some(store::Frames {
-                        texts: &[
-                            "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds fixture-turn Turn extra: bytes 64 holds fixture-turn Turn }\n",
-                        ],
-                        ..BODY_FRAMES
-                    }),
                     ..BODY
                 }],
             ),
@@ -295,12 +257,6 @@ fn invalid_sets() -> Vec<(&'static str, OwnerSets)> {
                 Owner::Smith,
                 &[KeptFamily {
                     current: "family fixture-turn 2\nversioned record Turn { back: bytes 64 holds fixture-frame TurnRecord }\n",
-                    frames: Some(store::Frames {
-                        texts: &[
-                            "family fixture-turn 2\nversioned record Turn { back: bytes 64 holds fixture-frame TurnRecord }\n",
-                        ],
-                        ..TURN_FRAMES
-                    }),
                     ..TURN
                 }],
             ),
@@ -315,13 +271,14 @@ fn a_same_version_layout_registers_and_writes_its_id_to_files_and_logs() {
     let next = replaced(Owner::Smith, &[KeptFamily { current: layouts::FRAME_TURN_NEXT, ..TURN }]);
     for file in [false, true] {
         let tasks = if file { &[frames::TASK][..] } else { &[] };
-        let mut world = crate::map_held::world_with_sets(41, &patches::limits(), tasks, patches::FRAME_VERSION_HEADS);
+        let mut world =
+            crate::map_held::world_with_sets(41, &upgrade_fixtures::limits(), tasks, upgrade_fixtures::EARLIER_FRAMES);
         let old = frame_reads::turn(1, SAID, b"replay", 0);
         assert_eq!(world.commit(root::turn_commit(2, frames::TASK, 1, &old)), Some(2));
         let before = world.contents();
         world.crash(42);
         world.owner_sets(frame_reads::SETS);
-        let first = world.open_switched().expect("seed the pre-registry versions");
+        let first = world.open_switched().expect("register the v2 turn layout");
         assert!(first > 2);
         world.crash(43);
         world.owner_sets(next);
@@ -349,14 +306,16 @@ fn a_same_version_layout_registers_and_writes_its_id_to_files_and_logs() {
         if file {
             let contents = world.contents();
             let on_disk = contents[FILE].as_ref().expect("file frames");
-            let at = before[FILE].as_ref().expect("version-headed frame").len();
-            let mut encoded =
-                store::codec::core::turn(&turns[1], &store::codec::limits(&patches::limits().core).expect("codec"))
-                    .expect("body");
+            let at = before[FILE].as_ref().expect("earlier frame").len();
+            let mut encoded = store::codec::core::turn(
+                &turns[1],
+                &store::codec::limits(&upgrade_fixtures::limits().core).expect("codec"),
+            )
+            .expect("body");
             assert_eq!(encoded[..2], 6_u16.to_be_bytes());
             let held = encoded.len() - turn.len();
             encoded[held..held + 2].copy_from_slice(&3_u16.to_be_bytes());
-            assert_eq!(on_disk[..at], *before[FILE].as_ref().expect("version-headed frame"));
+            assert_eq!(on_disk[..at], *before[FILE].as_ref().expect("earlier frame"));
             assert_eq!(on_disk[at..], *frames::wrap(&encoded));
         }
     }
@@ -365,7 +324,7 @@ fn a_same_version_layout_registers_and_writes_its_id_to_files_and_logs() {
 #[test]
 fn an_unplanned_frame_layout_refuses_open_without_a_census_exception() {
     use jig_test_layouts::layouts;
-    let mut world = baseline(frame_reads::SETS);
+    let mut world = baseline(upgrade_fixtures::EARLIER_FRAMES);
     let sets = replaced(Owner::Smith, &[KeptFamily { current: layouts::FRAME_TURN_RETYPED, ..TURN }]);
     world.owner_sets(sets);
     let before = world.contents();
@@ -377,7 +336,7 @@ fn an_unplanned_frame_layout_refuses_open_without_a_census_exception() {
         "{:?}",
         world.refusal()
     );
-    patches::kept(&before, &world.contents(), &"unplanned frame");
+    upgrade_fixtures::kept(&before, &world.contents(), &"unplanned frame");
 }
 
 fn set_refused(world: &World, label: &str) {
@@ -387,7 +346,7 @@ fn set_refused(world: &World, label: &str) {
 #[test]
 fn invalid_frame_sets_refuse_before_first_start_writes() {
     for (label, sets) in invalid_sets() {
-        let mut world = World::unopened_observed(41, patches::limits(), None);
+        let mut world = World::unopened_observed(41, upgrade_fixtures::limits(), None);
         world.owner_sets(sets);
         let before = world.contents();
         world.trace_writes();
@@ -401,7 +360,7 @@ fn invalid_frame_sets_refuse_before_first_start_writes() {
 #[test]
 fn invalid_frame_sets_refuse_at_serving_open() {
     for (label, sets) in invalid_sets() {
-        let mut world = World::unopened_observed(41, patches::limits(), None);
+        let mut world = World::unopened_observed(41, upgrade_fixtures::limits(), None);
         world.owner_sets(frame_reads::SETS);
         assert_eq!(world.open_switched(), Some(0));
         assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
@@ -410,7 +369,7 @@ fn invalid_frame_sets_refuse_at_serving_open() {
         let before = world.contents();
         assert_eq!(world.open_switched(), None, "{label}");
         set_refused(&world, label);
-        patches::kept(&before, &world.contents(), &label);
+        upgrade_fixtures::kept(&before, &world.contents(), &label);
     }
 }
 
@@ -454,7 +413,7 @@ fn a_converted_read_cut_at_its_first_and_last_file_operation_preserves_all_files
 }
 
 fn baseline(sets: OwnerSets) -> World {
-    let mut world = World::unopened_observed(41, patches::limits(), None);
+    let mut world = World::unopened_observed(41, upgrade_fixtures::limits(), None);
     world.owner_sets(sets);
     assert_eq!(world.open_switched(), Some(0));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
@@ -476,7 +435,7 @@ fn converted_frames_continue_at_their_own_offsets_in_both_directions() {
         }
         end += log_frame_bytes(&turn);
     }
-    let mut world = fixture(patches::FRAME_VERSION_HEADS, &transcript);
+    let mut world = fixture(upgrade_fixtures::EARLIER_FRAMES, &transcript);
     for turn in 2..=COUNT {
         assert_eq!(
             world.commit(root::turn_commit(u64::from(turn) + 1, frames::TASK, turn, &transcript)),
@@ -485,14 +444,14 @@ fn converted_frames_continue_at_their_own_offsets_in_both_directions() {
     }
     world.crash(42);
     world.owner_sets(frame_reads::SETS);
-    world.open_switched().expect("registry seeded");
+    world.open_switched().expect("register the v2 turn layout");
     let before = world.contents();
     world.trace_writes();
     for backwards in [false, true] {
         let order: Vec<_> = if backwards { (0..COUNT).rev().collect() } else { (0..COUNT).collect() };
         let mut after = None;
         let mut found = Vec::new();
-        for page in order.chunks(skein_lib::length::usize_of(patches::limits().store.page.rows)) {
+        for page in order.chunks(skein_lib::length::usize_of(upgrade_fixtures::limits().store.page.rows)) {
             let events = world.request(ask(TranscriptRead::Page { task: frames::TASK, backwards, after }, READ_BYTES));
             let [Event::Turns { owner, turns, next, cut: None }] = events.as_slice() else {
                 panic!("page terminal: {events:?}")
@@ -526,18 +485,12 @@ fn converted_frames_continue_at_their_own_offsets_in_both_directions() {
 
 #[test]
 fn kept_turn_nodes_are_not_limited_by_encoded_byte_count() {
-    const TEXTS: &[&str] = &[
-        "family fixture-turn 1\nrecord Empty {}\nversioned record Turn { said: text 64 replay: bytes 64 nodes: list 512 Empty }\n",
-        "family fixture-turn 2\nrecord Empty {}\nversioned record Turn { said: text 64 tokens: u32 = 0 nodes: list 512 Empty }\n",
-    ];
+    const OLD: &str = "family fixture-turn 1\nrecord Empty {}\nversioned record Turn { said: text 64 replay: bytes 64 nodes: list 512 Empty }\n";
+    const CURRENT: &str = "family fixture-turn 2\nrecord Empty {}\nversioned record Turn { said: text 64 tokens: u32 = 0 nodes: list 512 Empty }\n";
     const NODE_ITEMS: u32 = 512;
-    const CURRENT: &str = TEXTS.last().expect("kept text");
-    let sets = replaced(
-        Owner::Smith,
-        &[KeptFamily { current: CURRENT, frames: Some(store::Frames { texts: TEXTS, ..TURN_FRAMES }), ..TURN }],
-    );
-    let limits = patches::limits();
-    let (mut component, env) = frame_reads::closed(sets, &limits);
+    let sets = replaced(Owner::Smith, &[KeptFamily { current: CURRENT, ..TURN }]);
+    let limits = upgrade_fixtures::limits();
+    let (mut component, env) = frame_reads::closed_with_old_turn(sets, &limits, OLD);
     frame_reads::open(&mut component, &env);
     for count in [0, NODE_ITEMS] {
         let mut transcript = frame_reads::turn(1, b"", b"x", 0).into_vec();
@@ -552,7 +505,7 @@ fn kept_turn_nodes_are_not_limited_by_encoded_byte_count() {
 #[test]
 fn a_party_turn_uses_converted_bytes() {
     let mut world = fixture(frame_reads::SETS, &frame_reads::turn(1, b"said", b"replay", 0));
-    let events = world.request(party_read(patches::limits().core.load_bytes));
+    let events = world.request(party_read(upgrade_fixtures::limits().core.load_bytes));
     let [Event::Read { owner, result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }) }] =
         events.as_slice()
     else {
@@ -568,19 +521,14 @@ fn a_party_turn_uses_converted_bytes() {
 
 fn foreign(sets: OwnerSets, frames: Option<&'static str>) -> OwnerSets {
     const CURRENT: &str = "family fixture-foreign 1\nversioned record Other { content: bytes 64 }\n";
-    let frames = frames.map(|root| store::Frames { root, texts: &[CURRENT], number: 0 });
+    let frames = frames.map(|root| store::Frames { root, number: 0 });
     let mut sets = sets.sets.to_vec();
     sets.push(OwnerSet {
         jobs: &[],
         owner: Owner::Application,
         name: "fixture-foreign",
         level: Some(0),
-        families: Box::leak(Box::new([KeptFamily {
-            current: "family fixture-foreign 1\nversioned record Other { content: bytes 64 }\n",
-            name: "fixture-foreign",
-            frames,
-            ..BODY
-        }])),
+        families: Box::leak(Box::new([KeptFamily { current: CURRENT, name: "fixture-foreign", frames, ..BODY }])),
     });
     OwnerSets { sets: Box::leak(sets.into_boxed_slice()) }
 }
@@ -588,7 +536,7 @@ fn foreign(sets: OwnerSets, frames: Option<&'static str>) -> OwnerSets {
 #[test]
 fn foreign_frames_refuse_when_every_owner_level_compares() {
     let sets = foreign(frame_reads::SETS, Some("Other"));
-    let mut first = World::unopened_observed(41, patches::limits(), None);
+    let mut first = World::unopened_observed(41, upgrade_fixtures::limits(), None);
     first.owner_sets(sets);
     let before = first.contents();
     first.trace_writes();
@@ -601,7 +549,7 @@ fn foreign_frames_refuse_when_every_owner_level_compares() {
     let before = world.contents();
     assert_eq!(world.open_switched(), None);
     set_refused(&world, "foreign frames with comparable levels");
-    patches::kept(&before, &world.contents(), &"foreign frames");
+    upgrade_fixtures::kept(&before, &world.contents(), &"foreign frames");
 }
 
 #[test]
@@ -618,7 +566,7 @@ fn a_frames_family_in_the_application_slot_refuses_admission() {
         "{:?}",
         world.refusal()
     );
-    patches::kept(&before, &world.contents(), &"level precedes frames");
+    upgrade_fixtures::kept(&before, &world.contents(), &"level precedes frames");
 }
 
 fn party_read(bytes: u64) -> Request {
@@ -644,7 +592,7 @@ fn party_turn_too_large_names_the_converted_charge() {
     let expected = frame_reads::turn(2, b"said", &[], 0);
     let charge = len_u64(frames::frame(6, &expected).len());
     // This admitted request has no room for the turn after its owner's join.
-    let bound = u64::from(patches::limits().store.page.bytes);
+    let bound = u64::from(upgrade_fixtures::limits().store.page.bytes);
     for transcript in [frame_reads::turn(1, b"said", b"x", 0), expected] {
         let mut world = fixture(frame_reads::SETS, &transcript);
         let events = world.request(party_read(bound));

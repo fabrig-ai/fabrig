@@ -46,7 +46,7 @@ fn job_copy_and_reopen_share_one_set_check() {
     let bytes = crate::open::get(&mut store, Token::new(1), key).expect("format read").expect("format row");
     let format = crate::codec::component::Format::decode(&bytes).expect("format");
     assert_eq!(format.levels, crate::levels(&upgrade_sets(1)), "the copy reopened at the binary's levels");
-    assert!(store.directory.patch.is_none(), "the copy's check consumed the patch phase");
+    assert!(store.directory.upgrade_levels.is_none(), "the copy's check consumed the pending upgrade levels");
     once_and_dropped(&store);
 }
 
