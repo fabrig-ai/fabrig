@@ -325,6 +325,7 @@ pub enum Until {
     WiresDurable,
     Phase(jig_domain_core::start::Phase),
     Load(engine::Range),
+    ForgeRead,
 }
 
 impl StartStore {
@@ -405,6 +406,7 @@ impl StartStore {
         assert_eq!(root.start_stop(), None, "start did not refuse");
     }
 
+    #[expect(clippy::too_many_lines, reason = "one store driver handles the typed startup outputs")]
     pub fn advance(
         &mut self,
         root: &mut engine::Domain,
@@ -466,6 +468,12 @@ impl StartStore {
                         let (rows, next) = self.load(&range, after.as_ref(), most);
                         engine::step(root, env, engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                     }
+                    engine::Request::Forge { call, op: skein_forge::api::Op::Read(_), .. }
+                        if let Until::ForgeRead = until =>
+                    {
+                        root.reclaim();
+                        return Some(call);
+                    }
                     engine::Request::Stop => panic!("start stopped: {:?}", root.start_stop()),
                     request @ (engine::Request::Unsettled(_)
                     | engine::Request::Bound { .. }
@@ -496,7 +504,9 @@ impl StartStore {
                     | engine::Request::LimitSettingsCommitted { .. }
                     | engine::Request::Drained) => panic!("unexpected startup output: {request:?}"),
                 }
-            } else if root.ready() {
+            } else if root.ready()
+                && let Until::Open | Until::WiresDurable | Until::Phase(_) | Until::Load(_) = until
+            {
                 assert_eq!(root.start_phase(), None);
                 return None;
             } else {

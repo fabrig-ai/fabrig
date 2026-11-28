@@ -178,6 +178,7 @@ pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
 pub use settings::ForgeCharters;
 pub use temper_engine_domain_forge_vocabulary::settings;
+pub use temper_protocol_temper_dir::{CharterRoom, DeploymentCharters};
 #[cfg(test)]
 mod fuzzy;
 #[cfg(test)]

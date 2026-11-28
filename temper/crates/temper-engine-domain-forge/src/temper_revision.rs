@@ -11,6 +11,16 @@ use crate::{
 const WORDS: usize = 1024;
 
 impl Domain {
+    /// Replace the volatile bounds used at the next judgement, without triggering a read.
+    pub fn give_deployment_charters(&mut self, charters: crate::DeploymentCharters) {
+        self.deployment_charters = charters;
+    }
+
+    #[must_use]
+    pub const fn deployment_charters(&self) -> &crate::DeploymentCharters {
+        &self.deployment_charters
+    }
+
     /// Each forge the project can push to, in writable repository order,
     /// with the host of its first repository.
     #[must_use]
@@ -334,7 +344,7 @@ pub(crate) fn answered(
                 d.temper_revisions.reads.insert(owner, pending).expect("read retains its place");
                 return;
             }
-            let judged = tree.reading.judge(Home::Here);
+            let judged = tree.reading.judge(Home::Here, d.deployment_charters());
             let tip = tree.commit;
             take(d, &pending, Some(tip), judgement(&tree.reading, &judged), out);
             if judged.method {

@@ -617,6 +617,7 @@ impl Domain {
         let mut engine = Engine::new(config.core, &declarations, &core_limits(limits))?;
         // temper/docs/design/domain/agent/agents.md, 2: the person answers in their inbox.
         engine.core_mut().person_answers();
+        forge.give_deployment_charters(crate::deployment_charters::snapshot(engine.core(), limits, &config.host_part));
         Ok(Domain {
             rehearsal: None,
             host_part: config.host_part,

@@ -496,6 +496,14 @@ fn route_engine_with_job(
                 save(decision, &env.limits, Write::Wires);
             }
             core::Request::Write(core::Write::Save(record)) => {
+                if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
+                    history: false,
+                    revision,
+                })) = &record
+                    && revision.head.number == domain.settings_revision()
+                {
+                    domain.give_deployment_charters();
+                }
                 if let core::Record::Core(core::CoreRecord::Part(part)) = &record {
                     domain.hold_bytes(skein_lib::len_u64(part.body.len()));
                 }

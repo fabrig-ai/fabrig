@@ -14,6 +14,7 @@ mod budget;
 mod changes_from;
 mod deadline;
 mod decision;
+mod deployment_charters;
 mod domain;
 mod engine;
 mod journal_stop;
