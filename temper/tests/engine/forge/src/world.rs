@@ -1976,6 +1976,22 @@ impl World {
         panic!("world did not reach horizon");
     }
 
+    /// Give a scripted step its usual tick, then let an in-flight decision
+    /// finish if the forge client's call budget put its reads into the next window.
+    pub(crate) fn run_change_step(&mut self, task: u64) {
+        self.run_for(1);
+        let end = self.env.now.saturating_add(self.env.limits.client.window);
+        for _ in 0..20_000 {
+            if self.seen.iter().any(
+                |request| matches!(request, top::Request::ChangeDecision { task: decided, .. } if *decided == task),
+            ) {
+                return;
+            }
+            assert!(self.iterate(end), "change {task} step made no decision before {end:?}");
+        }
+        panic!("change {task} step did not settle");
+    }
+
     /// The scripted root has woken this procedure in the decision that parks or ends a member.
     pub fn wake_landing(&mut self, task: u64) {
         self.landing_steps.insert(task);
