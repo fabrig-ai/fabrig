@@ -15,7 +15,7 @@ use jig_domain_link::Grant;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
-use skein_lib::{List, ReplyTo, Token, Wall};
+use skein_lib::{ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
 
 /// A complete claim's assignment, root to worker after durability; its
@@ -910,7 +910,6 @@ pub(crate) enum Work {
     RepairFindings { goal: u64, writes: Box<[forge::FindingWrite]> },
     People(people::Event),
     Fleet(fleet::Event),
-    Brief(brief::GatherEvent),
     Forge(forge::Event),
     LandingAdmission { row: forge::LandingRow, names: Box<[forge::Name]> },
     ForgeSettings(skein_lib::Queue<forge::Request>),
@@ -928,12 +927,9 @@ pub(crate) enum Work {
 
 #[derive(Hash, Debug)]
 pub(crate) struct BriefConnector {
-    pub(crate) deadline: skein_lib::Time,
     pub(crate) task: u64,
-    pub(crate) kind: ForgeBriefKind,
+    pub(crate) kind: u16,
     pub(crate) gatherable: bool,
-    pub(crate) active: bool,
-    pub(crate) cutting: bool,
 }
 
 /// Preparation waits for the goal branch before its brief and workspace
@@ -941,29 +937,22 @@ pub(crate) struct BriefConnector {
 #[derive(Hash, Debug)]
 pub(crate) enum WorkspacePreparation {
     Ready(PreparedWorkspace),
-    Brief {
-        parent: Option<u64>,
-        sections: List<jig_domain_brief::Planned>,
-        documents: Box<[jig_domain_core::PlannedDocument]>,
-    },
-    Workspace {
-        attempt: u64,
-        context: Box<jig_domain_tasks::RunContext>,
-    },
+    Brief(Box<jig_domain_contract::parts::Preparation>),
+    Workspace { attempt: u64, context: Box<jig_domain_tasks::RunContext> },
 }
 
 impl WorkspacePreparation {
     pub(crate) fn prepared(&self) -> &PreparedWorkspace {
         match self {
             Self::Ready(prepared) => prepared,
-            Self::Brief { .. } | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
+            Self::Brief(_) | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
         }
     }
 
     pub(crate) fn into_prepared(self) -> PreparedWorkspace {
         match self {
             Self::Ready(prepared) => prepared,
-            Self::Brief { .. } | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
+            Self::Brief(_) | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
         }
     }
 }
@@ -992,6 +981,7 @@ pub(crate) use jig_domain_hub_link::Payload;
 /// (temper/docs/design/domain/root-translation.md, 2.1).
 #[derive(Hash, Debug)]
 pub(crate) struct AssignmentParts {
+    pub sections: Box<[BriefSection]>,
     pub saved: Box<[u64]>,
     pub workstream: u64,
     pub workspace: ForgeWorkspace,

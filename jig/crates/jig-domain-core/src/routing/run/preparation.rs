@@ -15,36 +15,21 @@ use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-pub(crate) fn brief_assembled(
+pub(crate) fn request_workspace(
     core: &mut Core,
-    work: &mut Queue<Work>,
-    task: u64,
-    failure: Option<brief::GatherFailure>,
-) -> Queue<Request> {
-    let mut out = Queue::uncapped();
-    if let Some(failure) = failure {
-        return route_preparation_failed(core, work, task, failure);
-    }
-    let Some(context) = core.contexts.get(&task).cloned() else {
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
-    };
+    context: Box<tasks::RunContext>,
+) -> Result<Request, brief::GatherFailure> {
+    let task = context.task;
     let Some(attempt) = crate::fresh(&mut core.counters, crate::Family::Run) else {
-        return route_preparation_failed(
-            core,
-            work,
-            task,
-            brief::GatherFailure {
-                fate: brief::GatherFate::Permanent,
-                section: b"run",
-                words: Box::from(b"no attempt number is left".as_slice()),
-            },
-        );
+        return Err(brief::GatherFailure {
+            fate: brief::GatherFate::Permanent,
+            section: b"run",
+            words: Box::from(b"no attempt number is left".as_slice()),
+        });
     };
     assert!(core.workspace_flight(task).is_none(), "one workspace flight per task");
     core.fly(crate::routing::flight::Flight::Workspace { task, attempt });
-    out.push(Request::Now(Box::new(Now::WorkspaceRequest { task, attempt, context })));
-    out
+    Ok(Request::Now(Box::new(Now::WorkspaceRequest { task, attempt, context })))
 }
 
 pub(crate) struct Prepared {
@@ -74,16 +59,19 @@ pub(crate) fn workspace_prepared(
     }
     drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
     let Some(context) = core.contexts.get(&task).cloned() else {
+        super::briefs::release(core, task, &mut out);
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     };
     drop(core.dependency_results.remove(&task));
     let Some(writes) = writes else {
+        super::briefs::release(core, task, &mut out);
         work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects })));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     };
     if credentials.len() > skein_lib::length::usize_of(env.limits.accounts.credentials) {
+        super::briefs::release(core, task, &mut out);
         work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects })));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
@@ -120,6 +108,7 @@ pub(crate) fn workspace_prepared(
         crate::RunAdmission::Allow(allowance) => allowance,
         crate::RunAdmission::Wait(_) => return wait_for_readiness(core, work, current),
         crate::RunAdmission::Hold(why) => {
+            super::briefs::release(core, task, &mut out);
             work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why })));
             out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
             return out;
@@ -311,6 +300,7 @@ pub(crate) fn workspace_prepared(
         parts,
         answered,
         grants: grants.into_boxed(),
+        brief: super::briefs::take_complete(core, task),
     })));
     out
 }
@@ -385,6 +375,7 @@ pub(crate) fn wait_for_readiness(
     drop(core.contexts.remove(&task));
     work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
     let mut out = Queue::uncapped();
+    super::briefs::release(core, task, &mut out);
     out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
     out
 }
@@ -442,16 +433,16 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
     out
 }
 
-#[expect(clippy::too_many_lines, reason = "one ordered plan places charter documents after the core's sections")]
+#[expect(clippy::too_many_lines, reason = "one ordered plan builds the core's sections")]
 pub(crate) fn plan_brief(
-    core: &Core,
+    core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     task: u64,
     lines: List<notes::Line>,
     more: u32,
 ) -> Queue<Request> {
-    let mut out = Queue::uncapped();
+    let out = Queue::uncapped();
     let Some(context) = core.contexts.get(&task) else {
         return out;
     };
@@ -582,35 +573,7 @@ pub(crate) fn plan_brief(
             })
             .expect("attempt brief room");
     }
-    let charter = core.charter_of(task);
-    let mut documents = List::with_capacity(env.limits.tasks.charter_documents.min(wanted.room()));
-    for (index, document) in charter.documents.iter().enumerate() {
-        if wanted.room() == 0 {
-            break;
-        }
-        let token = Token::new(u64::try_from(index).expect("document index").checked_add(1).expect("document token"));
-        wanted
-            .push(brief::Planned::Connector {
-                name: b"document",
-                connector: document.connector,
-                kind: crate::DOCUMENT_KIND,
-                token,
-                size: 0,
-                limit: env.limits.brief.read_bytes,
-                priority: crate::DOCUMENT_PRIORITY,
-                required: false,
-            })
-            .expect("document section room checked");
-        documents.push(crate::PlannedDocument { token, document: document.clone() }).expect("charter document bound");
-    }
-    let parent = brief_parent(context.requester);
-    out.push(Request::Now(Box::new(Now::BriefCorePlanned {
-        task,
-        parent,
-        sections: wanted,
-        documents: documents.into_boxed(),
-    })));
-    out
+    super::briefs::plan(core, env, task, wanted)
 }
 
 /// A saved window resumes only on its main model's endpoint (jig/docs/design/domain/engine/executors-transcripts.md, 1).
@@ -656,13 +619,6 @@ fn tail_wanted(core: &Core, task: u64, transient: bool) -> bool {
         return transcript.last.is_some();
     }
     standing || core.transcript_oversized(task) || transient || !core.charter_of(task).policy.resume
-}
-
-pub(crate) fn brief_parent(requester: tasks::Party) -> Option<u64> {
-    match requester {
-        tasks::Party::Task(parent) => Some(parent),
-        tasks::Party::Person(_) | tasks::Party::Deployment { .. } => None,
-    }
 }
 
 pub(crate) fn plan_note_index(
@@ -782,16 +738,21 @@ pub(crate) fn route_preparation_failed(
     task: u64,
     failure: brief::GatherFailure,
 ) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    clear_failed_preparation(core, task, &mut out);
+    let event = preparation_failure(task, failure, &mut out);
+    work.push(Work::Event(Event::Tasks(event)));
+    out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
+    out
+}
+
+pub(crate) fn clear_failed_preparation(core: &mut Core, task: u64, out: &mut Queue<Request>) {
+    super::briefs::release(core, task, out);
     drop(core.job_workspaces.remove(&task));
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
     core.discard_transcript(task);
-    let mut out = Queue::uncapped();
-    let event = preparation_failure(task, failure, &mut out);
-    work.push(Work::Event(Event::Tasks(event)));
-    out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-    out
 }
 
 /// One classification and log route for every brief failure (domain/engine/briefs.md, 1.1).
@@ -838,23 +799,29 @@ pub(crate) fn claim_fits(core: &Core, task: u64, attempt: u64) -> bool {
 }
 
 pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+    if let Some((token, _)) = core.workspace_flight(task)
+        && let Some(super::briefs::Sections::Complete(_)) = core.brief_sections.get(&task)
+    {
+        drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
+        return route_preparation_failed(core, work, task, claim_failure());
+    }
     let mut out = Queue::uncapped();
     if core.claiming.remove(&task).is_some() {
         drop(core.job_workspaces.remove(&task));
         core.restore_replaced_proof(task);
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
-        let event = preparation_failure(
-            task,
-            brief::GatherFailure {
-                fate: brief::GatherFate::Capacity,
-                section: b"claim",
-                words: Box::from(b"refused".as_slice()),
-            },
-            &mut out,
-        );
+        let event = preparation_failure(task, claim_failure(), &mut out);
         work.push(Work::Event(Event::Tasks(event)));
     }
     out
+}
+
+fn claim_failure() -> brief::GatherFailure {
+    brief::GatherFailure {
+        fate: brief::GatherFate::Capacity,
+        section: b"claim",
+        words: Box::from(b"refused".as_slice()),
+    }
 }
 
 pub(crate) fn route_claim_prepared(

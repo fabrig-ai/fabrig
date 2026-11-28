@@ -1,7 +1,11 @@
 //! Core dispatch of the in-process connector port (jig/docs/design/domain/engine/vocabulary.md, 2.5).
 
 use super::{
-    Work, application_routes, children, effect::procedure::ProcedureCall, party, run::delegation, stopping, task, view,
+    Work, application_routes, children,
+    effect::procedure::ProcedureCall,
+    party,
+    run::{briefs, delegation},
+    stopping, task, view,
 };
 use crate::{Core, Limits, Request, judgements::Subject};
 use alloc::boxed::Box;
@@ -84,6 +88,27 @@ pub(super) fn step(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, s
                 core.judgements.answered(source, Subject::Public(token));
                 crate::public::reads::answered(core, token, answer)
             }
+            parts::Up::Planned { task, sections } => briefs::planned(core, env, source, task, sections),
+            parts::Up::Sized { task, section, size } => briefs::step(
+                core,
+                env,
+                jig_domain_brief::GatherEvent::Sized {
+                    brief: skein_lib::Token::new(task),
+                    connector: source,
+                    section,
+                    size,
+                },
+            ),
+            parts::Up::Failed { task, section, failure } => briefs::step(
+                core,
+                env,
+                jig_domain_brief::GatherEvent::Missing {
+                    brief: skein_lib::Token::new(task),
+                    connector: source,
+                    section,
+                    why: failure,
+                },
+            ),
             parts::Up::Marked { tasks } => {
                 view::part_marks::records(core, source, &tasks);
                 stopping::empty()

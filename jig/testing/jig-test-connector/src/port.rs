@@ -34,6 +34,7 @@ pub(crate) struct Port {
     interests: Map<u64, (u64, u16)>,
     documents: Map<Token, crate::ClientDocument>,
     parts: Option<Queue<parts::PartsAsk>>,
+    brief_failure: Option<parts::Failure>,
     releases: Option<Queue<u32>>,
     delay_reports: Queue<bool>,
     reports: Queue<resources::Up>,
@@ -51,6 +52,7 @@ impl Port {
             interests: Map::with_capacity(limits.subscriptions),
             documents: Map::with_capacity(limits.values),
             parts: None,
+            brief_failure: None,
             releases: None,
             delay_reports: Queue::uncapped(),
             reports: Queue::uncapped(),
@@ -67,6 +69,10 @@ impl Domain {
 
     pub fn take_document(&mut self, watcher: Token) -> Option<crate::ClientDocument> {
         self.port.documents.remove(&watcher)
+    }
+
+    pub fn script_brief_failure(&mut self, failure: Option<parts::Failure>) {
+        self.port.brief_failure = failure;
     }
 
     pub fn script_parts(&mut self) {
@@ -528,6 +534,30 @@ fn part_ask(domain: &mut Domain, env: &Env<Limits>, ask: parts::Ask, raw: &mut Q
         parts::Ask::Document { watcher, scope, subject, party, window } => {
             Event::Document { watcher, scope: scope_of(scope), subject, party, window: window_of(window) }
         }
+        parts::Ask::Plan(preparation) => {
+            let task = preparation.task;
+            let sections = match &domain.port.brief_failure {
+                Some(failure) => Box::from([parts::Section {
+                    token: Token::new(task),
+                    kind: 1,
+                    name: failure.section,
+                    size: 0,
+                    limit: preparation.budget,
+                    priority: 0,
+                    required: true,
+                    document: None,
+                }]),
+                None => Box::<[parts::Section]>::from([]),
+            };
+            out.push(Out::Up(jig::Up::Parts(parts::Up::Planned { task, sections })));
+            return;
+        }
+        parts::Ask::Gather { task, section, .. } => {
+            let failure = domain.port.brief_failure.clone().expect("only a scripted failure plans a section");
+            out.push(Out::Up(jig::Up::Parts(parts::Up::Failed { task, section, failure })));
+            return;
+        }
+        parts::Ask::Abandon { .. } | parts::Ask::Cut { .. } | parts::Ask::Drop { .. } => return,
         parts::Ask::DropDocument { subject } => Event::DocumentForget { subject },
     };
     crate::step_system(domain, env, event, raw);

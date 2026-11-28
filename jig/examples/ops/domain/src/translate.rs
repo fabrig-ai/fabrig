@@ -65,12 +65,14 @@ pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Lim
                 waits_for_dependencies: false,
             }]),
             projects_goals: false,
+            sections: false,
         },
         Declaration {
             connector: ContractConnector(number(Connector::Infrastructure)),
             resources: hold_kinds(infrastructure),
             effects: effect_kinds(infrastructure, backend),
             projects_goals: false,
+            sections: false,
         },
     ]
 }

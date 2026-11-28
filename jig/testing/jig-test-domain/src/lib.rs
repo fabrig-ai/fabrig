@@ -368,7 +368,6 @@ impl Config {
 #[expect(clippy::struct_excessive_bools, reason = "catalogue release and restart progress are independent")]
 pub struct Domain {
     scripted_workspaces: Option<Queue<core::Event>>,
-    scripted_brief_failure: Option<jig_domain_brief::GatherFailure>,
     brief_failures: Queue<(u64, jig_domain_brief::GatherFailure)>,
     hub_link: jig_domain_hub_link::Link,
     engine: Engine,
@@ -446,7 +445,7 @@ impl Domain {
 
     /// Fail each brief assembly until the world clears the script.
     pub fn script_brief_failure(&mut self, failure: Option<jig_domain_brief::GatherFailure>) {
-        self.scripted_brief_failure = failure;
+        self.first.script_brief_failure(failure);
     }
 
     /// Take one failure observed by the application's log route.
@@ -604,7 +603,6 @@ impl Domain {
         second.address(Connector(2));
         Domain {
             scripted_workspaces: None,
-            scripted_brief_failure: None,
             brief_failures: Queue::uncapped(),
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {

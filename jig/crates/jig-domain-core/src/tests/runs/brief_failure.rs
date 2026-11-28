@@ -1,6 +1,8 @@
 //! Brief failure classification at bounded core routes (domain/engine/briefs.md, 1.1).
+use super::briefs::{self, SERVING, plan_fixture, section};
 use crate::tests::*;
 use jig_domain_brief as brief;
+use jig_domain_contract::parts;
 use jig_domain_link::{Form, Scheme};
 
 fn preparing() -> (Core, Limits) {
@@ -26,57 +28,65 @@ fn logged(out: &[Request], expected: brief::GatherFailure) {
 
 #[test]
 fn a_required_child_section_keeps_its_failure_and_releases_preparation() {
-    let (mut core, limits) = preparing();
-    let section = Token::new(19);
-    watch_outputs(
-        &mut core,
-        &limits,
-        Event::Brief(brief::GatherEvent::Plan {
-            brief: Token::new(1),
-            budget: 128,
-            deadline: Time::from_nanos(100),
-            sections: Box::new([brief::Planned::Connector {
-                name: b"context",
-                connector: 1,
-                kind: 1,
-                token: section,
-                size: 0,
-                limit: 128,
-                priority: 0,
-                required: true,
-            }]),
-        }),
-    );
-    let failure = brief::GatherFailure {
-        fate: brief::GatherFate::Transient,
-        section: b"context",
-        words: Box::from(b"not gathered by its deadline".as_slice()),
-    };
-    let out = watch_outputs(
-        &mut core,
-        &limits,
-        Event::Brief(brief::GatherEvent::Missing { brief: Token::new(1), section, why: failure.clone() }),
-    );
-    logged(&out, failure.clone());
-    assert_eq!(core.tasks.task(1).unwrap().tries.transient, 1);
-    assert_eq!(
-        core.tasks.task(1).unwrap().retry_notice,
-        Some(tasks::RetryNotice::Failed {
-            class: tasks::Class::Transient,
-            count: 1,
-            allowance: limits.tasks.retries.transient.retries,
-            reason: Some(failure.reason()),
-        })
-    );
-    assert!(core.contexts.is_empty());
-    assert!(core.transcripts.is_empty());
+    for (fate, class) in
+        [(parts::Fate::Transient, tasks::Class::Transient), (parts::Fate::Infrastructure, tasks::Class::Infrastructure)]
+    {
+        let (mut core, limits) =
+            briefs::tree_with_sections(&[SERVING], brief::Limits { sections: 8, ..limits().brief });
+        briefs::prepare(&mut core, &limits, 1);
+        plan_fixture(&mut core, &limits, 1);
+        let home = Token::new(19);
+        let pull = Token::new(20);
+        watch_connector_outputs(
+            &mut core,
+            &limits,
+            SERVING,
+            contract::Up::Parts(parts::Up::Planned {
+                task: 1,
+                sections: Box::new([section(b"home", home, 1, 128), section(b"pull", pull, 2, 128)]),
+            }),
+        );
+        let failure =
+            brief::GatherFailure { fate, section: b"home", words: Box::from(b"could not read its context".as_slice()) };
+        let out = watch_connector_outputs(
+            &mut core,
+            &limits,
+            SERVING,
+            contract::Up::Parts(parts::Up::Failed { task: 1, section: home, failure: failure.clone() }),
+        );
+        let mut dropped = List::with_capacity(2);
+        for request in &out {
+            if let Request::Ask {
+                connector: SERVING,
+                ask: Ask::Connector(contract::Ask::Parts(parts::Ask::Drop { task: 1, section })),
+            } = request
+            {
+                dropped.push(*section).unwrap();
+            }
+        }
+        assert_eq!(dropped.as_slice(), [home, pull]);
+        logged(&out, failure.clone());
+        let (tries, allowance) = if class == tasks::Class::Transient {
+            (core.tasks.task(1).unwrap().tries.transient, limits.tasks.retries.transient.retries)
+        } else {
+            (core.tasks.task(1).unwrap().tries.infrastructure, limits.tasks.retries.infrastructure.retries)
+        };
+        assert_eq!(tries, 1);
+        assert_eq!(
+            core.tasks.task(1).unwrap().retry_notice,
+            Some(tasks::RetryNotice::Failed { class, count: 1, allowance, reason: Some(failure.reason()) })
+        );
+        assert!(core.contexts.is_empty());
+        assert!(core.transcripts.is_empty());
+        assert!(core.brief.is_idle());
+    }
 }
 
 #[test]
 fn an_exhausted_run_number_counts_as_permanent_and_tells_the_root() {
     let (mut core, limits) = preparing();
     core.counters.deployment.runs = u64::MAX;
-    let out = watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+    let out = plan_fixture(&mut core, &limits, 1);
     let failure = brief::GatherFailure {
         fate: brief::GatherFate::Permanent,
         section: b"run",
@@ -147,7 +157,7 @@ fn an_unread_core_section_counts_as_permanent() {
     limits.brief_parts = 0;
     let mut work = Queue::uncapped();
     let out = crate::routing::run::preparation::plan_brief(
-        &core,
+        &mut core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
         &mut work,
         1,
@@ -190,7 +200,7 @@ fn a_full_proof_table_pauses_before_claiming_an_agent() {
         let task = u64::from(task);
         core.proofs.insert(task, RunProof::claimed(task, 1, 1, None, fleet::HostKind::Worker)).unwrap();
     }
-    watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+    plan_fixture(&mut core, &limits, 1);
     let attempt = core.workspace_flight(1).unwrap().1;
     let out = watch_outputs(
         &mut core,

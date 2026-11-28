@@ -102,7 +102,8 @@ fn a_cut_page_finishes_a_fresh_brief_with_its_tail() {
 }
 
 fn assert_fresh_brief_tail(cut: bool) {
-    let (mut core, mut limits) = make_tree();
+    use jig_domain_contract::parts;
+    let (mut core, mut limits) = super::briefs::tree_with_sections(&[1], limits().brief);
     limits.brief_core_budgets.tail = 90;
     limits.brief_core_budgets.task = 128;
     core.settings.tail_bytes = 90;
@@ -142,27 +143,42 @@ fn assert_fresh_brief_tail(cut: bool) {
             out = watch_store_outputs(&mut core, &limits, point_answer(owner, None, false));
         }
     }
-    let mut planned = false;
-    for request in out {
-        if let Request::Now(now) = request
-            && let Now::BriefCorePlanned { sections, .. } = *now
+    let mut tail_claim = None;
+    for request in &out {
+        if let Request::Ask { connector: 1, ask: Ask::Connector(contract::Ask::Parts(parts::Ask::Plan(plan))) } =
+            request
         {
-            for section in &sections {
-                if let jig_domain_brief::Planned::Core {
-                    kind: jig_domain_brief::Core::TranscriptTail,
-                    text,
-                    limit,
-                    ..
-                } = section
-                {
-                    assert_eq!(*limit, 90);
-                    assert_eq!(text.as_ref(), expected.as_ref());
-                    planned = true;
-                }
-            }
+            // The task's required text precedes the required tail.
+            tail_claim = plan.core.get(1);
         }
     }
-    assert!(planned, "fresh brief plans its text tail");
+    let tail_claim = tail_claim.expect("planned tail claim");
+    assert_eq!((tail_claim.size, tail_claim.limit), (u32::try_from(expected.len()).unwrap(), 90));
+    let out = watch_connector_outputs(
+        &mut core,
+        &limits,
+        1,
+        contract::Up::Parts(parts::Up::Planned { task: 1, sections: Box::new([]) }),
+    );
+    let mut workspace = false;
+    for request in out {
+        if let Request::Now(now) = request
+            && let Now::WorkspaceRequest { task: 1, .. } = now.as_ref()
+        {
+            workspace = true;
+        }
+    }
+    assert!(workspace, "completed brief asks for the workspace");
+    let Some(crate::routing::run::briefs::Sections::Complete(sections)) = core.brief_sections.get(&1) else {
+        panic!("completed brief")
+    };
+    for section in sections {
+        if let brief::GatherPlaced::Core { kind: brief::Core::TranscriptTail, text } = section {
+            assert_eq!(text.as_ref(), expected.as_ref());
+            return;
+        }
+    }
+    panic!("fresh brief keeps its tail");
 }
 
 #[test]
@@ -260,7 +276,7 @@ fn assert_prepares(
     };
     append(&mut core, turn, body);
     assert_eq!(tail(&core, tail_bytes).as_ref(), expected_tail);
-    let _out = watch_outputs(&mut core, limits, Event::BriefAssembled { task: 1, failure: None });
+    let _out = super::briefs::plan_fixture(&mut core, limits, 1);
     let attempt = core.workspace_flight(1).unwrap().1;
     let out = watch_outputs(
         &mut core,

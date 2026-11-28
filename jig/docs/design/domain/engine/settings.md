@@ -406,10 +406,11 @@ document goes in the charter's instructions.
   (1, *shape*), and keeps the documents with the charter, versioned
   and pinned with it (3), so a run reads the documents its
   revision's charter names.
-- **Planned with the brief:** the core binds each document to a
-  section's token in the plan it hands the root, optional, after its own
-  sections and before the task's resources' (`briefs.md`, section 1), and the root
-  gives each document to its connector before the gather. A start whose
+- **Planned with the brief:** the core gives each document that has a
+  slot to the connectors in the brief's preparation context, and the
+  connector that owns it plans its section, optional, placed after the
+  core's own sections and before the task's resources' (`briefs.md`, 1.4). A document
+  whose connector serves no sections is not in the brief. A start whose
   brief's sections cannot hold the core's own most and a charter's
   documents is refused, naming both limits.
 - **Gathered for each run** as a brief section of the connector that
@@ -447,10 +448,9 @@ the charter again.
 The configuration and service start check that brief sections hold the
 core's own most and `tasks.charter_documents`, naming both limits on
 refusal. The core's in-code validity check does not require this relation:
-fixtures may supply fewer sections. The core then plans documents in charter
-order only while room remains after its own sections, omitting a document
-from both the section plan and the root's document list when no room remains
-(2026-11-04).
+fixtures may supply fewer sections. The core then gives documents in charter
+order only while room remains after its own sections, leaving a document
+out of the preparation context when no room remains (2026-11-04).
 
 ## 10. Restoring a version
 

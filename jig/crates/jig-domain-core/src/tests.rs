@@ -421,7 +421,13 @@ pub(crate) fn limits() -> Limits {
         authority: authority_limits(),
         people,
         fleet,
-        brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
+        brief: jig_domain_brief::Limits {
+            briefs: 2,
+            sections: 3,
+            read_bytes: 256,
+            brief_bytes: 384,
+            gather: Duration::from_secs(30),
+        },
         brief_parts: 2,
         brief_core_budgets: CoreBriefBudgets {
             tail: 128,
@@ -1169,7 +1175,19 @@ fn tree_core_with_capabilities(
     more_effects: &[u16],
     projects: &[u16],
 ) -> (Core, Limits) {
+    tree_core_with_declarations(effects, resources, more_effects, projects, &[], limits().brief)
+}
+
+fn tree_core_with_declarations(
+    effects: Box<[jig_domain_contract::effects::EffectKind]>,
+    resources: Box<[tasks::ResourceKind]>,
+    more_effects: &[u16],
+    projects: &[u16],
+    sections: &[u16],
+    brief: jig_domain_brief::Limits,
+) -> (Core, Limits) {
     let (old, mut limits) = core();
+    limits.brief = brief;
     limits.views.watchers = 8;
     limits.views.watchers_per_party = 8;
     limits.tasks.tasks = 16;
@@ -1195,6 +1213,9 @@ fn tree_core_with_capabilities(
     let Some(declaration) = connectors.get_mut(1) else { panic!("second connector") };
     assert_eq!(declaration.connector, jig_domain_contract::Connector(2));
     declaration.resources = resources;
+    for declaration in &mut connectors {
+        declaration.sections = sections.contains(&declaration.connector.0);
+    }
     let mut core = seeded_core_with_declarations(config, &connectors, &limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     core.people = old.people;

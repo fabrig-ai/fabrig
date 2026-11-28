@@ -375,6 +375,11 @@ fn documents(domain: &mut Domain, env: &Env<Limits>, ask: parts::Ask, out: &mut 
             };
             parts::Up::Made { watcher, outcome }
         }
+        parts::Ask::Plan(_)
+        | parts::Ask::Abandon { .. }
+        | parts::Ask::Gather { .. }
+        | parts::Ask::Cut { .. }
+        | parts::Ask::Drop { .. } => return,
         parts::Ask::DropDocument { subject } => {
             domain.client_subjects.remove(&subject);
             domain.port.documents.remove(&subject);

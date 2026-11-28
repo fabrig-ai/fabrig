@@ -42,8 +42,6 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::NoteBusy { .. }
                 | Now::DropAssignment { .. }
                 | Now::Activate { .. }
-                | Now::CompleteBrief { .. }
-                | Now::BriefCorePlanned { .. }
                 | Now::WorkspaceRequest { .. }
                 | Now::RunPreparationFailed { .. }
                 | Now::BriefFailed { .. }

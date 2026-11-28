@@ -3,6 +3,7 @@ pub mod application;
 pub mod catalogue;
 pub mod change;
 pub mod charters;
+pub use charters::Document;
 pub mod check;
 pub mod fleet_needs;
 pub mod models;
@@ -744,7 +745,7 @@ impl Record {
 #[must_use]
 pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
     let segment = u64::from(limits.authority.segment_bytes).checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
-    let document = u64::try_from(size_of::<crate::Document>())
+    let document = u64::try_from(size_of::<Document>())
         .ok()?
         .checked_add(u64::from(limits.authority.segments).checked_mul(segment)?)?
         .checked_add(u64::from(crate::DOCUMENT_PATH_BYTES))?
@@ -789,7 +790,7 @@ pub fn current_bound(limits: &crate::Limits) -> Option<u64> {
         u64::from(limits.tasks.charters).checked_mul(
             u64::from(limits.run_bytes).checked_add(
                 u64::from(limits.tasks.charter_documents).checked_mul(
-                    u64::try_from(size_of::<crate::Document>())
+                    u64::try_from(size_of::<Document>())
                         .ok()?
                         .checked_add(
                             u64::from(limits.authority.segments).checked_mul(

@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-27. Where jig's code lags or departs from [root.md](root.md).
+2026-11-28. Where jig's code lags or departs from [root.md](root.md).
 
 
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its

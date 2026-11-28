@@ -6,6 +6,7 @@ use crate::{
     engine::store,
     routing::{
         NoteBrief, NoteRoute, Work,
+        flight::Flight,
         party::dispatch::{Party, Routed},
         refusals::note_person_refusal,
         run::calls::call_decision,
@@ -194,6 +195,7 @@ pub(crate) fn tag_notes(
                     NoteRoute::Brief { .. }
                     | NoteRoute::Preferences { .. }
                     | NoteRoute::Now { .. }
+                    | NoteRoute::AbandonedPreparation
                     | NoteRoute::Deletion { .. },
                 ) => {
                     unreachable!("note reads and project deletion cannot write an entry")
@@ -212,6 +214,7 @@ pub(crate) fn tag_notes(
                     NoteRoute::Brief { .. }
                     | NoteRoute::Preferences { .. }
                     | NoteRoute::Now { .. }
+                    | NoteRoute::AbandonedPreparation
                     | NoteRoute::Deletion { .. },
                 ) => {
                     unreachable!("note indexes and project deletion cannot delete one entry")
@@ -234,6 +237,7 @@ pub(crate) fn tag_notes(
                 ) => {
                     unreachable!("a run owns this recall")
                 }
+                Some(NoteRoute::AbandonedPreparation) => {}
                 None => out.push(Request::Now(Box::new(Now::NotesRecalled { owner, entries, more }))),
             },
             notes::Request::Indexed { owner, lines, more } => match core.take_note(owner) {
@@ -245,6 +249,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Call { .. } | NoteRoute::Person { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("brief preparation owns note index")
                 }
+                Some(NoteRoute::AbandonedPreparation) => {}
                 None => out.push(Request::Now(Box::new(Now::NotesIndexed { owner, lines, more }))),
             },
             notes::Request::Refused { owner, why } => match core.take_note(owner) {
@@ -310,12 +315,35 @@ pub(crate) fn tag_notes(
                 }
                 Some(NoteRoute::Now { task }) => crate::routing::run::now::refused(core, work, task, why),
                 Some(NoteRoute::Deletion { project }) => crate::admission::deletion::notes_refused(core, project),
+                Some(NoteRoute::AbandonedPreparation) => {}
                 None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
             },
         }
     }
     resume_brief(core, work);
     out
+}
+
+/// Only the preparation that asked for notes may use the answer. Keep the
+/// route until the child answers, so that its terminal is consumed here.
+pub(crate) fn abandon_preparation(core: &mut Core, task: u64) {
+    let _pending = core.pending_note_briefs.remove(&task);
+    let mut owner = None;
+    for (id, flight) in &core.flights {
+        if let Flight::Note(
+            NoteRoute::Brief { task: preparing }
+            | NoteRoute::Preferences { task: preparing }
+            | NoteRoute::Now { task: preparing },
+        ) = flight
+            && *preparing == task
+        {
+            owner = Some(id);
+            break;
+        }
+    }
+    if let Some(owner) = owner {
+        *core.flights.get_mut(owner).expect("pending notes route") = Flight::Note(NoteRoute::AbandonedPreparation);
+    }
 }
 
 pub(crate) fn resume_brief(core: &mut Core, work: &mut Queue<Work>) {
